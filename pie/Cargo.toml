@@ -1,0 +1,6 @@
+[package]
+name = "pie"
+version = "0.1.0"
+authors = ["Gabriel Konat <gabrielkonat@gmail.com>"]
+edition = "2021"
+publish = false
