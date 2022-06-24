@@ -12,7 +12,7 @@ use anymap::AnyMap;
 // Context
 
 pub trait Context {
-  fn depend<D: Dependency, B: Borrow<D>>(&mut self, dependency: B) -> D::Output;
+  fn require<D: RequirableDependency, B: Borrow<D>>(&mut self, dependency: B) -> D::Output;
 }
 
 // Task + implementations
@@ -40,7 +40,7 @@ impl Task for ReadFileToString {
   type Output = Result<String, std::io::Error>;
   #[inline]
   fn execute<C: Context>(&self, context: &mut C) -> Self::Output {
-    let mut file = context.depend(FileDependency::new(self.path.clone()))?;
+    let mut file = context.require(FileDependency::new(self.path.clone()))?;
     let mut string = String::new();
     file.read_to_string(&mut string)?;
     Ok(string)
@@ -57,10 +57,13 @@ impl Task for ReadFileToString {
 
 // Dependency + implementations
 
-pub trait Dependency {
+pub trait RequirableDependency {
   type Output;
-  fn depend<C: Context>(&self, context: &mut C) -> Self::Output;
-  fn is_consistent<C: Context>(&self, context: &mut C, store: &mut Store) -> Result<bool, Box<dyn Error>>;
+  fn require<C: Context + 'static>(&self, context: &mut C, store: &mut Store) -> Self::Output;
+}
+
+pub trait CheckableDependency<C: Context> {
+  fn check_consistency(&self, context: &mut C, store: &mut Store) -> Result<bool, Box<dyn Error>>;
 }
 
 // Task dependency
@@ -74,21 +77,36 @@ impl<T: Task> TaskDependency<T> {
   pub fn new(task: T) -> Self { Self { task } }
 }
 
-impl<T: Task> Dependency for TaskDependency<T> {
+impl<T: Task> RequirableDependency for TaskDependency<T> {
   type Output = T::Output;
   #[inline]
-  fn depend<C: Context>(&self, context: &mut C) -> Self::Output {
-    self.task.execute(context)
+  fn require<C: Context + 'static>(&self, context: &mut C, store: &mut Store) -> Self::Output {
+    context.require::<Self, _>(self)
+    // if let Some(task_dependencies) = store.task_dependencies.get::<HashMap<T::Key, Vec<Box<dyn CheckableDependency<C>>>>>() {
+    //   if let Some(dependencies) = task_dependencies.get(self.task.key()) {
+    //     for dependency in dependencies {
+    //       if !dependency.check_consistency(context, store) {}
+    //     }
+    //   }
+    // } else {
+    //   // Task has not been executed yet: execute it and
+    // }
+    // // TODO: check dependencies
+    // // TODO: require and check output; re-execute if needed
+    // self.task.execute(context)
   }
+}
+
+impl<T: Task, C: Context> CheckableDependency<C> for TaskDependency<T> {
   #[inline]
-  fn is_consistent<C: Context>(&self, context: &mut C, store: &mut Store) -> Result<bool, Box<dyn Error>> {
+  fn check_consistency(&self, context: &mut C, store: &mut Store) -> Result<bool, Box<dyn Error>> {
     if let Some(task_outputs) = store.task_outputs.get::<HashMap<T::Key, T::Output>>() {
       if let Some(previous_output) = task_outputs.get(self.task.key()) {
-        let output: Self::Output = self.task.execute(context);
+        let output: T::Output = context.require::<Self, _>(self);
         return Ok(T::output_equal(&output, previous_output));
       }
     }
-    Ok(false)
+    Ok(false) // Has not been executed before
   }
 }
 
@@ -105,12 +123,15 @@ impl FileDependency {
   fn open(&self) -> std::io::Result<File> { File::open(&self.path) }
 }
 
-impl Dependency for FileDependency {
+impl RequirableDependency for FileDependency {
   type Output = Result<File, std::io::Error>;
   #[inline]
-  fn depend<C: Context>(&self, _context: &mut C) -> Self::Output { self.open() }
+  fn require<C: Context>(&self, _context: &mut C, _store: &mut Store) -> Self::Output { self.open() }
+}
+
+impl<C: Context> CheckableDependency<C> for FileDependency {
   #[inline]
-  fn is_consistent<C: Context>(&self, _context: &mut C, store: &mut Store) -> Result<bool, Box<dyn Error>> {
+  fn check_consistency(&self, _context: &mut C, store: &mut Store) -> Result<bool, Box<dyn Error>> {
     let consistent = if let Some(previous_modified) = store.file_modification_dates.get(&self.path) {
       let modified = self.open()?.metadata()?.modified()?;
       modified == *previous_modified
@@ -125,6 +146,7 @@ impl Dependency for FileDependency {
 
 pub struct Store {
   task_outputs: AnyMap,
+  task_dependencies: AnyMap,
   file_modification_dates: HashMap<PathBuf, SystemTime>,
 }
 
@@ -134,8 +156,9 @@ pub struct NaiveRunner {}
 
 impl Context for NaiveRunner {
   #[inline]
-  fn depend<D: Dependency, B: Borrow<D>>(&mut self, dependency: B) -> D::Output {
-    dependency.borrow().depend(self)
+  fn require<D: RequirableDependency, B: Borrow<D>>(&mut self, dependency: B) -> D::Output {
+    // dependency.borrow().require(self)
+    todo!()
   }
 }
 
@@ -147,7 +170,7 @@ pub struct TopDownRunner {
 }
 
 impl Context for TopDownRunner {
-  fn depend<D: Dependency, B: Borrow<D>>(&mut self, _dependency: B) -> D::Output {
+  fn require<D: RequirableDependency, B: Borrow<D>>(&mut self, _dependency: B) -> D::Output {
     // TODO: check consistency of the dependency itself
     // TODO: check consistency of the dependencies of the dependency
     todo!()
