@@ -10,7 +10,7 @@ use std::path::PathBuf;
 use std::time::SystemTime;
 
 use anymap::AnyMap;
-use dyn_clone::{clone_box, DynClone};
+use dyn_clone::DynClone;
 
 // Task key
 
@@ -104,9 +104,8 @@ pub trait Task: Clone {
   type Key: Eq + Hash + Clone + 'static;
   fn key(&self) -> &Self::Key;
 
-  type Output: 'static;
+  type Output: Eq + Clone + 'static;
   fn execute(&self, context: &mut Context) -> Self::Output;
-  fn output_equal(output_a: &Self::Output, output_b: &Self::Output) -> bool;
 }
 
 // Read file to string task
@@ -121,21 +120,13 @@ impl Task for ReadFileToString {
   #[inline]
   fn key(&self) -> &Self::Key { &self.path }
 
-  type Output = Result<String, std::io::Error>;
+  type Output = Result<String, std::io::ErrorKind>;
   #[inline]
   fn execute(&self, context: &mut Context) -> Self::Output {
-    let mut file = context.require_file(&self.path)?;
+    let mut file = context.require_file(&self.path).map_err(|e| e.kind())?;
     let mut string = String::new();
-    file.read_to_string(&mut string)?;
+    file.read_to_string(&mut string).map_err(|e| e.kind())?;
     Ok(string)
-  }
-  #[inline]
-  fn output_equal(output_a: &Self::Output, output_b: &Self::Output) -> bool {
-    match (output_a, output_b) {
-      (Ok(str_a), Ok(str_b)) => str_a == str_b,
-      (Err(_), Err(_)) => true,
-      _ => false,
-    }
   }
 }
 
@@ -166,10 +157,10 @@ impl<T: Task> TaskDependency<T> {
 impl<T: Task> Dependency for TaskDependency<T> {
   #[inline]
   fn is_consistent(&self, context: &mut Context, store: &mut Store) -> Result<bool, Box<dyn Error>> {
-    if let Some(task_outputs) = store.task_outputs.get::<HashMap<T::Key, T::Output>>() {
+    if let Some(task_outputs) = store.get_task_output_map::<T>() {
       if let Some(previous_output) = task_outputs.get(self.task.key()) {
         let output: T::Output = context.require_task::<T>(&self.task)?;
-        return Ok(T::output_equal(&output, previous_output));
+        return Ok(output == *previous_output);
       }
     }
     Ok(false) // Has not been executed before
@@ -212,8 +203,21 @@ pub struct Store {
 }
 
 impl Store {
+  #[inline]
   fn get_task_dependencies_map_mut<T: Task>(&mut self) -> &mut HashMap<T::Key, Vec<Box<dyn Dependency>>> {
     self.task_dependencies.entry::<HashMap<T::Key, Vec<Box<dyn Dependency>>>>().or_insert_with(|| HashMap::default())
+  }
+  #[inline]
+  fn get_task_output_map<T: Task>(&self) -> Option<&HashMap<T::Key, T::Output>> {
+    self.task_outputs.get::<HashMap<T::Key, T::Output>>()
+  }
+  #[inline]
+  fn get_task_output_map_mut<T: Task>(&mut self) -> &mut HashMap<T::Key, T::Output> {
+    self.task_outputs.entry::<HashMap<T::Key, T::Output>>().or_insert_with(|| HashMap::default())
+  }
+  #[inline]
+  fn get_task_output<T: Task>(&self, task_key: &T::Key) -> Option<&T::Output> {
+    self.get_task_output_map::<T>().map_or(None, |map| map.get(task_key))
   }
 }
 
@@ -238,10 +242,11 @@ impl TopDownRunner {
   pub fn require_task<T: Task>(&mut self, task: &T) -> Result<T::Output, Box<dyn Error>> {
     let mut context = Context::new(Box::new(task.key().clone()));
     if self.should_execute_task(task, &mut context)? {
-      // TODO: store dependencies that the task made!
-      Ok(task.execute(&mut context))
+      TaskExecutor::execute(task, &mut context, &mut self.store)
     } else {
-      todo!("Task is consistent; return task output from storage")
+      // Unwrap OK: if we should not execute the task, it must have been executed before, and therefore it has an output.
+      let output = self.store.get_task_output::<T>(task.key()).unwrap().clone();
+      Ok(output)
     }
   }
 
@@ -264,5 +269,18 @@ impl TopDownRunner {
       // Task has not been executed before, therefore we need to execute it.
       Ok(true)
     }
+  }
+}
+
+// Task executor
+
+pub struct TaskExecutor {}
+
+impl TaskExecutor {
+  fn execute<T: Task>(task: &T, context: &mut Context, store: &mut Store) -> Result<T::Output, Box<dyn Error>> {
+    let output = task.execute(context);
+    // TODO: store dependencies that the task made!
+    // TODO: store output of the task!
+    Ok(output)
   }
 }
