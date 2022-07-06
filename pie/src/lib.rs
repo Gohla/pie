@@ -1,33 +1,117 @@
-use std::borrow::Borrow;
+// Using Eq/PartialEq/Hash as trait objects: https://users.rust-lang.org/t/workaround-for-hash-trait-not-being-object-safe/53332/8 and https://play.rust-lang.org/?version=stable&mode=debug&edition=2018&gist=3a6d8b0a2e45ee2392b68f36c79d6173 and https://github.com/dtolnay/dyn-clone
+
+use std::any::Any;
 use std::collections::HashMap;
 use std::error::Error;
 use std::fs::File;
-use std::hash::Hash;
+use std::hash::{Hash, Hasher};
 use std::io::Read;
 use std::path::PathBuf;
 use std::time::SystemTime;
 
 use anymap::AnyMap;
+use dyn_clone::{clone_box, DynClone};
+
+// Task key
+
+trait DynEq {
+  fn dyn_eq(&self, other: &dyn Any) -> bool;
+}
+
+impl<T: Eq + Any> DynEq for T {
+  #[inline]
+  fn dyn_eq(&self, other: &dyn Any) -> bool {
+    if let Some(other) = other.downcast_ref::<Self>() {
+      self == other
+    } else {
+      false
+    }
+  }
+}
+
+trait DynHash {
+  fn dyn_hash(&self, state: &mut dyn Hasher);
+}
+
+impl<H: Hash + ?Sized> DynHash for H {
+  #[inline]
+  fn dyn_hash(&self, mut state: &mut dyn Hasher) {
+    self.hash(&mut state);
+  }
+}
+
+// trait AsAny {
+//   fn as_any(&self) -> &dyn Any;
+// }
+// 
+// impl<T: Any> AsAny for T {
+//   fn as_any(&self) -> &dyn Any {
+//     self
+//   }
+// }
+
+trait TaskKey: DynEq + DynHash + DynClone {}
+
+impl<T: DynEq + DynHash + DynClone + 'static + ?Sized> TaskKey for T {}
+
+// impl PartialEq for dyn TaskKey {
+//   fn eq(&self, other: &dyn TaskKey) -> bool {
+//     DynEq::dyn_eq(self, other.as_any())
+//   }
+// }
+// 
+// impl Eq for dyn TaskKey {}
+// 
+// impl Hash for dyn TaskKey {
+//   fn hash<H: Hasher>(&self, state: &mut H) {
+//     self.dyn_hash(state);
+//   }
+// }
+// 
+// impl Clone for Box<dyn TaskKey> {
+//   fn clone(&self) -> Box<dyn TaskKey> {
+//     dyn_clone::clone_box(self)
+//   }
+// }
+
 
 // Context
 
-pub trait Context {
-  fn require<D: RequirableDependency, B: Borrow<D>>(&mut self, dependency: B) -> D::Output;
+pub struct Context {
+  current_task_key: Box<dyn TaskKey>,
+}
+
+impl Context {
+  fn new(current_task_key: Box<dyn TaskKey>) -> Self { Self { current_task_key } }
+
+  pub fn require_task<T: Task>(&mut self, task: &T) -> Result<T::Output, Box<dyn Error>> {
+    // TODO: create require dependency from current task to task.
+    todo!()
+  }
+  pub fn require_file(&mut self, path: &PathBuf) -> std::io::Result<File> {
+    // TODO: create require dependency from current task to file.
+    todo!()
+  }
+  pub fn provide_file(&mut self, path: &PathBuf) -> std::io::Result<File> {
+    // TODO: create provide dependency from current task to file.
+    todo!()
+  }
 }
 
 // Task + implementations
 
-pub trait Task {
-  type Key: Clone + Eq + Hash + 'static;
+pub trait Task: Clone {
+  type Key: Eq + Hash + Clone + 'static;
   fn key(&self) -> &Self::Key;
 
   type Output: 'static;
-  fn execute<C: Context>(&self, context: &mut C) -> Self::Output;
+  fn execute(&self, context: &mut Context) -> Self::Output;
   fn output_equal(output_a: &Self::Output, output_b: &Self::Output) -> bool;
 }
 
 // Read file to string task
 
+#[derive(Clone)]
 pub struct ReadFileToString {
   path: PathBuf,
 }
@@ -39,8 +123,8 @@ impl Task for ReadFileToString {
 
   type Output = Result<String, std::io::Error>;
   #[inline]
-  fn execute<C: Context>(&self, context: &mut C) -> Self::Output {
-    let mut file = context.require(FileDependency::new(self.path.clone()))?;
+  fn execute(&self, context: &mut Context) -> Self::Output {
+    let mut file = context.require_file(&self.path)?;
     let mut string = String::new();
     file.read_to_string(&mut string)?;
     Ok(string)
@@ -57,17 +141,19 @@ impl Task for ReadFileToString {
 
 // Dependency + implementations
 
-pub trait RequirableDependency {
-  type Output;
-  fn require<C: Context + 'static>(&self, context: &mut C, store: &mut Store) -> Self::Output;
+pub trait Dependency: DynClone {
+  fn is_consistent(&self, context: &mut Context, store: &mut Store) -> Result<bool, Box<dyn Error>>;
 }
 
-pub trait CheckableDependency<C: Context> {
-  fn check_consistency(&self, context: &mut C, store: &mut Store) -> Result<bool, Box<dyn Error>>;
-}
+// impl<T: Dependency + Clone + ?Sized> Dependency for Box<T> {
+//   fn is_consistent(&self, context: &mut Context, store: &mut Store) -> Result<bool, Box<dyn Error>> {
+//     (**self).is_consistent(context, store)
+//   }
+// }
 
 // Task dependency
 
+#[derive(Clone)]
 pub struct TaskDependency<T> {
   task: T,
 }
@@ -77,32 +163,12 @@ impl<T: Task> TaskDependency<T> {
   pub fn new(task: T) -> Self { Self { task } }
 }
 
-impl<T: Task> RequirableDependency for TaskDependency<T> {
-  type Output = T::Output;
+impl<T: Task> Dependency for TaskDependency<T> {
   #[inline]
-  fn require<C: Context + 'static>(&self, context: &mut C, store: &mut Store) -> Self::Output {
-    context.require::<Self, _>(self)
-    // if let Some(task_dependencies) = store.task_dependencies.get::<HashMap<T::Key, Vec<Box<dyn CheckableDependency<C>>>>>() {
-    //   if let Some(dependencies) = task_dependencies.get(self.task.key()) {
-    //     for dependency in dependencies {
-    //       if !dependency.check_consistency(context, store) {}
-    //     }
-    //   }
-    // } else {
-    //   // Task has not been executed yet: execute it and
-    // }
-    // // TODO: check dependencies
-    // // TODO: require and check output; re-execute if needed
-    // self.task.execute(context)
-  }
-}
-
-impl<T: Task, C: Context> CheckableDependency<C> for TaskDependency<T> {
-  #[inline]
-  fn check_consistency(&self, context: &mut C, store: &mut Store) -> Result<bool, Box<dyn Error>> {
+  fn is_consistent(&self, context: &mut Context, store: &mut Store) -> Result<bool, Box<dyn Error>> {
     if let Some(task_outputs) = store.task_outputs.get::<HashMap<T::Key, T::Output>>() {
       if let Some(previous_output) = task_outputs.get(self.task.key()) {
-        let output: T::Output = context.require::<Self, _>(self);
+        let output: T::Output = context.require_task::<T>(&self.task)?;
         return Ok(T::output_equal(&output, previous_output));
       }
     }
@@ -112,6 +178,7 @@ impl<T: Task, C: Context> CheckableDependency<C> for TaskDependency<T> {
 
 // File dependency
 
+#[derive(Clone)]
 pub struct FileDependency {
   path: PathBuf,
 }
@@ -123,15 +190,9 @@ impl FileDependency {
   fn open(&self) -> std::io::Result<File> { File::open(&self.path) }
 }
 
-impl RequirableDependency for FileDependency {
-  type Output = Result<File, std::io::Error>;
+impl Dependency for FileDependency {
   #[inline]
-  fn require<C: Context>(&self, _context: &mut C, _store: &mut Store) -> Self::Output { self.open() }
-}
-
-impl<C: Context> CheckableDependency<C> for FileDependency {
-  #[inline]
-  fn check_consistency(&self, _context: &mut C, store: &mut Store) -> Result<bool, Box<dyn Error>> {
+  fn is_consistent(&self, _context: &mut Context, store: &mut Store) -> Result<bool, Box<dyn Error>> {
     let consistent = if let Some(previous_modified) = store.file_modification_dates.get(&self.path) {
       let modified = self.open()?.metadata()?.modified()?;
       modified == *previous_modified
@@ -150,29 +211,58 @@ pub struct Store {
   file_modification_dates: HashMap<PathBuf, SystemTime>,
 }
 
-// Naive runner
-
-pub struct NaiveRunner {}
-
-impl Context for NaiveRunner {
-  #[inline]
-  fn require<D: RequirableDependency, B: Borrow<D>>(&mut self, dependency: B) -> D::Output {
-    // dependency.borrow().require(self)
-    todo!()
+impl Store {
+  fn get_task_dependencies_map_mut<T: Task>(&mut self) -> &mut HashMap<T::Key, Vec<Box<dyn Dependency>>> {
+    self.task_dependencies.entry::<HashMap<T::Key, Vec<Box<dyn Dependency>>>>().or_insert_with(|| HashMap::default())
   }
 }
 
+/// Naive runner, a runner that is not incremental: it always executes tasks.
+pub struct NaiveRunner {}
+
+impl NaiveRunner {
+  #[inline]
+  pub fn require_task<T: Task>(&mut self, task: &T) -> Result<T::Output, Box<dyn Error>> {
+    let mut context = Context::new(Box::new(()));
+    Ok(task.execute(&mut context))
+  }
+}
 
 // Top-down incremental runner
 
 pub struct TopDownRunner {
-  // TODO: mapping from key to dependencies
+  store: Store,
 }
 
-impl Context for TopDownRunner {
-  fn require<D: RequirableDependency, B: Borrow<D>>(&mut self, _dependency: B) -> D::Output {
-    // TODO: check consistency of the dependency itself
-    // TODO: check consistency of the dependencies of the dependency
-    todo!()
+impl TopDownRunner {
+  pub fn require_task<T: Task>(&mut self, task: &T) -> Result<T::Output, Box<dyn Error>> {
+    let mut context = Context::new(Box::new(task.key().clone()));
+    if self.should_execute_task(task, &mut context)? {
+      // TODO: store dependencies that the task made!
+      Ok(task.execute(&mut context))
+    } else {
+      todo!("Task is consistent; return task output from storage")
+    }
+  }
+
+  fn should_execute_task<T: Task>(&mut self, task: &T, context: &mut Context) -> Result<bool, Box<dyn Error>> {
+    // Remove task dependencies so that we get ownership over the list of dependencies. If the task does not need to be
+    // executed, we will restore the dependencies again.
+    let task_dependencies = self.store.get_task_dependencies_map_mut::<T>().remove(task.key());
+    if let Some(task_dependencies) = task_dependencies {
+      // Task has been executed before, check whether all its dependencies are still consistent. If one or more are not,
+      // we need to execute the task.
+      for task_dependency in &task_dependencies {
+        if !task_dependency.is_consistent(context, &mut self.store)? {
+          return Ok(true);
+        }
+      }
+      // Task is consistent and does not need to be executed. Restore the previous dependencies.
+      self.store.get_task_dependencies_map_mut::<T>().insert(task.key().clone(), task_dependencies);
+      Ok(false)
+    } else {
+      // Task has not been executed before, therefore we need to execute it.
+      Ok(true)
+    }
   }
 }

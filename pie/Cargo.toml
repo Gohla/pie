@@ -7,3 +7,4 @@ publish = false
 
 [dependencies]
 anymap = "0.12"
+dyn-clone = "1"
