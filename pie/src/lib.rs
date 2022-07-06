@@ -88,11 +88,11 @@ impl Context {
     // TODO: create require dependency from current task to task.
     todo!()
   }
-  pub fn require_file(&mut self, path: &PathBuf) -> std::io::Result<File> {
+  pub fn require_file(&mut self, path: &PathBuf) -> Result<File, std::io::ErrorKind> {
     // TODO: create require dependency from current task to file.
     todo!()
   }
-  pub fn provide_file(&mut self, path: &PathBuf) -> std::io::Result<File> {
+  pub fn provide_file(&mut self, path: &PathBuf) -> Result<File, std::io::ErrorKind> {
     // TODO: create provide dependency from current task to file.
     todo!()
   }
@@ -120,10 +120,11 @@ impl Task for ReadFileToString {
   #[inline]
   fn key(&self) -> &Self::Key { &self.path }
 
+  // Use ErrorKind instead of Error which impls Eq and Clone.
   type Output = Result<String, std::io::ErrorKind>;
   #[inline]
   fn execute(&self, context: &mut Context) -> Self::Output {
-    let mut file = context.require_file(&self.path).map_err(|e| e.kind())?;
+    let mut file = context.require_file(&self.path)?;
     let mut string = String::new();
     file.read_to_string(&mut string).map_err(|e| e.kind())?;
     Ok(string)
@@ -132,7 +133,7 @@ impl Task for ReadFileToString {
 
 // Dependency + implementations
 
-pub trait Dependency: DynClone {
+pub trait Dependency {
   fn is_consistent(&self, context: &mut Context, store: &mut Store) -> Result<bool, Box<dyn Error>>;
 }
 
@@ -157,11 +158,9 @@ impl<T: Task> TaskDependency<T> {
 impl<T: Task> Dependency for TaskDependency<T> {
   #[inline]
   fn is_consistent(&self, context: &mut Context, store: &mut Store) -> Result<bool, Box<dyn Error>> {
-    if let Some(task_outputs) = store.get_task_output_map::<T>() {
-      if let Some(previous_output) = task_outputs.get(self.task.key()) {
-        let output: T::Output = context.require_task::<T>(&self.task)?;
-        return Ok(output == *previous_output);
-      }
+    if let Some(previous_output) = store.get_task_output::<T>(self.task.key()) {
+      let output = context.require_task::<T>(&self.task)?;
+      return Ok(output == *previous_output);
     }
     Ok(false) // Has not been executed before
   }
@@ -207,6 +206,7 @@ impl Store {
   fn get_task_dependencies_map_mut<T: Task>(&mut self) -> &mut HashMap<T::Key, Vec<Box<dyn Dependency>>> {
     self.task_dependencies.entry::<HashMap<T::Key, Vec<Box<dyn Dependency>>>>().or_insert_with(|| HashMap::default())
   }
+
   #[inline]
   fn get_task_output_map<T: Task>(&self) -> Option<&HashMap<T::Key, T::Output>> {
     self.task_outputs.get::<HashMap<T::Key, T::Output>>()
@@ -244,7 +244,7 @@ impl TopDownRunner {
     if self.should_execute_task(task, &mut context)? {
       TaskExecutor::execute(task, &mut context, &mut self.store)
     } else {
-      // Unwrap OK: if we should not execute the task, it must have been executed before, and therefore it has an output.
+      // Assume: if we should not execute the task, it must have been executed before, and therefore it has an output.
       let output = self.store.get_task_output::<T>(task.key()).unwrap().clone();
       Ok(output)
     }
@@ -263,7 +263,7 @@ impl TopDownRunner {
         }
       }
       // Task is consistent and does not need to be executed. Restore the previous dependencies.
-      self.store.get_task_dependencies_map_mut::<T>().insert(task.key().clone(), task_dependencies);
+      self.store.get_task_dependencies_map_mut::<T>().insert(task.key().clone(), task_dependencies); // OPTO: removing and inserting into a HashMap due to ownership requirements.
       Ok(false)
     } else {
       // Task has not been executed before, therefore we need to execute it.
