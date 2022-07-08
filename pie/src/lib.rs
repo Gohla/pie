@@ -334,7 +334,8 @@ mod test {
   #[test]
   fn test() {
     let mut runner = TopDownRunner::new();
-    let path = PathBuf::from("test.txt");
+    let path = PathBuf::from("../target/test/test.txt");
+    fs::create_dir_all(path.parent().unwrap()).unwrap();
     fs::write(&path, "test").unwrap();
     let task = ReadFileToString::new(path);
     runner.require_task(&task).unwrap().unwrap();
