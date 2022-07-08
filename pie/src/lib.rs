@@ -6,7 +6,7 @@ use std::collections::HashMap;
 use std::error::Error;
 use std::fs::File;
 use std::hash::{Hash, Hasher};
-use std::io::Read;
+use std::io::{ErrorKind, Read};
 use std::path::PathBuf;
 use std::rc::Rc;
 use std::time::SystemTime;
@@ -14,7 +14,7 @@ use std::time::SystemTime;
 use anymap::AnyMap;
 use dyn_clone::DynClone;
 
-// Task key
+// Trait object helpers
 
 pub trait DynEq {
   fn dyn_eq(&self, other: &dyn Any) -> bool;
@@ -52,10 +52,6 @@ impl<H: Hash + ?Sized> DynHash for H {
 //   }
 // }
 
-trait TaskKey: DynEq + DynHash + DynClone {}
-
-impl<T: DynEq + DynHash + DynClone + 'static + ?Sized> TaskKey for T {}
-
 // impl PartialEq for dyn TaskKey {
 //   fn eq(&self, other: &dyn TaskKey) -> bool {
 //     DynEq::dyn_eq(self, other.as_any())
@@ -77,25 +73,42 @@ impl<T: DynEq + DynHash + DynClone + 'static + ?Sized> TaskKey for T {}
 // }
 
 
-// Context
+// Require task
 
-pub struct Context {
-  current_task: Box<dyn DynTask>,
-  store: Rc<RefCell<Store>>,
+pub trait RequireTask {
+  fn require_task<T: Task>(&mut self, task: &T) -> Result<T::Output, Box<dyn Error>>;
 }
 
-impl Context {
-  fn new(current_task: Box<dyn DynTask>, store: Rc<RefCell<Store>>) -> Self { Self { current_task, store } }
 
-  pub fn require_task<T: Task>(&mut self, task: &T) -> Result<T::Output, Box<dyn Error>> {
+// Context
+
+pub trait Context {
+  fn require_task<T: Task>(&mut self, task: &T) -> Result<T::Output, Box<dyn Error>>;
+  fn require_file(&mut self, path: &PathBuf) -> Result<File, std::io::ErrorKind>;
+  fn provide_file(&mut self, path: &PathBuf) -> Result<File, std::io::ErrorKind>;
+}
+
+pub struct ContextImpl<'rt, RT> {
+  current_task: Box<dyn DynTask>,
+  store: Rc<RefCell<Store>>,
+  require_task: &'rt mut RT,
+}
+
+impl<'rt, RT> ContextImpl<'rt, RT> {
+  fn new(current_task: Box<dyn DynTask>, store: Rc<RefCell<Store>>, require_task: &'rt mut RT) -> Self { Self { current_task, store, require_task } }
+}
+
+impl<'rt, RT: RequireTask> Context for ContextImpl<'rt, RT> {
+  fn require_task<T: Task>(&mut self, task: &T) -> Result<T::Output, Box<dyn Error>> {
+    let result = self.require_task.require_task(task);
     // TODO: create require dependency from current task to task.
     todo!()
   }
-  pub fn require_file(&mut self, path: &PathBuf) -> Result<File, std::io::ErrorKind> {
+  fn require_file(&mut self, path: &PathBuf) -> Result<File, std::io::ErrorKind> {
     // TODO: create require dependency from current task to file.
     todo!()
   }
-  pub fn provide_file(&mut self, path: &PathBuf) -> Result<File, std::io::ErrorKind> {
+  fn provide_file(&mut self, path: &PathBuf) -> Result<File, std::io::ErrorKind> {
     // TODO: create provide dependency from current task to file.
     todo!()
   }
@@ -105,7 +118,7 @@ impl Context {
 
 pub trait Task: DynTask + Eq + Hash + Clone + 'static {
   type Output: Eq + Clone + 'static;
-  fn execute(&self, context: &mut Context) -> Self::Output;
+  fn execute<C: Context>(&self, context: &mut C) -> Self::Output;
 }
 
 pub trait DynTask: DynEq + DynHash + DynClone + 'static {}
@@ -120,7 +133,7 @@ pub struct NoopTask {}
 impl Task for NoopTask {
   type Output = ();
   #[inline]
-  fn execute(&self, _context: &mut Context) -> Self::Output { () }
+  fn execute<C: Context>(&self, _context: &mut C) -> Self::Output { () }
 }
 
 // Read file to string task
@@ -134,7 +147,7 @@ impl Task for ReadFileToString {
   // Use ErrorKind instead of Error which impls Eq and Clone.
   type Output = Result<String, std::io::ErrorKind>;
   #[inline]
-  fn execute(&self, context: &mut Context) -> Self::Output {
+  fn execute<C: Context>(&self, context: &mut C) -> Self::Output {
     let mut file = context.require_file(&self.path)?;
     let mut string = String::new();
     file.read_to_string(&mut string).map_err(|e| e.kind())?;
@@ -144,8 +157,8 @@ impl Task for ReadFileToString {
 
 // Dependency + implementations
 
-pub trait Dependency {
-  fn is_consistent(&self, context: &mut Context, store: &mut Store) -> Result<bool, Box<dyn Error>>;
+pub trait Dependency<C: Context> {
+  fn is_consistent(&self, context: &mut C, store: &mut Store) -> Result<bool, Box<dyn Error>>;
 }
 
 // impl<T: Dependency + Clone + ?Sized> Dependency for Box<T> {
@@ -166,9 +179,9 @@ impl<T: Task> TaskDependency<T> {
   pub fn new(task: T) -> Self { Self { task } }
 }
 
-impl<T: Task> Dependency for TaskDependency<T> {
+impl<T: Task, C: Context> Dependency<C> for TaskDependency<T> {
   #[inline]
-  fn is_consistent(&self, context: &mut Context, store: &mut Store) -> Result<bool, Box<dyn Error>> {
+  fn is_consistent(&self, context: &mut C, store: &mut Store) -> Result<bool, Box<dyn Error>> {
     if let Some(previous_output) = store.get_task_output::<T>(&self.task) {
       let output = context.require_task::<T>(&self.task)?;
       return Ok(output == *previous_output);
@@ -191,9 +204,9 @@ impl FileDependency {
   fn open(&self) -> std::io::Result<File> { File::open(&self.path) }
 }
 
-impl Dependency for FileDependency {
+impl<C: Context> Dependency<C> for FileDependency {
   #[inline]
-  fn is_consistent(&self, _context: &mut Context, store: &mut Store) -> Result<bool, Box<dyn Error>> {
+  fn is_consistent(&self, _context: &mut C, store: &mut Store) -> Result<bool, Box<dyn Error>> {
     let consistent = if let Some(previous_modified) = store.file_modification_dates.get(&self.path) {
       let modified = self.open()?.metadata()?.modified()?;
       modified == *previous_modified
@@ -223,8 +236,8 @@ impl Store {
   }
 
   #[inline]
-  fn get_task_dependencies_map_mut<T: Task>(&mut self) -> &mut HashMap<T, Vec<Box<dyn Dependency>>> {
-    self.task_dependencies.entry::<HashMap<T, Vec<Box<dyn Dependency>>>>().or_insert_with(|| HashMap::default())
+  fn get_task_dependencies_map_mut<T: Task, C: Context>(&mut self) -> &mut HashMap<T, Vec<Box<dyn Dependency<C>>>> {
+    self.task_dependencies.entry::<HashMap<T, Vec<Box<dyn Dependency<C>>>>>().or_insert_with(|| HashMap::default())
   }
 
   #[inline]
@@ -239,18 +252,40 @@ impl Store {
   fn get_task_output<T: Task>(&self, task: &T) -> Option<&T::Output> {
     self.get_task_output_map::<T>().map_or(None, |map| map.get(task))
   }
-}
-
-/// Naive runner, a runner that is not incremental: it always executes tasks.
-pub struct NaiveRunner {}
-
-impl NaiveRunner {
   #[inline]
-  pub fn require_task<T: Task>(&mut self, task: &T) -> Result<T::Output, Box<dyn Error>> {
-    let mut context = Context::new(Box::new(task.clone()), Rc::new(RefCell::new(Store::new()))); // OPTO: create store once.
-    Ok(task.execute(&mut context))
+  fn set_task_output<T: Task>(&mut self, task: T, output: T::Output) {
+    self.get_task_output_map_mut::<T>().insert(task, output);
   }
 }
+
+// Runners
+
+// Naive runner
+
+pub struct NaiveRunner {}
+
+impl RequireTask for NaiveRunner {
+  #[inline]
+  fn require_task<T: Task>(&mut self, task: &T) -> Result<T::Output, Box<dyn Error>> {
+    Ok(task.execute(self))
+  }
+}
+
+impl Context for NaiveRunner {
+  #[inline]
+  fn require_task<T: Task>(&mut self, task: &T) -> Result<T::Output, Box<dyn Error>> {
+    Ok(task.execute(self))
+  }
+  #[inline]
+  fn require_file(&mut self, path: &PathBuf) -> Result<File, ErrorKind> {
+    File::open(path).map_err(|e| e.kind())
+  }
+  #[inline]
+  fn provide_file(&mut self, path: &PathBuf) -> Result<File, ErrorKind> {
+    File::open(path).map_err(|e| e.kind())
+  }
+}
+
 
 // Top-down incremental runner
 
@@ -258,9 +293,9 @@ pub struct TopDownRunner {
   store: Rc<RefCell<Store>>,
 }
 
-impl TopDownRunner {
-  pub fn require_task<T: Task>(&mut self, task: &T) -> Result<T::Output, Box<dyn Error>> {
-    let mut context = Context::new(Box::new(task.clone()), self.store.clone());
+impl RequireTask for TopDownRunner {
+  fn require_task<T: Task>(&mut self, task: &T) -> Result<T::Output, Box<dyn Error>> {
+    let mut context = ContextImpl::new(Box::new(task.clone()), self.store.clone(), self);
     if self.should_execute_task(task, &mut context)? {
       TaskExecutor::execute(task, &mut context, &mut self.store)
     } else {
@@ -269,11 +304,13 @@ impl TopDownRunner {
       Ok(output)
     }
   }
+}
 
-  fn should_execute_task<T: Task>(&mut self, task: &T, context: &mut Context) -> Result<bool, Box<dyn Error>> {
+impl TopDownRunner {
+  fn should_execute_task<'rt, T: Task>(&'rt mut self, task: &T, context: &mut ContextImpl<'rt, Self>) -> Result<bool, Box<dyn Error>> {
     // Remove task dependencies so that we get ownership over the list of dependencies. If the task does not need to be
     // executed, we will restore the dependencies again.
-    let task_dependencies = self.store.borrow_mut().get_task_dependencies_map_mut::<T>().remove(task);
+    let task_dependencies = self.store.borrow_mut().get_task_dependencies_map_mut::<T, ContextImpl<'rt, Self>>().remove(task);
     if let Some(task_dependencies) = task_dependencies {
       // Task has been executed before, check whether all its dependencies are still consistent. If one or more are not,
       // we need to execute the task.
@@ -283,7 +320,7 @@ impl TopDownRunner {
         }
       }
       // Task is consistent and does not need to be executed. Restore the previous dependencies.
-      self.store.borrow_mut().get_task_dependencies_map_mut::<T>().insert(task.clone(), task_dependencies); // OPTO: removing and inserting into a HashMap due to ownership requirements.
+      self.store.borrow_mut().get_task_dependencies_map_mut::<T, ContextImpl<'rt, Self>>().insert(task.clone(), task_dependencies); // OPTO: removing and inserting into a HashMap due to ownership requirements.
       Ok(false)
     } else {
       // Task has not been executed before, therefore we need to execute it.
@@ -297,10 +334,10 @@ impl TopDownRunner {
 pub struct TaskExecutor {}
 
 impl TaskExecutor {
-  fn execute<T: Task>(task: &T, context: &mut Context, store: &RefCell<Store>) -> Result<T::Output, Box<dyn Error>> {
+  fn execute<T: Task, C: Context>(task: &T, context: &mut C, store: &RefCell<Store>) -> Result<T::Output, Box<dyn Error>> {
     let output = task.execute(context);
+    store.borrow_mut().set_task_output(task.clone(), output.clone());
     // TODO: store dependencies that the task made!
-    // TODO: store output of the task!
     Ok(output)
   }
 }
