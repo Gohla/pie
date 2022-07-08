@@ -50,12 +50,7 @@ impl<H: Hash + ?Sized> DynHash for H {
 
 // Context
 
-pub trait Context where
-// Note: 'static bound because it is used as a type parameter in Dependency, which in turn is stored in an AnyMap, which
-// requires it to be 'static. Cannot move the type parameter to the method, because generic methods are not supported in 
-// trait objects, and Dependency is used as a trait object.
-  Self: 'static
-{
+pub trait Context {
   fn require_task<T: Task>(&mut self, task: &T) -> Result<T::Output, Box<dyn Error>>;
   fn require_file(&mut self, path: &PathBuf) -> Result<File, std::io::ErrorKind>;
   fn provide_file(&mut self, path: &PathBuf) -> Result<File, std::io::ErrorKind>;
@@ -329,6 +324,7 @@ impl TopDownRunner {
 mod test {
   use std::fs;
   use std::path::PathBuf;
+
   use crate::{Context, ReadFileToString, TopDownRunner};
 
   #[test]
