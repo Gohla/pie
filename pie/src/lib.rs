@@ -102,9 +102,13 @@ impl Task for NoopTask {
 
 // Read file to string task
 
-#[derive(Clone, Ord, PartialOrd, Eq, PartialEq, Hash)]
+#[derive(Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Debug)]
 pub struct ReadFileToString {
   path: PathBuf,
+}
+
+impl ReadFileToString {
+  pub fn new(path: PathBuf) -> Self { Self { path } }
 }
 
 impl Task for ReadFileToString {
@@ -112,6 +116,7 @@ impl Task for ReadFileToString {
   type Output = Result<String, std::io::ErrorKind>;
   #[inline]
   fn execute<C: Context>(&self, context: &mut C) -> Self::Output {
+    println!("Executing {:?}", self);
     let mut file = context.require_file(&self.path)?;
     let mut string = String::new();
     file.read_to_string(&mut string).map_err(|e| e.kind())?;
@@ -122,96 +127,85 @@ impl Task for ReadFileToString {
 
 // Dependency + implementations
 
-pub trait Dependency<C: Context + GetStore> {
+pub trait Dependency<C: Context> {
   fn is_consistent(&self, context: &mut C) -> Result<bool, Box<dyn Error>>;
 }
 
 // Task dependency
 
 #[derive(Clone)]
-pub struct TaskDependency<T> {
+pub struct TaskDependency<T: Task> {
   task: T,
+  output: T::Output,
 }
 
 impl<T: Task> TaskDependency<T> {
   #[inline]
-  pub fn new(task: T) -> Self { Self { task } }
+  pub fn new(task: T, output: T::Output) -> Self { Self { task, output } }
 }
 
-impl<T: Task, C: Context + GetStore> Dependency<C> for TaskDependency<T> {
+impl<T: Task, C: Context> Dependency<C> for TaskDependency<T> {
   #[inline]
   fn is_consistent(&self, context: &mut C) -> Result<bool, Box<dyn Error>> {
-    if let Some(previous_output) = context.get_store_mut().get_task_output::<T>(&self.task).cloned() { // OPTO: remove clone
-      let output = context.require_task::<T>(&self.task)?;
-      return Ok(output == previous_output);
-    }
-    Ok(false) // Has not been executed before
+    let output = context.require_task::<T>(&self.task)?;
+    return Ok(output == self.output);
   }
 }
 
 // File dependency
 
 #[derive(Clone)]
-pub struct RequireFileDependency {
+pub struct FileDependency {
   path: PathBuf,
+  modification_date: SystemTime,
 }
 
-impl RequireFileDependency {
+impl FileDependency {
   #[inline]
-  pub fn new(path: PathBuf) -> Self { Self { path } }
+  fn new(path: PathBuf) -> Result<Self, std::io::Error> {
+    let modification_date = File::open(&path)?.metadata()?.modified()?;
+    Ok(Self { path, modification_date })
+  }
   #[inline]
   fn open(&self) -> Result<File, std::io::ErrorKind> { File::open(&self.path).map_err(|e| e.kind()) }
 }
 
-impl<C: Context + GetStore> Dependency<C> for RequireFileDependency {
+impl<C: Context> Dependency<C> for FileDependency {
   #[inline]
-  fn is_consistent(&self, context: &mut C) -> Result<bool, Box<dyn Error>> {
-    let consistent = if let Some(previous_modified) = context.get_store().required_file_modification_dates.get(&self.path) {
-      let modified = self.open().map_err(|ek| std::io::Error::from(ek))?.metadata()?.modified()?;
-      modified == *previous_modified
-    } else {
-      false
-    };
-    Ok(consistent)
+  fn is_consistent(&self, _context: &mut C) -> Result<bool, Box<dyn Error>> {
+    let modification_date = self.open().map_err(|ek| std::io::Error::from(ek))?.metadata()?.modified()?;
+    Ok(modification_date == self.modification_date)
   }
 }
 
 
 // Store
 
-pub struct Store {
+pub struct Store<C: Context> {
   task_outputs: AnyMap,
-  task_dependencies: AnyMap,
-  required_file_modification_dates: HashMap<PathBuf, SystemTime>,
-  provided_file_modification_dates: HashMap<PathBuf, SystemTime>,
+  task_dependencies: HashMap<Box<dyn DynTask>, Vec<Box<dyn Dependency<C>>>>,
 }
 
-impl Store {
+impl<C: Context> Store<C> {
   #[inline]
   fn new() -> Self {
     Self {
       task_outputs: AnyMap::new(),
-      task_dependencies: AnyMap::new(),
-      required_file_modification_dates: HashMap::default(),
-      provided_file_modification_dates: HashMap::default(),
+      task_dependencies: HashMap::default(),
     }
   }
 
   #[inline]
-  fn get_task_dependencies_map_mut<C: Context>(&mut self) -> &mut HashMap<Box<dyn DynTask>, Vec<Box<dyn Dependency<C>>>> {
-    self.task_dependencies.entry::<HashMap<Box<dyn DynTask>, Vec<Box<dyn Dependency<C>>>>>().or_insert_with(|| HashMap::default())
+  fn remove_task_dependencies(&mut self, task: &dyn DynTask) -> Option<Vec<Box<dyn Dependency<C>>>> {
+    self.task_dependencies.remove(task)
   }
   #[inline]
-  fn remove_task_dependencies<C: Context>(&mut self, task: &dyn DynTask) -> Option<Vec<Box<dyn Dependency<C>>>> {
-    self.get_task_dependencies_map_mut::<C>().remove(task)
+  fn set_task_dependencies(&mut self, task: Box<dyn DynTask>, dependencies: Vec<Box<dyn Dependency<C>>>) {
+    self.task_dependencies.insert(task, dependencies);
   }
   #[inline]
-  fn set_task_dependencies<C: Context>(&mut self, task: Box<dyn DynTask>, dependencies: Vec<Box<dyn Dependency<C>>>) {
-    self.get_task_dependencies_map_mut::<C>().insert(task, dependencies);
-  }
-  #[inline]
-  fn add_to_task_dependencies<C: Context>(&mut self, task: Box<dyn DynTask>, dependency: Box<dyn Dependency<C>>) {
-    let dependencies = self.get_task_dependencies_map_mut::<C>().entry(task).or_insert_with(|| Vec::new());
+  fn add_to_task_dependencies(&mut self, task: Box<dyn DynTask>, dependency: Box<dyn Dependency<C>>) {
+    let dependencies = self.task_dependencies.entry(task).or_insert_with(|| Vec::new());
     dependencies.push(dependency);
   }
 
@@ -231,20 +225,6 @@ impl Store {
   fn set_task_output<T: Task>(&mut self, task: T, output: T::Output) {
     self.get_task_output_map_mut::<T>().insert(task, output);
   }
-
-  #[inline]
-  fn get_required_file_modification_date(&self, file: &PathBuf) -> Option<&SystemTime> {
-    self.required_file_modification_dates.get(file)
-  }
-  #[inline]
-  fn set_required_file_modification_date(&mut self, file: &PathBuf, modification_date: SystemTime) {
-    self.required_file_modification_dates.insert(file.clone(), modification_date);
-  }
-}
-
-pub trait GetStore {
-  fn get_store(&self) -> &Store;
-  fn get_store_mut(&mut self) -> &mut Store;
 }
 
 
@@ -274,18 +254,19 @@ impl Context for NaiveRunner {
 // Top-down incremental runner
 
 pub struct TopDownRunner {
-  store: Store,
+  store: Store<Self>,
   task_execution_stack: Vec<Box<dyn DynTask>>,
 }
 
 impl Context for TopDownRunner {
   fn require_task<T: Task>(&mut self, task: &T) -> Result<T::Output, Box<dyn Error>> {
     if self.should_execute_task(task)? {
-      if let Some(current_task) = self.task_execution_stack.last() {
-        self.store.add_to_task_dependencies::<Self>(current_task.clone(), Box::new(TaskDependency::new(task.clone())));
-      }
       self.task_execution_stack.push(Box::new(task.clone())); // TODO: check for cycles with LinkedHashSet!
       let output = task.execute(self);
+      self.task_execution_stack.pop();
+      if let Some(current_task) = self.task_execution_stack.last() {
+        self.store.add_to_task_dependencies(current_task.clone(), Box::new(TaskDependency::new(task.clone(), output.clone())));
+      }
       self.store.set_task_output(task.clone(), output.clone());
       Ok(output)
     } else {
@@ -295,36 +276,33 @@ impl Context for TopDownRunner {
     }
   }
 
-  fn require_file(&mut self, path: &PathBuf) -> Result<File, std::io::ErrorKind> {
-    let dependency = RequireFileDependency::new(path.clone());
+  fn require_file(&mut self, path: &PathBuf) -> Result<File, std::io::ErrorKind> { // TODO: hidden dependency detection
+    let dependency = FileDependency::new(path.clone()).map_err(|e| e.kind())?;
+    let opened = dependency.open();
     if let Some(current_task) = self.task_execution_stack.last() {
-      self.store.add_to_task_dependencies::<Self>(current_task.clone(), Box::new(dependency.clone()));
-      // TODO: store task -> required stamp now.
+      self.store.add_to_task_dependencies(current_task.clone(), Box::new(dependency));
     }
-    dependency.open()
+    opened
   }
 
-  fn provide_file(&mut self, path: &PathBuf) -> Result<File, std::io::ErrorKind> {
-    let dependency = RequireFileDependency::new(path.clone()); // TODO: provided file dependency
+  fn provide_file(&mut self, path: &PathBuf) -> Result<File, std::io::ErrorKind> { // TODO: hidden dependency detection
+    let dependency = FileDependency::new(path.clone()).map_err(|e| e.kind())?;
+    let opened = dependency.open();
     if let Some(current_task) = self.task_execution_stack.last() {
-      self.store.add_to_task_dependencies::<Self>(current_task.clone(), Box::new(dependency.clone()));
-      // TODO: store task -> provided stamp now.
+      self.store.add_to_task_dependencies(current_task.clone(), Box::new(dependency));
     }
-    dependency.open()
-  }
-}
-
-impl GetStore for TopDownRunner {
-  fn get_store(&self) -> &Store {
-    &self.store
-  }
-
-  fn get_store_mut(&mut self) -> &mut Store {
-    &mut self.store
+    opened
   }
 }
 
 impl TopDownRunner {
+  fn new() -> Self {
+    Self {
+      store: Store::new(),
+      task_execution_stack: Vec::new(),
+    }
+  }
+
   fn should_execute_task(&mut self, task: &dyn DynTask) -> Result<bool, Box<dyn Error>> {
     // Remove task dependencies so that we get ownership over the list of dependencies. If the task does not need to be
     // executed, we will restore the dependencies again.
@@ -344,5 +322,22 @@ impl TopDownRunner {
       // Task has not been executed before, therefore we need to execute it.
       Ok(true)
     }
+  }
+}
+
+#[cfg(test)]
+mod test {
+  use std::fs;
+  use std::path::PathBuf;
+  use crate::{Context, ReadFileToString, TopDownRunner};
+
+  #[test]
+  fn test() {
+    let mut runner = TopDownRunner::new();
+    let path = PathBuf::from("test.txt");
+    fs::write(&path, "test").unwrap();
+    let task = ReadFileToString::new(path);
+    runner.require_task(&task).unwrap().unwrap();
+    runner.require_task(&task).unwrap().unwrap();
   }
 }
