@@ -6,7 +6,7 @@ use std::collections::HashMap;
 use std::error::Error;
 use std::fs::File;
 use std::hash::{Hash, Hasher};
-use std::io::{ErrorKind, Read};
+use std::io::Read;
 use std::path::PathBuf;
 use std::rc::Rc;
 use std::time::SystemTime;
@@ -41,36 +41,6 @@ impl<H: Hash + ?Sized> DynHash for H {
     self.hash(&mut state);
   }
 }
-
-// trait AsAny {
-//   fn as_any(&self) -> &dyn Any;
-// }
-// 
-// impl<T: Any> AsAny for T {
-//   fn as_any(&self) -> &dyn Any {
-//     self
-//   }
-// }
-
-// impl PartialEq for dyn TaskKey {
-//   fn eq(&self, other: &dyn TaskKey) -> bool {
-//     DynEq::dyn_eq(self, other.as_any())
-//   }
-// }
-// 
-// impl Eq for dyn TaskKey {}
-// 
-// impl Hash for dyn TaskKey {
-//   fn hash<H: Hasher>(&self, state: &mut H) {
-//     self.dyn_hash(state);
-//   }
-// }
-// 
-// impl Clone for Box<dyn TaskKey> {
-//   fn clone(&self) -> Box<dyn TaskKey> {
-//     dyn_clone::clone_box(self)
-//   }
-// }
 
 
 // Require task
@@ -114,6 +84,7 @@ impl<'rt, RT: RequireTask> Context for ContextImpl<'rt, RT> {
   }
 }
 
+
 // Task + implementations
 
 pub trait Task: DynTask + Eq + Hash + Clone + 'static {
@@ -155,17 +126,12 @@ impl Task for ReadFileToString {
   }
 }
 
+
 // Dependency + implementations
 
 pub trait Dependency<C: Context> {
   fn is_consistent(&self, context: &mut C, store: &mut Store) -> Result<bool, Box<dyn Error>>;
 }
-
-// impl<T: Dependency + Clone + ?Sized> Dependency for Box<T> {
-//   fn is_consistent(&self, context: &mut Context, store: &mut Store) -> Result<bool, Box<dyn Error>> {
-//     (**self).is_consistent(context, store)
-//   }
-// }
 
 // Task dependency
 
@@ -217,6 +183,7 @@ impl<C: Context> Dependency<C> for FileDependency {
   }
 }
 
+
 // Store
 
 pub struct Store {
@@ -258,7 +225,9 @@ impl Store {
   }
 }
 
+
 // Runners
+
 
 // Naive runner
 
@@ -277,11 +246,11 @@ impl Context for NaiveRunner {
     Ok(task.execute(self))
   }
   #[inline]
-  fn require_file(&mut self, path: &PathBuf) -> Result<File, ErrorKind> {
+  fn require_file(&mut self, path: &PathBuf) -> Result<File, std::io::ErrorKind> {
     File::open(path).map_err(|e| e.kind())
   }
   #[inline]
-  fn provide_file(&mut self, path: &PathBuf) -> Result<File, ErrorKind> {
+  fn provide_file(&mut self, path: &PathBuf) -> Result<File, std::io::ErrorKind> {
     File::open(path).map_err(|e| e.kind())
   }
 }
