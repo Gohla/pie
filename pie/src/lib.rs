@@ -41,7 +41,7 @@ mod test {
     #[inline]
     fn execute<C: Context>(&self, context: &mut C) -> Self::Output {
       println!("Executing {:?}", self);
-      let mut file = context.require_file(&self.path)?;
+      let mut file = context.require_file(&self.path).map_err(|e| e.kind())?;
       let mut string = String::new();
       file.read_to_string(&mut string).map_err(|e| e.kind())?;
       Ok(string)
