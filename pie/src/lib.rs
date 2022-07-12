@@ -5,6 +5,7 @@
 use std::any::Any;
 use std::collections::HashMap;
 use std::error::Error;
+use std::fmt::Debug;
 use std::fs::File;
 use std::hash::{Hash, Hasher};
 use std::io::Read;
@@ -54,7 +55,7 @@ impl<H: Hash + ?Sized> DynHash for H {
 // Context
 
 pub trait Context {
-  fn require_task<T: Task>(&mut self, task: &T) -> Result<T::Output, Box<dyn Error>>;
+  fn require_task<T: Task>(&mut self, task: &T) -> T::Output;
   fn require_file(&mut self, path: &PathBuf) -> Result<File, std::io::ErrorKind>;
   fn provide_file(&mut self, path: &PathBuf) -> Result<File, std::io::ErrorKind>;
 }
@@ -62,12 +63,12 @@ pub trait Context {
 
 // Task + implementations
 
-pub trait Task: DynTask + Eq + Hash + Clone + 'static {
+pub trait Task: DynTask + Eq + Hash + Clone + Debug + 'static {
   type Output: Eq + Clone + 'static;
   fn execute<C: Context>(&self, context: &mut C) -> Self::Output;
 }
 
-pub trait DynTask: DynEq + DynHash + DynClone + AsAny + 'static {}
+pub trait DynTask: DynEq + DynHash + DynClone + AsAny + Debug + 'static {}
 
 impl<T: Task> DynTask for T {}
 
@@ -89,7 +90,7 @@ dyn_clone::clone_trait_object!(DynTask);
 
 // Noop task
 
-#[derive(Default, Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash)]
+#[derive(Default, Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Debug)]
 pub struct NoopTask {}
 
 impl Task for NoopTask {
@@ -145,8 +146,8 @@ impl<T: Task> TaskDependency<T> {
 impl<T: Task, C: Context> Dependency<C> for TaskDependency<T> {
   #[inline]
   fn is_consistent(&self, context: &mut C) -> Result<bool, Box<dyn Error>> {
-    let output = context.require_task::<T>(&self.task)?;
-    return Ok(output == self.output);
+    let output = context.require_task::<T>(&self.task);
+    Ok(output == self.output)
   }
 }
 
@@ -183,8 +184,8 @@ pub struct NaiveRunner {}
 
 impl Context for NaiveRunner {
   #[inline]
-  fn require_task<T: Task>(&mut self, task: &T) -> Result<T::Output, Box<dyn Error>> {
-    Ok(task.execute(self))
+  fn require_task<T: Task>(&mut self, task: &T) -> T::Output {
+    task.execute(self)
   }
   #[inline]
   fn require_file(&mut self, path: &PathBuf) -> Result<File, std::io::ErrorKind> {
@@ -203,25 +204,29 @@ pub struct TopDownRunner {
   task_outputs: AnyMap,
   task_dependencies: HashMap<Box<dyn DynTask>, Vec<Box<dyn Dependency<Self>>>>,
   task_execution_stack: LinkedHashSet<Box<dyn DynTask>>,
+  dependency_check_errors: Vec<Box<dyn Error>>,
 }
 
 impl Context for TopDownRunner {
-  fn require_task<T: Task>(&mut self, task: &T) -> Result<T::Output, Box<dyn Error>> {
-    if self.should_execute_task(task)? {
-      if !self.task_execution_stack.insert(Box::new(task.clone())) {
-        panic!("Cycle");
-      }
+  fn require_task<T: Task>(&mut self, task: &T) -> T::Output {
+    let boxed_task = Box::new(task.clone()) as Box<dyn DynTask>;
+    if self.task_execution_stack.contains(&boxed_task) {
+      let current_task = self.task_execution_stack.back().unwrap(); // Unwrap OK: stack is not empty because it contains `boxed_task`.
+      panic!("Cyclic task dependency; task {:?} required task {:?} which was already required. Task stack: {:?}", current_task, task, self.task_execution_stack);
+    }
+    if self.should_execute_task(task) {
+      self.task_execution_stack.insert(boxed_task);
       let output = task.execute(self);
       self.task_execution_stack.pop_back();
       if let Some(current_task) = self.task_execution_stack.back() {
         self.add_to_task_dependencies(current_task.clone(), Box::new(TaskDependency::new(task.clone(), output.clone())));
       }
       self.set_task_output(task.clone(), output.clone());
-      Ok(output)
+      output
     } else {
       // Assume: if we should not execute the task, it must have been executed before, and therefore it has an output.
       let output = self.get_task_output::<T>(task).unwrap().clone();
-      Ok(output)
+      output
     }
   }
 
@@ -250,10 +255,22 @@ impl TopDownRunner {
       task_outputs: AnyMap::new(),
       task_dependencies: HashMap::new(),
       task_execution_stack: LinkedHashSet::new(),
+      dependency_check_errors: Vec::new(),
     }
   }
 
-  fn should_execute_task(&mut self, task: &dyn DynTask) -> Result<bool, Box<dyn Error>> {
+  pub fn require_initial<T: Task>(&mut self, task: &T) -> Result<T::Output, (T::Output, &[Box<dyn Error>])> {
+    self.task_execution_stack.clear();
+    self.dependency_check_errors.clear();
+    let output = self.require_task::<T>(task);
+    if self.dependency_check_errors.is_empty() {
+      Ok(output)
+    } else {
+      Err((output, &self.dependency_check_errors))
+    }
+  }
+
+  fn should_execute_task(&mut self, task: &dyn DynTask) -> bool {
     // Remove task dependencies so that we get ownership over the list of dependencies. If the task does not need to be
     // executed, we will restore the dependencies again.
     let task_dependencies = self.remove_task_dependencies(task);
@@ -261,16 +278,21 @@ impl TopDownRunner {
       // Task has been executed before, check whether all its dependencies are still consistent. If one or more are not,
       // we need to execute the task.
       for task_dependency in &task_dependencies {
-        if !task_dependency.is_consistent(self)? {
-          return Ok(true);
+        match task_dependency.is_consistent(self) {
+          Ok(false) => return true, // Not consistent -> should execute task.
+          Err(e) => { // Error -> store error and assume not consistent -> should execute task.
+            self.dependency_check_errors.push(e);
+            return true;
+          }
+          _ => {}, // Continue to check other dependencies.
         }
       }
       // Task is consistent and does not need to be executed. Restore the previous dependencies.
       self.set_task_dependencies(clone_box(task), task_dependencies); // OPTO: removing and inserting into a HashMap due to ownership requirements.
-      Ok(false)
+      false
     } else {
       // Task has not been executed before, therefore we need to execute it.
-      Ok(true)
+      true
     }
   }
 
@@ -306,6 +328,9 @@ impl TopDownRunner {
   }
 }
 
+
+// Tests
+
 #[cfg(test)]
 mod test {
   use std::fs;
@@ -320,22 +345,22 @@ mod test {
     fs::create_dir_all(path.parent().unwrap()).unwrap();
     fs::write(&path, "test").unwrap();
     let task = ReadFileToString::new(path);
-    runner.require_task(&task).unwrap().unwrap();
-    runner.require_task(&task).unwrap().unwrap();
+    runner.require_initial(&task).expect("no dependency checking errors").expect("no file read error");
+    runner.require_initial(&task).expect("no dependency checking errors").expect("no file read error");
   }
 
   #[test]
-  #[should_panic(expected = "Cycle")]
+  #[should_panic(expected = "Cyclic task dependency")]
   fn cycle_panics() {
     let mut runner = TopDownRunner::new();
-    #[derive(Clone, PartialEq, Eq, Hash)]
+    #[derive(Clone, PartialEq, Eq, Hash, Debug)]
     struct RequireSelf;
     impl Task for RequireSelf {
       type Output = ();
       fn execute<C: Context>(&self, context: &mut C) -> Self::Output {
-        context.require_task(self).unwrap();
+        context.require_task(self);
       }
     }
-    runner.require_task(&RequireSelf).unwrap();
+    runner.require_initial(&RequireSelf).expect("no dependency checking errors");
   }
 }
