@@ -8,13 +8,14 @@ use crate::Context;
 
 /// The unit of computation in the incremental build system.
 pub trait Task: DynTask + Eq + Hash + Clone + Debug + 'static {
-  /// The output this task produces when executed.
+  /// The type of output this task produces when executed. Must implement `[Eq]`, `[Clone]`, and either not contain any 
+  /// references, or only `'static` references.
   type Output: Eq + Clone + 'static;
-  /// Execute the task under `[context]` to provide incrementality, producing `[Self::Output]`
+  /// Execute the task, with `[context]` providing a means to specify dependencies, producing `[Self::Output]`.
   fn execute<C: Context>(&self, context: &mut C) -> Self::Output;
 }
 
-/// A trait object-safe version of `[Task]`, enabling tasks to be used as trait objects.
+/// An object-safe version of `[Task]`, enabling tasks to be used as trait objects.
 pub trait DynTask: DynClone + Debug + 'static {
   fn dyn_eq(&self, other: &dyn Any) -> bool;
   fn dyn_hash(&self, state: &mut dyn Hasher);
@@ -57,8 +58,7 @@ impl Hash for dyn DynTask {
 dyn_clone::clone_trait_object!(DynTask);
 
 
-// No-op task implementation
-
+/// Task that does nothing and returns `()`.
 #[derive(Default, Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Debug)]
 pub struct NoopTask {}
 

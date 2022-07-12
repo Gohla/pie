@@ -18,6 +18,7 @@ pub struct TopDownRunner {
 }
 
 impl TopDownRunner {
+  /// Creates a new `[TopDownRunner]`.
   pub fn new() -> Self {
     Self {
       task_outputs: AnyMap::new(),
@@ -27,6 +28,8 @@ impl TopDownRunner {
     }
   }
 
+  /// Requires given `[task]`, returning its up-to-date output, or an error indicating failure to check consistency of 
+  /// one or more dependencies.
   pub fn require_initial<T: Task>(&mut self, task: &T) -> Result<T::Output, (T::Output, &[Box<dyn Error>])> {
     self.task_execution_stack.clear();
     self.dependency_check_errors.clear();
@@ -71,13 +74,12 @@ impl Context for TopDownRunner {
     opened
   }
 
-  fn provide_file(&mut self, path: &PathBuf) -> Result<File, std::io::Error> { // TODO: hidden dependency detection
+  fn provide_file(&mut self, path: &PathBuf) -> Result<(), std::io::Error> { // TODO: hidden dependency detection
     let dependency = FileDependency::new(path.clone()).map_err(|e| e.kind())?;
-    let opened = dependency.open();
     if let Some(current_task) = self.task_execution_stack.back() {
       self.add_to_task_dependencies(current_task.clone(), Box::new(dependency));
     }
-    opened
+    Ok(())
   }
 }
 

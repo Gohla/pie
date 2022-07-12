@@ -12,5 +12,5 @@ impl Context for NaiveRunner {
   #[inline]
   fn require_file(&mut self, path: &PathBuf) -> Result<File, std::io::Error> { File::open(path) }
   #[inline]
-  fn provide_file(&mut self, path: &PathBuf) -> Result<File, std::io::Error> { File::open(path) }
+  fn provide_file(&mut self, _path: &PathBuf) -> Result<(), std::io::Error> { Ok(()) }
 }
