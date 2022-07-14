@@ -8,4 +8,5 @@ publish = false
 [dependencies]
 anymap = "0.12"
 dyn-clone = "1"
-hashlink = "0.8"
+incremental-topo = "0.2"
+bimap = "0.6"

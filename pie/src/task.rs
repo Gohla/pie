@@ -7,7 +7,7 @@ use dyn_clone::DynClone;
 use crate::Context;
 
 /// The unit of computation in the incremental build system.
-pub trait Task: DynTask + Eq + Hash + Clone + Debug + 'static {
+pub trait Task: Eq + Hash + Clone + DynTask + Debug {
   /// The type of output this task produces when executed. Must implement `[Eq]`, `[Clone]`, and either not contain any 
   /// references, or only `'static` references.
   type Output: Eq + Clone + 'static;
@@ -16,7 +16,7 @@ pub trait Task: DynTask + Eq + Hash + Clone + Debug + 'static {
 }
 
 /// An object-safe version of `[Task]`, enabling tasks to be used as trait objects.
-pub trait DynTask: DynClone + Debug + 'static {
+pub trait DynTask: DynClone + Any + Debug {
   fn dyn_eq(&self, other: &dyn Any) -> bool;
   fn dyn_hash(&self, state: &mut dyn Hasher);
   fn as_any(&self) -> &dyn Any;
