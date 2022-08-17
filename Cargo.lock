@@ -28,9 +28,9 @@ checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
 
 [[package]]
 name = "dyn-clone"
-version = "1.0.6"
+version = "1.0.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "140206b78fb2bc3edbcfc9b5ccbd0b30699cfe8d348b8b31b330e47df5291a5a"
+checksum = "4f94fa09c2aeea5b8839e414b7b841bf429fd25b9c522116ac97ee87856d88b2"
 
 [[package]]
 name = "fnv"
@@ -49,9 +49,9 @@ dependencies = [
 
 [[package]]
 name = "incremental-topo"
-version = "0.2.0"
+version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "873e41a9b23900e8219ef674244ddf9097cc1af5a936c18b8959405505c7282f"
+checksum = "2c64c3f08df78a032ce8d9572029d5063acc67c9494daad23fb2288bf316c1b1"
 dependencies = [
  "fnv",
  "generational-arena",

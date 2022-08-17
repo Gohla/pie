@@ -25,9 +25,9 @@ pub struct Store<C: Context> {
   task_dependencies: HashMap<TaskNode, Vec<Box<dyn Dependency<C>>>>,
 }
 
-impl<C: Context> Store<C> {
-  /// Creates a new `[Store]`.
-  pub fn new() -> Self {
+impl<C: Context> Default for Store<C> {
+  #[inline]
+  fn default() -> Self {
     Self {
       graph: IncrementalTopo::new(),
       task_node: BiHashMap::new(),
@@ -43,6 +43,12 @@ impl<C: Context> Store<C> {
       task_dependencies: HashMap::new(),
     }
   }
+}
+
+impl<C: Context> Store<C> {
+  /// Creates a new `[Store]`.
+  #[inline]
+  pub fn new() -> Self { Default::default() }
 }
 
 impl<C: Context> Store<C> {

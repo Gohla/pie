@@ -5,6 +5,8 @@ use std::path::PathBuf;
 use pie::Context;
 use pie::task::Task;
 
+// Read string from file task
+
 #[derive(Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Debug)]
 pub struct ReadStringFromFile {
   path: PathBuf,
@@ -25,6 +27,8 @@ impl Task for ReadStringFromFile {
   }
 }
 
+
+// Write string to file task
 
 #[derive(Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Debug)]
 pub struct WriteStringToFile {

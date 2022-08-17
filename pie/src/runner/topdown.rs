@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::error::Error;
 use std::fs::File;
 use std::path::PathBuf;
@@ -8,25 +9,24 @@ use crate::{Context, DynTask, FileDependency, Task, TaskDependency};
 use crate::runner::store::{Store, TaskNode};
 
 /// Incremental runner that checks dependencies recursively in a top-down manner.
+#[derive(Default)]
 pub struct TopDownRunner {
   store: Store<Self>,
+  visited: HashSet<TaskNode>,
   task_execution_stack: Vec<TaskNode>,
   dependency_check_errors: Vec<Box<dyn Error>>,
 }
 
 impl TopDownRunner {
   /// Creates a new `[TopDownRunner]`.
-  pub fn new() -> Self {
-    Self {
-      store: Store::new(),
-      task_execution_stack: Vec::new(),
-      dependency_check_errors: Vec::new(),
-    }
-  }
+  #[inline]
+  pub fn new() -> Self { Default::default() }
 
   /// Requires given `[task]`, returning its up-to-date output, or an error indicating failure to check consistency of 
   /// one or more dependencies.
+  #[inline]
   pub fn require_initial<T: Task>(&mut self, task: &T) -> Result<T::Output, (T::Output, &[Box<dyn Error>])> {
+    self.visited.clear();
     self.task_execution_stack.clear();
     self.dependency_check_errors.clear();
     let output = self.require_task::<T>(task);
@@ -41,7 +41,7 @@ impl TopDownRunner {
 impl Context for TopDownRunner {
   fn require_task<T: Task>(&mut self, task: &T) -> T::Output {
     let task_node = self.store.get_or_create_node_by_task(Box::new(task.clone()) as Box<dyn DynTask>);
-    if self.should_execute_task(task_node) { // Execute the task, cache and return up-to-date output.
+    if !self.visited.contains(&task_node) && self.should_execute_task(task_node) { // Execute the task, cache and return up-to-date output.
       self.store.reset_task(&task_node);
       // Check for cyclic dependency
       if let Some(current_task_node) = self.task_execution_stack.last() {
@@ -60,6 +60,7 @@ impl Context for TopDownRunner {
         self.store.add_to_dependencies_of_task(*current_task_node, Box::new(TaskDependency::new(task.clone(), output.clone())));
       }
       self.store.set_task_output(task.clone(), output.clone());
+      self.visited.insert(task_node);
       output
     } else { // Return already up-to-date output.
       // Unwrap OK: if we should not execute the task, it must have been executed before, and therefore it has an output.

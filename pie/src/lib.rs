@@ -16,7 +16,8 @@ pub trait Context {
   /// Requires file at given `[path]`, creating a read-dependency to the file by reading its content or metadata at the 
   /// time this function is called, and returning the opened file. Call this method *before reading from the file*.
   fn require_file(&mut self, path: &PathBuf) -> Result<File, std::io::Error>;
-  /// Provides file at given `[path]`, creating a write-dependency to it by reading its content or metadata at the time 
-  /// this function is called. Call this method *after writing to the file*.
+  /// Provides file at given `[path]`, creating a write-dependency to it by writing to its content or changing its
+  /// metadata at the time this function is called. Call this method *after writing to the file*. This method does not 
+  /// return the opened file, as it must be called *after writing to the file*.
   fn provide_file(&mut self, path: &PathBuf) -> Result<(), std::io::Error>;
 }
