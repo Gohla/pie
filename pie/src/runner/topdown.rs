@@ -7,20 +7,41 @@ use incremental_topo::Node;
 
 use crate::{Context, DynTask, FileDependency, Task, TaskDependency};
 use crate::runner::store::{Store, TaskNode};
+use crate::tracker::{NoopTracker, Tracker};
 
 /// Incremental runner that checks dependencies recursively in a top-down manner.
-#[derive(Default)]
-pub struct TopDownRunner {
+pub struct TopDownRunner<R: Tracker> {
   store: Store<Self>,
+  tracker: R,
+
   visited: HashSet<TaskNode>,
   task_execution_stack: Vec<TaskNode>,
   dependency_check_errors: Vec<Box<dyn Error>>,
 }
 
-impl TopDownRunner {
-  /// Creates a new `[TopDownRunner]`.
+impl Default for TopDownRunner<NoopTracker> {
+  fn default() -> Self { Self::with_tracker(NoopTracker) }
+}
+
+impl TopDownRunner<NoopTracker> {
+  /// Creates a new `[TopDownRunner]` without a `[Tracker]`.
   #[inline]
   pub fn new() -> Self { Default::default() }
+}
+
+impl<R: Tracker> TopDownRunner<R> {
+  /// Creates a new `[TopDownRunner]` with given `[Tracker]`.
+  #[inline]
+  pub fn with_tracker(tracker: R) -> Self {
+    Self {
+      store: Default::default(),
+      tracker,
+
+      visited: Default::default(),
+      task_execution_stack: Default::default(),
+      dependency_check_errors: Default::default(),
+    }
+  }
 
   /// Requires given `[task]`, returning its up-to-date output, or an error indicating failure to check consistency of 
   /// one or more dependencies.
@@ -38,9 +59,11 @@ impl TopDownRunner {
   }
 }
 
-impl Context for TopDownRunner {
+impl<R: Tracker> Context for TopDownRunner<R> {
   fn require_task<T: Task>(&mut self, task: &T) -> T::Output {
-    let task_node = self.store.get_or_create_node_by_task(Box::new(task.clone()) as Box<dyn DynTask>);
+    let dyn_task = Box::new(task.clone()) as Box<dyn DynTask>;
+    self.tracker.require_task(dyn_task.as_ref());
+    let task_node = self.store.get_or_create_node_by_task(dyn_task);
     if !self.visited.contains(&task_node) && self.should_execute_task(task_node) { // Execute the task, cache and return up-to-date output.
       self.store.reset_task(&task_node);
       // Check for cyclic dependency
@@ -70,6 +93,7 @@ impl Context for TopDownRunner {
   }
 
   fn require_file(&mut self, path: &PathBuf) -> Result<File, std::io::Error> {
+    self.tracker.require_file(path);
     let file_node = self.store.get_or_create_file_node(path);
     let dependency = FileDependency::new(path.clone()).map_err(|e| e.kind())?;
     let opened = dependency.open();
@@ -87,6 +111,7 @@ impl Context for TopDownRunner {
   }
 
   fn provide_file(&mut self, path: &PathBuf) -> Result<(), std::io::Error> {
+    self.tracker.provide_file(path);
     let file_node = self.store.get_or_create_file_node(path);
     let dependency = FileDependency::new(path.clone()).map_err(|e| e.kind())?;
     if let Some(current_providing_task_node) = self.task_execution_stack.last() {
@@ -110,7 +135,7 @@ impl Context for TopDownRunner {
   }
 }
 
-impl TopDownRunner {
+impl<R: Tracker> TopDownRunner<R> {
   fn should_execute_task(&mut self, task_node: Node) -> bool {
     // Remove task dependencies so that we get ownership over the list of dependencies. If the task does not need to be
     // executed, we will restore the dependencies again.

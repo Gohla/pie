@@ -7,6 +7,7 @@ use task::{DynTask, Task};
 pub mod task;
 pub mod dependency;
 pub mod runner;
+pub mod tracker;
 
 /// Incremental context, mediating between tasks and runners, enabling tasks to dynamically create dependencies that 
 /// runners check for consistency and use in incremental execution.

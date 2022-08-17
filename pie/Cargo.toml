@@ -10,3 +10,6 @@ anymap = "0.12"
 dyn-clone = "1"
 incremental-topo = "0.2"
 bimap = "0.6"
+
+[dev-dependencies]
+tempfile = "3"

@@ -10,7 +10,7 @@ use crate::Context;
 pub trait Task: Eq + Hash + Clone + DynTask + Debug {
   /// The type of output this task produces when executed. Must implement `[Eq]`, `[Clone]`, and either not contain any 
   /// references, or only `'static` references.
-  type Output: Eq + Clone + 'static;
+  type Output: Eq + Clone + Debug + 'static;
   /// Execute the task, with `[context]` providing a means to specify dependencies, producing `[Self::Output]`.
   fn execute<C: Context>(&self, context: &mut C) -> Self::Output;
 }

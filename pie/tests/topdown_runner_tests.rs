@@ -1,29 +1,26 @@
 use std::fs;
-use std::path::PathBuf;
 
 use pie::Context;
-use pie::runner::topdown::TopDownRunner;
 use pie::task::Task;
 
-use crate::common::{ReadStringFromFile, WriteStringToFile};
+use crate::common::{CheckErrorExt, create_runner, ReadStringFromFile, temp_dir, WriteStringToFile};
 
 mod common;
 
 #[test]
 fn test() {
-  let mut runner = TopDownRunner::new();
-  let path = PathBuf::from("../target/test/test.txt");
-  fs::create_dir_all(path.parent().unwrap()).unwrap();
-  fs::write(&path, "test").unwrap();
+  let mut runner = create_runner();
+  let dir = temp_dir();
+  let path = dir.path().join("test.txt");
+  fs::write(&path, "test").check();
   let task = ReadStringFromFile::new(path);
-  runner.require_initial(&task).expect("no dependency checking errors").expect("no file read error");
-  runner.require_initial(&task).expect("no dependency checking errors").expect("no file read error");
+  assert_eq!("test", runner.require_initial(&task).check().check());
+  assert_eq!("test", runner.require_initial(&task).check().check());
 }
 
 #[test]
 #[should_panic(expected = "Cyclic task dependency")]
 fn cycle_panics() {
-  let mut runner = TopDownRunner::new();
   #[derive(Clone, PartialEq, Eq, Hash, Debug)]
   struct RequireSelf;
   impl Task for RequireSelf {
@@ -32,38 +29,43 @@ fn cycle_panics() {
       context.require_task(self);
     }
   }
-  runner.require_initial(&RequireSelf).expect("no dependency checking errors");
+  let mut runner = create_runner();
+  runner.require_initial(&RequireSelf).check();
 }
 
 #[test]
 #[should_panic(expected = "Overlapping provided file")]
 fn overlapping_provided_file_panics() {
-  let mut runner = TopDownRunner::new();
-  let path = PathBuf::from("../target/test/test.txt");
+  let mut runner = create_runner();
+  let dir = temp_dir();
+  let path = dir.path().join("test.txt");
   let task_1 = WriteStringToFile::new(path.clone(), "Test 1");
-  runner.require_initial(&task_1).expect("no dependency checking errors").expect("no file write error");
+  runner.require_initial(&task_1).check().check();
   let task_2 = WriteStringToFile::new(path.clone(), "Test 2");
-  runner.require_initial(&task_2).expect("no dependency checking errors").expect("no file write error");
+  runner.require_initial(&task_2).check().check();
 }
 
 #[test]
 #[should_panic(expected = "Hidden dependency")]
 fn hidden_dependency_during_require_panics() {
-  let mut runner = TopDownRunner::new();
-  let path = PathBuf::from("../target/test/test.txt");
+  let mut runner = create_runner();
+  let dir = temp_dir();
+  let path = dir.path().join("test.txt");
   let providing_task = WriteStringToFile::new(path.clone(), "Test 1");
-  runner.require_initial(&providing_task).expect("no dependency checking errors").expect("no file write error");
+  runner.require_initial(&providing_task).check().check();
   let requiring_task = ReadStringFromFile::new(path.clone());
-  runner.require_initial(&requiring_task).expect("no dependency checking errors").expect("no file read error");
+  runner.require_initial(&requiring_task).check().check();
 }
 
 #[test]
 #[should_panic(expected = "Hidden dependency")]
 fn hidden_dependency_during_provide_panics() {
-  let mut runner = TopDownRunner::new();
-  let path = PathBuf::from("../target/test/test.txt");
+  let mut runner = create_runner();
+  let dir = temp_dir();
+  let path = dir.path().join("test.txt");
+  fs::write(&path, "test").check();
   let requiring_task = ReadStringFromFile::new(path.clone());
-  runner.require_initial(&requiring_task).expect("no dependency checking errors").expect("no file read error");
+  runner.require_initial(&requiring_task).check().check();
   let providing_task = WriteStringToFile::new(path.clone(), "Test 1");
-  runner.require_initial(&providing_task).expect("no dependency checking errors").expect("no file write error");
+  runner.require_initial(&providing_task).check().check();
 }
