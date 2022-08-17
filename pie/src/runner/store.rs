@@ -57,8 +57,13 @@ impl<C: Context> Store<C> {
     }
   }
   #[inline]
-  pub fn get_task_by_node(&mut self, task_node: &TaskNode) -> Option<&Box<dyn DynTask>> {
+  pub fn get_task_by_node(&self, task_node: &TaskNode) -> Option<&Box<dyn DynTask>> {
     self.task_node.get_by_right(task_node)
+  }
+
+  #[inline]
+  pub fn task_by_node(&self, task_node: &TaskNode) -> &Box<dyn DynTask> {
+    self.task_node.get_by_right(task_node).unwrap()
   }
 
 
@@ -76,9 +81,9 @@ impl<C: Context> Store<C> {
 
 
   #[inline]
-  pub fn add_task_dependency_edge(&mut self, depender: TaskNode, dependee: TaskNode) -> Result<bool, incremental_topo::Error> {
-    let result = self.graph.add_dependency(depender, dependee)?;
-    self.task_to_required_tasks.entry(depender).or_insert_with(|| HashSet::with_capacity(1)).insert(dependee);
+  pub fn add_task_dependency_edge(&mut self, depender_task_node: TaskNode, dependee_task_node: TaskNode) -> Result<bool, incremental_topo::Error> {
+    let result = self.graph.add_dependency(depender_task_node, dependee_task_node)?;
+    self.task_to_required_tasks.entry(depender_task_node).or_insert_with(|| HashSet::with_capacity(1)).insert(dependee_task_node);
     Ok(result)
   }
 
@@ -117,18 +122,18 @@ impl<C: Context> Store<C> {
 
 
   #[inline]
-  pub fn add_file_require_dependency(&mut self, depender: TaskNode, dependee: FileNode, dependency: FileDependency) {
-    self.graph.add_dependency(depender, dependee).ok(); // Ignore error OK: cycles cannot occur from task to file dependencies, as files do not have dependencies.
-    self.task_to_required_files.entry(depender).or_insert_with(|| HashSet::with_capacity(1)).insert(dependee);
-    self.file_to_requiring_tasks.entry(dependee).or_insert_with(|| HashSet::with_capacity(1)).insert(depender);
-    self.add_to_dependencies_of_task(depender, Box::new(dependency));
+  pub fn add_file_require_dependency(&mut self, depender_task_node: TaskNode, dependee_file_node: FileNode, dependency: FileDependency) {
+    self.graph.add_dependency(depender_task_node, dependee_file_node).ok(); // Ignore error OK: cycles cannot occur from task to file dependencies, as files do not have dependencies.
+    self.task_to_required_files.entry(depender_task_node).or_insert_with(|| HashSet::with_capacity(1)).insert(dependee_file_node);
+    self.file_to_requiring_tasks.entry(dependee_file_node).or_insert_with(|| HashSet::with_capacity(1)).insert(depender_task_node);
+    self.add_to_dependencies_of_task(depender_task_node, Box::new(dependency));
   }
   #[inline]
-  pub fn add_file_provide_dependency(&mut self, depender: TaskNode, dependee: FileNode, dependency: FileDependency) {
-    self.graph.add_dependency(depender, dependee).ok(); // Ignore error OK: cycles cannot occur from task to file dependencies, as files do not have dependencies.
-    self.task_to_provided_files.entry(depender).or_insert_with(|| HashSet::with_capacity(1)).insert(dependee);
-    self.file_to_providing_task.insert(dependee, depender);
-    self.add_to_dependencies_of_task(depender, Box::new(dependency));
+  pub fn add_file_provide_dependency(&mut self, depender_task_node: TaskNode, dependee_file_node: FileNode, dependency: FileDependency) {
+    self.graph.add_dependency(depender_task_node, dependee_file_node).ok(); // Ignore error OK: cycles cannot occur from task to file dependencies, as files do not have dependencies.
+    self.task_to_provided_files.entry(depender_task_node).or_insert_with(|| HashSet::with_capacity(1)).insert(dependee_file_node);
+    self.file_to_providing_task.insert(dependee_file_node, depender_task_node);
+    self.add_to_dependencies_of_task(depender_task_node, Box::new(dependency));
   }
 
   #[inline]
@@ -158,17 +163,17 @@ impl<C: Context> Store<C> {
   }
 
   #[inline]
-  pub fn get_providing_task(&self, file_node: &FileNode) -> Option<&TaskNode> {
+  pub fn get_providing_task_node(&self, file_node: &FileNode) -> Option<&TaskNode> {
     self.file_to_providing_task.get(file_node)
   }
 
   #[inline]
-  pub fn get_requiring_tasks(&self, file_node: &FileNode) -> Option<&HashSet<TaskNode>> {
+  pub fn get_requiring_task_node(&self, file_node: &FileNode) -> Option<&HashSet<TaskNode>> {
     self.file_to_requiring_tasks.get(file_node)
   }
 
   #[inline]
-  pub fn contains_transitive_task_dependency(&self, depender: &TaskNode, dependee: &TaskNode) -> bool {
-    self.graph.contains_transitive_dependency(depender, dependee)
+  pub fn contains_transitive_task_dependency(&self, depender_task_node: &TaskNode, dependee_task_node: &TaskNode) -> bool {
+    self.graph.contains_transitive_dependency(depender_task_node, dependee_task_node)
   }
 }
