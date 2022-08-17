@@ -5,7 +5,7 @@ use anymap::AnyMap;
 use bimap::BiHashMap;
 use incremental_topo::{IncrementalTopo, Node};
 
-use crate::{Context, Dependency, DynTask, Task};
+use crate::{Context, Dependency, DynTask, FileDependency, Task};
 
 pub type TaskNode = Node;
 pub type FileNode = Node;
@@ -72,6 +72,13 @@ impl<C: Context> Store<C> {
     }
   }
 
+
+  #[inline]
+  pub fn add_task_dependency_to_graph(&mut self, depender: &TaskNode, dependee: &TaskNode) -> Result<bool, incremental_topo::Error> {
+    self.graph.add_dependency(depender, dependee)
+  }
+
+
   #[inline]
   pub fn remove_task_dependencies(&mut self, task_node: &TaskNode) -> Option<Vec<Box<dyn Dependency<C>>>> {
     self.task_dependencies.remove(task_node)
@@ -85,6 +92,7 @@ impl<C: Context> Store<C> {
     let dependencies = self.task_dependencies.entry(task_node).or_insert_with(|| Vec::new());
     dependencies.push(dependency);
   }
+
 
   #[inline]
   pub fn get_task_output_map<T: Task>(&self) -> Option<&HashMap<T, T::Output>> {
@@ -101,5 +109,21 @@ impl<C: Context> Store<C> {
   #[inline]
   pub fn set_task_output<T: Task>(&mut self, task: T, output: T::Output) {
     self.get_task_output_map_mut::<T>().insert(task, output);
+  }
+
+
+  #[inline]
+  pub fn add_file_require_dependency(&mut self, depender: TaskNode, dependee: FileNode, dependency: FileDependency) {
+    self.graph.add_dependency(depender, dependee).ok(); // Ignore error OK: cycles cannot occur from task to file dependencies, as files do not have dependencies.
+    self.task_to_required_files.entry(depender).or_insert_with(|| Vec::with_capacity(1)).push(dependee);
+    self.file_to_requiring_tasks.entry(dependee).or_insert_with(|| Vec::with_capacity(1)).push(depender);
+    self.add_to_task_dependencies(depender, Box::new(dependency));
+  }
+  #[inline]
+  pub fn add_file_provide_dependency(&mut self, depender: TaskNode, dependee: FileNode, dependency: FileDependency) {
+    self.graph.add_dependency(depender, dependee).ok(); // Ignore error OK: cycles cannot occur from task to file dependencies, as files do not have dependencies.
+    self.file_to_providing_task.insert(dependee, depender);
+    self.task_to_provided_file.insert(depender, dependee);
+    self.add_to_task_dependencies(depender, Box::new(dependency));
   }
 }

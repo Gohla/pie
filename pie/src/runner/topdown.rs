@@ -41,14 +41,15 @@ impl TopDownRunner {
 impl Context for TopDownRunner {
   fn require_task<T: Task>(&mut self, task: &T) -> T::Output {
     let task_node = self.store.get_or_create_node_by_task(Box::new(task.clone()) as Box<dyn DynTask>);
+    // Check for cyclic dependency
     if let Some(current_task_node) = self.task_execution_stack.last() {
       // TODO: can we detect a cycle by first removing dependencies, and checking if that is already in the stack?
-      if let Err(incremental_topo::Error::CycleDetected) = self.store.graph.add_dependency(current_task_node, task_node) {
+      if let Err(incremental_topo::Error::CycleDetected) = self.store.add_task_dependency_to_graph(current_task_node, &task_node) {
         let current_task = self.store.get_task_by_node(current_task_node);
         panic!("Cyclic task dependency; task {:?} required task {:?} which was already required. Task stack: {:?}", current_task, task, self.task_execution_stack);
       }
     }
-    if self.should_execute_task(task_node) {
+    if self.should_execute_task(task_node) { // Execute the task, cache and return up-to-date output.
       // TODO: remove from task_to_required_files/file_to_requiring_tasks/task_to_provided_file/file_to_providing_task and update graph
       // TODO: should also delete dependencies from the graph!
 
@@ -60,8 +61,8 @@ impl Context for TopDownRunner {
       }
       self.store.set_task_output(task.clone(), output.clone());
       output
-    } else {
-      // Assume: if we should not execute the task, it must have been executed before, and therefore it has an output.
+    } else { // Return already up-to-date output.
+      // Unwrap OK: if we should not execute the task, it must have been executed before, and therefore it has an output.
       let output = self.store.get_task_output::<T>(task).unwrap().clone();
       output
     }
@@ -73,11 +74,7 @@ impl Context for TopDownRunner {
     let dependency = FileDependency::new(path.clone()).map_err(|e| e.kind())?;
     let opened = dependency.open();
     if let Some(current_task_node) = self.task_execution_stack.last() {
-      let current_task_node = *current_task_node;
-      self.store.graph.add_dependency(current_task_node, file_node).ok(); // Ignore error OK: cycles cannot occur from task to file dependencies, as files do not have dependencies.
-      self.store.task_to_required_files.entry(current_task_node).or_insert_with(|| Vec::with_capacity(1)).push(file_node);
-      self.store.file_to_requiring_tasks.entry(file_node).or_insert_with(|| Vec::with_capacity(1)).push(current_task_node);
-      self.store.add_to_task_dependencies(current_task_node, Box::new(dependency));
+      self.store.add_file_require_dependency(*current_task_node, file_node, dependency);
     }
     opened
   }
@@ -88,10 +85,7 @@ impl Context for TopDownRunner {
     // TODO: overlapping provided file detection
     let dependency = FileDependency::new(path.clone()).map_err(|e| e.kind())?;
     if let Some(current_task_node) = self.task_execution_stack.last() {
-      let current_task_node = *current_task_node;
-      self.store.graph.add_dependency(current_task_node, file_node).ok(); // Ignore error OK: cycles cannot occur from task to file dependencies, as files do not have dependencies.
-      self.store.file_to_providing_task.insert(file_node, current_task_node);
-      self.store.add_to_task_dependencies(current_task_node, Box::new(dependency));
+      self.store.add_file_provide_dependency(*current_task_node, file_node, dependency);
     }
     Ok(())
   }
@@ -112,7 +106,7 @@ impl TopDownRunner {
             self.dependency_check_errors.push(e);
             return true;
           }
-          _ => {}, // Continue to check other dependencies.
+          _ => {} // Continue to check other dependencies.
         }
       }
       // Task is consistent and does not need to be executed. Restore the previous dependencies.
