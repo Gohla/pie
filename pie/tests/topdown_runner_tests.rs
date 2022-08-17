@@ -42,7 +42,28 @@ fn overlapping_provided_file_panics() {
   let path = PathBuf::from("../target/test/test.txt");
   let task_1 = WriteStringToFile::new(path.clone(), "Test 1");
   runner.require_initial(&task_1).expect("no dependency checking errors").expect("no file write error");
-  let task_2 = WriteStringToFile::new(path, "Test 2");
+  let task_2 = WriteStringToFile::new(path.clone(), "Test 2");
   runner.require_initial(&task_2).expect("no dependency checking errors").expect("no file write error");
 }
 
+#[test]
+#[should_panic(expected = "Hidden dependency")]
+fn hidden_dependency_during_require_panics() {
+  let mut runner = TopDownRunner::new();
+  let path = PathBuf::from("../target/test/test.txt");
+  let providing_task = WriteStringToFile::new(path.clone(), "Test 1");
+  runner.require_initial(&providing_task).expect("no dependency checking errors").expect("no file write error");
+  let requiring_task = ReadStringFromFile::new(path.clone());
+  runner.require_initial(&requiring_task).expect("no dependency checking errors").expect("no file read error");
+}
+
+#[test]
+#[should_panic(expected = "Hidden dependency")]
+fn hidden_dependency_during_provide_panics() {
+  let mut runner = TopDownRunner::new();
+  let path = PathBuf::from("../target/test/test.txt");
+  let requiring_task = ReadStringFromFile::new(path.clone());
+  runner.require_initial(&requiring_task).expect("no dependency checking errors").expect("no file read error");
+  let providing_task = WriteStringToFile::new(path.clone(), "Test 1");
+  runner.require_initial(&providing_task).expect("no dependency checking errors").expect("no file write error");
+}
