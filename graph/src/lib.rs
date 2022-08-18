@@ -373,10 +373,10 @@ impl<N, PE, CE> DAG<N, PE, CE> {
     }
 
     // Insert forward edge
-    let mut no_prev_edge = self.node_repr[pred.0].children.insert(*succ, child_data).is_some();
+    let mut no_prev_edge = self.node_repr[pred.0].children.insert(*succ, child_data).is_none();
     let upper_bound = self.node_repr[pred.0].topo_order;
     // Insert backward edge
-    no_prev_edge = no_prev_edge && self.node_repr[succ.0].parents.insert(*pred, parent_data).is_some();
+    no_prev_edge = no_prev_edge && self.node_repr[succ.0].parents.insert(*pred, parent_data).is_none();
     let lower_bound = self.node_repr[succ.0].topo_order;
     // If edge already exists short circuit
     if !no_prev_edge {
