@@ -3,7 +3,7 @@ use std::error::Error;
 use std::fs::File;
 use std::path::PathBuf;
 
-use incremental_topo::Node;
+use pie_graph::Node;
 
 use crate::{Context, DynTask, FileDependency, Task, TaskDependency};
 use crate::runner::store::{Store, TaskNode};
@@ -68,7 +68,7 @@ impl<R: Tracker> Context for TopDownRunner<R> {
       self.store.reset_task(&task_node);
       // Check for cyclic dependency
       if let Some(current_task_node) = self.task_execution_stack.last() {
-        if let Err(incremental_topo::Error::CycleDetected) = self.store.add_task_dependency_edge(*current_task_node, task_node) {
+        if let Err(pie_graph::Error::CycleDetected) = self.store.add_task_dependency_edge(*current_task_node, task_node) {
           let current_task = self.store.task_by_node(current_task_node);
           let task_stack: Vec<_> = self.task_execution_stack.iter().map(|task_node| self.store.task_by_node(task_node)).collect();
           panic!("Cyclic task dependency; current task '{:?}' is requiring task '{:?}' which was already required. Task stack: {:?}", current_task, task, task_stack);
@@ -87,7 +87,7 @@ impl<R: Tracker> Context for TopDownRunner<R> {
       output
     } else { // Return already up-to-date output.
       // Unwrap OK: if we should not execute the task, it must have been executed before, and therefore it has an output.
-      let output = self.store.get_task_output::<T>(task).unwrap().clone();
+      let output = self.store.get_task_output(task).unwrap().clone();
       output
     }
   }
@@ -99,9 +99,9 @@ impl<R: Tracker> Context for TopDownRunner<R> {
     let opened = dependency.open();
     if let Some(current_requiring_task_node) = self.task_execution_stack.last() {
       if let Some(providing_task_node) = self.store.get_providing_task_node(&file_node) {
-        if !self.store.contains_transitive_task_dependency(current_requiring_task_node, providing_task_node) {
+        if !self.store.contains_transitive_task_dependency(current_requiring_task_node, &providing_task_node) {
           let current_requiring_task = self.store.task_by_node(current_requiring_task_node);
-          let providing_task = self.store.task_by_node(providing_task_node);
+          let providing_task = self.store.task_by_node(&providing_task_node);
           panic!("Hidden dependency; file '{}' is required by the current task '{:?}' without a dependency to providing task: {:?}", path.display(), current_requiring_task, providing_task);
         }
       }
@@ -117,16 +117,14 @@ impl<R: Tracker> Context for TopDownRunner<R> {
     if let Some(current_providing_task_node) = self.task_execution_stack.last() {
       if let Some(previous_providing_task_node) = self.store.get_providing_task_node(&file_node) {
         let current_providing_task = self.store.task_by_node(current_providing_task_node);
-        let previous_providing_task = self.store.task_by_node(previous_providing_task_node);
+        let previous_providing_task = self.store.task_by_node(&previous_providing_task_node);
         panic!("Overlapping provided file; file '{}' is provided by the current task '{:?}' that was previously provided by task: {:?}", path.display(), current_providing_task, previous_providing_task);
       }
-      if let Some(requiring_task_nodes) = self.store.get_requiring_task_node(&file_node) {
-        for requiring_task_node in requiring_task_nodes {
-          if !self.store.contains_transitive_task_dependency(requiring_task_node, current_providing_task_node) {
-            let current_providing_task = self.store.task_by_node(current_providing_task_node);
-            let requiring_task = self.store.task_by_node(requiring_task_node);
-            panic!("Hidden dependency; file '{}' is provided by the current task '{:?}' without a dependency from requiring task '{:?}' to the current providing task", path.display(), current_providing_task, requiring_task);
-          }
+      for requiring_task_node in self.store.get_requiring_task_nodes(&file_node) {
+        if !self.store.contains_transitive_task_dependency(&requiring_task_node, current_providing_task_node) {
+          let current_providing_task = self.store.task_by_node(current_providing_task_node);
+          let requiring_task = self.store.task_by_node(&requiring_task_node);
+          panic!("Hidden dependency; file '{}' is provided by the current task '{:?}' without a dependency from requiring task '{:?}' to the current providing task", path.display(), current_providing_task, requiring_task);
         }
       }
       self.store.add_file_provide_dependency(*current_providing_task_node, file_node, dependency);

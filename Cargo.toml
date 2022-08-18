@@ -2,10 +2,12 @@ cargo-features = ["named-profiles", "profile-overrides"]
 
 [workspace]
 members = [
-  "pie"
+  "pie",
+  "graph",
 ]
 default-members = [
   "pie",
+  "graph",
 ]
 resolver = "2"
 
@@ -42,7 +44,7 @@ inherits = "dev"
 # Debug profile: full debug information, no optimisations. Low compile-time.
 [profile.dbg]
 inherits = "dev"
-opt-level = 1
+opt-level = 0
 debug = true
 debug-assertions = true
 overflow-checks = true

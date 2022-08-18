@@ -1,9 +1,9 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::path::PathBuf;
 
 use anymap::AnyMap;
-use bimap::BiHashMap;
-use incremental_topo::{IncrementalTopo, Node};
+
+use pie_graph::{DAG, Node};
 
 use crate::{Context, Dependency, DynTask, FileDependency, Task};
 
@@ -11,36 +11,25 @@ pub type TaskNode = Node;
 pub type FileNode = Node;
 
 pub struct Store<C: Context> {
-  graph: IncrementalTopo,
-  task_node: BiHashMap<Box<dyn DynTask>, TaskNode>,
-  file_node: BiHashMap<PathBuf, FileNode>,
-
-  task_to_required_files: HashMap<TaskNode, HashSet<FileNode>>,
-  file_to_requiring_tasks: HashMap<FileNode, HashSet<TaskNode>>,
-  task_to_provided_files: HashMap<TaskNode, HashSet<TaskNode>>,
-  file_to_providing_task: HashMap<FileNode, TaskNode>,
-  task_to_required_tasks: HashMap<TaskNode, HashSet<TaskNode>>,
-
+  graph: DAG<NodeData<C>>,
+  task_to_node: HashMap<Box<dyn DynTask>, TaskNode>,
+  file_to_node: HashMap<PathBuf, FileNode>,
   task_outputs: AnyMap,
-  task_dependencies: HashMap<TaskNode, Vec<Box<dyn Dependency<C>>>>,
+}
+
+pub enum NodeData<C: Context> {
+  Task(Box<dyn DynTask>, Option<Vec<Box<dyn Dependency<C>>>>),
+  File(PathBuf),
 }
 
 impl<C: Context> Default for Store<C> {
   #[inline]
   fn default() -> Self {
     Self {
-      graph: IncrementalTopo::new(),
-      task_node: BiHashMap::new(),
-      file_node: BiHashMap::new(),
-
-      task_to_required_files: HashMap::new(),
-      file_to_requiring_tasks: HashMap::new(),
-      task_to_provided_files: HashMap::new(),
-      file_to_providing_task: HashMap::new(),
-      task_to_required_tasks: HashMap::default(),
-
+      graph: DAG::new(),
+      task_to_node: HashMap::new(),
+      file_to_node: HashMap::new(),
       task_outputs: AnyMap::new(),
-      task_dependencies: HashMap::new(),
     }
   }
 }
@@ -54,58 +43,70 @@ impl<C: Context> Store<C> {
 impl<C: Context> Store<C> {
   #[inline]
   pub fn get_or_create_node_by_task(&mut self, task: Box<dyn DynTask>) -> TaskNode {
-    if let Some(node) = self.task_node.get_by_left(&task) {
+    if let Some(node) = self.task_to_node.get(&task) {
       *node
     } else {
-      let node = self.graph.add_node();
-      self.task_node.insert(task, node);
+      let node = self.graph.add_node(NodeData::Task(task.clone(), None));
+      self.task_to_node.insert(task, node);
       node
     }
   }
   #[inline]
   pub fn get_task_by_node(&self, task_node: &TaskNode) -> Option<&Box<dyn DynTask>> {
-    self.task_node.get_by_right(task_node)
+    self.graph.get_node_data(task_node).and_then(|d| match d {
+      NodeData::Task(t, _) => Some(t),
+      _ => None
+    })
   }
 
   #[inline]
   pub fn task_by_node(&self, task_node: &TaskNode) -> &Box<dyn DynTask> {
-    self.task_node.get_by_right(task_node).unwrap()
+    self.get_task_by_node(task_node).unwrap()
   }
 
 
   #[inline]
   pub fn get_or_create_file_node(&mut self, path: &PathBuf) -> FileNode {
     // TODO: normalize path?
-    if let Some(file_node) = self.file_node.get_by_left(path) {
+    if let Some(file_node) = self.file_to_node.get(path) {
       *file_node
     } else {
-      let node = self.graph.add_node();
-      self.file_node.insert(path.clone(), node);
+      let node = self.graph.add_node(NodeData::File(path.clone()));
+      self.file_to_node.insert(path.clone(), node);
       node
     }
   }
 
 
   #[inline]
-  pub fn add_task_dependency_edge(&mut self, depender_task_node: TaskNode, dependee_task_node: TaskNode) -> Result<bool, incremental_topo::Error> {
-    let result = self.graph.add_dependency(depender_task_node, dependee_task_node)?;
-    self.task_to_required_tasks.entry(depender_task_node).or_insert_with(|| HashSet::with_capacity(1)).insert(dependee_task_node);
-    Ok(result)
+  pub fn add_task_dependency_edge(&mut self, depender_task_node: TaskNode, dependee_task_node: TaskNode) -> Result<bool, pie_graph::Error> {
+    self.graph.add_dependency(depender_task_node, dependee_task_node)
   }
 
 
   #[inline]
   pub fn remove_dependencies_of_task(&mut self, task_node: &TaskNode) -> Option<Vec<Box<dyn Dependency<C>>>> {
-    self.task_dependencies.remove(task_node)
+    if let Some(NodeData::Task(_, dependencies)) = self.graph.get_node_data_mut(task_node) {
+      std::mem::take(dependencies)
+    } else {
+      None
+    }
   }
   #[inline]
   pub fn set_dependencies_of_task(&mut self, task_node: TaskNode, dependencies: Vec<Box<dyn Dependency<C>>>) {
-    self.task_dependencies.insert(task_node, dependencies);
+    if let Some(NodeData::Task(_, ref mut stored_dependencies)) = self.graph.get_node_data_mut(task_node) {
+      std::mem::swap(stored_dependencies, &mut Some(dependencies));
+    }
   }
   #[inline]
   pub fn add_to_dependencies_of_task(&mut self, task_node: TaskNode, dependency: Box<dyn Dependency<C>>) {
-    let dependencies = self.task_dependencies.entry(task_node).or_insert_with(|| Vec::new());
-    dependencies.push(dependency);
+    if let Some(NodeData::Task(_, ref mut dependencies)) = self.graph.get_node_data_mut(task_node) {
+      if let Some(dependencies) = dependencies {
+        dependencies.push(dependency);
+      } else {
+        *dependencies = Some(vec![dependency]);
+      }
+    }
   }
 
 
@@ -130,52 +131,29 @@ impl<C: Context> Store<C> {
   #[inline]
   pub fn add_file_require_dependency(&mut self, depender_task_node: TaskNode, dependee_file_node: FileNode, dependency: FileDependency) {
     self.graph.add_dependency(depender_task_node, dependee_file_node).ok(); // Ignore error OK: cycles cannot occur from task to file dependencies, as files do not have dependencies.
-    self.task_to_required_files.entry(depender_task_node).or_insert_with(|| HashSet::with_capacity(1)).insert(dependee_file_node);
-    self.file_to_requiring_tasks.entry(dependee_file_node).or_insert_with(|| HashSet::with_capacity(1)).insert(depender_task_node);
     self.add_to_dependencies_of_task(depender_task_node, Box::new(dependency));
   }
   #[inline]
   pub fn add_file_provide_dependency(&mut self, depender_task_node: TaskNode, dependee_file_node: FileNode, dependency: FileDependency) {
     self.graph.add_dependency(depender_task_node, dependee_file_node).ok(); // Ignore error OK: cycles cannot occur from task to file dependencies, as files do not have dependencies.
-    self.task_to_provided_files.entry(depender_task_node).or_insert_with(|| HashSet::with_capacity(1)).insert(dependee_file_node);
-    self.file_to_providing_task.insert(dependee_file_node, depender_task_node);
     self.add_to_dependencies_of_task(depender_task_node, Box::new(dependency));
   }
 
   #[inline]
   pub fn reset_task(&mut self, task_node: &TaskNode) {
-    // Remove required files of task.
-    if let Some(required_files) = self.task_to_required_files.remove(task_node) {
-      for required_file in required_files {
-        self.graph.delete_dependency(task_node, required_file);
-        if let Some(requiring_tasks) = self.file_to_requiring_tasks.get_mut(&required_file) {
-          requiring_tasks.remove(task_node);
-        }
-      }
-    }
-    // Remove provided files of task.
-    if let Some(provided_files) = self.task_to_provided_files.remove(task_node) {
-      for provided_file in provided_files {
-        self.graph.delete_dependency(task_node, provided_file);
-        self.file_to_providing_task.remove(&provided_file);
-      }
-    }
-    // Remove required tasks of task.
-    if let Some(required_tasks) = self.task_to_required_tasks.remove(task_node) {
-      for required_task in required_tasks {
-        self.graph.delete_dependency(task_node, required_task);
-      }
+    for dependee in self.graph.get_outgoing_dependency_nodes(task_node).collect::<Vec<_>>() { // OPTO: reuse allocation
+      self.graph.remove_dependency(task_node, dependee);
     }
   }
 
   #[inline]
-  pub fn get_providing_task_node(&self, file_node: &FileNode) -> Option<&TaskNode> {
-    self.file_to_providing_task.get(file_node)
+  pub fn get_providing_task_node(&self, file_node: &FileNode) -> Option<TaskNode> {
+    self.graph.get_incoming_dependency_nodes(file_node).next() // TODO: need to filter out file require deps, which need edge data
   }
 
   #[inline]
-  pub fn get_requiring_task_node(&self, file_node: &FileNode) -> Option<&HashSet<TaskNode>> {
-    self.file_to_requiring_tasks.get(file_node)
+  pub fn get_requiring_task_nodes<'a>(&'a self, file_node: &'a FileNode) -> impl Iterator<Item=TaskNode> + '_ {
+    self.graph.get_incoming_dependency_nodes(file_node) // TODO: need to filter out file provide deps, which need edge data
   }
 
   #[inline]
