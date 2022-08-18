@@ -101,9 +101,9 @@ use thunderdome::{Arena, Index};
 /// See the [module-level documentation] for more information.
 ///
 /// [module-level documentation]: index.html
-#[derive(Default, Debug, Clone)]
+#[derive(Default, Clone, Debug)]
 pub struct DAG<N> {
-  node_data: Arena<NodeRepr<N>>,
+  node_repr: Arena<NodeRepr<N>>,
   last_topo_order: TopoOrder,
 }
 
@@ -113,29 +113,13 @@ pub struct DAG<N> {
 /// This identifier contains metadata so that a node which has been passed to
 /// [`IncrementalTopo::delete_node`] will not be confused with a node created
 /// later.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 #[repr(transparent)]
 pub struct Node(Index);
 
 impl From<Index> for Node {
   #[inline]
   fn from(src: Index) -> Self { Self(src) }
-}
-
-/// An identifier of a node that is lacking additional safety metadata that
-/// prevents ABA issues.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-#[repr(transparent)]
-struct UnsafeIndex(u32);
-
-impl From<Node> for UnsafeIndex {
-  #[inline]
-  fn from(src: Node) -> Self { Self(src.0.slot()) }
-}
-
-impl From<&Node> for UnsafeIndex {
-  #[inline]
-  fn from(src: &Node) -> Self { Self(src.0.slot()) }
 }
 
 
@@ -145,8 +129,8 @@ impl From<&Node> for UnsafeIndex {
 struct NodeRepr<N> {
   topo_order: TopoOrder,
   data: N,
-  parents: FnvHashSet<UnsafeIndex>,
-  children: FnvHashSet<UnsafeIndex>,
+  parents: FnvHashSet<Node>,
+  children: FnvHashSet<Node>,
 }
 
 impl<N> NodeRepr<N> {
@@ -161,27 +145,8 @@ impl<N> NodeRepr<N> {
   }
 }
 
+
 type TopoOrder = u32;
-
-impl<N> PartialEq for NodeRepr<N> {
-  fn eq(&self, other: &Self) -> bool {
-    self.topo_order == other.topo_order
-  }
-}
-
-impl<N> Eq for NodeRepr<N> {}
-
-impl<N> PartialOrd for NodeRepr<N> {
-  fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-    Some(self.topo_order.cmp(&other.topo_order))
-  }
-}
-
-impl<N> Ord for NodeRepr<N> {
-  fn cmp(&self, other: &Self) -> Ordering {
-    self.partial_cmp(other).unwrap()
-  }
-}
 
 
 /// Different types of failures that can occur while updating or querying
@@ -202,7 +167,7 @@ impl fmt::Display for Error {
     match self {
       Error::NodeMissing => {
         write!(f, "The given node was not found in the topological order")
-      },
+      }
       Error::CycleDetected => write!(f, "Cycles of nodes may not be formed in the graph"),
     }
   }
@@ -222,7 +187,7 @@ impl<N> DAG<N> {
   /// assert!(dag.is_empty());
   /// ```
   #[inline]
-  pub fn new() -> Self { Self { last_topo_order: 0, node_data: Arena::new(), } }
+  pub fn new() -> Self { Self { last_topo_order: 0, node_repr: Arena::new() } }
 
   /// Add a new node to the graph and return a unique [`Node`] which
   /// identifies it.
@@ -260,7 +225,7 @@ impl<N> DAG<N> {
     let next_topo_order = self.last_topo_order + 1;
     self.last_topo_order = next_topo_order;
     let node_data = NodeRepr::new(next_topo_order, data);
-    Node(self.node_data.insert(node_data))
+    Node(self.node_repr.insert(node_data))
   }
 
   /// Returns true if the graph contains the specified node.
@@ -279,21 +244,21 @@ impl<N> DAG<N> {
   #[inline]
   pub fn contains_node(&self, node: impl Borrow<Node>) -> bool {
     let node = node.borrow();
-    self.node_data.contains(node.0)
+    self.node_repr.contains(node.0)
   }
 
   /// Gets data for given `node`.
   #[inline]
   pub fn get_node_data(&self, node: impl Borrow<Node>) -> Option<&N> {
     let node = node.borrow();
-    self.node_data.get(node.0).map(|d| &d.data)
+    self.node_repr.get(node.0).map(|d| &d.data)
   }
 
   /// Gets mutable data for given `node`.
   #[inline]
   pub fn get_node_data_mut(&mut self, node: impl Borrow<Node>) -> Option<&mut N> {
     let node = node.borrow();
-    self.node_data.get_mut(node.0).map(|d| &mut d.data)
+    self.node_repr.get_mut(node.0).map(|d| &mut d.data)
   }
 
   /// Attempt to remove node from graph, returning true if the node was
@@ -314,26 +279,26 @@ impl<N> DAG<N> {
   /// assert!(!dag.remove_node(dog));
   /// ```
   pub fn remove_node(&mut self, node: Node) -> bool {
-    if !self.node_data.contains(node.0) {
+    if !self.node_repr.contains(node.0) {
       return false;
     }
 
     // Remove associated data
-    let data = self.node_data.remove(node.0).unwrap();
+    let data = self.node_repr.remove(node.0).unwrap();
     // Delete forward edges
     for child in data.children {
-      if let Some((_, child_data)) = self.node_data.get_by_slot_mut(child.0) {
-        child_data.parents.remove(&node.into());
+      if let Some(child_repr) = self.node_repr.get_mut(child.0) {
+        child_repr.parents.remove(&node.into());
       }
     }
     // Delete backward edges
     for parent in data.parents {
-      if let Some((_, parent_data)) = self.node_data.get_by_slot_mut(parent.0) {
-        parent_data.children.remove(&node.into());
+      if let Some(parent_repr) = self.node_repr.get_mut(parent.0) {
+        parent_repr.children.remove(&node.into());
       }
     }
     // OPTO: inefficient compaction step
-    for (_, other_node) in self.node_data.iter_mut() {
+    for (_, other_node) in self.node_repr.iter_mut() {
       if other_node.topo_order > data.topo_order {
         other_node.topo_order -= 1;
       }
@@ -405,15 +370,12 @@ impl<N> DAG<N> {
       return Err(Error::CycleDetected);
     }
 
-    let succ_index = UnsafeIndex::from(succ);
-    let pred_index = UnsafeIndex::from(pred);
-
     // Insert forward edge
-    let mut no_prev_edge = self.node_data[pred.0].children.insert(succ_index);
-    let upper_bound = self.node_data[pred.0].topo_order;
+    let mut no_prev_edge = self.node_repr[pred.0].children.insert(*succ);
+    let upper_bound = self.node_repr[pred.0].topo_order;
     // Insert backward edge
-    no_prev_edge = no_prev_edge && self.node_data[succ.0].parents.insert(pred_index);
-    let lower_bound = self.node_data[succ.0].topo_order;
+    no_prev_edge = no_prev_edge && self.node_repr[succ.0].parents.insert(*pred);
+    let lower_bound = self.node_repr[succ.0].topo_order;
     // If edge already exists short circuit
     if !no_prev_edge {
       return Ok(false);
@@ -424,16 +386,16 @@ impl<N> DAG<N> {
     if lower_bound < upper_bound {
       let mut visited = FnvHashSet::default(); // OPTO: reuse allocation.
       // Walk changes forward from the succ, checking for any cycles that would be introduced
-      let change_forward = match self.dfs_forward(succ_index, &mut visited, upper_bound) {
+      let change_forward = match self.dfs_forward(*succ, &mut visited, upper_bound) {
         Ok(change_set) => change_set,
         Err(err) => { // Need to remove parent + child info that was previously added
-          self.node_data[pred.0].children.remove(&succ_index);
-          self.node_data[succ.0].parents.remove(&pred_index);
+          self.node_repr[pred.0].children.remove(succ);
+          self.node_repr[succ.0].parents.remove(pred);
           return Err(err);
-        },
+        }
       };
       // Walk backwards from the pred
-      let change_backward = self.dfs_backward(pred_index, &mut visited, lower_bound);
+      let change_backward = self.dfs_backward(*pred, &mut visited, lower_bound);
       self.reorder_nodes(change_forward, change_backward);
     }
 
@@ -468,10 +430,10 @@ impl<N> DAG<N> {
     let pred = pred.borrow();
     let succ = succ.borrow();
 
-    if !self.node_data.contains(pred.0) || !self.node_data.contains(succ.0) {
+    if !self.node_repr.contains(pred.0) || !self.node_repr.contains(succ.0) {
       return false;
     }
-    self.node_data[pred.0].children.contains(&succ.into())
+    self.node_repr[pred.0].children.contains(&succ)
   }
 
   /// Returns true if the graph contains a transitive dependency from
@@ -510,7 +472,7 @@ impl<N> DAG<N> {
     let succ = succ.borrow();
 
     // If either node is missing, return quick
-    if !self.node_data.contains(pred.0) || !self.node_data.contains(succ.0) {
+    if !self.node_repr.contains(pred.0) || !self.node_repr.contains(succ.0) {
       return false;
     }
 
@@ -525,7 +487,7 @@ impl<N> DAG<N> {
     let mut stack = Vec::new(); // OPTO: reuse allocation
     let mut visited = FnvHashSet::default(); // OPTO: reuse allocation
 
-    stack.push(UnsafeIndex::from(pred));
+    stack.push(pred);
 
     // For each node key popped off the stack, check that we haven't seen it
     // before, then check if its children contain the node we're searching for.
@@ -537,8 +499,8 @@ impl<N> DAG<N> {
         visited.insert(key);
       }
 
-      let children = &self.node_data.get_by_slot(key.0).unwrap().1.children;
-      if children.contains(&succ.into()) {
+      let children = &self.node_repr.get(key.0).unwrap().children;
+      if children.contains(&succ) {
         return true;
       } else {
         stack.extend(children);
@@ -553,59 +515,49 @@ impl<N> DAG<N> {
 
   /// Gets the outgoing dependency nodes of given `node`.
   #[inline]
-  pub fn get_outgoing_dependency_nodes(&self, node: impl Borrow<Node>) -> impl Iterator<Item=Node> + '_ {
+  pub fn get_outgoing_dependency_nodes(&self, node: impl Borrow<Node>) -> impl Iterator<Item=&Node> + '_ {
     let node = node.borrow();
-    self.get_outgoing_dependencies(node.0).map(|(i, _)| Node(i))
+    self.get_outgoing_dependencies(node.0)
   }
 
   /// Gets the outgoing dependency data of given `node`.
   #[inline]
   pub fn get_outgoing_dependency_data(&self, node: impl Borrow<Node>) -> impl Iterator<Item=&N> + '_ {
     let node = node.borrow();
-    self.get_outgoing_dependencies(node.0).map(|(_, d)| &d.data)
-  }
-
-  /// Gets the outgoing dependency nodes and data of given `node`.
-  #[inline]
-  pub fn get_outgoing_dependency_nodes_and_data(&self, node: impl Borrow<Node>) -> impl Iterator<Item=(Node, &N)> + '_ {
-    let node = node.borrow();
-    self.get_outgoing_dependencies(node.0).map(|(i, d)| (Node(i), &d.data))
+    self.get_outgoing_dependencies(node.0)
+      .flat_map(|c| self.node_repr.get(c.0).into_iter())
+      .map(|nr| &nr.data)
   }
 
   #[inline]
-  fn get_outgoing_dependencies(&self, index: Index) -> impl Iterator<Item=(Index, &NodeRepr<N>)> + '_ {
-    self.node_data.get(index)
+  fn get_outgoing_dependencies(&self, index: Index) -> impl Iterator<Item=&Node> + '_ {
+    self.node_repr.get(index)
       .into_iter()
-      .flat_map(|d| d.children.iter().flat_map(|c| self.node_data.get_by_slot(c.0).into_iter()))
+      .flat_map(|d| d.children.iter())
   }
 
 
   /// Gets the incoming dependency nodes of given `node`.
   #[inline]
-  pub fn get_incoming_dependency_nodes(&self, node: impl Borrow<Node>) -> impl Iterator<Item=Node> + '_ {
+  pub fn get_incoming_dependency_nodes(&self, node: impl Borrow<Node>) -> impl Iterator<Item=&Node> + '_ {
     let node = node.borrow();
-    self.get_incoming_dependencies(node.0).map(|(i, _)| Node(i))
+    self.get_incoming_dependencies(node.0)
   }
 
   /// Gets the incoming dependency data of given `node`.
   #[inline]
   pub fn get_incoming_dependency_data(&self, node: impl Borrow<Node>) -> impl Iterator<Item=&N> + '_ {
     let node = node.borrow();
-    self.get_incoming_dependencies(node.0).map(|(_, d)| &d.data)
-  }
-
-  /// Gets the incoming dependency nodes and data of given `node`.
-  #[inline]
-  pub fn get_incoming_dependency_nodes_and_data(&self, node: impl Borrow<Node>) -> impl Iterator<Item=(Node, &N)> + '_ {
-    let node = node.borrow();
-    self.get_incoming_dependencies(node.0).map(|(i, d)| (Node(i), &d.data))
+    self.get_incoming_dependencies(node.0)
+      .flat_map(|c| self.node_repr.get(c.0).into_iter())
+      .map(|nr| &nr.data)
   }
 
   #[inline]
-  fn get_incoming_dependencies(&self, index: Index) -> impl Iterator<Item=(Index, &NodeRepr<N>)> + '_ {
-    self.node_data.get(index)
+  fn get_incoming_dependencies(&self, index: Index) -> impl Iterator<Item=&Node> + '_ {
+    self.node_repr.get(index)
       .into_iter()
-      .flat_map(|d| d.parents.iter().flat_map(|c| self.node_data.get_by_slot(c.0).into_iter()))
+      .flat_map(|d| d.parents.iter())
   }
 
 
@@ -641,15 +593,15 @@ impl<N> DAG<N> {
     let pred = pred.borrow();
     let succ = succ.borrow();
 
-    if !self.node_data.contains(pred.0) || !self.node_data.contains(succ.0) {
+    if !self.node_repr.contains(pred.0) || !self.node_repr.contains(succ.0) {
       return false;
     }
-    let pred_children = &mut self.node_data[pred.0].children;
-    if !pred_children.contains(&succ.into()) {
+    let pred_children = &mut self.node_repr[pred.0].children;
+    if !pred_children.contains(&succ) {
       return false;
     }
-    pred_children.remove(&succ.into());
-    self.node_data[succ.0].parents.remove(&pred.into());
+    pred_children.remove(&succ);
+    self.node_repr[succ.0].parents.remove(&pred);
 
     true
   }
@@ -670,7 +622,7 @@ impl<N> DAG<N> {
   /// ```
   #[inline]
   pub fn len(&self) -> usize {
-    self.node_data.len()
+    self.node_repr.len()
   }
 
   /// Return true if there are no nodes in the graph.
@@ -720,7 +672,7 @@ impl<N> DAG<N> {
   /// ```
   #[inline]
   pub fn iter_unsorted(&self) -> impl Iterator<Item=(TopoOrder, Node)> + '_ {
-    self.node_data
+    self.node_repr
       .iter()
       .map(|(index, node)| (node.topo_order, index.into()))
   }
@@ -769,13 +721,13 @@ impl<N> DAG<N> {
     node: impl Borrow<Node>,
   ) -> Result<DescendantsUnsorted<N>, Error> {
     let node = node.borrow();
-    if !self.node_data.contains(node.0) {
+    if !self.node_repr.contains(node.0) {
       return Err(Error::NodeMissing);
     }
 
     let mut stack = Vec::new(); // OPTO: reuse allocation
     // Add all children of selected node
-    stack.extend(&self.node_data[node.0].children);
+    stack.extend(&self.node_repr[node.0].children);
     let visited = FnvHashSet::default(); // OPTO: reuse allocation
 
     Ok(DescendantsUnsorted {
@@ -819,14 +771,14 @@ impl<N> DAG<N> {
   /// ```
   pub fn descendants(&self, node: impl Borrow<Node>) -> Result<Descendants<N>, Error> {
     let node = node.borrow();
-    if !self.node_data.contains(node.0) {
+    if !self.node_repr.contains(node.0) {
       return Err(Error::NodeMissing);
     }
 
     let mut queue = BinaryHeap::new(); // OPTO: reuse allocation
     // Add all children of selected node
     queue.extend(
-      self.node_data[node.0]
+      self.node_repr[node.0]
         .children
         .iter()
         .cloned()
@@ -872,18 +824,18 @@ impl<N> DAG<N> {
   pub fn topo_cmp(&self, node_a: impl Borrow<Node>, node_b: impl Borrow<Node>) -> Ordering {
     let node_a = node_a.borrow();
     let node_b = node_b.borrow();
-    self.node_data[node_a.0]
+    self.node_repr[node_a.0]
       .topo_order
-      .cmp(&self.node_data[node_b.0].topo_order)
+      .cmp(&self.node_repr[node_b.0].topo_order)
   }
 
 
   fn dfs_forward(
     &self,
-    start_key: UnsafeIndex,
-    visited: &mut FnvHashSet<UnsafeIndex>,
+    start_key: Node,
+    visited: &mut FnvHashSet<Node>,
     upper_bound: TopoOrder,
-  ) -> Result<FnvHashSet<UnsafeIndex>, Error> {
+  ) -> Result<FnvHashSet<Node>, Error> {
     let mut stack = Vec::new(); // OPTO: reuse allocation
     let mut result = FnvHashSet::default(); // OPTO: reuse allocation
 
@@ -911,10 +863,10 @@ impl<N> DAG<N> {
 
   fn dfs_backward(
     &self,
-    start_key: UnsafeIndex,
-    visited: &mut FnvHashSet<UnsafeIndex>,
+    start_key: Node,
+    visited: &mut FnvHashSet<Node>,
     lower_bound: TopoOrder,
-  ) -> FnvHashSet<UnsafeIndex> {
+  ) -> FnvHashSet<Node> {
     let mut stack = Vec::new(); // OPTO: reuse allocation
     let mut result = FnvHashSet::default(); // OPTO: reuse allocation
 
@@ -938,8 +890,8 @@ impl<N> DAG<N> {
 
   fn reorder_nodes(
     &mut self,
-    change_forward: FnvHashSet<UnsafeIndex>,
-    change_backward: FnvHashSet<UnsafeIndex>,
+    change_forward: FnvHashSet<Node>,
+    change_backward: FnvHashSet<Node>,
   ) {
     let mut change_forward: Vec<_> = change_forward
       .into_iter()
@@ -969,16 +921,15 @@ impl<N> DAG<N> {
     all_topo_orders.sort_unstable();
 
     for (key, topo_order) in all_keys.into_iter().zip(all_topo_orders.into_iter()) {
-      self.node_data
-        .get_by_slot_mut(key.0)
+      self.node_repr
+        .get_mut(key.0)
         .unwrap()
-        .1
         .topo_order = topo_order;
     }
   }
 
-  fn get_node_repr(&self, idx: UnsafeIndex) -> &NodeRepr<N> {
-    self.node_data.get_by_slot(idx.0).unwrap().1
+  fn get_node_repr(&self, idx: Node) -> &NodeRepr<N> {
+    self.node_repr.get(idx.0).unwrap()
   }
 }
 
@@ -1014,24 +965,24 @@ impl<N> DAG<N> {
 #[derive(Debug)]
 pub struct DescendantsUnsorted<'a, N> {
   dag: &'a DAG<N>,
-  stack: Vec<UnsafeIndex>,
-  visited: FnvHashSet<UnsafeIndex>,
+  stack: Vec<Node>,
+  visited: FnvHashSet<Node>,
 }
 
 impl<'a, N> Iterator for DescendantsUnsorted<'a, N> {
   type Item = (TopoOrder, Node);
   #[inline]
   fn next(&mut self) -> Option<Self::Item> {
-    while let Some(key) = self.stack.pop() {
-      if self.visited.contains(&key) {
+    while let Some(node) = self.stack.pop() {
+      if self.visited.contains(&node) {
         continue;
       } else {
-        self.visited.insert(key);
+        self.visited.insert(node);
       }
-      let (index, node_data) = self.dag.node_data.get_by_slot(key.0).unwrap();
-      let order = node_data.topo_order;
-      self.stack.extend(&node_data.children);
-      return Some((order, index.into()));
+      let node_repr = self.dag.node_repr.get(node.0).unwrap();
+      let order = node_repr.topo_order;
+      self.stack.extend(&node_repr.children);
+      return Some((order, node));
     }
 
     None
@@ -1063,8 +1014,8 @@ impl<'a, N> Iterator for DescendantsUnsorted<'a, N> {
 #[derive(Debug)]
 pub struct Descendants<'a, N> {
   dag: &'a DAG<N>,
-  queue: BinaryHeap<(Reverse<TopoOrder>, UnsafeIndex)>,
-  visited: FnvHashSet<UnsafeIndex>,
+  queue: BinaryHeap<(Reverse<TopoOrder>, Node)>,
+  visited: FnvHashSet<Node>,
 }
 
 impl<'a, N> Iterator for Descendants<'a, N> {
@@ -1072,23 +1023,23 @@ impl<'a, N> Iterator for Descendants<'a, N> {
 
   fn next(&mut self) -> Option<Self::Item> {
     loop {
-      return if let Some((_, key)) = self.queue.pop() {
-        if self.visited.contains(&key) {
+      return if let Some((_, node)) = self.queue.pop() {
+        if self.visited.contains(&node) {
           continue;
         } else {
-          self.visited.insert(key);
+          self.visited.insert(node);
         }
 
-        let (index, node_data) = self.dag.node_data.get_by_slot(key.0).unwrap();
-        for child in &node_data.children {
+        let node_repr = self.dag.node_repr.get(node.0).unwrap();
+        for child in &node_repr.children {
           let order = self.dag.get_node_repr(*child).topo_order;
           self.queue.push((Reverse(order), *child))
         }
 
-        Some(index.into())
+        Some(node)
       } else {
         None
-      }
+      };
     }
   }
 }

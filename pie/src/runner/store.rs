@@ -141,18 +141,18 @@ impl<C: Context> Store<C> {
 
   #[inline]
   pub fn reset_task(&mut self, task_node: &TaskNode) {
-    for dependee in self.graph.get_outgoing_dependency_nodes(task_node).collect::<Vec<_>>() { // OPTO: reuse allocation
+    for dependee in self.graph.get_outgoing_dependency_nodes(task_node).cloned().collect::<Vec<_>>() { // OPTO: reuse allocation
       self.graph.remove_dependency(task_node, dependee);
     }
   }
 
   #[inline]
-  pub fn get_providing_task_node(&self, file_node: &FileNode) -> Option<TaskNode> {
+  pub fn get_providing_task_node(&self, file_node: &FileNode) -> Option<&TaskNode> {
     self.graph.get_incoming_dependency_nodes(file_node).next() // TODO: need to filter out file require deps, which need edge data
   }
 
   #[inline]
-  pub fn get_requiring_task_nodes<'a>(&'a self, file_node: &'a FileNode) -> impl Iterator<Item=TaskNode> + '_ {
+  pub fn get_requiring_task_nodes<'a>(&'a self, file_node: &'a FileNode) -> impl Iterator<Item=&TaskNode> + '_ {
     self.graph.get_incoming_dependency_nodes(file_node) // TODO: need to filter out file provide deps, which need edge data
   }
 
