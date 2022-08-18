@@ -5,13 +5,15 @@ use anymap::AnyMap;
 
 use pie_graph::{DAG, Node};
 
-use crate::{Context, Dependency, DynTask, FileDependency, Task};
+use crate::{Context, Task};
+use crate::dependency::{Dependency, FileDependency};
+use crate::task::DynTask;
 
 pub type TaskNode = Node;
 pub type FileNode = Node;
 
 pub struct Store<C: Context> {
-  graph: DAG<NodeData<C>>,
+  graph: DAG<NodeData<C>, ParentData, ChildData>,
   task_to_node: HashMap<Box<dyn DynTask>, TaskNode>,
   file_to_node: HashMap<PathBuf, FileNode>,
   task_outputs: AnyMap,
@@ -20,6 +22,20 @@ pub struct Store<C: Context> {
 pub enum NodeData<C: Context> {
   Task(Box<dyn DynTask>, Option<Vec<Box<dyn Dependency<C>>>>),
   File(PathBuf),
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
+pub enum ParentData {
+  FileRequiringTask,
+  FileProvidingTask,
+  TaskRequiringTask,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
+pub enum ChildData {
+  RequireFile,
+  ProvideFile,
+  RequireTask,
 }
 
 impl<C: Context> Default for Store<C> {
@@ -80,7 +96,7 @@ impl<C: Context> Store<C> {
 
   #[inline]
   pub fn add_task_dependency_edge(&mut self, depender_task_node: TaskNode, dependee_task_node: TaskNode) -> Result<bool, pie_graph::Error> {
-    self.graph.add_dependency(depender_task_node, dependee_task_node)
+    self.graph.add_dependency(depender_task_node, dependee_task_node, ParentData::TaskRequiringTask, ChildData::RequireTask)
   }
 
 
@@ -130,12 +146,12 @@ impl<C: Context> Store<C> {
 
   #[inline]
   pub fn add_file_require_dependency(&mut self, depender_task_node: TaskNode, dependee_file_node: FileNode, dependency: FileDependency) {
-    self.graph.add_dependency(depender_task_node, dependee_file_node).ok(); // Ignore error OK: cycles cannot occur from task to file dependencies, as files do not have dependencies.
+    self.graph.add_dependency(depender_task_node, dependee_file_node, ParentData::FileRequiringTask, ChildData::RequireFile).ok(); // Ignore error OK: cycles cannot occur from task to file dependencies, as files do not have dependencies.
     self.add_to_dependencies_of_task(depender_task_node, Box::new(dependency));
   }
   #[inline]
   pub fn add_file_provide_dependency(&mut self, depender_task_node: TaskNode, dependee_file_node: FileNode, dependency: FileDependency) {
-    self.graph.add_dependency(depender_task_node, dependee_file_node).ok(); // Ignore error OK: cycles cannot occur from task to file dependencies, as files do not have dependencies.
+    self.graph.add_dependency(depender_task_node, dependee_file_node, ParentData::FileProvidingTask, ChildData::ProvideFile).ok(); // Ignore error OK: cycles cannot occur from task to file dependencies, as files do not have dependencies.
     self.add_to_dependencies_of_task(depender_task_node, Box::new(dependency));
   }
 
@@ -148,12 +164,12 @@ impl<C: Context> Store<C> {
 
   #[inline]
   pub fn get_providing_task_node(&self, file_node: &FileNode) -> Option<&TaskNode> {
-    self.graph.get_incoming_dependency_nodes(file_node).next() // TODO: need to filter out file require deps, which need edge data
+    self.graph.get_incoming_dependencies(file_node).filter_map(|(n, pe)| if pe == &ParentData::FileProvidingTask { Some(n) } else { None }).next()
   }
 
   #[inline]
   pub fn get_requiring_task_nodes<'a>(&'a self, file_node: &'a FileNode) -> impl Iterator<Item=&TaskNode> + '_ {
-    self.graph.get_incoming_dependency_nodes(file_node) // TODO: need to filter out file provide deps, which need edge data
+    self.graph.get_incoming_dependencies(file_node).filter_map(|(n, pe)| if pe == &ParentData::FileRequiringTask { Some(n) } else { None })
   }
 
   #[inline]

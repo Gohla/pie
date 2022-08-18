@@ -92,7 +92,7 @@ use std::{
   iter::Iterator,
 };
 
-use fnv::FnvHashSet;
+use fnv::{FnvHashMap, FnvHashSet};
 use thunderdome::{Arena, Index};
 
 /// Data structure for maintaining a topological ordering over a collection
@@ -102,8 +102,8 @@ use thunderdome::{Arena, Index};
 ///
 /// [module-level documentation]: index.html
 #[derive(Default, Clone, Debug)]
-pub struct DAG<N> {
-  node_repr: Arena<NodeRepr<N>>,
+pub struct DAG<N, PE, CE> {
+  node_repr: Arena<NodeRepr<N, PE, CE>>,
   last_topo_order: TopoOrder,
 }
 
@@ -126,21 +126,21 @@ impl From<Index> for Node {
 /// The representation of a node, with all information about it ordering, which
 /// nodes it points to, and which nodes point to it.
 #[derive(Debug, Clone)]
-struct NodeRepr<N> {
+struct NodeRepr<N, PE, CE> {
   topo_order: TopoOrder,
   data: N,
-  parents: FnvHashSet<Node>,
-  children: FnvHashSet<Node>,
+  parents: FnvHashMap<Node, PE>,
+  children: FnvHashMap<Node, CE>,
 }
 
-impl<N> NodeRepr<N> {
+impl<N, PE, CE> NodeRepr<N, PE, CE> {
   /// Create a new node entry with the specified topological order.
   fn new(topo_order: TopoOrder, data: N) -> Self {
     NodeRepr {
       topo_order,
       data,
-      parents: FnvHashSet::default(),
-      children: FnvHashSet::default(),
+      parents: FnvHashMap::default(),
+      children: FnvHashMap::default(),
     }
   }
 }
@@ -176,13 +176,13 @@ impl fmt::Display for Error {
 impl std::error::Error for Error {}
 
 
-impl<N> DAG<N> {
+impl<N, PE, CE> DAG<N, PE, CE> {
   /// Create a new DAG.
   ///
   /// # Examples
   /// ```
   /// use pie_graph::DAG;
-  /// let dag = DAG::<()>::new();
+  /// let dag = DAG::<(), (), ()>::new();
   ///
   /// assert!(dag.is_empty());
   /// ```
@@ -286,13 +286,13 @@ impl<N> DAG<N> {
     // Remove associated data
     let data = self.node_repr.remove(node.0).unwrap();
     // Delete forward edges
-    for child in data.children {
+    for child in data.children.keys() {
       if let Some(child_repr) = self.node_repr.get_mut(child.0) {
         child_repr.parents.remove(&node.into());
       }
     }
     // Delete backward edges
-    for parent in data.parents {
+    for parent in data.parents.keys() {
       if let Some(parent_repr) = self.node_repr.get_mut(parent.0) {
         parent_repr.children.remove(&node.into());
       }
@@ -362,6 +362,8 @@ impl<N> DAG<N> {
     &mut self,
     pred: impl Borrow<Node>,
     succ: impl Borrow<Node>,
+    parent_data: PE,
+    child_data: CE,
   ) -> Result<bool, Error> {
     let pred = pred.borrow();
     let succ = succ.borrow();
@@ -371,10 +373,10 @@ impl<N> DAG<N> {
     }
 
     // Insert forward edge
-    let mut no_prev_edge = self.node_repr[pred.0].children.insert(*succ);
+    let mut no_prev_edge = self.node_repr[pred.0].children.insert(*succ, child_data).is_some();
     let upper_bound = self.node_repr[pred.0].topo_order;
     // Insert backward edge
-    no_prev_edge = no_prev_edge && self.node_repr[succ.0].parents.insert(*pred);
+    no_prev_edge = no_prev_edge && self.node_repr[succ.0].parents.insert(*pred, parent_data).is_some();
     let lower_bound = self.node_repr[succ.0].topo_order;
     // If edge already exists short circuit
     if !no_prev_edge {
@@ -433,7 +435,7 @@ impl<N> DAG<N> {
     if !self.node_repr.contains(pred.0) || !self.node_repr.contains(succ.0) {
       return false;
     }
-    self.node_repr[pred.0].children.contains(&succ)
+    self.node_repr[pred.0].children.contains_key(&succ)
   }
 
   /// Returns true if the graph contains a transitive dependency from
@@ -500,10 +502,10 @@ impl<N> DAG<N> {
       }
 
       let children = &self.node_repr.get(key.0).unwrap().children;
-      if children.contains(&succ) {
+      if children.contains_key(&succ) {
         return true;
       } else {
-        stack.extend(children);
+        stack.extend(children.keys());
         continue;
       }
     }
@@ -513,51 +515,63 @@ impl<N> DAG<N> {
   }
 
 
+  /// Gets the outgoing dependencies of given `node`.
+  #[inline]
+  pub fn get_outgoing_dependencies(&self, node: impl Borrow<Node>) -> impl Iterator<Item=(&Node, &CE)> + '_ {
+    let node = node.borrow();
+    self.node_repr.get(node.0)
+      .into_iter()
+      .flat_map(|d| d.children.iter())
+  }
+
   /// Gets the outgoing dependency nodes of given `node`.
   #[inline]
   pub fn get_outgoing_dependency_nodes(&self, node: impl Borrow<Node>) -> impl Iterator<Item=&Node> + '_ {
     let node = node.borrow();
-    self.get_outgoing_dependencies(node.0)
+    self.node_repr.get(node.0)
+      .into_iter()
+      .flat_map(|d| d.children.keys())
   }
 
   /// Gets the outgoing dependency data of given `node`.
   #[inline]
   pub fn get_outgoing_dependency_data(&self, node: impl Borrow<Node>) -> impl Iterator<Item=&N> + '_ {
     let node = node.borrow();
-    self.get_outgoing_dependencies(node.0)
+    self.node_repr.get(node.0)
+      .into_iter()
+      .flat_map(|d| d.children.keys())
       .flat_map(|c| self.node_repr.get(c.0).into_iter())
       .map(|nr| &nr.data)
   }
 
-  #[inline]
-  fn get_outgoing_dependencies(&self, index: Index) -> impl Iterator<Item=&Node> + '_ {
-    self.node_repr.get(index)
-      .into_iter()
-      .flat_map(|d| d.children.iter())
-  }
 
+  /// Gets the incoming dependencies of given `node`.
+  #[inline]
+  pub fn get_incoming_dependencies(&self, node: impl Borrow<Node>) -> impl Iterator<Item=(&Node, &PE)> + '_ {
+    let node = node.borrow();
+    self.node_repr.get(node.0)
+      .into_iter()
+      .flat_map(|d| d.parents.iter())
+  }
 
   /// Gets the incoming dependency nodes of given `node`.
   #[inline]
   pub fn get_incoming_dependency_nodes(&self, node: impl Borrow<Node>) -> impl Iterator<Item=&Node> + '_ {
     let node = node.borrow();
-    self.get_incoming_dependencies(node.0)
+    self.node_repr.get(node.0)
+      .into_iter()
+      .flat_map(|d| d.parents.keys())
   }
 
   /// Gets the incoming dependency data of given `node`.
   #[inline]
   pub fn get_incoming_dependency_data(&self, node: impl Borrow<Node>) -> impl Iterator<Item=&N> + '_ {
     let node = node.borrow();
-    self.get_incoming_dependencies(node.0)
+    self.node_repr.get(node.0)
+      .into_iter()
+      .flat_map(|d| d.parents.keys())
       .flat_map(|c| self.node_repr.get(c.0).into_iter())
       .map(|nr| &nr.data)
-  }
-
-  #[inline]
-  fn get_incoming_dependencies(&self, index: Index) -> impl Iterator<Item=&Node> + '_ {
-    self.node_repr.get(index)
-      .into_iter()
-      .flat_map(|d| d.parents.iter())
   }
 
 
@@ -597,7 +611,7 @@ impl<N> DAG<N> {
       return false;
     }
     let pred_children = &mut self.node_repr[pred.0].children;
-    if !pred_children.contains(&succ) {
+    if !pred_children.contains_key(&succ) {
       return false;
     }
     pred_children.remove(&succ);
@@ -719,7 +733,7 @@ impl<N> DAG<N> {
   pub fn descendants_unsorted(
     &self,
     node: impl Borrow<Node>,
-  ) -> Result<DescendantsUnsorted<N>, Error> {
+  ) -> Result<DescendantsUnsorted<N, PE, CE>, Error> {
     let node = node.borrow();
     if !self.node_repr.contains(node.0) {
       return Err(Error::NodeMissing);
@@ -727,7 +741,7 @@ impl<N> DAG<N> {
 
     let mut stack = Vec::new(); // OPTO: reuse allocation
     // Add all children of selected node
-    stack.extend(&self.node_repr[node.0].children);
+    stack.extend(self.node_repr[node.0].children.keys());
     let visited = FnvHashSet::default(); // OPTO: reuse allocation
 
     Ok(DescendantsUnsorted {
@@ -769,7 +783,7 @@ impl<N> DAG<N> {
   ///
   /// assert_eq!(ordered_nodes, vec![dog, cat, mouse]);
   /// ```
-  pub fn descendants(&self, node: impl Borrow<Node>) -> Result<Descendants<N>, Error> {
+  pub fn descendants(&self, node: impl Borrow<Node>) -> Result<Descendants<N, PE, CE>, Error> {
     let node = node.borrow();
     if !self.node_repr.contains(node.0) {
       return Err(Error::NodeMissing);
@@ -780,7 +794,7 @@ impl<N> DAG<N> {
     queue.extend(
       self.node_repr[node.0]
         .children
-        .iter()
+        .keys()
         .cloned()
         .map(|child_key| {
           let child_order = self.get_node_repr(child_key).topo_order;
@@ -845,7 +859,7 @@ impl<N> DAG<N> {
       visited.insert(next_key);
       result.insert(next_key);
 
-      for child_key in &self.get_node_repr(next_key).children {
+      for child_key in self.get_node_repr(next_key).children.keys() {
         let child_topo_order = self.get_node_repr(*child_key).topo_order;
 
         if child_topo_order == upper_bound {
@@ -876,7 +890,7 @@ impl<N> DAG<N> {
       visited.insert(next_key);
       result.insert(next_key);
 
-      for parent_key in &self.get_node_repr(next_key).parents {
+      for parent_key in self.get_node_repr(next_key).parents.keys() {
         let parent_topo_order = self.get_node_repr(*parent_key).topo_order;
 
         if !visited.contains(parent_key) && lower_bound < parent_topo_order {
@@ -928,7 +942,7 @@ impl<N> DAG<N> {
     }
   }
 
-  fn get_node_repr(&self, idx: Node) -> &NodeRepr<N> {
+  fn get_node_repr(&self, idx: Node) -> &NodeRepr<N, PE, CE> {
     self.node_repr.get(idx.0).unwrap()
   }
 }
@@ -963,13 +977,13 @@ impl<N> DAG<N> {
 /// assert_eq!(pairs, expected_pairs);
 /// ```
 #[derive(Debug)]
-pub struct DescendantsUnsorted<'a, N> {
-  dag: &'a DAG<N>,
+pub struct DescendantsUnsorted<'a, N, PE, CE> {
+  dag: &'a DAG<N, PE, CE>,
   stack: Vec<Node>,
   visited: FnvHashSet<Node>,
 }
 
-impl<'a, N> Iterator for DescendantsUnsorted<'a, N> {
+impl<'a, N, PE, CE> Iterator for DescendantsUnsorted<'a, N, PE, CE> {
   type Item = (TopoOrder, Node);
   #[inline]
   fn next(&mut self) -> Option<Self::Item> {
@@ -981,7 +995,7 @@ impl<'a, N> Iterator for DescendantsUnsorted<'a, N> {
       }
       let node_repr = self.dag.node_repr.get(node.0).unwrap();
       let order = node_repr.topo_order;
-      self.stack.extend(&node_repr.children);
+      self.stack.extend(node_repr.children.keys());
       return Some((order, node));
     }
 
@@ -1012,13 +1026,13 @@ impl<'a, N> Iterator for DescendantsUnsorted<'a, N> {
 /// assert_eq!(ordered_nodes, vec![dog, cat, mouse]);
 /// ```
 #[derive(Debug)]
-pub struct Descendants<'a, N> {
-  dag: &'a DAG<N>,
+pub struct Descendants<'a, N, PE, CE> {
+  dag: &'a DAG<N, PE, CE>,
   queue: BinaryHeap<(Reverse<TopoOrder>, Node)>,
   visited: FnvHashSet<Node>,
 }
 
-impl<'a, N> Iterator for Descendants<'a, N> {
+impl<'a, N, PE, CE> Iterator for Descendants<'a, N, PE, CE> {
   type Item = Node;
 
   fn next(&mut self) -> Option<Self::Item> {
@@ -1031,7 +1045,7 @@ impl<'a, N> Iterator for Descendants<'a, N> {
         }
 
         let node_repr = self.dag.node_repr.get(node.0).unwrap();
-        for child in &node_repr.children {
+        for child in node_repr.children.keys() {
           let order = self.dag.get_node_repr(*child).topo_order;
           self.queue.push((Reverse(order), *child))
         }
@@ -1051,7 +1065,7 @@ mod tests {
 
   use super::*;
 
-  fn get_basic_dag() -> Result<([Node; 7], DAG<()>), Error> {
+  fn get_basic_dag() -> Result<([Node; 7], DAG<(), (), ()>), Error> {
     let mut dag = DAG::new();
 
     let dog = dag.add_node(());
@@ -1064,25 +1078,25 @@ mod tests {
 
     assert_eq!(dag.len(), 7);
 
-    dag.add_dependency(lion, human)?;
-    dag.add_dependency(lion, gazelle)?;
+    dag.add_dependency(lion, human, (), ())?;
+    dag.add_dependency(lion, gazelle, (), ())?;
 
-    dag.add_dependency(human, dog)?;
-    dag.add_dependency(human, cat)?;
+    dag.add_dependency(human, dog, (), ())?;
+    dag.add_dependency(human, cat, (), ())?;
 
-    dag.add_dependency(dog, cat)?;
-    dag.add_dependency(cat, mouse)?;
+    dag.add_dependency(dog, cat, (), ())?;
+    dag.add_dependency(cat, mouse, (), ())?;
 
-    dag.add_dependency(gazelle, grass)?;
+    dag.add_dependency(gazelle, grass, (), ())?;
 
-    dag.add_dependency(mouse, grass)?;
+    dag.add_dependency(mouse, grass, (), ())?;
 
     Ok(([dog, cat, mouse, lion, human, gazelle, grass], dag))
   }
 
   #[test]
   fn add_nodes_basic() {
-    let mut dag = DAG::new();
+    let mut dag = DAG::<(), (), ()>::new();
 
     let dog = dag.add_node(());
     let cat = dag.add_node(());
@@ -1100,7 +1114,7 @@ mod tests {
 
   #[test]
   fn delete_nodes() {
-    let mut dag = DAG::new();
+    let mut dag = DAG::<(), (), ()>::new();
 
     let dog = dag.add_node(());
     let cat = dag.add_node(());
@@ -1127,11 +1141,11 @@ mod tests {
 
     assert_eq!(dag.len(), 3);
 
-    assert!(dag.add_dependency(&n1, &n2).is_ok());
-    assert!(dag.add_dependency(&n2, &n3).is_ok());
+    assert!(dag.add_dependency(&n1, &n2, (), ()).is_ok());
+    assert!(dag.add_dependency(&n2, &n3, (), ()).is_ok());
 
-    assert!(dag.add_dependency(&n3, &n1).is_err());
-    assert!(dag.add_dependency(&n1, &n1).is_err());
+    assert!(dag.add_dependency(&n3, &n1, (), ()).is_err());
+    assert!(dag.add_dependency(&n1, &n1, (), ()).is_err());
   }
 
   #[test]
@@ -1176,9 +1190,9 @@ mod tests {
 
     assert_eq!(dag.len(), 3);
 
-    dag.add_dependency(&human, &dog).unwrap();
-    dag.add_dependency(&human, &cat).unwrap();
-    dag.add_dependency(&dog, &cat).unwrap();
+    dag.add_dependency(&human, &dog, (), ()).unwrap();
+    dag.add_dependency(&human, &cat, (), ()).unwrap();
+    dag.add_dependency(&dog, &cat, (), ()).unwrap();
 
     let animal_order: Vec<_> = dag.descendants(&human).unwrap().collect();
 
@@ -1194,10 +1208,10 @@ mod tests {
     let dog = dag.add_node(());
     let human = dag.add_node(());
 
-    assert!(dag.add_dependency(&human, &cat).unwrap());
-    assert!(dag.add_dependency(&human, &dog).unwrap());
-    assert!(dag.add_dependency(&dog, &cat).unwrap());
-    assert!(dag.add_dependency(&cat, &mouse).unwrap());
+    assert!(dag.add_dependency(&human, &cat, (), ()).unwrap());
+    assert!(dag.add_dependency(&human, &dog, (), ()).unwrap());
+    assert!(dag.add_dependency(&dog, &cat, (), ()).unwrap());
+    assert!(dag.add_dependency(&cat, &mouse, (), ()).unwrap());
 
     let pairs = dag
       .descendants_unsorted(&human)
@@ -1221,10 +1235,10 @@ mod tests {
     let human = dag.add_node(());
     let horse = dag.add_node(());
 
-    assert!(dag.add_dependency(&human, &cat).unwrap());
-    assert!(dag.add_dependency(&human, &dog).unwrap());
-    assert!(dag.add_dependency(&dog, &cat).unwrap());
-    assert!(dag.add_dependency(&cat, &mouse).unwrap());
+    assert!(dag.add_dependency(&human, &cat, (), ()).unwrap());
+    assert!(dag.add_dependency(&human, &dog, (), ()).unwrap());
+    assert!(dag.add_dependency(&dog, &cat, (), ()).unwrap());
+    assert!(dag.add_dependency(&cat, &mouse, (), ()).unwrap());
 
     assert_eq!(dag.topo_cmp(&human, &mouse), Less);
     assert_eq!(dag.topo_cmp(&cat, &dog), Greater);

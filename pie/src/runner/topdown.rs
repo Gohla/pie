@@ -5,8 +5,10 @@ use std::path::PathBuf;
 
 use pie_graph::Node;
 
-use crate::{Context, DynTask, FileDependency, Task, TaskDependency};
+use crate::{Context, Task};
+use crate::dependency::{FileDependency, TaskDependency};
 use crate::runner::store::{Store, TaskNode};
+use crate::task::DynTask;
 use crate::tracker::{NoopTracker, Tracker};
 
 /// Incremental runner that checks dependencies recursively in a top-down manner.

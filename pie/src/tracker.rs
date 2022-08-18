@@ -2,7 +2,7 @@ use std::io;
 use std::io::{Stderr, Stdout};
 use std::path::PathBuf;
 
-use crate::DynTask;
+use crate::task::DynTask;
 
 pub trait Tracker {
   #[inline]

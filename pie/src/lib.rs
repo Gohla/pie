@@ -1,8 +1,7 @@
 use std::fs::File;
 use std::path::PathBuf;
 
-use dependency::{Dependency, FileDependency, TaskDependency};
-use task::{DynTask, Task};
+use task::Task;
 
 pub mod task;
 pub mod dependency;
