@@ -1,5 +1,7 @@
 use std::any::Any;
+use std::collections::hash_map::RandomState;
 use std::collections::HashMap;
+use std::hash::BuildHasher;
 use std::path::PathBuf;
 
 use pie_graph::{DAG, Node};
@@ -11,10 +13,10 @@ use crate::task::DynTask;
 pub type TaskNode = Node;
 pub type FileNode = Node;
 
-pub struct Store<C: Context> {
-  graph: DAG<NodeData<C>, ParentData, ChildData>,
-  task_to_node: HashMap<Box<dyn DynTask>, TaskNode>,
-  file_to_node: HashMap<PathBuf, FileNode>,
+pub struct Store<C: Context, S = RandomState> {
+  graph: DAG<NodeData<C>, ParentData, ChildData, S>,
+  task_to_node: HashMap<Box<dyn DynTask>, TaskNode, S>,
+  file_to_node: HashMap<PathBuf, FileNode, S>,
 }
 
 pub enum NodeData<C: Context> {
@@ -40,13 +42,13 @@ pub enum ChildData {
   RequireTask,
 }
 
-impl<C: Context> Default for Store<C> {
+impl<C: Context, S: BuildHasher + Default> Default for Store<C, S> {
   #[inline]
   fn default() -> Self {
     Self {
-      graph: DAG::new(),
-      task_to_node: HashMap::new(),
-      file_to_node: HashMap::new(),
+      graph: DAG::with_default_hasher(),
+      task_to_node: HashMap::default(),
+      file_to_node: HashMap::default(),
     }
   }
 }

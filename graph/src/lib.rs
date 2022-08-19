@@ -91,8 +91,10 @@ use std::{
   fmt,
   iter::Iterator,
 };
+use std::collections::{HashMap, HashSet};
+use std::collections::hash_map::RandomState;
+use std::hash::BuildHasher;
 
-use fnv::{FnvHashMap, FnvHashSet};
 use thunderdome::{Arena, Index};
 
 /// Data structure for maintaining a directed-acyclic graph (DAG) with topological ordering, maintained in an 
@@ -101,9 +103,9 @@ use thunderdome::{Arena, Index};
 /// See the [module-level documentation] for more information.
 ///
 /// [module-level documentation]: index.html
-#[derive(Default, Clone, Debug)]
-pub struct DAG<N, PE, CE> {
-  node_repr: Arena<NodeRepr<N, PE, CE>>,
+#[derive(Clone, Debug)]
+pub struct DAG<N, PE, CE, S = RandomState> {
+  node_repr: Arena<NodeRepr<N, PE, CE, S>>,
   last_topo_order: TopoOrder,
 }
 
@@ -125,21 +127,21 @@ impl From<Index> for Node {
 /// The representation of a node, with all information about it ordering, which
 /// nodes it points to, and which nodes point to it.
 #[derive(Debug, Clone)]
-struct NodeRepr<N, PE, CE> {
+struct NodeRepr<N, PE, CE, S> {
   topo_order: TopoOrder,
   data: N,
-  parents: FnvHashMap<Node, PE>,
-  children: FnvHashMap<Node, CE>,
+  parents: HashMap<Node, PE, S>,
+  children: HashMap<Node, CE, S>,
 }
 
-impl<N, PE, CE> NodeRepr<N, PE, CE> {
+impl<N, PE, CE, S: BuildHasher + Default> NodeRepr<N, PE, CE, S> {
   /// Create a new node entry with the specified topological order.
   fn new(topo_order: TopoOrder, data: N) -> Self {
     NodeRepr {
       topo_order,
       data,
-      parents: FnvHashMap::default(),
-      children: FnvHashMap::default(),
+      parents: HashMap::default(),
+      children: HashMap::default(),
     }
   }
 }
@@ -183,7 +185,21 @@ impl<N, PE, CE> DAG<N, PE, CE> {
   /// assert!(dag.is_empty());
   /// ```
   #[inline]
-  pub fn new() -> Self { Self { last_topo_order: 0, node_repr: Arena::new() } }
+  pub fn new() -> Self { Self::with_default_hasher() }
+}
+
+impl<N, PE, CE, S: BuildHasher + Default> DAG<N, PE, CE, S> {
+  /// Create a new DAG.
+  ///
+  /// # Examples
+  /// ```
+  /// use pie_graph::DAG;
+  /// let dag = DAG::<(), (), ()>::new();
+  ///
+  /// assert!(dag.is_empty());
+  /// ```
+  #[inline]
+  pub fn with_default_hasher() -> Self { Self { last_topo_order: 0, node_repr: Arena::new() } }
 
   /// Add a new node with `data` to the graph and return a unique [`Node`] which identifies it.
   ///
@@ -378,7 +394,7 @@ impl<N, PE, CE> DAG<N, PE, CE> {
     // lower bound are equal) then perform an update to the topological ordering of
     // the graph
     if lower_bound < upper_bound {
-      let mut visited = FnvHashSet::default(); // OPTO: reuse allocation.
+      let mut visited = HashSet::<_, S>::default(); // OPTO: reuse allocation.
       // Walk changes forward from the succ, checking for any cycles that would be introduced
       let change_forward = match self.dfs_forward(*succ, &mut visited, upper_bound) {
         Ok(change_set) => change_set,
@@ -474,7 +490,7 @@ impl<N, PE, CE> DAG<N, PE, CE> {
     // the overhead of the binary heap, and this task doesn't really need ordered
     // descendants.
     let mut stack = Vec::new(); // OPTO: reuse allocation
-    let mut visited = FnvHashSet::default(); // OPTO: reuse allocation
+    let mut visited = HashSet::<_, S>::default(); // OPTO: reuse allocation
 
     stack.push(pred);
 
@@ -714,7 +730,7 @@ impl<N, PE, CE> DAG<N, PE, CE> {
   pub fn descendants_unsorted(
     &self,
     node: impl Borrow<Node>,
-  ) -> Result<DescendantsUnsorted<N, PE, CE>, Error> {
+  ) -> Result<DescendantsUnsorted<N, PE, CE, S>, Error> {
     let node = node.borrow();
     if !self.node_repr.contains(node.0) {
       return Err(Error::NodeMissing);
@@ -723,7 +739,7 @@ impl<N, PE, CE> DAG<N, PE, CE> {
     let mut stack = Vec::new(); // OPTO: reuse allocation
     // Add all children of selected node
     stack.extend(self.node_repr[node.0].children.keys());
-    let visited = FnvHashSet::default(); // OPTO: reuse allocation
+    let visited = HashSet::<_, S>::default(); // OPTO: reuse allocation
 
     Ok(DescendantsUnsorted {
       dag: self,
@@ -760,7 +776,7 @@ impl<N, PE, CE> DAG<N, PE, CE> {
   ///
   /// assert_eq!(ordered_nodes, vec![dog, cat, mouse]);
   /// ```
-  pub fn descendants(&self, node: impl Borrow<Node>) -> Result<Descendants<N, PE, CE>, Error> {
+  pub fn descendants(&self, node: impl Borrow<Node>) -> Result<Descendants<N, PE, CE, S>, Error> {
     let node = node.borrow();
     if !self.node_repr.contains(node.0) {
       return Err(Error::NodeMissing);
@@ -778,7 +794,7 @@ impl<N, PE, CE> DAG<N, PE, CE> {
           (Reverse(child_order), child_key)
         }),
     );
-    let visited = FnvHashSet::default(); // OPTO: reuse allocation
+    let visited = HashSet::<_, S>::default(); // OPTO: reuse allocation
 
     Ok(Descendants {
       dag: self,
@@ -824,11 +840,11 @@ impl<N, PE, CE> DAG<N, PE, CE> {
   fn dfs_forward(
     &self,
     start_key: Node,
-    visited: &mut FnvHashSet<Node>,
+    visited: &mut HashSet<Node, S>,
     upper_bound: TopoOrder,
-  ) -> Result<FnvHashSet<Node>, Error> {
+  ) -> Result<HashSet<Node, S>, Error> {
     let mut stack = Vec::new(); // OPTO: reuse allocation
-    let mut result = FnvHashSet::default(); // OPTO: reuse allocation
+    let mut result = HashSet::<_, S>::default(); // OPTO: reuse allocation
 
     stack.push(start_key);
 
@@ -855,11 +871,11 @@ impl<N, PE, CE> DAG<N, PE, CE> {
   fn dfs_backward(
     &self,
     start_key: Node,
-    visited: &mut FnvHashSet<Node>,
+    visited: &mut HashSet<Node, S>,
     lower_bound: TopoOrder,
-  ) -> FnvHashSet<Node> {
+  ) -> HashSet<Node, S> {
     let mut stack = Vec::new(); // OPTO: reuse allocation
-    let mut result = FnvHashSet::default(); // OPTO: reuse allocation
+    let mut result = HashSet::<_, S>::default(); // OPTO: reuse allocation
 
     stack.push(start_key);
 
@@ -881,8 +897,8 @@ impl<N, PE, CE> DAG<N, PE, CE> {
 
   fn reorder_nodes(
     &mut self,
-    change_forward: FnvHashSet<Node>,
-    change_backward: FnvHashSet<Node>,
+    change_forward: HashSet<Node, S>,
+    change_backward: HashSet<Node, S>,
   ) {
     let mut change_forward: Vec<_> = change_forward
       .into_iter()
@@ -919,7 +935,7 @@ impl<N, PE, CE> DAG<N, PE, CE> {
     }
   }
 
-  fn get_node_repr(&self, idx: Node) -> &NodeRepr<N, PE, CE> {
+  fn get_node_repr(&self, idx: Node) -> &NodeRepr<N, PE, CE, S> {
     self.node_repr.get(idx.0).unwrap()
   }
 }
@@ -954,13 +970,13 @@ impl<N, PE, CE> DAG<N, PE, CE> {
 /// assert_eq!(pairs, expected_pairs);
 /// ```
 #[derive(Debug)]
-pub struct DescendantsUnsorted<'a, N, PE, CE> {
-  dag: &'a DAG<N, PE, CE>,
+pub struct DescendantsUnsorted<'a, N, PE, CE, S> {
+  dag: &'a DAG<N, PE, CE, S>,
   stack: Vec<Node>,
-  visited: FnvHashSet<Node>,
+  visited: HashSet<Node, S>,
 }
 
-impl<'a, N, PE, CE> Iterator for DescendantsUnsorted<'a, N, PE, CE> {
+impl<'a, N, PE, CE, S: BuildHasher> Iterator for DescendantsUnsorted<'a, N, PE, CE, S> {
   type Item = (TopoOrder, Node);
   #[inline]
   fn next(&mut self) -> Option<Self::Item> {
@@ -1003,13 +1019,13 @@ impl<'a, N, PE, CE> Iterator for DescendantsUnsorted<'a, N, PE, CE> {
 /// assert_eq!(ordered_nodes, vec![dog, cat, mouse]);
 /// ```
 #[derive(Debug)]
-pub struct Descendants<'a, N, PE, CE> {
-  dag: &'a DAG<N, PE, CE>,
+pub struct Descendants<'a, N, PE, CE, S> {
+  dag: &'a DAG<N, PE, CE, S>,
   queue: BinaryHeap<(Reverse<TopoOrder>, Node)>,
-  visited: FnvHashSet<Node>,
+  visited: HashSet<Node, S>,
 }
 
-impl<'a, N, PE, CE> Iterator for Descendants<'a, N, PE, CE> {
+impl<'a, N, PE, CE, S: BuildHasher + Default> Iterator for Descendants<'a, N, PE, CE, S> {
   type Item = Node;
 
   fn next(&mut self) -> Option<Self::Item> {
@@ -1073,7 +1089,7 @@ mod tests {
 
   #[test]
   fn add_nodes_basic() {
-    let mut dag = DAG::<(), (), ()>::new();
+    let mut dag = DAG::<_, (), ()>::new();
 
     let dog = dag.add_node(());
     let cat = dag.add_node(());
@@ -1091,7 +1107,7 @@ mod tests {
 
   #[test]
   fn delete_nodes() {
-    let mut dag = DAG::<(), (), ()>::new();
+    let mut dag = DAG::<_, (), ()>::new();
 
     let dog = dag.add_node(());
     let cat = dag.add_node(());
@@ -1129,13 +1145,13 @@ mod tests {
   fn get_children_unordered() {
     let ([dog, cat, mouse, _, human, _, grass], dag) = get_basic_dag().unwrap();
 
-    let children: FnvHashSet<_> = dag
+    let children: HashSet<_> = dag
       .descendants_unsorted(&human)
       .unwrap()
       .map(|(_, v)| v)
       .collect();
 
-    let mut expected_children = FnvHashSet::default();
+    let mut expected_children = HashSet::default();
     expected_children.extend(vec![dog, cat, mouse, grass]);
 
     assert_eq!(children, expected_children);
@@ -1148,13 +1164,13 @@ mod tests {
   fn topo_order_values_no_gaps() {
     let ([.., lion, _, _, _], dag) = get_basic_dag().unwrap();
 
-    let topo_orders: FnvHashSet<_> = dag
+    let topo_orders: HashSet<_> = dag
       .descendants_unsorted(lion)
       .unwrap()
       .map(|p| p.0)
       .collect();
 
-    assert_eq!(topo_orders, (2..=7).collect::<FnvHashSet<_>>())
+    assert_eq!(topo_orders, (2..=7).collect::<HashSet<_>>())
   }
 
   #[test]
@@ -1193,9 +1209,9 @@ mod tests {
     let pairs = dag
       .descendants_unsorted(&human)
       .unwrap()
-      .collect::<FnvHashSet<_>>();
+      .collect::<HashSet<_>>();
 
-    let mut expected_pairs = FnvHashSet::default();
+    let mut expected_pairs = HashSet::default();
     expected_pairs.extend(vec![(2, dog), (3, cat), (4, mouse)]);
 
     assert_eq!(pairs, expected_pairs);
