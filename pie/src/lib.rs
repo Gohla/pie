@@ -3,6 +3,7 @@ use std::path::PathBuf;
 
 use task::Task;
 
+pub mod prelude;
 pub mod task;
 pub mod dependency;
 pub mod runner;

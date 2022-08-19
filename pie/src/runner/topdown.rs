@@ -7,8 +7,8 @@ use pie_graph::Node;
 
 use crate::{Context, Task};
 use crate::dependency::{FileDependency, TaskDependency};
+use crate::prelude::DynOutput;
 use crate::runner::store::{Store, TaskNode};
-use crate::task::DynTask;
 use crate::tracker::{NoopTracker, Tracker};
 
 /// Incremental runner that checks dependencies recursively in a top-down manner.
@@ -59,13 +59,17 @@ impl<R: Tracker> TopDownRunner<R> {
       Err((output, &self.dependency_check_errors))
     }
   }
+  #[inline]
+  pub fn tracker(&self) -> &R { &self.tracker }
+  #[inline]
+  pub fn tracker_mut(&mut self) -> &mut R { &mut self.tracker }
 }
 
 impl<R: Tracker> Context for TopDownRunner<R> {
   fn require_task<T: Task>(&mut self, task: &T) -> T::Output {
-    let dyn_task = Box::new(task.clone()) as Box<dyn DynTask>;
-    self.tracker.require_task(dyn_task.as_ref());
-    let task_node = self.store.get_or_create_node_by_task(dyn_task);
+    let dyn_task = task.as_dyn();
+    self.tracker.require_task(dyn_task);
+    let task_node = self.store.get_or_create_node_by_task(task.clone_box_dyn());
     if !self.visited.contains(&task_node) && self.should_execute_task(task_node) { // Execute the task, cache and return up-to-date output.
       self.store.reset_task(&task_node);
       // Check for cyclic dependency
@@ -78,7 +82,9 @@ impl<R: Tracker> Context for TopDownRunner<R> {
       }
       // Execute task
       self.task_execution_stack.push(task_node);
+      self.tracker.execute_task_start(dyn_task);
       let output = task.execute(self);
+      self.tracker.execute_task_end(dyn_task, &output as &dyn DynOutput);
       self.task_execution_stack.pop();
       // Store dependency and output.
       if let Some(current_task_node) = self.task_execution_stack.last() {

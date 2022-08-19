@@ -2,28 +2,76 @@ use std::io;
 use std::io::{Stderr, Stdout};
 use std::path::PathBuf;
 
-use crate::task::DynTask;
+use crate::task::{DynOutput, DynOutputExt, DynTask, DynTaskExt};
 
 pub trait Tracker {
-  #[inline]
-  fn provide_file(&mut self, _file: &PathBuf) {}
-  #[inline]
-  fn require_file(&mut self, _file: &PathBuf) {}
-  #[inline]
-  fn require_task(&mut self, _task: &dyn DynTask) {}
+  fn require_file(&mut self, file: &PathBuf);
+  fn provide_file(&mut self, file: &PathBuf);
+  fn require_task(&mut self, task: &dyn DynTask);
+
+  fn execute_task_start(&mut self, task: &dyn DynTask);
+  fn execute_task_end(&mut self, task: &dyn DynTask, output: &dyn DynOutput);
 }
 
 
 // No-op tracker
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct NoopTracker;
 
-impl Tracker for NoopTracker {}
+impl Tracker for NoopTracker {
+  #[inline]
+  fn require_file(&mut self, _file: &PathBuf) {}
+  #[inline]
+  fn provide_file(&mut self, _file: &PathBuf) {}
+  #[inline]
+  fn require_task(&mut self, _task: &dyn DynTask) {}
+
+  #[inline]
+  fn execute_task_start(&mut self, _task: &dyn DynTask) {}
+  #[inline]
+  fn execute_task_end(&mut self, _task: &dyn DynTask, _output: &dyn DynOutput) {}
+}
+
+
+// Composite tracker
+
+#[derive(Debug)]
+pub struct CompositeTracker<T1, T2>(pub T1, pub T2);
+
+impl<T1: Tracker, T2: Tracker> Tracker for CompositeTracker<T1, T2> {
+  #[inline]
+  fn require_file(&mut self, file: &PathBuf) {
+    self.0.require_file(file);
+    self.1.require_file(file);
+  }
+  #[inline]
+  fn provide_file(&mut self, file: &PathBuf) {
+    self.0.provide_file(file);
+    self.1.provide_file(file);
+  }
+  #[inline]
+  fn require_task(&mut self, task: &dyn DynTask) {
+    self.0.require_task(task);
+    self.1.require_task(task);
+  }
+
+  #[inline]
+  fn execute_task_start(&mut self, task: &dyn DynTask) {
+    self.0.execute_task_start(task);
+    self.1.execute_task_start(task);
+  }
+  #[inline]
+  fn execute_task_end(&mut self, task: &dyn DynTask, output: &dyn DynOutput) {
+    self.0.execute_task_end(task, output);
+    self.1.execute_task_end(task, output);
+  }
+}
 
 
 // Writing tracker
 
+#[derive(Debug)]
 pub struct WritingTracker<W> {
   writer: W,
 }
@@ -50,15 +98,83 @@ impl WritingTracker<Stderr> {
 
 impl<W: std::io::Write> Tracker for WritingTracker<W> {
   #[inline]
-  fn provide_file(&mut self, file: &PathBuf) {
-    writeln!(&mut self.writer, "Provided file: {}", file.display()).ok();
-  }
-  #[inline]
   fn require_file(&mut self, file: &PathBuf) {
     writeln!(&mut self.writer, "Required file: {}", file.display()).ok();
   }
   #[inline]
+  fn provide_file(&mut self, file: &PathBuf) {
+    writeln!(&mut self.writer, "Provided file: {}", file.display()).ok();
+  }
+  #[inline]
   fn require_task(&mut self, task: &dyn DynTask) {
-    writeln!(&mut self.writer, "Required task: {:?}'", task).ok();
+    writeln!(&mut self.writer, "Required task: {:?}", task).ok();
+  }
+
+  #[inline]
+  fn execute_task_start(&mut self, task: &dyn DynTask) {
+    writeln!(&mut self.writer, "Execute task start: {:?}", task).ok();
+  }
+  #[inline]
+  fn execute_task_end(&mut self, task: &dyn DynTask, output: &dyn DynOutput) {
+    writeln!(&mut self.writer, "Execute task end: {:?} => {:?}", task, output).ok();
+  }
+}
+
+
+// Event tracker
+
+#[derive(Default, Debug)]
+pub struct EventTracker {
+  events: Vec<Event>,
+}
+
+#[derive(Debug)]
+pub enum Event {
+  RequireFile(PathBuf),
+  ProvideFile(PathBuf),
+  RequireTask(Box<dyn DynTask>),
+
+  ExecuteTaskStart(Box<dyn DynTask>),
+  ExecuteTaskEnd(Box<dyn DynTask>, Box<dyn DynOutput>),
+}
+
+impl EventTracker {
+  #[inline]
+  pub fn new() -> Self { Self::default() }
+
+  #[inline]
+  pub fn get(&self, index: usize) -> Option<&Event> { self.events.get(index) }
+  #[inline]
+  pub fn last(&self) -> Option<&Event> { self.events.last() }
+  
+  #[inline]
+  pub fn iter_events(&self) -> impl Iterator<Item=&Event> { self.events.iter() }
+  #[inline]
+  pub fn take_events(&mut self) -> Vec<Event> { std::mem::take(&mut self.events) }
+  #[inline]
+  pub fn clear(&mut self) { self.events.clear(); }
+}
+
+impl Tracker for EventTracker {
+  #[inline]
+  fn require_file(&mut self, file: &PathBuf) {
+    self.events.push(Event::RequireFile(file.clone()));
+  }
+  #[inline]
+  fn provide_file(&mut self, file: &PathBuf) {
+    self.events.push(Event::ProvideFile(file.clone()));
+  }
+  #[inline]
+  fn require_task(&mut self, task: &dyn DynTask) {
+    self.events.push(Event::RequireTask(task.clone()));
+  }
+
+  #[inline]
+  fn execute_task_start(&mut self, task: &dyn DynTask) {
+    self.events.push(Event::ExecuteTaskStart(task.clone()));
+  }
+  #[inline]
+  fn execute_task_end(&mut self, task: &dyn DynTask, output: &dyn DynOutput) {
+    self.events.push(Event::ExecuteTaskEnd(task.clone(), output.clone()));
   }
 }

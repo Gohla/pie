@@ -1,7 +1,7 @@
 use std::fs;
 
-use pie::Context;
-use pie::task::Task;
+use pie::prelude::*;
+use pie::tracker::Event;
 
 use crate::common::{CheckErrorExt, create_runner, ReadStringFromFile, temp_dir, WriteStringToFile};
 
@@ -14,8 +14,18 @@ fn test() {
   let path = dir.path().join("test.txt");
   fs::write(&path, "test").check();
   let task = ReadStringFromFile::new(path);
+  let dyn_task = task.clone_box_dyn();
   assert_eq!("test", runner.require_initial(&task).check().check());
+  assert!(match runner.tracker().0.last() {
+    Some(Event::ExecuteTaskEnd(t, _)) if t == &dyn_task => true,
+    _ => false,
+  });
+  runner.tracker_mut().0.clear();
   assert_eq!("test", runner.require_initial(&task).check().check());
+  assert!(match runner.tracker().0.last() {
+    Some(Event::RequireTask(t)) if t == &dyn_task => true,
+    _ => false,
+  });
 }
 
 #[test]

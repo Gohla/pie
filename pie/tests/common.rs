@@ -6,15 +6,17 @@ use std::path::PathBuf;
 
 use tempfile::TempDir;
 
-use pie::Context;
-use pie::runner::topdown::TopDownRunner;
-use pie::task::Task;
-use pie::tracker::WritingTracker;
+use pie::prelude::*;
+use pie::tracker::{CompositeTracker, EventTracker, WritingTracker};
 
 // Helper functions
 
-pub fn create_runner() -> TopDownRunner<WritingTracker<Stdout>> {
-  TopDownRunner::with_tracker(WritingTracker::new_stdout_writer())
+pub fn create_tracker() -> CompositeTracker<EventTracker, WritingTracker<Stdout>> {
+  CompositeTracker(EventTracker::new(), WritingTracker::new_stdout_writer())
+}
+
+pub fn create_runner() -> TopDownRunner<CompositeTracker<EventTracker, WritingTracker<Stdout>>> {
+  TopDownRunner::with_tracker(create_tracker())
 }
 
 pub fn temp_dir() -> TempDir {
