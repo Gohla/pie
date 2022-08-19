@@ -6,10 +6,9 @@ edition = "2021"
 publish = false
 
 [dependencies]
-anymap = "0.12"
-dyn-clone = "1"
-bimap = "0.6"
 pie_graph = { path = "../graph" }
+dyn-clone = "1"
 
 [dev-dependencies]
+rstest = "0.15"
 tempfile = "3"

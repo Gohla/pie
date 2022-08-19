@@ -1,36 +1,83 @@
 use std::fs;
+use std::io::Stdout;
+
+use rstest::{fixture, rstest};
+use tempfile::TempDir;
 
 use pie::prelude::*;
-use pie::tracker::Event;
+use pie::tracker::{CompositeTracker, Event, EventTracker, WritingTracker};
 
-use crate::common::{CheckErrorExt, create_runner, ReadStringFromFile, temp_dir, WriteStringToFile};
+use crate::common::{CheckErrorExt, ReadStringFromFile, ToLowerCase, WriteStringToFile};
 
 mod common;
 
-#[test]
-fn test() {
-  let mut runner = create_runner();
-  let dir = temp_dir();
-  let path = dir.path().join("test.txt");
-  fs::write(&path, "test").check();
-  let task = ReadStringFromFile::new(path);
+type Runner = TopDownRunner<CompositeTracker<EventTracker, WritingTracker<Stdout>>>;
+
+#[fixture]
+fn runner() -> Runner { common::create_runner() }
+
+#[fixture]
+fn temp_dir() -> TempDir { common::temp_dir() }
+
+
+#[rstest]
+fn test_exec(mut runner: Runner) {
+  let task = ToLowerCase("CAPITALIZED".to_string());
   let dyn_task = task.clone_box_dyn();
-  assert_eq!("test", runner.require_initial(&task).check().check());
-  assert!(match runner.tracker().0.last() {
-    Some(Event::ExecuteTaskEnd(t, _)) if t == &dyn_task => true,
+  assert_eq!(runner.require_initial(&task).check(), "capitalized");
+  let tracker = &runner.tracker().0;
+  assert!(match tracker.get_from_end(2) {
+    Some(Event::RequireTask(t)) if t == &dyn_task => true,
     _ => false,
   });
-  runner.tracker_mut().0.clear();
-  assert_eq!("test", runner.require_initial(&task).check().check());
-  assert!(match runner.tracker().0.last() {
-    Some(Event::RequireTask(t)) if t == &dyn_task => true,
+  assert!(match tracker.get_from_end(1) {
+    Some(Event::ExecuteTaskStart(t)) if t == &dyn_task => true,
+    _ => false,
+  });
+  assert!(match tracker.get_from_end(0) {
+    Some(Event::ExecuteTaskEnd(t, _)) if t == &dyn_task => true,
     _ => false,
   });
 }
 
-#[test]
+#[rstest]
+fn test_reuse(mut runner: Runner) {
+  use Event::*;
+  let task = ToLowerCase("CAPITALIZED".to_string());
+  let dyn_task = task.clone_box_dyn();
+
+  assert_eq!(runner.require_initial(&task).check(), "capitalized");
+  {
+    let tracker = &mut runner.tracker_mut().0;
+    assert!(match tracker.get_from_end(0) {
+      Some(ExecuteTaskEnd(t, _)) if t == &dyn_task => true,
+      _ => false,
+    });
+    assert!(match tracker.get_from_end(1) {
+      Some(ExecuteTaskStart(t)) if t == &dyn_task => true,
+      _ => false,
+    });
+    assert!(match tracker.get_from_end(2) {
+      Some(RequireTask(t)) if t == &dyn_task => true,
+      _ => false,
+    });
+    tracker.clear();
+  }
+
+  assert_eq!(runner.require_initial(&task).check(), "capitalized");
+  {
+    let tracker = &mut runner.tracker_mut().0;
+    dbg!(&tracker);
+    assert!(!tracker.iter_events().any(|e| match e { // Assert that no executions have taken place.
+      ExecuteTaskStart(_) => true,
+      _ => false
+    }));
+  }
+}
+
+#[rstest]
 #[should_panic(expected = "Cyclic task dependency")]
-fn cycle_panics() {
+fn cycle_panics(mut runner: Runner) {
   #[derive(Clone, PartialEq, Eq, Hash, Debug)]
   struct RequireSelf;
   impl Task for RequireSelf {
@@ -39,43 +86,36 @@ fn cycle_panics() {
       context.require_task(self);
     }
   }
-  let mut runner = create_runner();
   runner.require_initial(&RequireSelf).check();
 }
 
-#[test]
+#[rstest]
 #[should_panic(expected = "Overlapping provided file")]
-fn overlapping_provided_file_panics() {
-  let mut runner = create_runner();
-  let dir = temp_dir();
-  let path = dir.path().join("test.txt");
-  let task_1 = WriteStringToFile::new(path.clone(), "Test 1");
+fn overlapping_provided_file_panics(mut runner: Runner, temp_dir: TempDir) {
+  let path = temp_dir.path().join("test.txt");
+  let task_1 = WriteStringToFile(path.clone(), "Test 1".to_string());
   runner.require_initial(&task_1).check().check();
-  let task_2 = WriteStringToFile::new(path.clone(), "Test 2");
+  let task_2 = WriteStringToFile(path.clone(), "Test 2".to_string());
   runner.require_initial(&task_2).check().check();
 }
 
-#[test]
+#[rstest]
 #[should_panic(expected = "Hidden dependency")]
-fn hidden_dependency_during_require_panics() {
-  let mut runner = create_runner();
-  let dir = temp_dir();
-  let path = dir.path().join("test.txt");
-  let providing_task = WriteStringToFile::new(path.clone(), "Test 1");
+fn hidden_dependency_during_require_panics(mut runner: Runner, temp_dir: TempDir) {
+  let path = temp_dir.path().join("test.txt");
+  let providing_task = WriteStringToFile(path.clone(), "Test 1".to_string());
   runner.require_initial(&providing_task).check().check();
-  let requiring_task = ReadStringFromFile::new(path.clone());
+  let requiring_task = ReadStringFromFile(path.clone());
   runner.require_initial(&requiring_task).check().check();
 }
 
-#[test]
+#[rstest]
 #[should_panic(expected = "Hidden dependency")]
-fn hidden_dependency_during_provide_panics() {
-  let mut runner = create_runner();
-  let dir = temp_dir();
-  let path = dir.path().join("test.txt");
+fn hidden_dependency_during_provide_panics(mut runner: Runner, temp_dir: TempDir) {
+  let path = temp_dir.path().join("test.txt");
   fs::write(&path, "test").check();
-  let requiring_task = ReadStringFromFile::new(path.clone());
+  let requiring_task = ReadStringFromFile(path.clone());
   runner.require_initial(&requiring_task).check().check();
-  let providing_task = WriteStringToFile::new(path.clone(), "Test 1");
+  let providing_task = WriteStringToFile(path.clone(), "Test 1".to_string());
   runner.require_initial(&providing_task).check().check();
 }

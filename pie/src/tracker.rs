@@ -143,6 +143,8 @@ impl EventTracker {
   #[inline]
   pub fn get(&self, index: usize) -> Option<&Event> { self.events.get(index) }
   #[inline]
+  pub fn get_from_end(&self, offset: usize) -> Option<&Event> { self.events.get(self.events.len() - 1 - offset) }
+  #[inline]
   pub fn last(&self) -> Option<&Event> { self.events.last() }
 
   #[inline]

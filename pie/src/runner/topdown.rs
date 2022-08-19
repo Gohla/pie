@@ -90,12 +90,12 @@ impl<R: Tracker> Context for TopDownRunner<R> {
       if let Some(current_task_node) = self.task_execution_stack.last() {
         self.store.add_to_dependencies_of_task(*current_task_node, Box::new(TaskDependency::new(task.clone(), output.clone())));
       }
-      self.store.set_task_output(task.clone(), output.clone());
+      self.store.set_task_output::<T>(task_node, output.clone());
       self.visited.insert(task_node);
       output
     } else { // Return already up-to-date output.
       // Unwrap OK: if we should not execute the task, it must have been executed before, and therefore it has an output.
-      let output = self.store.get_task_output(task).unwrap().clone();
+      let output = self.store.get_task_output::<T>(task_node).unwrap().clone();
       output
     }
   }
@@ -162,8 +162,11 @@ impl<R: Tracker> TopDownRunner<R> {
       // Task is consistent and does not need to be executed. Restore the previous dependencies.
       self.store.set_dependencies_of_task(task_node, task_dependencies); // OPTO: removing and inserting into a HashMap due to ownership requirements.
       false
+    } else if self.store.task_has_output(task_node) {
+      // Task has no dependencies; but has been executed before, so it never has to be executed again.
+      false
     } else {
-      // Task has not been executed before, therefore we need to execute it.
+      // Task has not been executed, so we need to execute it.
       true
     }
   }
