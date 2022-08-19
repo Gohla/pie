@@ -144,7 +144,6 @@ name = "pie_graph"
 version = "0.1.0"
 dependencies = [
  "fnv",
- "log",
  "pretty_env_logger",
  "thunderdome",
 ]

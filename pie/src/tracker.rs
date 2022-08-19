@@ -4,6 +4,7 @@ use std::path::PathBuf;
 
 use crate::task::{DynOutput, DynOutputExt, DynTask, DynTaskExt};
 
+/// Trait for tracking build events. Can be used to implement logging, event tracing, and possibly progress tracking.
 pub trait Tracker {
   fn require_file(&mut self, file: &PathBuf);
   fn provide_file(&mut self, file: &PathBuf);
@@ -14,8 +15,7 @@ pub trait Tracker {
 }
 
 
-// No-op tracker
-
+/// A [`Tracker`] that does nothing.
 #[derive(Default, Debug)]
 pub struct NoopTracker;
 
@@ -34,8 +34,7 @@ impl Tracker for NoopTracker {
 }
 
 
-// Composite tracker
-
+/// A [`Tracker`] that forwards events to two other [`Tracker`]s.
 #[derive(Debug)]
 pub struct CompositeTracker<T1, T2>(pub T1, pub T2);
 
@@ -69,8 +68,7 @@ impl<T1: Tracker, T2: Tracker> Tracker for CompositeTracker<T1, T2> {
 }
 
 
-// Writing tracker
-
+/// A [`Tracker`] that writes events to a [`std::io::Write`] instance, for example [`std::io::Stdout`].
 #[derive(Debug)]
 pub struct WritingTracker<W> {
   writer: W,
@@ -96,7 +94,7 @@ impl WritingTracker<Stderr> {
   pub fn new_stderr_writer() -> Self { Self::new(io::stderr()) }
 }
 
-impl<W: std::io::Write> Tracker for WritingTracker<W> {
+impl<W: io::Write> Tracker for WritingTracker<W> {
   #[inline]
   fn require_file(&mut self, file: &PathBuf) {
     writeln!(&mut self.writer, "Required file: {}", file.display()).ok();
@@ -121,8 +119,8 @@ impl<W: std::io::Write> Tracker for WritingTracker<W> {
 }
 
 
-// Event tracker
-
+/// A [`Tracker`] that stores [`Event`]s in a [`Vec`], useful in testing situations where we check build events after
+/// building. 
 #[derive(Default, Debug)]
 pub struct EventTracker {
   events: Vec<Event>,
@@ -146,7 +144,7 @@ impl EventTracker {
   pub fn get(&self, index: usize) -> Option<&Event> { self.events.get(index) }
   #[inline]
   pub fn last(&self) -> Option<&Event> { self.events.last() }
-  
+
   #[inline]
   pub fn iter_events(&self) -> impl Iterator<Item=&Event> { self.events.iter() }
   #[inline]
