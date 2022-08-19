@@ -95,8 +95,8 @@ use std::{
 use fnv::{FnvHashMap, FnvHashSet};
 use thunderdome::{Arena, Index};
 
-/// Data structure for maintaining a topological ordering over a collection
-/// of elements, in an incremental fashion.
+/// Data structure for maintaining a directed-acyclic graph (DAG) with topological ordering, maintained in an 
+/// incremental fashion.
 ///
 /// See the [module-level documentation] for more information.
 ///
@@ -108,11 +108,10 @@ pub struct DAG<N, PE, CE> {
 }
 
 
-/// An identifier of a node in the [`IncrementalTopo`] object.
+/// An identifier of a node in the [`DAG`].
 ///
-/// This identifier contains metadata so that a node which has been passed to
-/// [`IncrementalTopo::delete_node`] will not be confused with a node created
-/// later.
+/// This identifier contains metadata so that a node which has been passed to [`DAG::delete_node`] will not be confused
+/// with a node created later.
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 #[repr(transparent)]
 pub struct Node(Index);
@@ -149,14 +148,11 @@ impl<N, PE, CE> NodeRepr<N, PE, CE> {
 type TopoOrder = u32;
 
 
-/// Different types of failures that can occur while updating or querying
-/// the graph.
+/// Different types of failures that can occur while updating or querying the graph.
 #[derive(Debug, PartialEq, Eq)]
 pub enum Error {
-  /// The given node was not found in the topological order.
-  ///
-  /// This usually means that the node was deleted, but a reference was
-  /// kept around after which is now invalid.
+  /// The given node was not found in the topological order. This usually means that the node was deleted, but a 
+  /// reference was kept around after which is now invalid.
   NodeMissing,
   /// Cycles of nodes may not be formed in the graph.
   CycleDetected,
@@ -189,12 +185,10 @@ impl<N, PE, CE> DAG<N, PE, CE> {
   #[inline]
   pub fn new() -> Self { Self { last_topo_order: 0, node_repr: Arena::new() } }
 
-  /// Add a new node to the graph and return a unique [`Node`] which
-  /// identifies it.
+  /// Add a new node with `data` to the graph and return a unique [`Node`] which identifies it.
   ///
-  /// Initially this node will not have any order relative to the values
-  /// that are already in the graph. Only when relations are added
-  /// with [`add_dependency`] will the order begin to matter.
+  /// Initially this node will not have any order relative to the nodes that are already in the graph. Only when 
+  /// relations are added with [`add_dependency`] will the order begin to matter.
   ///
   /// # Examples
   /// ```
@@ -228,7 +222,7 @@ impl<N, PE, CE> DAG<N, PE, CE> {
     Node(self.node_repr.insert(node_data))
   }
 
-  /// Returns true if the graph contains the specified node.
+  /// Returns true if the graph contains the specified `node.`
   ///
   /// # Examples
   /// ```
@@ -261,8 +255,7 @@ impl<N, PE, CE> DAG<N, PE, CE> {
     self.node_repr.get_mut(node.0).map(|d| &mut d.data)
   }
 
-  /// Attempt to remove node from graph, returning true if the node was
-  /// contained and removed.
+  /// Attempt to remove `node` from graph, returning true if the node was contained and removed.
   ///
   /// # Examples
   /// ```
@@ -309,19 +302,18 @@ impl<N, PE, CE> DAG<N, PE, CE> {
     true
   }
 
-  /// Add a directed link between two nodes already present in the graph.
+  /// Add a directed edge from `pred` to `succ`, with `parent_data` being attached to the incoming dependencies of 
+  /// `succ`, and `child_data` being attached to the outgoing dependencies of `pred`.
   ///
-  /// This link indicates an ordering constraint on the two nodes, now
-  /// `pred` must always come before `succ` in the ordering.
+  /// This edge indicates an ordering constraint on the two nodes, now `pred` must always come before `succ` in the 
+  /// ordering.
   ///
-  /// Returns `Ok(true)` if the graph did not previously contain this
-  /// dependency. Returns `Ok(false)` if the graph did have a previous
-  /// dependency between these two nodes.
+  /// Returns `Ok(true)` if the graph did not previously contain this dependency. Returns `Ok(false)` if the graph did 
+  /// have a previous dependency between these two nodes.
   ///
   /// # Errors
-  /// This function will return an `Err` if the dependency introduces a
-  /// cycle into the graph or if either of the nodes passed is not
-  /// found in the graph.
+  /// This function will return an `Err` if the dependency introduces a cycle into the graph or if either of the nodes
+  /// passed is not found in the graph.
   ///
   /// # Examples
   /// ```
@@ -404,11 +396,9 @@ impl<N, PE, CE> DAG<N, PE, CE> {
     Ok(true)
   }
 
-  /// Returns true if the graph contains a dependency from `pred` to
-  /// `succ`.
+  /// Returns true if the graph contains a direct dependency from `pred` to `succ`.
   ///
-  /// Returns false if either node is not found, or if there is no
-  /// dependency.
+  /// Returns false if either node is not found, or if there is no dependency.
   ///
   /// # Examples
   /// ```
@@ -438,15 +428,12 @@ impl<N, PE, CE> DAG<N, PE, CE> {
     self.node_repr[pred.0].children.contains_key(&succ)
   }
 
-  /// Returns true if the graph contains a transitive dependency from
-  /// `pred` to `succ`.
+  /// Returns true if the graph contains a transitive dependency from `pred` to `succ`.
   ///
-  /// In this context a transitive dependency means that `succ` exists as
-  /// a descendant of `pred`, with some chain of other nodes in
-  /// between.
+  /// In this context a transitive dependency means that `succ` exists as a descendant of `pred`, with some chain of 
+  /// other nodes in between.
   ///
-  /// Returns false if either node is not found in the graph, or there is
-  /// no transitive dependency.
+  /// Returns false if either node is not found in the graph, or there is no transitive dependency.
   ///
   /// # Examples
   /// ```
@@ -575,15 +562,13 @@ impl<N, PE, CE> DAG<N, PE, CE> {
   }
 
 
-  /// Attempt to remove a dependency from the graph, returning true if the
-  /// dependency was removed.
+  /// Attempt to remove the dependency from `pred` to `succ` from the graph, returning `true` if the dependency was 
+  /// removed.
   ///
-  /// Returns false is either node is not found in the graph.
+  /// Returns `false` is either node is not found in the graph.
   ///
-  /// Removing a dependency from the graph is an extremely simple
-  /// operation, which requires no recalculation of the
-  /// topological order. The ordering before and after a removal
-  /// is exactly the same.
+  /// Removing a dependency from the graph is an extremely simple operation, which requires no recalculation of the
+  /// topological order. The ordering before and after a removal is exactly the same.
   ///
   /// # Examples
   /// ```
@@ -639,7 +624,7 @@ impl<N, PE, CE> DAG<N, PE, CE> {
     self.node_repr.len()
   }
 
-  /// Return true if there are no nodes in the graph.
+  /// Return `true` if there are no nodes in the graph.
   ///
   /// # Examples
   /// ```
@@ -691,18 +676,14 @@ impl<N, PE, CE> DAG<N, PE, CE> {
       .map(|(index, node)| (node.topo_order, index.into()))
   }
 
-  /// Return an iterator over the descendants of a node in the graph, in
-  /// an unsorted order.
+  /// Return an iterator over the descendants of a node in the graph, in an unsorted order.
   ///
-  /// Accessing the nodes in an unsorted order allows for faster access
-  /// using a iterative DFS search. This is opposed to the order
-  /// descendants iterator which requires the use of a binary heap
-  /// to order the values.
+  /// Accessing the nodes in an unsorted order allows for faster access using a iterative DFS search. This is opposed to
+  /// the order descendants iterator which requires the use of a binary heap to order the values.
   ///
   /// # Errors
   ///
-  /// This function will return an error if the given node is not present in
-  /// the graph.
+  /// This function will return an error if the given node is not present in the graph.
   ///
   /// # Examples
   /// ```
@@ -751,18 +732,14 @@ impl<N, PE, CE> DAG<N, PE, CE> {
     })
   }
 
-  /// Return an iterator over descendants of a node in the graph, in a
-  /// topologically sorted order.
+  /// Return an iterator over descendants of a node in the graph, in a topologically sorted order.
   ///
-  /// Accessing the nodes in a sorted order requires the use of a
-  /// BinaryHeap, so some performance penalty is paid there. If
-  /// all is required is access to the descendants of a node, use
-  /// [`IncrementalTopo::descendants_unsorted`].
+  /// Accessing the nodes in a sorted order requires the use of a BinaryHeap, so some performance penalty is paid there.
+  /// If all is required is access to the descendants of a node, use [`DAG::descendants_unsorted`].
   ///
   /// # Errors
   ///
-  /// This function will return an error if the given node is not present in
-  /// the graph.
+  /// This function will return an error if the given node is not present in the graph.
   ///
   /// # Examples
   /// ```
@@ -947,8 +924,8 @@ impl<N, PE, CE> DAG<N, PE, CE> {
   }
 }
 
-/// An iterator over the descendants of a node in the graph, which outputs the
-/// nodes in an unsorted order with their topological ranking.
+/// An iterator over the descendants of a node in the graph, which outputs the nodes in an unsorted order with their 
+/// topological ranking.
 ///
 /// # Examples
 /// ```
@@ -1003,8 +980,8 @@ impl<'a, N, PE, CE> Iterator for DescendantsUnsorted<'a, N, PE, CE> {
   }
 }
 
-/// An iterator over the descendants of a node in the graph, which outputs the
-/// nodes in a sorted order by their topological ranking.
+/// An iterator over the descendants of a node in the graph, which outputs the nodes in a sorted order by their 
+/// topological ranking.
 ///
 /// # Examples
 /// ```
