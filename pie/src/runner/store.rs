@@ -15,7 +15,6 @@ pub struct Store<C: Context> {
   graph: DAG<NodeData<C>, ParentData, ChildData>,
   task_to_node: HashMap<Box<dyn DynTask>, TaskNode>,
   file_to_node: HashMap<PathBuf, FileNode>,
-  // task_outputs: AnyMap,
 }
 
 pub enum NodeData<C: Context> {
@@ -44,7 +43,6 @@ impl<C: Context> Default for Store<C> {
       graph: DAG::new(),
       task_to_node: HashMap::new(),
       file_to_node: HashMap::new(),
-      // task_outputs: AnyMap::new(),
     }
   }
 }
