@@ -45,18 +45,18 @@
 //!
 //! assert_eq!(dag.len(), 7);
 //!
-//! dag.add_dependency(&lion, &human).unwrap();
-//! dag.add_dependency(&lion, &gazelle).unwrap();
+//! dag.add_dependency(&lion, &human, (), ()).unwrap();
+//! dag.add_dependency(&lion, &gazelle, (), ()).unwrap();
 //!
-//! dag.add_dependency(&human, &dog).unwrap();
-//! dag.add_dependency(&human, &cat).unwrap();
+//! dag.add_dependency(&human, &dog, (), ()).unwrap();
+//! dag.add_dependency(&human, &cat, (), ()).unwrap();
 //!
-//! dag.add_dependency(&dog, &cat).unwrap();
-//! dag.add_dependency(&cat, &mouse).unwrap();
+//! dag.add_dependency(&dog, &cat, (), ()).unwrap();
+//! dag.add_dependency(&cat, &mouse, (), ()).unwrap();
 //!
-//! dag.add_dependency(&gazelle, &grass).unwrap();
+//! dag.add_dependency(&gazelle, &grass, (), ()).unwrap();
 //!
-//! dag.add_dependency(&mouse, &grass).unwrap();
+//! dag.add_dependency(&mouse, &grass, (), ()).unwrap();
 //!
 //! let pairs = dag
 //!     .descendants_unsorted(&human)
@@ -199,7 +199,7 @@ impl<N, PE, CE> DAG<N, PE, CE> {
   /// # Examples
   /// ```
   /// use pie_graph::DAG;
-  /// let mut dag = DAG::new();
+  /// let mut dag = DAG::<(), (), ()>::new();
   ///
   /// let cat = dag.add_node(());
   /// let dog = dag.add_node(());
@@ -233,7 +233,7 @@ impl<N, PE, CE> DAG<N, PE, CE> {
   /// # Examples
   /// ```
   /// use pie_graph::DAG;
-  /// let mut dag = DAG::new();
+  /// let mut dag = DAG::<(), (), ()>::new();
   ///
   /// let cat = dag.add_node(());
   /// let dog = dag.add_node(());
@@ -267,7 +267,7 @@ impl<N, PE, CE> DAG<N, PE, CE> {
   /// # Examples
   /// ```
   /// use pie_graph::DAG;
-  /// let mut dag = DAG::new();
+  /// let mut dag = DAG::<(), (), ()>::new();
   ///
   /// let cat = dag.add_node(());
   /// let dog = dag.add_node(());
@@ -333,9 +333,9 @@ impl<N, PE, CE> DAG<N, PE, CE> {
   /// let dog = dag.add_node(());
   /// let human = dag.add_node(());
   ///
-  /// assert!(dag.add_dependency(&human, dog).unwrap());
-  /// assert!(dag.add_dependency(&human, cat).unwrap());
-  /// assert!(dag.add_dependency(&cat, mouse).unwrap());
+  /// assert!(dag.add_dependency(&human, dog, (), ()).unwrap());
+  /// assert!(dag.add_dependency(&human, cat, (), ()).unwrap());
+  /// assert!(dag.add_dependency(&cat, mouse, (), ()).unwrap());
   /// ```
   ///
   /// Here is an example which returns [`Error::CycleDetected`] when
@@ -346,17 +346,17 @@ impl<N, PE, CE> DAG<N, PE, CE> {
   /// let mut dag = DAG::new();
   ///
   /// let n0 = dag.add_node(());
-  /// assert_eq!(dag.add_dependency(&n0, &n0), Err(Error::CycleDetected));
+  /// assert_eq!(dag.add_dependency(&n0, &n0, (), ()), Err(Error::CycleDetected));
   ///
   /// let n1 = dag.add_node(());
   ///
-  /// assert!(dag.add_dependency(&n0, &n1).unwrap());
-  /// assert_eq!(dag.add_dependency(&n1, &n0), Err(Error::CycleDetected));
+  /// assert!(dag.add_dependency(&n0, &n1, (), ()).unwrap());
+  /// assert_eq!(dag.add_dependency(&n1, &n0, (), ()), Err(Error::CycleDetected));
   ///
   /// let n2 = dag.add_node(());
   ///
-  /// assert!(dag.add_dependency(&n1, &n2).unwrap());
-  /// assert_eq!(dag.add_dependency(&n2, &n0), Err(Error::CycleDetected));
+  /// assert!(dag.add_dependency(&n1, &n2, (), ()).unwrap());
+  /// assert_eq!(dag.add_dependency(&n2, &n0, (), ()), Err(Error::CycleDetected));
   /// ```
   pub fn add_dependency(
     &mut self,
@@ -420,8 +420,8 @@ impl<N, PE, CE> DAG<N, PE, CE> {
   /// let human = dag.add_node(());
   /// let horse = dag.add_node(());
   ///
-  /// assert!(dag.add_dependency(&human, &cat).unwrap());
-  /// assert!(dag.add_dependency(&cat, &mouse).unwrap());
+  /// assert!(dag.add_dependency(&human, &cat, (), ()).unwrap());
+  /// assert!(dag.add_dependency(&cat, &mouse, (), ()).unwrap());
   ///
   /// assert!(dag.contains_dependency(&cat, &mouse));
   /// assert!(!dag.contains_dependency(&human, &mouse));
@@ -458,9 +458,9 @@ impl<N, PE, CE> DAG<N, PE, CE> {
   /// let dog = dag.add_node(());
   /// let human = dag.add_node(());
   ///
-  /// assert!(dag.add_dependency(&human, &cat).unwrap());
-  /// assert!(dag.add_dependency(&human, &dog).unwrap());
-  /// assert!(dag.add_dependency(&cat, &mouse).unwrap());
+  /// assert!(dag.add_dependency(&human, &cat, (), ()).unwrap());
+  /// assert!(dag.add_dependency(&human, &dog, (), ()).unwrap());
+  /// assert!(dag.add_dependency(&cat, &mouse, (), ()).unwrap());
   ///
   /// assert!(dag.contains_transitive_dependency(&human, &mouse));
   /// assert!(!dag.contains_transitive_dependency(&dog, &mouse));
@@ -595,9 +595,9 @@ impl<N, PE, CE> DAG<N, PE, CE> {
   /// let dog = dag.add_node(());
   /// let human = dag.add_node(());
   ///
-  /// assert!(dag.add_dependency(&human, &cat).unwrap());
-  /// assert!(dag.add_dependency(&human, &dog).unwrap());
-  /// assert!(dag.add_dependency(&cat, &mouse).unwrap());
+  /// assert!(dag.add_dependency(&human, &cat, (), ()).unwrap());
+  /// assert!(dag.add_dependency(&human, &dog, (), ()).unwrap());
+  /// assert!(dag.add_dependency(&cat, &mouse, (), ()).unwrap());
   ///
   /// assert!(dag.remove_dependency(&cat, mouse));
   /// assert!(dag.remove_dependency(&human, dog));
@@ -625,7 +625,7 @@ impl<N, PE, CE> DAG<N, PE, CE> {
   /// # Examples
   /// ```
   /// use pie_graph::DAG;
-  /// let mut dag = DAG::new();
+  /// let mut dag = DAG::<(), (), ()>::new();
   ///
   /// let cat = dag.add_node(());
   /// let mouse = dag.add_node(());
@@ -644,7 +644,7 @@ impl<N, PE, CE> DAG<N, PE, CE> {
   /// # Examples
   /// ```
   /// use pie_graph::DAG;
-  /// let mut dag = DAG::new();
+  /// let mut dag = DAG::<(), (), ()>::new();
   ///
   /// assert!(dag.is_empty());
   ///
@@ -673,9 +673,9 @@ impl<N, PE, CE> DAG<N, PE, CE> {
   /// let dog = dag.add_node(());
   /// let human = dag.add_node(());
   ///
-  /// assert!(dag.add_dependency(&human, &cat).unwrap());
-  /// assert!(dag.add_dependency(&human, &dog).unwrap());
-  /// assert!(dag.add_dependency(&cat, &mouse).unwrap());
+  /// assert!(dag.add_dependency(&human, &cat, (), ()).unwrap());
+  /// assert!(dag.add_dependency(&human, &dog, (), ()).unwrap());
+  /// assert!(dag.add_dependency(&cat, &mouse, (), ()).unwrap());
   ///
   /// let pairs = dag.iter_unsorted().collect::<HashSet<_>>();
   ///
@@ -715,10 +715,10 @@ impl<N, PE, CE> DAG<N, PE, CE> {
   /// let dog = dag.add_node(());
   /// let human = dag.add_node(());
   ///
-  /// assert!(dag.add_dependency(&human, &cat).unwrap());
-  /// assert!(dag.add_dependency(&human, &dog).unwrap());
-  /// assert!(dag.add_dependency(&dog, &cat).unwrap());
-  /// assert!(dag.add_dependency(&cat, &mouse).unwrap());
+  /// assert!(dag.add_dependency(&human, &cat, (), ()).unwrap());
+  /// assert!(dag.add_dependency(&human, &dog, (), ()).unwrap());
+  /// assert!(dag.add_dependency(&dog, &cat, (), ()).unwrap());
+  /// assert!(dag.add_dependency(&cat, &mouse, (), ()).unwrap());
   ///
   /// let pairs = dag
   ///     .descendants_unsorted(human)
@@ -774,10 +774,10 @@ impl<N, PE, CE> DAG<N, PE, CE> {
   /// let dog = dag.add_node(());
   /// let human = dag.add_node(());
   ///
-  /// assert!(dag.add_dependency(&human, &cat).unwrap());
-  /// assert!(dag.add_dependency(&human, &dog).unwrap());
-  /// assert!(dag.add_dependency(&dog, &cat).unwrap());
-  /// assert!(dag.add_dependency(&cat, &mouse).unwrap());
+  /// assert!(dag.add_dependency(&human, &cat, (), ()).unwrap());
+  /// assert!(dag.add_dependency(&human, &dog, (), ()).unwrap());
+  /// assert!(dag.add_dependency(&dog, &cat, (), ()).unwrap());
+  /// assert!(dag.add_dependency(&cat, &mouse, (), ()).unwrap());
   ///
   /// let ordered_nodes = dag.descendants(human).unwrap().collect::<Vec<_>>();
   ///
@@ -825,10 +825,10 @@ impl<N, PE, CE> DAG<N, PE, CE> {
   /// let human = dag.add_node(());
   /// let horse = dag.add_node(());
   ///
-  /// assert!(dag.add_dependency(&human, &cat).unwrap());
-  /// assert!(dag.add_dependency(&human, &dog).unwrap());
-  /// assert!(dag.add_dependency(&dog, &cat).unwrap());
-  /// assert!(dag.add_dependency(&cat, &mouse).unwrap());
+  /// assert!(dag.add_dependency(&human, &cat, (), ()).unwrap());
+  /// assert!(dag.add_dependency(&human, &dog, (), ()).unwrap());
+  /// assert!(dag.add_dependency(&dog, &cat, (), ()).unwrap());
+  /// assert!(dag.add_dependency(&cat, &mouse, (), ()).unwrap());
   ///
   /// assert_eq!(dag.topo_cmp(&human, &mouse), Less);
   /// assert_eq!(dag.topo_cmp(&cat, &dog), Greater);
@@ -961,10 +961,10 @@ impl<N, PE, CE> DAG<N, PE, CE> {
 /// let dog = dag.add_node(());
 /// let human = dag.add_node(());
 ///
-/// assert!(dag.add_dependency(&human, &cat).unwrap());
-/// assert!(dag.add_dependency(&human, &dog).unwrap());
-/// assert!(dag.add_dependency(&dog, &cat).unwrap());
-/// assert!(dag.add_dependency(&cat, &mouse).unwrap());
+/// assert!(dag.add_dependency(&human, &cat, (), ()).unwrap());
+/// assert!(dag.add_dependency(&human, &dog, (), ()).unwrap());
+/// assert!(dag.add_dependency(&dog, &cat, (), ()).unwrap());
+/// assert!(dag.add_dependency(&cat, &mouse, (), ()).unwrap());
 ///
 /// let pairs = dag
 ///     .descendants_unsorted(human)
@@ -1016,10 +1016,10 @@ impl<'a, N, PE, CE> Iterator for DescendantsUnsorted<'a, N, PE, CE> {
 /// let dog = dag.add_node(());
 /// let human = dag.add_node(());
 ///
-/// assert!(dag.add_dependency(&human, &cat).unwrap());
-/// assert!(dag.add_dependency(&human, &dog).unwrap());
-/// assert!(dag.add_dependency(&dog, &cat).unwrap());
-/// assert!(dag.add_dependency(&cat, &mouse).unwrap());
+/// assert!(dag.add_dependency(&human, &cat, (), ()).unwrap());
+/// assert!(dag.add_dependency(&human, &dog, (), ()).unwrap());
+/// assert!(dag.add_dependency(&dog, &cat, (), ()).unwrap());
+/// assert!(dag.add_dependency(&cat, &mouse, (), ()).unwrap());
 ///
 /// let ordered_nodes = dag.descendants(human).unwrap().collect::<Vec<_>>();
 ///
