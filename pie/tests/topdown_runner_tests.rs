@@ -1,6 +1,7 @@
 use std::fs;
 use std::io::Stdout;
 
+use assert_matches::assert_matches;
 use rstest::{fixture, rstest};
 use tempfile::TempDir;
 
@@ -26,17 +27,14 @@ fn test_exec(mut runner: Runner) {
   let dyn_task = task.clone_box_dyn();
   assert_eq!(runner.require_initial(&task).check(), "capitalized");
   let tracker = &runner.tracker().0;
-  assert!(match tracker.get_from_end(2) {
-    Some(Event::RequireTask(t)) if t == &dyn_task => true,
-    _ => false,
+  assert_matches!(tracker.get_from_end(0), Some(Event::ExecuteTaskEnd(t, _)) => {
+    assert_eq!(t, &dyn_task);
   });
-  assert!(match tracker.get_from_end(1) {
-    Some(Event::ExecuteTaskStart(t)) if t == &dyn_task => true,
-    _ => false,
+  assert_matches!(tracker.get_from_end(1), Some(Event::ExecuteTaskStart(t)) => {
+    assert_eq!(t, &dyn_task);
   });
-  assert!(match tracker.get_from_end(0) {
-    Some(Event::ExecuteTaskEnd(t, _)) if t == &dyn_task => true,
-    _ => false,
+  assert_matches!(tracker.get_from_end(2), Some(Event::RequireTask(t)) => {
+    assert_eq!(t, &dyn_task);
   });
 }
 
@@ -49,17 +47,14 @@ fn test_reuse(mut runner: Runner) {
   assert_eq!(runner.require_initial(&task).check(), "capitalized");
   {
     let tracker = &mut runner.tracker_mut().0;
-    assert!(match tracker.get_from_end(0) {
-      Some(ExecuteTaskEnd(t, _)) if t == &dyn_task => true,
-      _ => false,
+    assert_matches!(tracker.get_from_end(0), Some(Event::ExecuteTaskEnd(t, _)) => {
+      assert_eq!(t, &dyn_task);
     });
-    assert!(match tracker.get_from_end(1) {
-      Some(ExecuteTaskStart(t)) if t == &dyn_task => true,
-      _ => false,
+    assert_matches!(tracker.get_from_end(1), Some(Event::ExecuteTaskStart(t)) => {
+      assert_eq!(t, &dyn_task);
     });
-    assert!(match tracker.get_from_end(2) {
-      Some(RequireTask(t)) if t == &dyn_task => true,
-      _ => false,
+    assert_matches!(tracker.get_from_end(2), Some(Event::RequireTask(t)) => {
+      assert_eq!(t, &dyn_task);
     });
     tracker.clear();
   }
@@ -67,7 +62,6 @@ fn test_reuse(mut runner: Runner) {
   assert_eq!(runner.require_initial(&task).check(), "capitalized");
   {
     let tracker = &mut runner.tracker_mut().0;
-    dbg!(&tracker);
     assert!(!tracker.iter_events().any(|e| match e { // Assert that no executions have taken place.
       ExecuteTaskStart(_) => true,
       _ => false
@@ -77,7 +71,7 @@ fn test_reuse(mut runner: Runner) {
 
 #[rstest]
 #[should_panic(expected = "Cyclic task dependency")]
-fn cycle_panics(mut runner: Runner) {
+fn require_self_cycle_panics(mut runner: Runner) {
   #[derive(Clone, PartialEq, Eq, Hash, Debug)]
   struct RequireSelf;
   impl Task for RequireSelf {
