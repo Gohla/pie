@@ -15,8 +15,8 @@ pub fn create_tracker() -> CompositeTracker<EventTracker, WritingTracker<Stdout>
   CompositeTracker(EventTracker::new(), WritingTracker::new_stdout_writer())
 }
 
-pub fn create_runner() -> TopDownRunner<CompositeTracker<EventTracker, WritingTracker<Stdout>>> {
-  TopDownRunner::with_tracker(create_tracker())
+pub fn create_runner() -> IncrementalRunner<CompositeTracker<EventTracker, WritingTracker<Stdout>>> {
+  IncrementalRunner::with_tracker(create_tracker())
 }
 
 pub fn temp_dir() -> TempDir {

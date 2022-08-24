@@ -1,6 +1,7 @@
 use std::collections::HashSet;
 use std::error::Error;
 use std::fs::File;
+use std::hash::BuildHasher;
 use std::path::PathBuf;
 
 use pie_graph::Node;
@@ -8,44 +9,36 @@ use pie_graph::Node;
 use crate::{Context, Task};
 use crate::dependency::{FileDependency, TaskDependency};
 use crate::prelude::DynOutput;
-use crate::runner::store::{Store, TaskNode};
-use crate::tracker::{NoopTracker, Tracker};
+use crate::store::{Store, TaskNode};
+use crate::tracker::Tracker;
 
-/// Incremental runner that checks dependencies recursively in a top-down manner.
-pub struct TopDownRunner<R: Tracker> {
-  store: Store<Self>,
-  tracker: R,
+/// Incremental runner that runs tasks and checks dependencies recursively in a top-down manner.
+pub struct IncrementalRunner<'p, 's, R, S> {
+  store: &'p mut Store<Self, S>,
+  tracker: &'p mut R,
 
-  visited: HashSet<TaskNode>,
+  visited: &'s mut HashSet<TaskNode, S>,
+
   task_execution_stack: Vec<TaskNode>,
   dependency_check_errors: Vec<Box<dyn Error>>,
 }
 
-impl Default for TopDownRunner<NoopTracker> {
-  fn default() -> Self { Self::with_tracker(NoopTracker) }
-}
-
-impl TopDownRunner<NoopTracker> {
-  /// Creates a new `[TopDownRunner]` without a `[Tracker]`.
+impl<'p, 's, R: Tracker, S: BuildHasher + Default> IncrementalRunner<'p, 's, R, S> {
+  /// Creates a new [`TopDownRunner`] with given [`Tracker`].
   #[inline]
-  pub fn new() -> Self { Default::default() }
-}
-
-impl<R: Tracker> TopDownRunner<R> {
-  /// Creates a new `[TopDownRunner]` with given `[Tracker]`.
-  #[inline]
-  pub fn with_tracker(tracker: R) -> Self {
+  pub fn new(store: &'p mut Store<Self, S>, tracker: &'p mut R, visited: &'s mut HashSet<TaskNode, S>) -> Self {
     Self {
-      store: Default::default(),
+      store,
       tracker,
 
-      visited: Default::default(),
+      visited,
+
       task_execution_stack: Default::default(),
       dependency_check_errors: Default::default(),
     }
   }
 
-  /// Requires given `[task]`, returning its up-to-date output, or an error indicating failure to check consistency of 
+  /// Requires given `task`, returning its up-to-date output, or an error indicating failure to check consistency of 
   /// one or more dependencies.
   #[inline]
   pub fn require_initial<T: Task>(&mut self, task: &T) -> Result<T::Output, (T::Output, &[Box<dyn Error>])> {
@@ -65,7 +58,8 @@ impl<R: Tracker> TopDownRunner<R> {
   pub fn tracker_mut(&mut self) -> &mut R { &mut self.tracker }
 }
 
-impl<R: Tracker> Context for TopDownRunner<R> {
+
+impl<'p, 's, R: Tracker, S: BuildHasher + Default> Context for IncrementalRunner<'p, 's, R, S> {
   fn require_task<T: Task>(&mut self, task: &T) -> T::Output {
     let dyn_task = task.as_dyn();
     self.tracker.require_task(dyn_task);
@@ -141,7 +135,7 @@ impl<R: Tracker> Context for TopDownRunner<R> {
   }
 }
 
-impl<R: Tracker> TopDownRunner<R> {
+impl<'p, 's, R: Tracker, S: BuildHasher + Default> IncrementalRunner<'p, 's, R, S> {
   fn should_execute_task(&mut self, task_node: Node) -> bool {
     // Remove task dependencies so that we get ownership over the list of dependencies. If the task does not need to be
     // executed, we will restore the dependencies again.

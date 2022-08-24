@@ -12,7 +12,7 @@ use crate::common::{CheckErrorExt, ReadStringFromFile, ToLowerCase, WriteStringT
 
 mod common;
 
-type Runner = TopDownRunner<CompositeTracker<EventTracker, WritingTracker<Stdout>>>;
+type Runner = IncrementalRunner<CompositeTracker<EventTracker, WritingTracker<Stdout>>>;
 
 #[fixture]
 fn runner() -> Runner { common::create_runner() }

@@ -1,13 +1,56 @@
+use std::collections::hash_map::RandomState;
+use std::collections::HashSet;
+use std::error::Error;
 use std::fs::File;
+use std::hash::BuildHasher;
 use std::path::PathBuf;
 
 use task::Task;
+
+use crate::prelude::IncrementalRunner;
+use crate::store::{Store, TaskNode};
+use crate::tracker::{NoopTracker, Tracker};
 
 pub mod prelude;
 pub mod task;
 pub mod dependency;
 pub mod runner;
+pub mod store;
 pub mod tracker;
+
+pub struct Pie<C, R = NoopTracker, S = RandomState> {
+  store: Store<C, S>,
+  tracker: R,
+}
+
+impl Pie<IncrementalRunner<'_, '_, NoopTracker, RandomState>, NoopTracker, RandomState> {
+  #[inline]
+  pub fn new() -> Self { Self { store: Store::new(), tracker: NoopTracker::default() } }
+}
+
+impl<C: Context, R: Tracker, S: BuildHasher + Default> Pie<C, R, S> {
+  #[inline]
+  pub fn new_session(&mut self) -> Session<C, R, S> { Session::new(&mut self.store, &mut self.tracker) }
+}
+
+pub struct Session<'p, C, R, S> {
+  store: &'p mut Store<C, S>,
+  tracker: &'p mut R,
+
+  visited: HashSet<TaskNode, S>,
+}
+
+impl<'p, C: Context, R: Tracker, S: BuildHasher + Default> Session<'p, C, R, S> {
+  #[inline]
+  fn new(store: &'p mut Store<C, S>, tracker: &'p mut R) -> Self {
+    Self { store, tracker, visited: HashSet::default() }
+  }
+  
+  pub fn require<T:Task>(&mut self, task: &T) -> Result<T::Output, (T::Output, &[Box<dyn Error>])> {
+    let runner = 
+  }
+}
+
 
 /// Incremental context, mediating between tasks and runners, enabling tasks to dynamically create dependencies that 
 /// runners check for consistency and use in incremental execution.

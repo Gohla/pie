@@ -1,25 +1,24 @@
 use std::any::Any;
-use std::collections::hash_map::RandomState;
 use std::collections::HashMap;
 use std::hash::BuildHasher;
 use std::path::PathBuf;
 
 use pie_graph::{DAG, Node};
 
-use crate::{Context, Task};
 use crate::dependency::{Dependency, FileDependency};
+use crate::Task;
 use crate::task::DynTask;
 
 pub type TaskNode = Node;
 pub type FileNode = Node;
 
-pub struct Store<C: Context, S = RandomState> {
+pub struct Store<C, S> {
   graph: DAG<NodeData<C>, ParentData, ChildData, S>,
   task_to_node: HashMap<Box<dyn DynTask>, TaskNode, S>,
   file_to_node: HashMap<PathBuf, FileNode, S>,
 }
 
-pub enum NodeData<C: Context> {
+pub enum NodeData<C> {
   Task {
     task: Box<dyn DynTask>,
     dependencies: Option<Vec<Box<dyn Dependency<C>>>>,
@@ -42,7 +41,7 @@ pub enum ChildData {
   RequireTask,
 }
 
-impl<C: Context, S: BuildHasher + Default> Default for Store<C, S> {
+impl<C, S: BuildHasher + Default> Default for Store<C, S> {
   #[inline]
   fn default() -> Self {
     Self {
@@ -53,13 +52,11 @@ impl<C: Context, S: BuildHasher + Default> Default for Store<C, S> {
   }
 }
 
-impl<C: Context> Store<C> {
+impl<C, S: BuildHasher + Default> Store<C, S> {
   /// Creates a new `[Store]`.
   #[inline]
   pub fn new() -> Self { Default::default() }
-}
 
-impl<C: Context> Store<C> {
   #[inline]
   pub fn get_or_create_node_by_task(&mut self, task: Box<dyn DynTask>) -> TaskNode {
     if let Some(node) = self.task_to_node.get(&task) {
