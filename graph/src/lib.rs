@@ -104,8 +104,8 @@ use thunderdome::{Arena, Index};
 ///
 /// [module-level documentation]: index.html
 #[derive(Clone, Debug)]
-pub struct DAG<N, PE, CE, S = RandomState> {
-  node_repr: Arena<NodeRepr<N, PE, CE, S>>,
+pub struct DAG<N, PE, CE, H = RandomState> {
+  node_repr: Arena<NodeRepr<N, PE, CE, H>>,
   last_topo_order: TopoOrder,
 }
 
@@ -127,14 +127,14 @@ impl From<Index> for Node {
 /// The representation of a node, with all information about it ordering, which
 /// nodes it points to, and which nodes point to it.
 #[derive(Debug, Clone)]
-struct NodeRepr<N, PE, CE, S> {
+struct NodeRepr<N, PE, CE, H> {
   topo_order: TopoOrder,
   data: N,
-  parents: HashMap<Node, PE, S>,
-  children: HashMap<Node, CE, S>,
+  parents: HashMap<Node, PE, H>,
+  children: HashMap<Node, CE, H>,
 }
 
-impl<N, PE, CE, S: BuildHasher + Default> NodeRepr<N, PE, CE, S> {
+impl<N, PE, CE, H: BuildHasher + Default> NodeRepr<N, PE, CE, H> {
   /// Create a new node entry with the specified topological order.
   fn new(topo_order: TopoOrder, data: N) -> Self {
     NodeRepr {
@@ -188,7 +188,7 @@ impl<N, PE, CE> DAG<N, PE, CE> {
   pub fn new() -> Self { Self::with_default_hasher() }
 }
 
-impl<N, PE, CE, S: BuildHasher + Default> DAG<N, PE, CE, S> {
+impl<N, PE, CE, H: BuildHasher + Default> DAG<N, PE, CE, H> {
   /// Create a new DAG.
   ///
   /// # Examples
@@ -394,7 +394,7 @@ impl<N, PE, CE, S: BuildHasher + Default> DAG<N, PE, CE, S> {
     // lower bound are equal) then perform an update to the topological ordering of
     // the graph
     if lower_bound < upper_bound {
-      let mut visited = HashSet::<_, S>::default(); // OPTO: reuse allocation.
+      let mut visited = HashSet::<_, H>::default(); // OPTO: reuse allocation.
       // Walk changes forward from the succ, checking for any cycles that would be introduced
       let change_forward = match self.dfs_forward(*succ, &mut visited, upper_bound) {
         Ok(change_set) => change_set,
@@ -490,7 +490,7 @@ impl<N, PE, CE, S: BuildHasher + Default> DAG<N, PE, CE, S> {
     // the overhead of the binary heap, and this task doesn't really need ordered
     // descendants.
     let mut stack = Vec::new(); // OPTO: reuse allocation
-    let mut visited = HashSet::<_, S>::default(); // OPTO: reuse allocation
+    let mut visited = HashSet::<_, H>::default(); // OPTO: reuse allocation
 
     stack.push(pred);
 
@@ -730,7 +730,7 @@ impl<N, PE, CE, S: BuildHasher + Default> DAG<N, PE, CE, S> {
   pub fn descendants_unsorted(
     &self,
     node: impl Borrow<Node>,
-  ) -> Result<DescendantsUnsorted<N, PE, CE, S>, Error> {
+  ) -> Result<DescendantsUnsorted<N, PE, CE, H>, Error> {
     let node = node.borrow();
     if !self.node_repr.contains(node.0) {
       return Err(Error::NodeMissing);
@@ -739,7 +739,7 @@ impl<N, PE, CE, S: BuildHasher + Default> DAG<N, PE, CE, S> {
     let mut stack = Vec::new(); // OPTO: reuse allocation
     // Add all children of selected node
     stack.extend(self.node_repr[node.0].children.keys());
-    let visited = HashSet::<_, S>::default(); // OPTO: reuse allocation
+    let visited = HashSet::<_, H>::default(); // OPTO: reuse allocation
 
     Ok(DescendantsUnsorted {
       dag: self,
@@ -776,7 +776,7 @@ impl<N, PE, CE, S: BuildHasher + Default> DAG<N, PE, CE, S> {
   ///
   /// assert_eq!(ordered_nodes, vec![dog, cat, mouse]);
   /// ```
-  pub fn descendants(&self, node: impl Borrow<Node>) -> Result<Descendants<N, PE, CE, S>, Error> {
+  pub fn descendants(&self, node: impl Borrow<Node>) -> Result<Descendants<N, PE, CE, H>, Error> {
     let node = node.borrow();
     if !self.node_repr.contains(node.0) {
       return Err(Error::NodeMissing);
@@ -794,7 +794,7 @@ impl<N, PE, CE, S: BuildHasher + Default> DAG<N, PE, CE, S> {
           (Reverse(child_order), child_key)
         }),
     );
-    let visited = HashSet::<_, S>::default(); // OPTO: reuse allocation
+    let visited = HashSet::<_, H>::default(); // OPTO: reuse allocation
 
     Ok(Descendants {
       dag: self,
@@ -840,11 +840,11 @@ impl<N, PE, CE, S: BuildHasher + Default> DAG<N, PE, CE, S> {
   fn dfs_forward(
     &self,
     start_key: Node,
-    visited: &mut HashSet<Node, S>,
+    visited: &mut HashSet<Node, H>,
     upper_bound: TopoOrder,
-  ) -> Result<HashSet<Node, S>, Error> {
+  ) -> Result<HashSet<Node, H>, Error> {
     let mut stack = Vec::new(); // OPTO: reuse allocation
-    let mut result = HashSet::<_, S>::default(); // OPTO: reuse allocation
+    let mut result = HashSet::<_, H>::default(); // OPTO: reuse allocation
 
     stack.push(start_key);
 
@@ -871,11 +871,11 @@ impl<N, PE, CE, S: BuildHasher + Default> DAG<N, PE, CE, S> {
   fn dfs_backward(
     &self,
     start_key: Node,
-    visited: &mut HashSet<Node, S>,
+    visited: &mut HashSet<Node, H>,
     lower_bound: TopoOrder,
-  ) -> HashSet<Node, S> {
+  ) -> HashSet<Node, H> {
     let mut stack = Vec::new(); // OPTO: reuse allocation
-    let mut result = HashSet::<_, S>::default(); // OPTO: reuse allocation
+    let mut result = HashSet::<_, H>::default(); // OPTO: reuse allocation
 
     stack.push(start_key);
 
@@ -897,8 +897,8 @@ impl<N, PE, CE, S: BuildHasher + Default> DAG<N, PE, CE, S> {
 
   fn reorder_nodes(
     &mut self,
-    change_forward: HashSet<Node, S>,
-    change_backward: HashSet<Node, S>,
+    change_forward: HashSet<Node, H>,
+    change_backward: HashSet<Node, H>,
   ) {
     let mut change_forward: Vec<_> = change_forward
       .into_iter()
@@ -935,7 +935,7 @@ impl<N, PE, CE, S: BuildHasher + Default> DAG<N, PE, CE, S> {
     }
   }
 
-  fn get_node_repr(&self, idx: Node) -> &NodeRepr<N, PE, CE, S> {
+  fn get_node_repr(&self, idx: Node) -> &NodeRepr<N, PE, CE, H> {
     self.node_repr.get(idx.0).unwrap()
   }
 }

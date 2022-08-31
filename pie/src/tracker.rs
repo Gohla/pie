@@ -16,7 +16,7 @@ pub trait Tracker {
 
 
 /// A [`Tracker`] that does nothing.
-#[derive(Default, Debug)]
+#[derive(Default, Clone, Debug)]
 pub struct NoopTracker;
 
 impl Tracker for NoopTracker {
@@ -35,7 +35,7 @@ impl Tracker for NoopTracker {
 
 
 /// A [`Tracker`] that forwards events to two other [`Tracker`]s.
-#[derive(Debug)]
+#[derive(Default, Clone, Debug)]
 pub struct CompositeTracker<T1, T2>(pub T1, pub T2);
 
 impl<T1: Tracker, T2: Tracker> Tracker for CompositeTracker<T1, T2> {
@@ -69,7 +69,7 @@ impl<T1: Tracker, T2: Tracker> Tracker for CompositeTracker<T1, T2> {
 
 
 /// A [`Tracker`] that writes events to a [`std::io::Write`] instance, for example [`std::io::Stdout`].
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct WritingTracker<W> {
   writer: W,
 }
@@ -77,6 +77,11 @@ pub struct WritingTracker<W> {
 impl Default for WritingTracker<Stdout> {
   #[inline]
   fn default() -> Self { Self::new_stdout_writer() }
+}
+
+impl Default for WritingTracker<Stderr> {
+  #[inline]
+  fn default() -> Self { Self::new_stderr_writer() }
 }
 
 impl<W: io::Write> WritingTracker<W> {
@@ -121,12 +126,12 @@ impl<W: io::Write> Tracker for WritingTracker<W> {
 
 /// A [`Tracker`] that stores [`Event`]s in a [`Vec`], useful in testing situations where we check build events after
 /// building. 
-#[derive(Default, Debug)]
+#[derive(Default, Clone, Debug)]
 pub struct EventTracker {
   events: Vec<Event>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Event {
   RequireFile(PathBuf),
   ProvideFile(PathBuf),

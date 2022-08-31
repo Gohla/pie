@@ -1,67 +1,78 @@
 use std::fs;
-use std::io::Stdout;
 
 use assert_matches::assert_matches;
 use rstest::{fixture, rstest};
 use tempfile::TempDir;
 
-use pie::prelude::*;
-use pie::tracker::{CompositeTracker, Event, EventTracker, WritingTracker};
+use ::pie::prelude::*;
+use ::pie::tracker::Event;
 
-use crate::common::{CheckErrorExt, ReadStringFromFile, ToLowerCase, WriteStringToFile};
+use crate::common::{CheckErrorExt, Pie, ReadStringFromFile, ToLowerCase, WriteStringToFile};
 
 mod common;
 
-type Runner = IncrementalRunner<CompositeTracker<EventTracker, WritingTracker<Stdout>>>;
-
 #[fixture]
-fn runner() -> Runner { common::create_runner() }
+fn pie() -> Pie { common::create_pie() }
 
 #[fixture]
 fn temp_dir() -> TempDir { common::temp_dir() }
 
 
 #[rstest]
-fn test_exec(mut runner: Runner) {
+fn test_exec(mut pie: Pie) {
+  use Event::*;
   let task = ToLowerCase("CAPITALIZED".to_string());
   let dyn_task = task.clone_box_dyn();
-  assert_eq!(runner.require_initial(&task).check(), "capitalized");
-  let tracker = &runner.tracker().0;
-  assert_matches!(tracker.get_from_end(0), Some(Event::ExecuteTaskEnd(t, _)) => {
+
+  pie.run_in_session(|mut session| {
+    assert_eq!(session.require(&task), "capitalized");
+    assert_eq!(session.dependency_check_errors().len(), 0);
+  });
+
+  let tracker = &pie.tracker().0;
+  assert_matches!(tracker.get_from_end(0), Some(ExecuteTaskEnd(t, _)) => {
     assert_eq!(t, &dyn_task);
   });
-  assert_matches!(tracker.get_from_end(1), Some(Event::ExecuteTaskStart(t)) => {
+  assert_matches!(tracker.get_from_end(1), Some(ExecuteTaskStart(t)) => {
     assert_eq!(t, &dyn_task);
   });
-  assert_matches!(tracker.get_from_end(2), Some(Event::RequireTask(t)) => {
+  assert_matches!(tracker.get_from_end(2), Some(RequireTask(t)) => {
     assert_eq!(t, &dyn_task);
   });
 }
 
 #[rstest]
-fn test_reuse(mut runner: Runner) {
+fn test_reuse(mut pie: Pie) {
   use Event::*;
   let task = ToLowerCase("CAPITALIZED".to_string());
   let dyn_task = task.clone_box_dyn();
 
-  assert_eq!(runner.require_initial(&task).check(), "capitalized");
+  pie.run_in_session(|mut session| {
+    assert_eq!(session.require(&task), "capitalized");
+    assert_eq!(session.dependency_check_errors().len(), 0);
+  });
+
   {
-    let tracker = &mut runner.tracker_mut().0;
-    assert_matches!(tracker.get_from_end(0), Some(Event::ExecuteTaskEnd(t, _)) => {
+    let tracker = &mut pie.tracker_mut().0;
+    assert_matches!(tracker.get_from_end(0), Some(ExecuteTaskEnd(t, _)) => {
       assert_eq!(t, &dyn_task);
     });
-    assert_matches!(tracker.get_from_end(1), Some(Event::ExecuteTaskStart(t)) => {
+    assert_matches!(tracker.get_from_end(1), Some(ExecuteTaskStart(t)) => {
       assert_eq!(t, &dyn_task);
     });
-    assert_matches!(tracker.get_from_end(2), Some(Event::RequireTask(t)) => {
+    assert_matches!(tracker.get_from_end(2), Some(RequireTask(t)) => {
       assert_eq!(t, &dyn_task);
     });
     tracker.clear();
   }
 
-  assert_eq!(runner.require_initial(&task).check(), "capitalized");
+  pie.run_in_session(|mut session| {
+    assert_eq!(session.require(&task), "capitalized");
+    assert_eq!(session.dependency_check_errors().len(), 0);
+  });
+
   {
-    let tracker = &mut runner.tracker_mut().0;
+    let tracker = &mut pie.tracker_mut().0;
     assert!(!tracker.iter_events().any(|e| match e { // Assert that no executions have taken place.
       ExecuteTaskStart(_) => true,
       _ => false
@@ -71,7 +82,7 @@ fn test_reuse(mut runner: Runner) {
 
 #[rstest]
 #[should_panic(expected = "Cyclic task dependency")]
-fn require_self_cycle_panics(mut runner: Runner) {
+fn require_self_cycle_panics(mut pie: Pie) {
   #[derive(Clone, PartialEq, Eq, Hash, Debug)]
   struct RequireSelf;
   impl Task for RequireSelf {
@@ -80,36 +91,51 @@ fn require_self_cycle_panics(mut runner: Runner) {
       context.require_task(self);
     }
   }
-  runner.require_initial(&RequireSelf).check();
+  pie.run_in_session(|mut session| {
+    session.require(&RequireSelf);
+    assert_eq!(session.dependency_check_errors().len(), 0);
+  });
 }
 
 #[rstest]
 #[should_panic(expected = "Overlapping provided file")]
-fn overlapping_provided_file_panics(mut runner: Runner, temp_dir: TempDir) {
+fn overlapping_provided_file_panics(mut pie: Pie, temp_dir: TempDir) {
   let path = temp_dir.path().join("test.txt");
-  let task_1 = WriteStringToFile(path.clone(), "Test 1".to_string());
-  runner.require_initial(&task_1).check().check();
-  let task_2 = WriteStringToFile(path.clone(), "Test 2".to_string());
-  runner.require_initial(&task_2).check().check();
+  pie.run_in_session(|mut session| {
+    let task_1 = WriteStringToFile(path.clone(), "Test 1".to_string());
+    session.require(&task_1).check();
+    assert_eq!(session.dependency_check_errors().len(), 0);
+    let task_2 = WriteStringToFile(path.clone(), "Test 2".to_string());
+    session.require(&task_2).check();
+    assert_eq!(session.dependency_check_errors().len(), 0);
+  });
 }
 
 #[rstest]
 #[should_panic(expected = "Hidden dependency")]
-fn hidden_dependency_during_require_panics(mut runner: Runner, temp_dir: TempDir) {
+fn hidden_dependency_during_require_panics(mut pie: Pie, temp_dir: TempDir) {
   let path = temp_dir.path().join("test.txt");
-  let providing_task = WriteStringToFile(path.clone(), "Test 1".to_string());
-  runner.require_initial(&providing_task).check().check();
-  let requiring_task = ReadStringFromFile(path.clone());
-  runner.require_initial(&requiring_task).check().check();
+  pie.run_in_session(|mut session| {
+    let providing_task = WriteStringToFile(path.clone(), "Test 1".to_string());
+    session.require(&providing_task).check();
+    assert_eq!(session.dependency_check_errors().len(), 0);
+    let requiring_task = ReadStringFromFile(path.clone());
+    session.require(&requiring_task).check();
+    assert_eq!(session.dependency_check_errors().len(), 0);
+  });
 }
 
 #[rstest]
 #[should_panic(expected = "Hidden dependency")]
-fn hidden_dependency_during_provide_panics(mut runner: Runner, temp_dir: TempDir) {
+fn hidden_dependency_during_provide_panics(mut pie: Pie, temp_dir: TempDir) {
   let path = temp_dir.path().join("test.txt");
   fs::write(&path, "test").check();
-  let requiring_task = ReadStringFromFile(path.clone());
-  runner.require_initial(&requiring_task).check().check();
-  let providing_task = WriteStringToFile(path.clone(), "Test 1".to_string());
-  runner.require_initial(&providing_task).check().check();
+  pie.run_in_session(|mut session| {
+    let requiring_task = ReadStringFromFile(path.clone());
+    session.require(&requiring_task).check();
+    assert_eq!(session.dependency_check_errors().len(), 0);
+    let providing_task = WriteStringToFile(path.clone(), "Test 1".to_string());
+    session.require(&providing_task).check();
+    assert_eq!(session.dependency_check_errors().len(), 0);
+  });
 }

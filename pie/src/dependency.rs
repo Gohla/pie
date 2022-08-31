@@ -1,4 +1,5 @@
 use std::error::Error;
+use std::fmt::Debug;
 use std::fs::File;
 use std::path::PathBuf;
 use std::time::SystemTime;
@@ -6,12 +7,12 @@ use std::time::SystemTime;
 use crate::{Context, Task};
 
 /// A dynamic dependency that can be checked for consistency.
-pub trait Dependency<C> {
+pub trait Dependency<C>: Debug {
   fn is_consistent(&self, context: &mut C) -> Result<bool, Box<dyn Error>> where C: Context;
 }
 
 /// A dependency to (the output of) another task.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct TaskDependency<T: Task> {
   task: T,
   output: T::Output,
@@ -31,7 +32,7 @@ impl<T: Task, C> Dependency<C> for TaskDependency<T> {
 }
 
 /// A dependency to (the contents of) a file.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct FileDependency {
   path: PathBuf,
   modification_date: SystemTime,

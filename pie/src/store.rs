@@ -1,4 +1,3 @@
-use std::any::Any;
 use std::collections::HashMap;
 use std::hash::BuildHasher;
 use std::path::PathBuf;
@@ -6,23 +5,26 @@ use std::path::PathBuf;
 use pie_graph::{DAG, Node};
 
 use crate::dependency::{Dependency, FileDependency};
+use crate::prelude::DynOutput;
 use crate::Task;
 use crate::task::DynTask;
 
 pub type TaskNode = Node;
 pub type FileNode = Node;
 
-pub struct Store<C, S> {
-  graph: DAG<NodeData<C>, ParentData, ChildData, S>,
-  task_to_node: HashMap<Box<dyn DynTask>, TaskNode, S>,
-  file_to_node: HashMap<PathBuf, FileNode, S>,
+#[derive(Debug)]
+pub struct Store<C, H> {
+  graph: DAG<NodeData<C>, ParentData, ChildData, H>,
+  task_to_node: HashMap<Box<dyn DynTask>, TaskNode, H>,
+  file_to_node: HashMap<PathBuf, FileNode, H>,
 }
 
+#[derive(Debug)]
 pub enum NodeData<C> {
   Task {
     task: Box<dyn DynTask>,
     dependencies: Option<Vec<Box<dyn Dependency<C>>>>,
-    output: Option<Box<dyn Any>>,
+    output: Option<Box<dyn DynOutput>>,
   },
   File(PathBuf),
 }
@@ -41,7 +43,7 @@ pub enum ChildData {
   RequireTask,
 }
 
-impl<C, S: BuildHasher + Default> Default for Store<C, S> {
+impl<C, H: BuildHasher + Default> Default for Store<C, H> {
   #[inline]
   fn default() -> Self {
     Self {
@@ -52,7 +54,7 @@ impl<C, S: BuildHasher + Default> Default for Store<C, S> {
   }
 }
 
-impl<C, S: BuildHasher + Default> Store<C, S> {
+impl<C, H: BuildHasher + Default> Store<C, H> {
   /// Creates a new `[Store]`.
   #[inline]
   pub fn new() -> Self { Default::default() }
@@ -141,7 +143,10 @@ impl<C, S: BuildHasher + Default> Store<C, S> {
   #[inline]
   pub fn get_task_output<T: Task>(&self, task_node: TaskNode) -> Option<&T::Output> {
     if let Some(NodeData::Task { output: Some(output), .. }) = self.graph.get_node_data(task_node) {
-      output.downcast_ref()
+      // Note: `output.as_ref` is very important here, because `Box<dyn DynOutput>` also implements `DynOutput`, which 
+      // in turn has an `as_any` method as well. However, `downcast_ref` will *always fail* on `Box<dyn DynOutput>` 
+      // because it will try to downcast the box instead of what is inside the box.
+      output.as_ref().as_any().downcast_ref::<T::Output>()
     } else {
       None
     }
@@ -150,7 +155,8 @@ impl<C, S: BuildHasher + Default> Store<C, S> {
   pub fn set_task_output<T: Task>(&mut self, task_node: TaskNode, new_output: T::Output) {
     if let Some(NodeData::Task { output, .. }) = self.graph.get_node_data_mut(task_node) {
       if let Some(output) = output {
-        if let Some(output) = output.downcast_mut() {
+        // Note: `output.as_mut` is very important here, for the same reason as commented in `get_task_output`.
+        if let Some(output) = output.as_mut().as_any_mut().downcast_mut::<T::Output>() {
           *output = new_output; // Replace the value inside the box.
         } else { // Stored output is not of the correct type any more, replace it with a new boxed output.
           *output = Box::new(new_output)

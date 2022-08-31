@@ -8,10 +8,11 @@ use crate::Context;
 
 /// The unit of computation in the incremental build system.
 pub trait Task: Eq + Hash + Clone + DynTask + Debug + 'static {
-  /// The type of output this task produces when executed. Must implement `[Eq]`, `[Clone]`, and either not contain any 
+  /// The type of output this task produces when executed. Must implement [`Eq`], [`Clone`], and either not contain any 
   /// references, or only `'static` references.
-  type Output: Eq + Clone + DynOutput + Debug + 'static;
-  /// Execute the task, with `[context]` providing a means to specify dependencies, producing `[Self::Output]`.
+  type Output: Output;
+  /// Execute the task, with `context` providing a means to specify dependencies, producing an instance of 
+  /// `Self::Output`.
   fn execute<C: Context>(&self, context: &mut C) -> Self::Output;
 
   #[inline]
@@ -30,7 +31,7 @@ pub trait DynTask: DynClone + Any + Debug + 'static {
 }
 
 /// Alias trait for task outputs.
-pub trait Output: Eq + Clone + Debug + 'static {}
+pub trait Output: Eq + Clone + DynOutput + Debug + 'static {}
 
 impl<T: Eq + Clone + Debug + 'static> Output for T {}
 
@@ -38,6 +39,7 @@ impl<T: Eq + Clone + Debug + 'static> Output for T {}
 pub trait DynOutput: DynClone + Any + Debug + 'static {
   fn dyn_eq(&self, other: &dyn Any) -> bool;
   fn as_any(&self) -> &dyn Any;
+  fn as_any_mut(&mut self) -> &mut dyn Any;
 }
 
 
@@ -104,6 +106,8 @@ impl<T: Output> DynOutput for T {
   }
   #[inline]
   fn as_any(&self) -> &dyn Any { self }
+  #[inline]
+  fn as_any_mut(&mut self) -> &mut dyn Any { self }
 }
 
 // Implement PartialEq/Eq/Hash/Clone for `dyn DynOutput` or `Box<dyn DynOutput>`

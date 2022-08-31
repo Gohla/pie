@@ -1,4 +1,3 @@
-use std::error::Error;
 use std::fmt::Debug;
 use std::fs::File;
 use std::io::{Read, Stdout, Write};
@@ -11,12 +10,16 @@ use pie::tracker::{CompositeTracker, EventTracker, WritingTracker};
 
 // Helper functions
 
-pub fn create_tracker() -> CompositeTracker<EventTracker, WritingTracker<Stdout>> {
+pub type Tracker = CompositeTracker<EventTracker, WritingTracker<Stdout>>;
+
+pub fn create_tracker() -> Tracker {
   CompositeTracker(EventTracker::new(), WritingTracker::new_stdout_writer())
 }
 
-pub fn create_runner() -> IncrementalRunner<CompositeTracker<EventTracker, WritingTracker<Stdout>>> {
-  IncrementalRunner::with_tracker(create_tracker())
+pub type Pie = pie::Pie<Tracker>;
+
+pub fn create_pie() -> Pie {
+  Pie::with_tracker(create_tracker())
 }
 
 pub fn temp_dir() -> TempDir {
@@ -28,12 +31,6 @@ pub fn temp_dir() -> TempDir {
 
 pub trait CheckErrorExt<T> {
   fn check(self) -> T;
-}
-
-impl<T: Debug> CheckErrorExt<T> for Result<T, (T, &[Box<dyn Error>])> {
-  fn check(self) -> T {
-    self.expect("failed to check one or more dependencies")
-  }
 }
 
 impl<T: Debug> CheckErrorExt<T> for Result<T, std::io::Error> {
