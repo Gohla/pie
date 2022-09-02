@@ -95,7 +95,7 @@ use std::collections::{HashMap, HashSet};
 use std::collections::hash_map::RandomState;
 use std::hash::BuildHasher;
 
-use thunderdome::{Arena, Index};
+use slotmap::{DefaultKey, SlotMap};
 
 /// Data structure for maintaining a directed-acyclic graph (DAG) with topological ordering, maintained in an 
 /// incremental fashion.
@@ -104,8 +104,13 @@ use thunderdome::{Arena, Index};
 ///
 /// [module-level documentation]: index.html
 #[derive(Clone, Debug)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct DAG<N, PE, CE, H = RandomState> {
-  node_repr: Arena<NodeRepr<N, PE, CE, H>>,
+  #[cfg_attr(feature = "serde", serde(bound(
+  serialize = "SlotMap<DefaultKey, NodeRepr<N, PE, CE, H>>: serde::Serialize",
+  deserialize = "SlotMap<DefaultKey, NodeRepr<N, PE, CE, H>>: serde::Deserialize<'de>"
+  )))]
+  node_repr: SlotMap<DefaultKey, NodeRepr<N, PE, CE, H>>,
   last_topo_order: TopoOrder,
 }
 
@@ -114,23 +119,34 @@ pub struct DAG<N, PE, CE, H = RandomState> {
 ///
 /// This identifier contains metadata so that a node which has been passed to [`DAG::delete_node`] will not be confused
 /// with a node created later.
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 #[repr(transparent)]
-pub struct Node(Index);
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+pub struct Node(DefaultKey);
 
-impl From<Index> for Node {
+impl From<DefaultKey> for Node {
   #[inline]
-  fn from(src: Index) -> Self { Self(src) }
+  fn from(src: DefaultKey) -> Self { Self(src) }
 }
 
 
 /// The representation of a node, with all information about it ordering, which
 /// nodes it points to, and which nodes point to it.
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 struct NodeRepr<N, PE, CE, H> {
   topo_order: TopoOrder,
   data: N,
+  // Set bounds such that `H` does not have to be (de)serializable
+  #[cfg_attr(feature = "serde", serde(bound(
+  serialize = "PE: serde::Serialize, H: BuildHasher + Default, HashMap<Node, PE, H>: serde::Serialize",
+  deserialize = "PE: serde::Deserialize<'de>, H: BuildHasher + Default, HashMap<Node, PE, H>: serde::Deserialize<'de>"
+  )))]
   parents: HashMap<Node, PE, H>,
+  #[cfg_attr(feature = "serde", serde(bound(
+  serialize = "CE: serde::Serialize, H: BuildHasher + Default, HashMap<Node, PE, H>: serde::Serialize",
+  deserialize = "CE: serde::Deserialize<'de>, H: BuildHasher + Default, HashMap<Node, PE, H>: serde::Deserialize<'de>"
+  )))]
   children: HashMap<Node, CE, H>,
 }
 
@@ -199,7 +215,7 @@ impl<N, PE, CE, H: BuildHasher + Default> DAG<N, PE, CE, H> {
   /// assert!(dag.is_empty());
   /// ```
   #[inline]
-  pub fn with_default_hasher() -> Self { Self { last_topo_order: 0, node_repr: Arena::new() } }
+  pub fn with_default_hasher() -> Self { Self { last_topo_order: 0, node_repr: SlotMap::new() } }
 
   /// Add a new node with `data` to the graph and return a unique [`Node`] which identifies it.
   ///
@@ -254,7 +270,7 @@ impl<N, PE, CE, H: BuildHasher + Default> DAG<N, PE, CE, H> {
   #[inline]
   pub fn contains_node(&self, node: impl Borrow<Node>) -> bool {
     let node = node.borrow();
-    self.node_repr.contains(node.0)
+    self.node_repr.contains_key(node.0)
   }
 
   /// Gets data for given `node`.
@@ -288,7 +304,7 @@ impl<N, PE, CE, H: BuildHasher + Default> DAG<N, PE, CE, H> {
   /// assert!(!dag.remove_node(dog));
   /// ```
   pub fn remove_node(&mut self, node: Node) -> bool {
-    if !self.node_repr.contains(node.0) {
+    if !self.node_repr.contains_key(node.0) {
       return false;
     }
 
@@ -438,7 +454,7 @@ impl<N, PE, CE, H: BuildHasher + Default> DAG<N, PE, CE, H> {
     let pred = pred.borrow();
     let succ = succ.borrow();
 
-    if !self.node_repr.contains(pred.0) || !self.node_repr.contains(succ.0) {
+    if !self.node_repr.contains_key(pred.0) || !self.node_repr.contains_key(succ.0) {
       return false;
     }
     self.node_repr[pred.0].children.contains_key(&succ)
@@ -477,7 +493,7 @@ impl<N, PE, CE, H: BuildHasher + Default> DAG<N, PE, CE, H> {
     let succ = succ.borrow();
 
     // If either node is missing, return quick
-    if !self.node_repr.contains(pred.0) || !self.node_repr.contains(succ.0) {
+    if !self.node_repr.contains_key(pred.0) || !self.node_repr.contains_key(succ.0) {
       return false;
     }
 
@@ -608,7 +624,7 @@ impl<N, PE, CE, H: BuildHasher + Default> DAG<N, PE, CE, H> {
     let pred = pred.borrow();
     let succ = succ.borrow();
 
-    if !self.node_repr.contains(pred.0) || !self.node_repr.contains(succ.0) {
+    if !self.node_repr.contains_key(pred.0) || !self.node_repr.contains_key(succ.0) {
       return false;
     }
     let pred_children = &mut self.node_repr[pred.0].children;
@@ -732,7 +748,7 @@ impl<N, PE, CE, H: BuildHasher + Default> DAG<N, PE, CE, H> {
     node: impl Borrow<Node>,
   ) -> Result<DescendantsUnsorted<N, PE, CE, H>, Error> {
     let node = node.borrow();
-    if !self.node_repr.contains(node.0) {
+    if !self.node_repr.contains_key(node.0) {
       return Err(Error::NodeMissing);
     }
 
@@ -778,7 +794,7 @@ impl<N, PE, CE, H: BuildHasher + Default> DAG<N, PE, CE, H> {
   /// ```
   pub fn descendants(&self, node: impl Borrow<Node>) -> Result<Descendants<N, PE, CE, H>, Error> {
     let node = node.borrow();
-    if !self.node_repr.contains(node.0) {
+    if !self.node_repr.contains_key(node.0) {
       return Err(Error::NodeMissing);
     }
 
@@ -970,13 +986,13 @@ impl<N, PE, CE, H: BuildHasher + Default> DAG<N, PE, CE, H> {
 /// assert_eq!(pairs, expected_pairs);
 /// ```
 #[derive(Debug)]
-pub struct DescendantsUnsorted<'a, N, PE, CE, S> {
-  dag: &'a DAG<N, PE, CE, S>,
+pub struct DescendantsUnsorted<'a, N, PE, CE, H> {
+  dag: &'a DAG<N, PE, CE, H>,
   stack: Vec<Node>,
-  visited: HashSet<Node, S>,
+  visited: HashSet<Node, H>,
 }
 
-impl<'a, N, PE, CE, S: BuildHasher> Iterator for DescendantsUnsorted<'a, N, PE, CE, S> {
+impl<'a, N, PE, CE, H: BuildHasher> Iterator for DescendantsUnsorted<'a, N, PE, CE, H> {
   type Item = (TopoOrder, Node);
   #[inline]
   fn next(&mut self) -> Option<Self::Item> {
@@ -1019,13 +1035,13 @@ impl<'a, N, PE, CE, S: BuildHasher> Iterator for DescendantsUnsorted<'a, N, PE, 
 /// assert_eq!(ordered_nodes, vec![dog, cat, mouse]);
 /// ```
 #[derive(Debug)]
-pub struct Descendants<'a, N, PE, CE, S> {
-  dag: &'a DAG<N, PE, CE, S>,
+pub struct Descendants<'a, N, PE, CE, H> {
+  dag: &'a DAG<N, PE, CE, H>,
   queue: BinaryHeap<(Reverse<TopoOrder>, Node)>,
-  visited: HashSet<Node, S>,
+  visited: HashSet<Node, H>,
 }
 
-impl<'a, N, PE, CE, S: BuildHasher + Default> Iterator for Descendants<'a, N, PE, CE, S> {
+impl<'a, N, PE, CE, H: BuildHasher + Default> Iterator for Descendants<'a, N, PE, CE, H> {
   type Item = Node;
 
   fn next(&mut self) -> Option<Self::Item> {
