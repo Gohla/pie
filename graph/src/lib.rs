@@ -107,9 +107,9 @@ use slotmap::{DefaultKey, SlotMap};
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct DAG<N, PE, CE, H = RandomState> {
   #[cfg_attr(feature = "serde", serde(bound(
-  serialize = "SlotMap<DefaultKey, NodeRepr<N, PE, CE, H>>: serde::Serialize",
-  deserialize = "SlotMap<DefaultKey, NodeRepr<N, PE, CE, H>>: serde::Deserialize<'de>"
-  )))]
+  serialize = "N: serde::Serialize, PE: serde::Serialize, CE: serde::Serialize, H: BuildHasher + Default, SlotMap<DefaultKey, NodeRepr<N, PE, CE, H>>: serde::Serialize",
+  deserialize = "N: serde::Deserialize<'de>, PE: serde::Deserialize<'de>, CE: serde::Deserialize<'de>, SlotMap<DefaultKey, NodeRepr<N, PE, CE, H>>: serde::Deserialize<'de>"
+  )))] // Set bounds such that `H` does not have to be (de)serializable
   node_repr: SlotMap<DefaultKey, NodeRepr<N, PE, CE, H>>,
   last_topo_order: TopoOrder,
 }
@@ -130,23 +130,22 @@ impl From<DefaultKey> for Node {
 }
 
 
-/// The representation of a node, with all information about it ordering, which
-/// nodes it points to, and which nodes point to it.
+/// The representation of a node, with all information about it ordering, which nodes it points to, and which nodes
+/// point to it.
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 struct NodeRepr<N, PE, CE, H> {
   topo_order: TopoOrder,
   data: N,
-  // Set bounds such that `H` does not have to be (de)serializable
   #[cfg_attr(feature = "serde", serde(bound(
   serialize = "PE: serde::Serialize, H: BuildHasher + Default, HashMap<Node, PE, H>: serde::Serialize",
   deserialize = "PE: serde::Deserialize<'de>, H: BuildHasher + Default, HashMap<Node, PE, H>: serde::Deserialize<'de>"
-  )))]
+  )))] // Set bounds such that `H` does not have to be (de)serializable
   parents: HashMap<Node, PE, H>,
   #[cfg_attr(feature = "serde", serde(bound(
   serialize = "CE: serde::Serialize, H: BuildHasher + Default, HashMap<Node, PE, H>: serde::Serialize",
   deserialize = "CE: serde::Deserialize<'de>, H: BuildHasher + Default, HashMap<Node, PE, H>: serde::Deserialize<'de>"
-  )))]
+  )))] // Set bounds such that `H` does not have to be (de)serializable
   children: HashMap<Node, CE, H>,
 }
 
