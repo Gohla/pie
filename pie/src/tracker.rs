@@ -141,6 +141,7 @@ pub enum Event {
   ExecuteTaskEnd(Box<dyn DynTask>, Box<dyn DynOutput>),
 }
 
+#[allow(dead_code)]
 impl EventTracker {
   #[inline]
   pub fn new() -> Self { Self::default() }
@@ -164,19 +165,19 @@ impl EventTracker {
   pub fn contains_one(&self, f: impl FnMut(&&Event) -> bool) -> bool { self.contains_count(1, f) }
 
   #[inline]
-  pub fn contains_one_execute(&self) -> bool {
+  pub fn contains_one_execute_start(&self) -> bool {
     self.contains_one(|e| Self::match_execute_start(e))
   }
   #[inline]
-  pub fn contains_no_execute(&self) -> bool {
+  pub fn contains_no_execute_start(&self) -> bool {
     self.contains_no(|e| Self::match_execute_start(e))
   }
   #[inline]
-  pub fn contains_one_execute_of(&self, task: &Box<dyn DynTask>) -> bool {
+  pub fn contains_one_execute_start_of(&self, task: &Box<dyn DynTask>) -> bool {
     self.contains_one(|e| Self::match_execute_start_of(e, task))
   }
   #[inline]
-  pub fn contains_no_execute_of(&self, task: &Box<dyn DynTask>) -> bool {
+  pub fn contains_no_execute_start_of(&self, task: &Box<dyn DynTask>) -> bool {
     self.contains_no(|e| Self::match_execute_start_of(e, task))
   }
 
