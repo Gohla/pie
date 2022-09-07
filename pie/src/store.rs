@@ -13,9 +13,19 @@ pub type TaskNode = Node;
 pub type FileNode = Node;
 
 #[derive(Debug)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Store<C, H> {
+  #[cfg_attr(feature = "serde", serde(bound(
+  serialize = "H: BuildHasher + Default, DAG<NodeData<C>, ParentData, ChildData, H>: serde::Serialize",
+  deserialize = "H: BuildHasher + Default, DAG<NodeData<C>, ParentData, ChildData, H>: serde::Deserialize<'de>"
+  )))] // Set bounds such that `H` does not have to be (de)serializable
   graph: DAG<NodeData<C>, ParentData, ChildData, H>,
+  #[cfg_attr(feature = "serde", serde(with = "task_to_node_serde"))]
   task_to_node: HashMap<Box<dyn DynTask>, TaskNode, H>,
+  #[cfg_attr(feature = "serde", serde(bound(
+  serialize = "H: BuildHasher + Default, HashMap<PathBuf, FileNode, H>: serde::Serialize",
+  deserialize = "H: BuildHasher + Default, HashMap<PathBuf, FileNode, H>: serde::Deserialize<'de>"
+  )))] // Set bounds such that `H` does not have to be (de)serializable
   file_to_node: HashMap<PathBuf, FileNode, H>,
 }
 
@@ -30,6 +40,7 @@ pub enum NodeData<C> {
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum ParentData {
   FileRequiringTask,
   FileProvidingTask,
@@ -37,6 +48,7 @@ pub enum ParentData {
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum ChildData {
   RequireFile,
   ProvideFile,
@@ -199,5 +211,73 @@ impl<C, H: BuildHasher + Default> Store<C, H> {
   #[inline]
   pub fn contains_transitive_task_dependency(&self, depender_task_node: &TaskNode, dependee_task_node: &TaskNode) -> bool {
     self.graph.contains_transitive_dependency(depender_task_node, dependee_task_node)
+  }
+}
+
+// Custom serde implementations
+
+#[cfg(feature = "serde")]
+mod task_to_node_serde {
+  use std::collections::HashMap;
+  use std::hash::BuildHasher;
+
+  use erased_serde::Serialize;
+  use serde::{Deserializer, Serializer};
+  use serde::ser::SerializeMap;
+
+  use crate::task::DynTask;
+  use crate::TaskNode;
+
+  struct Wrap<'a, T: ?Sized>(&'a T);
+
+  trait DowncastSerde<'a> {
+    fn downcast_serialize(self) -> Option<&'a (dyn Serialize + 'a)>;
+  }
+
+  impl<'a, T: DynTask + ?Sized> DowncastSerde<'a> for Wrap<'a, T> {
+    fn downcast_serialize(self) -> Option<&'a (dyn Serialize + 'a)> {
+      None
+    }
+  }
+
+  impl<'a, T: DynTask + serde::Serialize + ?Sized> DowncastSerde<'a> for &'a Wrap<'a, T> {
+    fn downcast_serialize(self) -> Option<&'a (dyn Serialize + 'a)> {
+      Some(&self.0 as &dyn Serialize)
+    }
+  }
+
+  pub fn serialize<H, S>(task_to_node: &HashMap<Box<dyn DynTask>, TaskNode, H>, serializer: S) -> Result<S::Ok, S::Error> where
+    H: BuildHasher + Default,
+    S: Serializer,
+  {
+    let mut map = serializer.serialize_map(None)?;
+    for (k, v) in task_to_node {
+      let k = Wrap(k.as_ref());
+      if let Some(k) = k.downcast_serialize() {
+        map.serialize_entry(k, v)?;
+      }
+    }
+    map.end()
+  }
+
+  pub fn deserialize<'de, H, D>(_deserializer: D) -> Result<HashMap<Box<dyn DynTask>, TaskNode, H>, D::Error> where
+    H: BuildHasher + Default,
+    D: Deserializer<'de>,
+  {
+    todo!()
+  }
+}
+
+#[cfg(feature = "serde")]
+impl<C> serde::Serialize for NodeData<C> {
+  fn serialize<S>(&self, _serializer: S) -> Result<S::Ok, S::Error> where S: serde::Serializer {
+    todo!()
+  }
+}
+
+#[cfg(feature = "serde")]
+impl<'de, C> serde::Deserialize<'de> for NodeData<C> {
+  fn deserialize<D>(_deserializer: D) -> Result<Self, D::Error> where D: serde::Deserializer<'de> {
+    todo!()
   }
 }

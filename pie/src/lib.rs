@@ -61,6 +61,12 @@ impl<A: Tracker + Default, H: BuildHasher + Default> Pie<A, H> {
   /// Gets the mutable [`Tracker`] instance.
   #[inline]
   pub fn tracker_mut(&mut self) -> &mut A { &mut self.tracker }
+
+  #[cfg(feature = "serde")]
+  pub fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+    use serde::Serialize;
+    self.store.serialize(serializer)
+  }
 }
 
 
