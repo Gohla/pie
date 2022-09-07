@@ -146,11 +146,81 @@ impl EventTracker {
   pub fn new() -> Self { Self::default() }
 
   #[inline]
+  pub fn first(&self) -> Option<&Event> { self.events.first() }
+  #[inline]
+  pub fn last(&self) -> Option<&Event> { self.events.last() }
+  #[inline]
   pub fn get(&self, index: usize) -> Option<&Event> { self.events.get(index) }
   #[inline]
   pub fn get_from_end(&self, offset: usize) -> Option<&Event> { self.events.get(self.events.len() - 1 - offset) }
+
   #[inline]
-  pub fn last(&self) -> Option<&Event> { self.events.last() }
+  pub fn contains(&self, f: impl FnMut(&Event) -> bool) -> bool { self.events.iter().any(f) }
+  #[inline]
+  pub fn contains_no(&self, f: impl FnMut(&Event) -> bool) -> bool { !self.contains(f) }
+  #[inline]
+  pub fn contains_count(&self, count: usize, f: impl FnMut(&&Event) -> bool) -> bool { self.events.iter().filter(f).count() == count }
+  #[inline]
+  pub fn contains_one(&self, f: impl FnMut(&&Event) -> bool) -> bool { self.contains_count(1, f) }
+
+  #[inline]
+  pub fn contains_one_execute(&self) -> bool {
+    self.contains_one(|e| Self::match_execute_start(e))
+  }
+  #[inline]
+  pub fn contains_no_execute(&self) -> bool {
+    self.contains_no(|e| Self::match_execute_start(e))
+  }
+  #[inline]
+  pub fn contains_one_execute_of(&self, task: &Box<dyn DynTask>) -> bool {
+    self.contains_one(|e| Self::match_execute_start_of(e, task))
+  }
+  #[inline]
+  pub fn contains_no_execute_of(&self, task: &Box<dyn DynTask>) -> bool {
+    self.contains_no(|e| Self::match_execute_start_of(e, task))
+  }
+
+  #[inline]
+  pub fn get_index_of(&self, f: impl FnMut(&Event) -> bool) -> Option<usize> {
+    self.events.iter().position(f)
+  }
+  #[inline]
+  pub fn get_index_of_execute_start_of(&self, task: &Box<dyn DynTask>) -> Option<usize> {
+    self.get_index_of(|e| Self::match_execute_start_of(e, task))
+  }
+  #[inline]
+  pub fn get_index_of_execute_end_of(&self, task: &Box<dyn DynTask>) -> Option<usize> {
+    self.get_index_of(|e| Self::match_execute_end_of(e, task))
+  }
+
+  #[inline]
+  fn match_execute_start(e: &Event) -> bool {
+    match e {
+      Event::ExecuteTaskStart(_) => true,
+      _ => false,
+    }
+  }
+  #[inline]
+  fn match_execute_start_of(e: &Event, task: &Box<dyn DynTask>) -> bool {
+    match e {
+      Event::ExecuteTaskStart(t) if t == task => true,
+      _ => false,
+    }
+  }
+  #[inline]
+  fn match_execute_end(e: &Event) -> bool {
+    match e {
+      Event::ExecuteTaskEnd(_, _) => true,
+      _ => false,
+    }
+  }
+  #[inline]
+  fn match_execute_end_of(e: &Event, task: &Box<dyn DynTask>) -> bool {
+    match e {
+      Event::ExecuteTaskEnd(t, _) if t == task => true,
+      _ => false,
+    }
+  }
 
   #[inline]
   pub fn iter_events(&self) -> impl Iterator<Item=&Event> { self.events.iter() }

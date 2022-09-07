@@ -6,6 +6,7 @@ use tempfile::TempDir;
 
 use ::pie::prelude::*;
 use ::pie::tracker::Event;
+use Event::*;
 
 use crate::common::{CheckErrorExt, Pie, ReadStringFromFile, ToLowerCase, WriteStringToFile};
 
@@ -20,40 +21,14 @@ fn temp_dir() -> TempDir { common::temp_dir() }
 
 #[rstest]
 fn test_exec(mut pie: Pie) {
-  use Event::*;
   let task = ToLowerCase("CAPITALIZED".to_string());
   let dyn_task = task.clone_box_dyn();
 
   pie.run_in_session(|mut session| {
     assert_eq!(session.require(&task), "capitalized");
     assert_eq!(session.dependency_check_errors().len(), 0);
-  });
 
-  let tracker = &pie.tracker().0;
-  assert_matches!(tracker.get_from_end(0), Some(ExecuteTaskEnd(t, _)) => {
-    assert_eq!(t, &dyn_task);
-  });
-  assert_matches!(tracker.get_from_end(1), Some(ExecuteTaskStart(t)) => {
-    assert_eq!(t, &dyn_task);
-  });
-  assert_matches!(tracker.get_from_end(2), Some(RequireTask(t)) => {
-    assert_eq!(t, &dyn_task);
-  });
-}
-
-#[rstest]
-fn test_reuse(mut pie: Pie) {
-  use Event::*;
-  let task = ToLowerCase("CAPITALIZED".to_string());
-  let dyn_task = task.clone_box_dyn();
-
-  pie.run_in_session(|mut session| {
-    assert_eq!(session.require(&task), "capitalized");
-    assert_eq!(session.dependency_check_errors().len(), 0);
-  });
-
-  {
-    let tracker = &mut pie.tracker_mut().0;
+    let tracker = &mut session.tracker_mut().0;
     assert_matches!(tracker.get_from_end(0), Some(ExecuteTaskEnd(t, _)) => {
       assert_eq!(t, &dyn_task);
     });
@@ -64,20 +39,177 @@ fn test_reuse(mut pie: Pie) {
       assert_eq!(t, &dyn_task);
     });
     tracker.clear();
-  }
+  });
+}
+
+#[rstest]
+fn test_reuse(mut pie: Pie) {
+  let task = ToLowerCase("CAPITALIZED".to_string());
+  let dyn_task = task.clone_box_dyn();
 
   pie.run_in_session(|mut session| {
     assert_eq!(session.require(&task), "capitalized");
     assert_eq!(session.dependency_check_errors().len(), 0);
+
+    let tracker = &mut session.tracker_mut().0;
+    assert_matches!(tracker.get_from_end(0), Some(ExecuteTaskEnd(t, _)) => {
+      assert_eq!(t, &dyn_task);
+    });
+    assert_matches!(tracker.get_from_end(1), Some(ExecuteTaskStart(t)) => {
+      assert_eq!(t, &dyn_task);
+    });
+    assert_matches!(tracker.get_from_end(2), Some(RequireTask(t)) => {
+      assert_eq!(t, &dyn_task);
+    });
+    tracker.clear();
   });
 
-  {
-    let tracker = &mut pie.tracker_mut().0;
-    assert!(!tracker.iter_events().any(|e| match e { // Assert that no executions have taken place.
-      ExecuteTaskStart(_) => true,
-      _ => false
-    }));
+  pie.run_in_session(|mut session| {
+    assert_eq!(session.require(&task), "capitalized");
+    assert_eq!(session.dependency_check_errors().len(), 0);
+
+    let tracker = &mut session.tracker_mut().0;
+    assert!(tracker.contains_no_execute());
+    tracker.clear()
+  });
+}
+
+#[rstest]
+fn test_require_file(mut pie: Pie, temp_dir: TempDir) {
+  let path = temp_dir.path().join("test.txt");
+  fs::write(&path, "HELLO WORLD!").check();
+  let task = ReadStringFromFile(path.clone());
+
+  // Require task and observe that it is executed.
+  pie.run_in_session(|mut session| {
+    assert_eq!(session.require(&task), Ok("HELLO WORLD!".to_string()));
+
+    let tracker = &mut session.tracker_mut().0;
+    assert!(tracker.contains_one_execute());
+    tracker.clear();
+  });
+
+  // Require task again and observe that it is not executed since it is not affected.
+  pie.run_in_session(|mut session| {
+    assert_eq!(session.require(&task), Ok("HELLO WORLD!".to_string()));
+
+    let tracker = &mut session.tracker_mut().0;
+    assert!(tracker.contains_no_execute());
+    tracker.clear();
+  });
+
+  // Change required file such that the task is affected.
+  fs::write(&path, "!DLROW OLLEH").check();
+
+  // Require task again and observe that it re-executed since it affected.
+  pie.run_in_session(|mut session| {
+    assert_eq!(session.require(&task), Ok("!DLROW OLLEH".to_string()));
+
+    let tracker = &mut session.tracker_mut().0;
+    assert!(tracker.contains_one_execute());
+    tracker.clear();
+  });
+}
+
+#[rstest]
+fn test_provide_file(mut pie: Pie, temp_dir: TempDir) {
+  let path = temp_dir.path().join("test.txt");
+  let task = WriteStringToFile(path.clone(), "HELLO WORLD!".to_string());
+
+  // Require task and observe that it is executed.
+  pie.run_in_session(|mut session| {
+    session.require(&task).check();
+    assert_eq!(fs::read_to_string(&path).check(), "HELLO WORLD!".to_string());
+
+    let tracker = &mut session.tracker_mut().0;
+    assert!(tracker.contains_one_execute());
+    tracker.clear();
+  });
+
+  // Require task again and observe that it is not executed since it is not affected.
+  pie.run_in_session(|mut session| {
+    session.require(&task).check();
+    assert_eq!(fs::read_to_string(&path).check(), "HELLO WORLD!".to_string());
+
+    let tracker = &mut session.tracker_mut().0;
+    assert!(tracker.contains_no_execute());
+    tracker.clear();
+  });
+
+  // Change provided file such that the task is affected.
+  fs::write(&path, "!DLROW OLLEH").check();
+
+  // Require task again and observe that it re-executed since it affected.
+  pie.run_in_session(|mut session| {
+    session.require(&task).check();
+    assert_eq!(fs::read_to_string(&path).check(), "HELLO WORLD!".to_string());
+
+    let tracker = &mut session.tracker_mut().0;
+    assert!(tracker.contains_one_execute());
+    tracker.clear();
+  });
+}
+
+#[rstest]
+fn test_require_task(mut pie: Pie, temp_dir: TempDir) {
+  #[derive(Clone, PartialEq, Eq, Hash, Debug)]
+  struct Combine(ReadStringFromFile);
+  impl Task for Combine {
+    type Output = Result<String, std::io::ErrorKind>;
+    fn execute<C: Context>(&self, context: &mut C) -> Self::Output {
+      let text = context.require_task(&self.0)?;
+      Ok(context.require_task(&ToLowerCase(text)))
+    }
   }
+
+  let path = temp_dir.path().join("test.txt");
+  fs::write(&path, "HELLO WORLD!").check();
+
+  let read_task = ReadStringFromFile(path.clone());
+  let read_task_dyn = read_task.clone_box_dyn();
+  let task = Combine(read_task);
+  let dyn_task = task.clone_box_dyn();
+
+  // Require task and observe that all three tasks are executed in dependency order
+  pie.run_in_session(|mut session| {
+    assert_eq!(session.require(&task), Ok("hello world!".to_string()));
+
+    let tracker = &mut session.tracker_mut().0;
+    
+    let task_start = tracker.get_index_of_execute_start_of(&dyn_task);
+    assert_matches!(task_start, Some(_));
+    let task_end = tracker.get_index_of_execute_end_of(&dyn_task);
+    assert_matches!(task_end, Some(_));
+    assert!(task_start < task_end);
+    
+    let read_task_start = tracker.get_index_of_execute_start_of(&read_task_dyn);
+    assert_matches!(read_task_start, Some(_));
+    let read_task_end = tracker.get_index_of_execute_end_of(&read_task_dyn);
+    assert_matches!(read_task_end, Some(_));
+    assert!(read_task_start > task_start);
+    
+    let to_lowercase_task_dyn = ToLowerCase("HELLO WORLD!".to_string()).clone_box_dyn();
+    let to_lowercase_task_start = tracker.get_index_of_execute_start_of(&to_lowercase_task_dyn);
+    assert_matches!(to_lowercase_task_start, Some(_));
+    let to_lowercase_task_end = tracker.get_index_of_execute_end_of(&to_lowercase_task_dyn);
+    assert_matches!(to_lowercase_task_end, Some(_));
+    assert!(to_lowercase_task_start < to_lowercase_task_end);
+    assert!(to_lowercase_task_start > task_start);
+    assert!(to_lowercase_task_start > read_task_start);
+
+    assert!(task_end > read_task_end);
+    assert!(task_end > to_lowercase_task_end);
+    
+    tracker.clear();
+  });
+
+  // Require task again and observe that no tasks are executed since they are not affected.
+  pie.run_in_session(|mut session| {
+    assert_eq!(session.require(&task), Ok("hello world!".to_string()));
+    let tracker = &mut session.tracker_mut().0;
+    assert!(tracker.contains_no_execute());
+    tracker.clear();
+  });
 }
 
 #[rstest]
