@@ -145,6 +145,8 @@ impl<H: BuildHasher + Default> Store<H> {
       // Note: `output.as_ref` is very important here, because `Box<dyn DynOutput>` also implements `DynOutput`, which 
       // in turn has an `as_any` method as well. However, `downcast_ref` will *always fail* on `Box<dyn DynOutput>` 
       // because it will try to downcast the box instead of what is inside the box.
+      dbg!(&output);
+      dbg!(std::any::type_name::<T::Output>());
       output.as_ref().as_any().downcast_ref::<T::Output>()
     } else {
       None

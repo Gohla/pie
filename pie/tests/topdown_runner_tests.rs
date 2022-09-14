@@ -6,7 +6,6 @@ use tempfile::TempDir;
 
 use ::pie::prelude::*;
 use ::pie::tracker::Event;
-use ::pie::trait_object::*;
 use Event::*;
 
 use crate::common::{CheckErrorExt, Pie, ReadStringFromFile, ToLowerCase, WriteStringToFile};

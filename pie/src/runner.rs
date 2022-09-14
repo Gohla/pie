@@ -8,7 +8,7 @@ use crate::{Context, Session, Task};
 use crate::dependency::{FileDependency, TaskDependency};
 use crate::store::TaskNode;
 use crate::tracker::Tracker;
-use crate::trait_object::{DynOutput, TaskDynExt};
+use crate::trait_object::{DynOutput};
 
 /// Incremental runner that runs tasks and checks dependencies recursively in a top-down manner.
 #[derive(Debug)]
@@ -38,8 +38,12 @@ impl<'p, 's, A: Tracker, H: BuildHasher + Default> TopDownRunner<'p, 's, A, H> {
 impl<'p, 's, A: Tracker, H: BuildHasher + Default> Context for TopDownRunner<'p, 's, A, H> {
   fn require_task<T: Task>(&mut self, task: &T) -> T::Output {
     let dyn_task = task.as_dyn();
+    dbg!(&dyn_task);
     self.session.tracker.require_task(dyn_task);
-    let task_node = self.session.store.get_or_create_node_by_task(task.as_dyn_clone());
+    let task_dyn_clone = task.as_dyn_clone();
+    dbg!(&task_dyn_clone);
+    let task_node = self.session.store.get_or_create_node_by_task(task_dyn_clone);
+    dbg!(&task_node);
     if !self.session.visited.contains(&task_node) && self.should_execute_task(task_node) { // Execute the task, cache and return up-to-date output.
       self.session.store.reset_task(&task_node);
       // Check for cyclic dependency

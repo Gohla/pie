@@ -35,8 +35,17 @@ impl<T: Task> DynTask for T {
 
 impl Task for Box<dyn DynTask> {
   type Output = Box<dyn DynOutput>;
+  #[inline]
   fn execute<C: Context>(&self, context: &mut C) -> Self::Output {
     self.as_ref().dyn_execute(context)
+  }
+  #[inline]
+  fn as_dyn(&self) -> &dyn DynTask {
+    self.as_ref()
+  }
+  #[inline]
+  fn as_dyn_clone(&self) -> Box<dyn DynTask> {
+    self.clone()
   }
 }
 
@@ -54,22 +63,22 @@ impl Hash for dyn DynTask {
 
 impl Clone for Box<dyn DynTask> {
   fn clone(&self) -> Self {
-    dyn_clone::clone_box(&**self)
+    dyn_clone::clone_box(self.as_ref())
   }
 }
 
-/// Extension trait for converting `Task`s into `dyn DynTask`s.
-pub trait TaskDynExt {
-  fn as_dyn(&self) -> &dyn DynTask;
-  fn as_dyn_clone(&self) -> Box<dyn DynTask>;
-}
-
-impl<T: Task> TaskDynExt for T {
-  #[inline]
-  fn as_dyn(&self) -> &dyn DynTask { self as &dyn DynTask }
-  #[inline]
-  fn as_dyn_clone(&self) -> Box<dyn DynTask> { self.as_dyn().clone_box() }
-}
+// /// Extension trait for converting `Task`s into `dyn DynTask`s.
+// pub trait TaskDynExt {
+//   fn as_dyn(&self) -> &dyn DynTask;
+//   fn as_dyn_clone(&self) -> Box<dyn DynTask>;
+// }
+// 
+// impl<T: Task> TaskDynExt for T {
+//   #[inline]
+//   fn as_dyn(&self) -> &dyn DynTask { self as &dyn DynTask }
+//   #[inline]
+//   fn as_dyn_clone(&self) -> Box<dyn DynTask> { self.as_dyn().clone_box() }
+// }
 
 /// Extension trait for cloning `dyn DynTask`s.
 pub trait DynTaskExt {
@@ -84,7 +93,7 @@ impl DynTaskExt for dyn DynTask {
 
 
 /// Object-safe version of [`Output`].
-pub trait DynOutput: DynClone + Any + Debug + 'static {
+pub trait DynOutput: DynClone + Any + Debug {
   fn dyn_eq(&self, other: &dyn Any) -> bool;
   fn as_any(&self) -> &dyn Any;
   fn as_any_mut(&mut self) -> &mut dyn Any;
@@ -139,8 +148,12 @@ pub trait DynContext {
 impl Context for &mut (dyn DynContext + '_) {
   #[inline]
   fn require_task<T: Task>(&mut self, task: &T) -> T::Output {
-    let task = Box::new(task.clone()) as Box<dyn DynTask>;
-    *(*self).dyn_require_task(&task).as_box_any().downcast::<T::Output>().unwrap()
+    dbg!(&task);
+    let task = task.as_dyn_clone();
+    dbg!(&task);
+    let output = (*self).dyn_require_task(&task);
+    let output = output.as_box_any().downcast::<T::Output>().unwrap();
+    *output
   }
   #[inline]
   fn require_file(&mut self, path: &PathBuf) -> Result<File, std::io::Error> {

@@ -10,6 +10,7 @@ use std::path::PathBuf;
 use crate::runner::TopDownRunner;
 use crate::store::{Store, TaskNode};
 use crate::tracker::{NoopTracker, Tracker};
+use crate::trait_object::DynTask;
 
 pub mod prelude;
 pub mod dependency;
@@ -27,6 +28,14 @@ pub trait Task: Eq + Hash + Clone + Any + Debug {
   /// Execute the task, with `context` providing a means to specify dependencies, producing an instance of 
   /// `Self::Output`.
   fn execute<C: Context>(&self, context: &mut C) -> Self::Output;
+  #[inline]
+  fn as_dyn(&self) -> &dyn DynTask {
+    self as &dyn DynTask
+  }
+  #[inline]
+  fn as_dyn_clone(&self) -> Box<dyn DynTask> {
+    dyn_clone::clone_box(self.as_dyn())
+  }
 }
 
 
