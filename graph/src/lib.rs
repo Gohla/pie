@@ -108,7 +108,7 @@ use slotmap::{DefaultKey, SlotMap};
 pub struct DAG<N, PE, CE, H = RandomState> {
   #[cfg_attr(feature = "serde", serde(bound(
   serialize = "N: serde::Serialize, PE: serde::Serialize, CE: serde::Serialize, H: BuildHasher + Default, SlotMap<DefaultKey, NodeRepr<N, PE, CE, H>>: serde::Serialize",
-  deserialize = "N: serde::Deserialize<'de>, PE: serde::Deserialize<'de>, CE: serde::Deserialize<'de>, H: BuildHasher + Default, SlotMap<DefaultKey, NodeRepr<N, PE, CE, H>>: serde::Deserialize<'de>"
+  deserialize = "N: serde::Deserialize<'de>, PE: serde::Deserialize<'de>, CE: serde::Deserialize<'de>, SlotMap<DefaultKey, NodeRepr<N, PE, CE, H>>: serde::Deserialize<'de>"
   )))] // Set bounds such that `H` does not have to be (de)serializable
   node_repr: SlotMap<DefaultKey, NodeRepr<N, PE, CE, H>>,
   last_topo_order: TopoOrder,

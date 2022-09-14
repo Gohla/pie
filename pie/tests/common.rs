@@ -3,7 +3,6 @@ use std::fs::File;
 use std::io::{Read, Stdout, Write};
 use std::path::PathBuf;
 
-use serde::{Deserialize, Serialize};
 use tempfile::TempDir;
 
 use pie::prelude::*;
@@ -49,7 +48,7 @@ impl<T: Debug> CheckErrorExt<T> for Result<T, std::io::ErrorKind> {
 
 // Read string from file task
 
-#[derive(Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Debug, Serialize, Deserialize)]
+#[derive(Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Debug)]
 pub struct ReadStringFromFile(pub PathBuf);
 
 impl Task for ReadStringFromFile {
