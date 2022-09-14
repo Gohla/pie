@@ -8,13 +8,8 @@ publish = false
 [dependencies]
 pie_graph = { path = "../graph" }
 dyn-clone = "1"
-serde = { version = "1", features = ["derive"], optional = true }
 
 [dev-dependencies]
 rstest = "0.15"
 tempfile = "3"
 assert_matches = "1"
-
-[features]
-default = ["serde"]
-serde = ["dep:serde", "pie_graph/serde"]
