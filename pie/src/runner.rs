@@ -6,21 +6,21 @@ use pie_graph::Node;
 
 use crate::{Context, SessionData, Task};
 use crate::dependency::{FileDependency, TaskDependency};
-use crate::output::DynOutput;
 use crate::store::TaskNode;
 use crate::tracker::Tracker;
+use crate::trait_object::{DynOutput, TaskDynExt};
 
 /// Incremental runner that runs tasks and checks dependencies recursively in a top-down manner.
 #[derive(Debug)]
 pub struct Runner<A, H> {
-  data: SessionData<A, H, Self>,
+  data: SessionData<A, H>,
   task_execution_stack: Vec<TaskNode>,
 }
 
 impl<A: Tracker, H: BuildHasher + Default> Runner<A, H> {
   /// Creates a new [`TopDownRunner`] with given [`Tracker`].
   #[inline]
-  pub fn new(data: SessionData<A, H, Self>) -> Self {
+  pub fn new(data: SessionData<A, H>) -> Self {
     Self {
       data,
       task_execution_stack: Default::default(),
@@ -35,7 +35,7 @@ impl<A: Tracker, H: BuildHasher + Default> Runner<A, H> {
   }
 
   #[inline]
-  pub fn into_data(self) -> SessionData<A, H, Self> {
+  pub fn into_data(self) -> SessionData<A, H> {
     self.data
   }
 }
@@ -126,7 +126,7 @@ impl<A: Tracker, H: BuildHasher + Default> Runner<A, H> {
       // Task has been executed before, check whether all its dependencies are still consistent. If one or more are not,
       // we need to execute the task.
       for task_dependency in &task_dependencies {
-        match task_dependency.is_consistent(self) {
+        match task_dependency.dyn_is_consistent(self) {
           Ok(false) => return true, // Not consistent -> should execute task.
           Err(e) => { // Error -> store error and assume not consistent -> should execute task.
             self.data.dependency_check_errors.push(e);

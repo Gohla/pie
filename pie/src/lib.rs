@@ -1,29 +1,61 @@
+use std::any::Any;
 use std::collections::hash_map::RandomState;
 use std::collections::HashSet;
 use std::error::Error;
+use std::fmt::Debug;
 use std::fs::File;
-use std::hash::BuildHasher;
+use std::hash::{BuildHasher, Hash};
 use std::panic;
 use std::path::PathBuf;
-
-use task::Task;
 
 use crate::runner::Runner;
 use crate::store::{Store, TaskNode};
 use crate::tracker::{NoopTracker, Tracker};
 
 pub mod prelude;
-pub mod task;
-pub mod output;
 pub mod dependency;
 pub mod runner;
 pub mod store;
 pub mod tracker;
+pub mod task;
+pub mod trait_object;
+
+/// The unit of computation in the incremental build system.
+pub trait Task: Eq + Hash + Clone + Any + Debug {
+  /// The type of output this task produces when executed. Must implement [`Eq`], [`Clone`], and either not contain any 
+  /// references, or only `'static` references.
+  type Output: Output;
+  /// Execute the task, with `context` providing a means to specify dependencies, producing an instance of 
+  /// `Self::Output`.
+  fn execute<C: Context>(&self, context: &mut C) -> Self::Output;
+}
+
+
+/// Trait alias for task outputs.
+pub trait Output: Eq + Clone + Any + Debug {}
+
+impl<T: Eq + Clone + Any + Debug> Output for T {}
+
+
+/// Incremental context, mediating between tasks and runners, enabling tasks to dynamically create dependencies that 
+/// runners check for consistency and use in incremental execution.
+pub trait Context {
+  /// Requires given `task`, creating a dependency to it, and returning its up-to-date output.
+  fn require_task<T: Task>(&mut self, task: &T) -> T::Output;
+  /// Requires file at given `path`, creating a read-dependency to the file by reading its content or metadata at the 
+  /// time this function is called, and returning the opened file. Call this method *before reading from the file*.
+  fn require_file(&mut self, path: &PathBuf) -> Result<File, std::io::Error>;
+  /// Provides file at given `path`, creating a write-dependency to it by writing to its content or changing its
+  /// metadata at the time this function is called. Call this method *after writing to the file*. This method does not 
+  /// return the opened file, as it must be called *after writing to the file*.
+  fn provide_file(&mut self, path: &PathBuf) -> Result<(), std::io::Error>;
+}
+
 
 /// Main entry point into the PIE build system.
 #[derive(Debug)]
-pub struct Pie<A = NoopTracker, H = RandomState, C = Runner<A, H>> {
-  store: Store<C, H>,
+pub struct Pie<A = NoopTracker, H = RandomState> {
+  store: Store<H>,
   tracker: A,
 }
 
@@ -67,15 +99,15 @@ impl<A: Tracker + Default, H: BuildHasher + Default> Pie<A, H> {
 
 /// A session in which builds occur. Every task is only executed once each session.
 #[derive(Debug)]
-pub struct Session<'p, A, H, C = Runner<A, H>> {
-  pie: &'p mut Pie<A, H, C>,
-  data: Option<SessionData<A, H, C>>,
+pub struct Session<'p, A, H> {
+  pie: &'p mut Pie<A, H>,
+  data: Option<SessionData<A, H>>,
 }
 
 /// Internal session data.
 #[derive(Debug)]
-pub struct SessionData<A, H, C> {
-  store: Store<C, H>,
+pub struct SessionData<A, H> {
+  store: Store<H>,
   tracker: A,
   visited: HashSet<TaskNode, H>,
   dependency_check_errors: Vec<Box<dyn Error>>,
@@ -124,25 +156,10 @@ impl<'p, A: Tracker + Default, H: BuildHasher + Default> Session<'p, A, H> {
   }
 }
 
-impl<'p, A, H, C> Drop for Session<'p, A, H, C> {
+impl<'p, A, H> Drop for Session<'p, A, H> {
   fn drop(&mut self) {
     let data = self.data.take().unwrap();
     self.pie.store = data.store;
     self.pie.tracker = data.tracker;
   }
-}
-
-
-/// Incremental context, mediating between tasks and runners, enabling tasks to dynamically create dependencies that 
-/// runners check for consistency and use in incremental execution.
-pub trait Context {
-  /// Requires given `task`, creating a dependency to it, and returning its up-to-date output.
-  fn require_task<T: Task>(&mut self, task: &T) -> T::Output;
-  /// Requires file at given `path`, creating a read-dependency to the file by reading its content or metadata at the 
-  /// time this function is called, and returning the opened file. Call this method *before reading from the file*.
-  fn require_file(&mut self, path: &PathBuf) -> Result<File, std::io::Error>;
-  /// Provides file at given `path`, creating a write-dependency to it by writing to its content or changing its
-  /// metadata at the time this function is called. Call this method *after writing to the file*. This method does not 
-  /// return the opened file, as it must be called *after writing to the file*.
-  fn provide_file(&mut self, path: &PathBuf) -> Result<(), std::io::Error>;
 }

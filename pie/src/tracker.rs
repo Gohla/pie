@@ -1,9 +1,8 @@
 use std::io;
 use std::io::{Stderr, Stdout};
 use std::path::PathBuf;
-use crate::output::{DynOutput, DynOutputExt};
 
-use crate::task::{DynTask, DynTaskExt};
+use crate::trait_object::{DynOutput, DynOutputExt, DynTask, DynTaskExt};
 
 /// Trait for tracking build events. Can be used to implement logging, event tracing, and possibly progress tracking.
 pub trait Tracker {
@@ -243,15 +242,15 @@ impl Tracker for EventTracker {
   }
   #[inline]
   fn require_task(&mut self, task: &dyn DynTask) {
-    self.events.push(Event::RequireTask(task.clone()));
+    self.events.push(Event::RequireTask(task.clone_box()));
   }
 
   #[inline]
   fn execute_task_start(&mut self, task: &dyn DynTask) {
-    self.events.push(Event::ExecuteTaskStart(task.clone()));
+    self.events.push(Event::ExecuteTaskStart(task.clone_box()));
   }
   #[inline]
   fn execute_task_end(&mut self, task: &dyn DynTask, output: &dyn DynOutput) {
-    self.events.push(Event::ExecuteTaskEnd(task.clone(), output.clone()));
+    self.events.push(Event::ExecuteTaskEnd(task.clone_box(), output.clone_box()));
   }
 }

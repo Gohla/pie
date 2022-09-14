@@ -6,6 +6,7 @@ use tempfile::TempDir;
 
 use ::pie::prelude::*;
 use ::pie::tracker::Event;
+use ::pie::trait_object::*;
 use Event::*;
 
 use crate::common::{CheckErrorExt, Pie, ReadStringFromFile, ToLowerCase, WriteStringToFile};
@@ -74,81 +75,6 @@ fn test_reuse(mut pie: Pie) {
   });
 }
 
-#[rstest]
-fn test_require_file(mut pie: Pie, temp_dir: TempDir) {
-  let path = temp_dir.path().join("test.txt");
-  fs::write(&path, "HELLO WORLD!").check();
-  let task = ReadStringFromFile(path.clone());
-
-  // Require task and observe that it is executed.
-  pie.run_in_session(|mut session| {
-    assert_eq!(session.require(&task), Ok("HELLO WORLD!".to_string()));
-
-    let tracker = &mut session.tracker_mut().0;
-    assert!(tracker.contains_one_execute_start());
-    tracker.clear();
-  });
-
-  // Require task again and observe that it is not executed since it is not affected.
-  pie.run_in_session(|mut session| {
-    assert_eq!(session.require(&task), Ok("HELLO WORLD!".to_string()));
-
-    let tracker = &mut session.tracker_mut().0;
-    assert!(tracker.contains_no_execute_start());
-    tracker.clear();
-  });
-
-  // Change required file such that the task is affected.
-  fs::write(&path, "!DLROW OLLEH").check();
-
-  // Require task again and observe that it re-executed since it affected.
-  pie.run_in_session(|mut session| {
-    assert_eq!(session.require(&task), Ok("!DLROW OLLEH".to_string()));
-
-    let tracker = &mut session.tracker_mut().0;
-    assert!(tracker.contains_one_execute_start());
-    tracker.clear();
-  });
-}
-
-#[rstest]
-fn test_provide_file(mut pie: Pie, temp_dir: TempDir) {
-  let path = temp_dir.path().join("test.txt");
-  let task = WriteStringToFile(path.clone(), "HELLO WORLD!".to_string());
-
-  // Require task and observe that it is executed.
-  pie.run_in_session(|mut session| {
-    session.require(&task).check();
-    assert_eq!(fs::read_to_string(&path).check(), "HELLO WORLD!".to_string());
-
-    let tracker = &mut session.tracker_mut().0;
-    assert!(tracker.contains_one_execute_start());
-    tracker.clear();
-  });
-
-  // Require task again and observe that it is not executed since it is not affected.
-  pie.run_in_session(|mut session| {
-    session.require(&task).check();
-    assert_eq!(fs::read_to_string(&path).check(), "HELLO WORLD!".to_string());
-
-    let tracker = &mut session.tracker_mut().0;
-    assert!(tracker.contains_no_execute_start());
-    tracker.clear();
-  });
-
-  // Change provided file such that the task is affected.
-  fs::write(&path, "!DLROW OLLEH").check();
-
-  // Require task again and observe that it re-executed since it affected.
-  pie.run_in_session(|mut session| {
-    session.require(&task).check();
-    assert_eq!(fs::read_to_string(&path).check(), "HELLO WORLD!".to_string());
-
-    let tracker = &mut session.tracker_mut().0;
-    assert!(tracker.contains_one_execute_start());
-    tracker.clear();
-  });
-}
 
 #[rstest]
 fn test_require_task(mut pie: Pie, temp_dir: TempDir) {
@@ -249,6 +175,82 @@ fn test_require_task(mut pie: Pie, temp_dir: TempDir) {
 
   // TODO: once stampers are implemented, only change the modification date such that ReadStringFromFile re-executes but
   //       the other tasks do not, as ReadStringFromFile still returns the same value.
+}
+
+#[rstest]
+fn test_require_file(mut pie: Pie, temp_dir: TempDir) {
+  let path = temp_dir.path().join("test.txt");
+  fs::write(&path, "HELLO WORLD!").check();
+  let task = ReadStringFromFile(path.clone());
+
+  // Require task and observe that it is executed.
+  pie.run_in_session(|mut session| {
+    assert_eq!(session.require(&task), Ok("HELLO WORLD!".to_string()));
+
+    let tracker = &mut session.tracker_mut().0;
+    assert!(tracker.contains_one_execute_start());
+    tracker.clear();
+  });
+
+  // Require task again and observe that it is not executed since it is not affected.
+  pie.run_in_session(|mut session| {
+    assert_eq!(session.require(&task), Ok("HELLO WORLD!".to_string()));
+
+    let tracker = &mut session.tracker_mut().0;
+    assert!(tracker.contains_no_execute_start());
+    tracker.clear();
+  });
+
+  // Change required file such that the task is affected.
+  fs::write(&path, "!DLROW OLLEH").check();
+
+  // Require task again and observe that it re-executed since it affected.
+  pie.run_in_session(|mut session| {
+    assert_eq!(session.require(&task), Ok("!DLROW OLLEH".to_string()));
+
+    let tracker = &mut session.tracker_mut().0;
+    assert!(tracker.contains_one_execute_start());
+    tracker.clear();
+  });
+}
+
+#[rstest]
+fn test_provide_file(mut pie: Pie, temp_dir: TempDir) {
+  let path = temp_dir.path().join("test.txt");
+  let task = WriteStringToFile(path.clone(), "HELLO WORLD!".to_string());
+
+  // Require task and observe that it is executed.
+  pie.run_in_session(|mut session| {
+    session.require(&task).check();
+    assert_eq!(fs::read_to_string(&path).check(), "HELLO WORLD!".to_string());
+
+    let tracker = &mut session.tracker_mut().0;
+    assert!(tracker.contains_one_execute_start());
+    tracker.clear();
+  });
+
+  // Require task again and observe that it is not executed since it is not affected.
+  pie.run_in_session(|mut session| {
+    session.require(&task).check();
+    assert_eq!(fs::read_to_string(&path).check(), "HELLO WORLD!".to_string());
+
+    let tracker = &mut session.tracker_mut().0;
+    assert!(tracker.contains_no_execute_start());
+    tracker.clear();
+  });
+
+  // Change provided file such that the task is affected.
+  fs::write(&path, "!DLROW OLLEH").check();
+
+  // Require task again and observe that it re-executed since it affected.
+  pie.run_in_session(|mut session| {
+    session.require(&task).check();
+    assert_eq!(fs::read_to_string(&path).check(), "HELLO WORLD!".to_string());
+
+    let tracker = &mut session.tracker_mut().0;
+    assert!(tracker.contains_one_execute_start());
+    tracker.clear();
+  });
 }
 
 #[rstest]

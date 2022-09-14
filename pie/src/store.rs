@@ -4,26 +4,25 @@ use std::path::PathBuf;
 
 use pie_graph::{DAG, Node};
 
-use crate::dependency::{Dependency, FileDependency};
-use crate::output::DynOutput;
+use crate::dependency::FileDependency;
 use crate::Task;
-use crate::task::DynTask;
+use crate::trait_object::{DynDependency, DynOutput, DynTask};
 
 pub type TaskNode = Node;
 pub type FileNode = Node;
 
 #[derive(Debug)]
-pub struct Store<C, H> {
-  graph: DAG<NodeData<C>, ParentData, ChildData, H>,
+pub struct Store<H> {
+  graph: DAG<NodeData, ParentData, ChildData, H>,
   task_to_node: HashMap<Box<dyn DynTask>, TaskNode, H>,
   file_to_node: HashMap<PathBuf, FileNode, H>,
 }
 
 #[derive(Debug)]
-pub enum NodeData<C> {
+pub enum NodeData {
   Task {
     task: Box<dyn DynTask>,
-    dependencies: Option<Vec<Box<dyn Dependency<C>>>>,
+    dependencies: Option<Vec<Box<dyn DynDependency>>>,
     output: Option<Box<dyn DynOutput>>,
   },
   File(PathBuf),
@@ -43,7 +42,7 @@ pub enum ChildData {
   RequireTask,
 }
 
-impl<C, H: BuildHasher + Default> Default for Store<C, H> {
+impl<H: BuildHasher + Default> Default for Store<H> {
   #[inline]
   fn default() -> Self {
     Self {
@@ -54,7 +53,7 @@ impl<C, H: BuildHasher + Default> Default for Store<C, H> {
   }
 }
 
-impl<C, H: BuildHasher + Default> Store<C, H> {
+impl<H: BuildHasher + Default> Store<H> {
   /// Creates a new `[Store]`.
   #[inline]
   pub fn new() -> Self { Default::default() }
@@ -107,7 +106,7 @@ impl<C, H: BuildHasher + Default> Store<C, H> {
 
 
   #[inline]
-  pub fn remove_dependencies_of_task(&mut self, task_node: &TaskNode) -> Option<Vec<Box<dyn Dependency<C>>>> {
+  pub fn remove_dependencies_of_task(&mut self, task_node: &TaskNode) -> Option<Vec<Box<dyn DynDependency>>> {
     if let Some(NodeData::Task { dependencies, .. }) = self.graph.get_node_data_mut(task_node) {
       std::mem::take(dependencies)
     } else {
@@ -115,13 +114,13 @@ impl<C, H: BuildHasher + Default> Store<C, H> {
     }
   }
   #[inline]
-  pub fn set_dependencies_of_task(&mut self, task_node: TaskNode, new_dependencies: Vec<Box<dyn Dependency<C>>>) {
+  pub fn set_dependencies_of_task(&mut self, task_node: TaskNode, new_dependencies: Vec<Box<dyn DynDependency>>) {
     if let Some(NodeData::Task { ref mut dependencies, .. }) = self.graph.get_node_data_mut(task_node) {
       std::mem::swap(dependencies, &mut Some(new_dependencies));
     }
   }
   #[inline]
-  pub fn add_to_dependencies_of_task(&mut self, task_node: TaskNode, dependency: Box<dyn Dependency<C>>) {
+  pub fn add_to_dependencies_of_task(&mut self, task_node: TaskNode, dependency: Box<dyn DynDependency>) {
     if let Some(NodeData::Task { ref mut dependencies, .. }) = self.graph.get_node_data_mut(task_node) {
       if let Some(dependencies) = dependencies {
         dependencies.push(dependency);
