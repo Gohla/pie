@@ -5,10 +5,9 @@ use std::error::Error;
 use std::fmt::Debug;
 use std::fs::File;
 use std::hash::{BuildHasher, Hash};
-use std::panic;
 use std::path::PathBuf;
 
-use crate::runner::Runner;
+use crate::runner::TopDownRunner;
 use crate::store::{Store, TaskNode};
 use crate::tracker::{NoopTracker, Tracker};
 
@@ -20,7 +19,7 @@ pub mod tracker;
 pub mod task;
 pub mod trait_object;
 
-/// The unit of computation in the incremental build system.
+/// The unit of computation in a programmatic incremental build system.
 pub trait Task: Eq + Hash + Clone + Any + Debug {
   /// The type of output this task produces when executed. Must implement [`Eq`], [`Clone`], and either not contain any 
   /// references, or only `'static` references.
@@ -37,8 +36,8 @@ pub trait Output: Eq + Clone + Any + Debug {}
 impl<T: Eq + Clone + Any + Debug> Output for T {}
 
 
-/// Incremental context, mediating between tasks and runners, enabling tasks to dynamically create dependencies that 
-/// runners check for consistency and use in incremental execution.
+/// Incremental context, mediating between tasks and executors, enabling tasks to dynamically create dependencies that 
+/// executors check for consistency and use in incremental execution.
 pub trait Context {
   /// Requires given `task`, creating a dependency to it, and returning its up-to-date output.
   fn require_task<T: Task>(&mut self, task: &T) -> T::Output;
@@ -77,8 +76,7 @@ impl<A: Tracker + Default> Pie<A> {
 }
 
 impl<A: Tracker + Default, H: BuildHasher + Default> Pie<A, H> {
-  /// Creates a new build session. Only one session may be active at once. The returned session must be dropped before 
-  /// creating a new session. 
+  /// Creates a new build session. Only one session may be active at once, enforced via mutable (exclusive) borrow.
   #[inline]
   pub fn new_session(&mut self) -> Session<A, H> { Session::new(self) }
   /// Runs `f` inside a new session.
@@ -97,18 +95,11 @@ impl<A: Tracker + Default, H: BuildHasher + Default> Pie<A, H> {
 }
 
 
-/// A session in which builds occur. Every task is only executed once each session.
+/// A session in which builds are executed. Every task is only executed once each session.
 #[derive(Debug)]
 pub struct Session<'p, A, H> {
-  pie: &'p mut Pie<A, H>,
-  data: Option<SessionData<A, H>>,
-}
-
-/// Internal session data.
-#[derive(Debug)]
-pub struct SessionData<A, H> {
-  store: Store<H>,
-  tracker: A,
+  store: &'p mut Store<H>,
+  tracker: &'p mut A,
   visited: HashSet<TaskNode, H>,
   dependency_check_errors: Vec<Box<dyn Error>>,
 }
@@ -116,50 +107,28 @@ pub struct SessionData<A, H> {
 impl<'p, A: Tracker + Default, H: BuildHasher + Default> Session<'p, A, H> {
   #[inline]
   fn new(pie: &'p mut Pie<A, H>) -> Self {
-    let store = std::mem::take(&mut pie.store);
-    let tracker = std::mem::take(&mut pie.tracker);
-    let data = Some(SessionData {
-      store,
-      tracker,
+    Self {
+      store: &mut pie.store,
+      tracker: &mut pie.tracker,
       visited: HashSet::default(),
       dependency_check_errors: Vec::default(),
-    });
-    Self { pie, data }
+    }
   }
 
   /// Requires given `task`, returning its up-to-date output.
   #[inline]
   pub fn require<T: Task>(&mut self, task: &T) -> T::Output {
-    let data = self.data.take().unwrap();
-    let mut runner = Runner::new(data);
-    let result = panic::catch_unwind(panic::AssertUnwindSafe(|| { // Catch panic (if it unwinds)
-      runner.require(task)
-    }));
-    self.data = Some(runner.into_data()); // Restore data even after panic
-    match result {
-      Ok(output) => output,
-      Err(e) => panic::resume_unwind(e) // Resume unwinding panic
-    }
+    let mut runner = TopDownRunner::new(self);
+    runner.require(task)
   }
 
   /// Gets the [`Tracker`] instance.
   #[inline]
-  pub fn tracker(&self) -> &A { &self.data.as_ref().unwrap().tracker }
+  pub fn tracker(&self) -> &A { &self.tracker }
   /// Gets the mutable [`Tracker`] instance.
   #[inline]
-  pub fn tracker_mut(&mut self) -> &mut A { &mut self.data.as_mut().unwrap().tracker }
-
+  pub fn tracker_mut(&mut self) -> &mut A { &mut self.tracker }
   /// Gets a slice over all errors produced during dependency checks.
   #[inline]
-  pub fn dependency_check_errors(&self) -> &[Box<dyn Error>] {
-    &self.data.as_ref().unwrap().dependency_check_errors
-  }
-}
-
-impl<'p, A, H> Drop for Session<'p, A, H> {
-  fn drop(&mut self) {
-    let data = self.data.take().unwrap();
-    self.pie.store = data.store;
-    self.pie.tracker = data.tracker;
-  }
+  pub fn dependency_check_errors(&self) -> &[Box<dyn Error>] { &self.dependency_check_errors }
 }
