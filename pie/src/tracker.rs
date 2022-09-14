@@ -1,8 +1,9 @@
 use std::io;
 use std::io::{Stderr, Stdout};
 use std::path::PathBuf;
+use crate::output::{DynOutput, DynOutputExt};
 
-use crate::task::{DynOutput, DynOutputExt, DynTask, DynTaskExt};
+use crate::task::{DynTask, DynTaskExt};
 
 /// Trait for tracking build events. Can be used to implement logging, event tracing, and possibly progress tracking.
 pub trait Tracker {

@@ -5,7 +5,7 @@ use std::path::PathBuf;
 use pie_graph::{DAG, Node};
 
 use crate::dependency::{Dependency, FileDependency};
-use crate::prelude::DynOutput;
+use crate::output::DynOutput;
 use crate::Task;
 use crate::task::DynTask;
 

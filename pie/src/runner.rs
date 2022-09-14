@@ -6,7 +6,7 @@ use pie_graph::Node;
 
 use crate::{Context, SessionData, Task};
 use crate::dependency::{FileDependency, TaskDependency};
-use crate::prelude::DynOutput;
+use crate::output::DynOutput;
 use crate::store::TaskNode;
 use crate::tracker::Tracker;
 
@@ -45,7 +45,7 @@ impl<A: Tracker, H: BuildHasher + Default> Context for Runner<A, H> {
   fn require_task<T: Task>(&mut self, task: &T) -> T::Output {
     let dyn_task = task.as_dyn();
     self.data.tracker.require_task(dyn_task);
-    let task_node = self.data.store.get_or_create_node_by_task(task.clone_box_dyn());
+    let task_node = self.data.store.get_or_create_node_by_task(task.as_dyn_clone());
     if !self.data.visited.contains(&task_node) && self.should_execute_task(task_node) { // Execute the task, cache and return up-to-date output.
       self.data.store.reset_task(&task_node);
       // Check for cyclic dependency

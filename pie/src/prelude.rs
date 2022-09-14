@@ -1,3 +1,6 @@
 pub use crate::Context;
-pub use crate::task::{DynOutput, DynOutputExt, DynTask, DynTaskExt, Output, Task};
+pub use crate::output::DynOutput;
+pub use crate::output::DynOutputExt;
+pub use crate::output::Output;
+pub use crate::task::{DynTask, DynTaskExt, Task};
 

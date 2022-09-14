@@ -22,7 +22,7 @@ fn temp_dir() -> TempDir { common::temp_dir() }
 #[rstest]
 fn test_exec(mut pie: Pie) {
   let task = ToLowerCase("CAPITALIZED".to_string());
-  let dyn_task = task.clone_box_dyn();
+  let dyn_task = task.as_dyn_clone();
 
   pie.run_in_session(|mut session| {
     assert_eq!(session.require(&task), "capitalized");
@@ -45,7 +45,7 @@ fn test_exec(mut pie: Pie) {
 #[rstest]
 fn test_reuse(mut pie: Pie) {
   let task = ToLowerCase("CAPITALIZED".to_string());
-  let dyn_task = task.clone_box_dyn();
+  let dyn_task = task.as_dyn_clone();
 
   pie.run_in_session(|mut session| {
     assert_eq!(session.require(&task), "capitalized");
@@ -166,9 +166,9 @@ fn test_require_task(mut pie: Pie, temp_dir: TempDir) {
   fs::write(&path, "HELLO WORLD!").check();
 
   let read_task = ReadStringFromFile(path.clone());
-  let read_task_dyn = read_task.clone_box_dyn();
+  let read_task_dyn = read_task.as_dyn_clone();
   let task = Combine(read_task);
-  let dyn_task = task.clone_box_dyn();
+  let dyn_task = task.as_dyn_clone();
 
   // Require task and observe that all three tasks are executed in dependency order
   pie.run_in_session(|mut session| {
@@ -188,7 +188,7 @@ fn test_require_task(mut pie: Pie, temp_dir: TempDir) {
     assert_matches!(read_task_end, Some(_));
     assert!(read_task_start > task_start);
 
-    let to_lowercase_task_dyn = ToLowerCase("HELLO WORLD!".to_string()).clone_box_dyn();
+    let to_lowercase_task_dyn = ToLowerCase("HELLO WORLD!".to_string()).as_dyn_clone();
     let to_lowercase_task_start = tracker.get_index_of_execute_start_of(&to_lowercase_task_dyn);
     assert_matches!(to_lowercase_task_start, Some(_));
     let to_lowercase_task_end = tracker.get_index_of_execute_end_of(&to_lowercase_task_dyn);
@@ -227,9 +227,9 @@ fn test_require_task(mut pie: Pie, temp_dir: TempDir) {
     assert_matches!(read_task_end, Some(_));
 
     // Old ToLowerCase task was not executed
-    assert!(tracker.contains_no_execute_start_of(&ToLowerCase("HELLO WORLD!".to_string()).clone_box_dyn()));
+    assert!(tracker.contains_no_execute_start_of(&ToLowerCase("HELLO WORLD!".to_string()).as_dyn_clone()));
 
-    let to_lowercase_task_dyn = ToLowerCase("!DLROW OLLEH".to_string()).clone_box_dyn();
+    let to_lowercase_task_dyn = ToLowerCase("!DLROW OLLEH".to_string()).as_dyn_clone();
     let to_lowercase_task_start = tracker.get_index_of_execute_start_of(&to_lowercase_task_dyn);
     assert_matches!(to_lowercase_task_start, Some(_));
     let to_lowercase_task_end = tracker.get_index_of_execute_end_of(&to_lowercase_task_dyn);

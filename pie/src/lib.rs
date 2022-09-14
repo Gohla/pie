@@ -14,6 +14,7 @@ use crate::tracker::{NoopTracker, Tracker};
 
 pub mod prelude;
 pub mod task;
+pub mod output;
 pub mod dependency;
 pub mod runner;
 pub mod store;

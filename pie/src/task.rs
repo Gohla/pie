@@ -5,9 +5,10 @@ use std::hash::{Hash, Hasher};
 use dyn_clone::DynClone;
 
 use crate::Context;
+use crate::output::Output;
 
 /// The unit of computation in the incremental build system.
-pub trait Task: Eq + Hash + Clone + DynTask + Debug + 'static {
+pub trait Task: Eq + Hash + Clone + Any + Debug {
   /// The type of output this task produces when executed. Must implement [`Eq`], [`Clone`], and either not contain any 
   /// references, or only `'static` references.
   type Output: Output;
@@ -18,10 +19,9 @@ pub trait Task: Eq + Hash + Clone + DynTask + Debug + 'static {
   #[inline]
   fn as_dyn(&self) -> &dyn DynTask { self as &dyn DynTask }
   #[inline]
-  fn as_dyn_mut(&mut self) -> &mut dyn DynTask { self as &mut dyn DynTask }
-  #[inline]
-  fn clone_box_dyn(&self) -> Box<dyn DynTask> { self.as_dyn().clone() }
+  fn as_dyn_clone(&self) -> Box<dyn DynTask> { self.as_dyn().clone() }
 }
+
 
 /// Object-safe version of [`Task`], enabling tasks to be used as trait objects.
 pub trait DynTask: DynClone + Any + Debug + 'static {
@@ -30,30 +30,10 @@ pub trait DynTask: DynClone + Any + Debug + 'static {
   fn as_any(&self) -> &dyn Any;
 }
 
-/// Alias trait for task outputs.
-pub trait Output: Eq + Clone + DynOutput + Debug + 'static {}
-
-impl<T: Eq + Clone + Debug + 'static> Output for T {}
-
-/// Object-safe version of [`Output`].
-pub trait DynOutput: DynClone + Any + Debug + 'static {
-  fn dyn_eq(&self, other: &dyn Any) -> bool;
-  fn as_any(&self) -> &dyn Any;
-  fn as_any_mut(&mut self) -> &mut dyn Any;
-}
-
-
-// DynTask implementations
-
-// Implement DynTask for all `Task`s.
 impl<T: Task> DynTask for T {
   #[inline]
   fn dyn_eq(&self, other: &dyn Any) -> bool {
-    if let Some(other) = other.downcast_ref::<Self>() {
-      self == other
-    } else {
-      false
-    }
+    other.downcast_ref::<Self>().map_or(false, |o| self == o)
   }
   #[inline]
   fn dyn_hash(&self, mut state: &mut dyn Hasher) { self.hash(&mut state); }
@@ -61,7 +41,6 @@ impl<T: Task> DynTask for T {
   fn as_any(&self) -> &dyn Any { self }
 }
 
-// Implement PartialEq/Eq/Hash/Clone for `dyn DynTask` or `Box<dyn DynTask>`
 impl PartialEq for dyn DynTask {
   #[inline]
   fn eq(&self, other: &dyn DynTask) -> bool { self.dyn_eq(other.as_any()) }
@@ -80,56 +59,13 @@ impl Clone for Box<dyn DynTask> {
   }
 }
 
-// Extension trait to enable calling `clone` on `dyn DynTask`.
+
+/// Extension trait to enable calling `clone` on `dyn DynTask`.
 pub trait DynTaskExt {
   fn clone(&self) -> Box<Self>;
 }
 
 impl DynTaskExt for dyn DynTask {
-  fn clone(&self) -> Box<Self> {
-    dyn_clone::clone_box(self)
-  }
-}
-
-
-// DynOutput implementations
-
-// Implement DynOutput for all `Output`s.
-impl<T: Output> DynOutput for T {
-  #[inline]
-  fn dyn_eq(&self, other: &dyn Any) -> bool {
-    if let Some(other) = other.downcast_ref::<Self>() {
-      self == other
-    } else {
-      false
-    }
-  }
-  #[inline]
-  fn as_any(&self) -> &dyn Any { self }
-  #[inline]
-  fn as_any_mut(&mut self) -> &mut dyn Any { self }
-}
-
-// Implement PartialEq/Eq/Hash/Clone for `dyn DynOutput` or `Box<dyn DynOutput>`
-impl PartialEq for dyn DynOutput {
-  #[inline]
-  fn eq(&self, other: &dyn DynOutput) -> bool { self.dyn_eq(other.as_any()) }
-}
-
-impl Eq for dyn DynOutput {}
-
-impl Clone for Box<dyn DynOutput> {
-  fn clone(&self) -> Self {
-    dyn_clone::clone_box(&**self)
-  }
-}
-
-// Extension trait to enable calling `clone` on `dyn DynOutput`.
-pub trait DynOutputExt {
-  fn clone(&self) -> Box<Self>;
-}
-
-impl DynOutputExt for dyn DynOutput {
   fn clone(&self) -> Box<Self> {
     dyn_clone::clone_box(self)
   }
