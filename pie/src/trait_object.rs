@@ -40,8 +40,6 @@ impl Task for Box<dyn DynTask> {
   #[inline]
   fn as_dyn(&self) -> &dyn DynTask { self.as_ref() }
   #[inline]
-  fn as_dyn_clone(&self) -> Box<dyn DynTask> { self.clone() }
-  #[inline]
   fn downcast_ref_output(dyn_output: &Box<dyn DynOutput>) -> Option<&Self::Output> { Some(dyn_output) }
   #[inline]
   fn downcast_mut_output(dyn_output: &mut Box<dyn DynOutput>) -> Option<&mut Self::Output> { Some(dyn_output) }
@@ -63,27 +61,19 @@ impl Clone for Box<dyn DynTask> {
   fn clone(&self) -> Self { dyn_clone::clone_box(self.as_ref()) }
 }
 
-// /// Extension trait for converting `Task`s into `dyn DynTask`s.
-// pub trait TaskDynExt {
-//   fn as_dyn(&self) -> &dyn DynTask;
-//   fn as_dyn_clone(&self) -> Box<dyn DynTask>;
-// }
-// 
-// impl<T: Task> TaskDynExt for T {
-//   #[inline]
-//   fn as_dyn(&self) -> &dyn DynTask { self as &dyn DynTask }
-//   #[inline]
-//   fn as_dyn_clone(&self) -> Box<dyn DynTask> { self.as_dyn().clone_box() }
-// }
-
 /// Extension trait for cloning `dyn DynTask`s.
 pub trait DynTaskExt {
-  fn clone_box(&self) -> Box<Self>;
+  fn clone_box(&self) -> Box<dyn DynTask>;
 }
 
 impl DynTaskExt for dyn DynTask {
   #[inline]
-  fn clone_box(&self) -> Box<Self> { dyn_clone::clone_box(self) }
+  fn clone_box(&self) -> Box<dyn DynTask> { dyn_clone::clone_box(self) }
+}
+
+impl<T: Task> DynTaskExt for T {
+  #[inline]
+  fn clone_box(&self) -> Box<dyn DynTask> { self.as_dyn().clone_box() }
 }
 
 
@@ -141,7 +131,7 @@ pub trait DynContext {
 impl Context for &mut (dyn DynContext + '_) {
   #[inline]
   fn require_task<T: Task>(&mut self, task: &T) -> T::Output {
-    let task = task.as_dyn_clone(); // Clone and box task, required when used in dynamic context.
+    let task = task.clone_box(); // Clone and box task, required when used in dynamic context.
     let output = (*self).dyn_require_task(&task);
     // Unwrap OK: task outputs value of type `T::Output`, so downcasting to it will always succeed.
     *output.as_box_any().downcast::<T::Output>().unwrap()

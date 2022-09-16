@@ -32,8 +32,6 @@ pub trait Task: Eq + Hash + Clone + Any + Debug {
   #[inline]
   fn as_dyn(&self) -> &dyn DynTask { self as &dyn DynTask }
   #[inline]
-  fn as_dyn_clone(&self) -> Box<dyn DynTask> { dyn_clone::clone_box(self.as_dyn()) }
-  #[inline]
   fn downcast_ref_output(output: &Box<dyn DynOutput>) -> Option<&Self::Output> {
     // Note: `output.as_ref` is very important here, because `Box<dyn DynOutput>` also implements `DynOutput`, which 
     // in turn has an `as_any` method as well. However, `downcast_ref` will *always fail* on `Box<dyn DynOutput>` 
@@ -42,7 +40,7 @@ pub trait Task: Eq + Hash + Clone + Any + Debug {
   }
   #[inline]
   fn downcast_mut_output(output: &mut Box<dyn DynOutput>) -> Option<&mut Self::Output> {
-    // Note: `output.as_mut` is very important her, for the same reason as listed above.
+    // Note: `output.as_mut` is very important here, for the same reason as in `downcast_ref_output`.
     output.as_mut().as_any_mut().downcast_mut::<Self::Output>()
   }
 }
