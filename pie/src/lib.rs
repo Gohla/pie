@@ -10,7 +10,7 @@ use std::path::PathBuf;
 use crate::runner::TopDownRunner;
 use crate::store::{Store, TaskNode};
 use crate::tracker::{NoopTracker, Tracker};
-use crate::trait_object::DynTask;
+use crate::trait_object::{DynOutput, DynTask};
 
 pub mod prelude;
 pub mod dependency;
@@ -28,13 +28,22 @@ pub trait Task: Eq + Hash + Clone + Any + Debug {
   /// Execute the task, with `context` providing a means to specify dependencies, producing an instance of 
   /// `Self::Output`.
   fn execute<C: Context>(&self, context: &mut C) -> Self::Output;
+
   #[inline]
-  fn as_dyn(&self) -> &dyn DynTask {
-    self as &dyn DynTask
+  fn as_dyn(&self) -> &dyn DynTask { self as &dyn DynTask }
+  #[inline]
+  fn as_dyn_clone(&self) -> Box<dyn DynTask> { dyn_clone::clone_box(self.as_dyn()) }
+  #[inline]
+  fn downcast_ref_output(output: &Box<dyn DynOutput>) -> Option<&Self::Output> {
+    // Note: `output.as_ref` is very important here, because `Box<dyn DynOutput>` also implements `DynOutput`, which 
+    // in turn has an `as_any` method as well. However, `downcast_ref` will *always fail* on `Box<dyn DynOutput>` 
+    // because it will try to downcast the box instead of what is inside the box.
+    output.as_ref().as_any().downcast_ref::<Self::Output>()
   }
   #[inline]
-  fn as_dyn_clone(&self) -> Box<dyn DynTask> {
-    dyn_clone::clone_box(self.as_dyn())
+  fn downcast_mut_output(output: &mut Box<dyn DynOutput>) -> Option<&mut Self::Output> {
+    // Note: `output.as_mut` is very important her, for the same reason as listed above.
+    output.as_mut().as_any_mut().downcast_mut::<Self::Output>()
   }
 }
 

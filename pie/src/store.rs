@@ -142,12 +142,7 @@ impl<H: BuildHasher + Default> Store<H> {
   #[inline]
   pub fn get_task_output<T: Task>(&self, task_node: TaskNode) -> Option<&T::Output> {
     if let Some(NodeData::Task { output: Some(output), .. }) = self.graph.get_node_data(task_node) {
-      // Note: `output.as_ref` is very important here, because `Box<dyn DynOutput>` also implements `DynOutput`, which 
-      // in turn has an `as_any` method as well. However, `downcast_ref` will *always fail* on `Box<dyn DynOutput>` 
-      // because it will try to downcast the box instead of what is inside the box.
-      dbg!(&output);
-      dbg!(std::any::type_name::<T::Output>());
-      output.as_ref().as_any().downcast_ref::<T::Output>()
+      T::downcast_ref_output(output)
     } else {
       None
     }
@@ -156,14 +151,13 @@ impl<H: BuildHasher + Default> Store<H> {
   pub fn set_task_output<T: Task>(&mut self, task_node: TaskNode, new_output: T::Output) {
     if let Some(NodeData::Task { output, .. }) = self.graph.get_node_data_mut(task_node) {
       if let Some(output) = output {
-        // Note: `output.as_mut` is very important here, for the same reason as commented in `get_task_output`.
-        if let Some(output) = output.as_mut().as_any_mut().downcast_mut::<T::Output>() {
+        if let Some(output) = T::downcast_mut_output(output) {
           *output = new_output; // Replace the value inside the box.
         } else { // Stored output is not of the correct type any more, replace it with a new boxed output.
-          *output = Box::new(new_output)
+          *output = Box::new(new_output);
         }
       } else { // No output was stored yet, create a new boxed output.
-        *output = Some(Box::new(new_output))
+        *output = Some(Box::new(new_output));
       }
     }
   }

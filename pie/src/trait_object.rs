@@ -36,17 +36,15 @@ impl<T: Task> DynTask for T {
 impl Task for Box<dyn DynTask> {
   type Output = Box<dyn DynOutput>;
   #[inline]
-  fn execute<C: Context>(&self, context: &mut C) -> Self::Output {
-    self.as_ref().dyn_execute(context)
-  }
+  fn execute<C: Context>(&self, context: &mut C) -> Self::Output { self.as_ref().dyn_execute(context) }
   #[inline]
-  fn as_dyn(&self) -> &dyn DynTask {
-    self.as_ref()
-  }
+  fn as_dyn(&self) -> &dyn DynTask { self.as_ref() }
   #[inline]
-  fn as_dyn_clone(&self) -> Box<dyn DynTask> {
-    self.clone()
-  }
+  fn as_dyn_clone(&self) -> Box<dyn DynTask> { self.clone() }
+  #[inline]
+  fn downcast_ref_output(dyn_output: &Box<dyn DynOutput>) -> Option<&Self::Output> { Some(dyn_output) }
+  #[inline]
+  fn downcast_mut_output(dyn_output: &mut Box<dyn DynOutput>) -> Option<&mut Self::Output> { Some(dyn_output) }
 }
 
 impl PartialEq for dyn DynTask {
@@ -62,9 +60,7 @@ impl Hash for dyn DynTask {
 }
 
 impl Clone for Box<dyn DynTask> {
-  fn clone(&self) -> Self {
-    dyn_clone::clone_box(self.as_ref())
-  }
+  fn clone(&self) -> Self { dyn_clone::clone_box(self.as_ref()) }
 }
 
 // /// Extension trait for converting `Task`s into `dyn DynTask`s.
@@ -86,9 +82,8 @@ pub trait DynTaskExt {
 }
 
 impl DynTaskExt for dyn DynTask {
-  fn clone_box(&self) -> Box<Self> {
-    dyn_clone::clone_box(self)
-  }
+  #[inline]
+  fn clone_box(&self) -> Box<Self> { dyn_clone::clone_box(self) }
 }
 
 
@@ -121,9 +116,8 @@ impl PartialEq for dyn DynOutput {
 impl Eq for dyn DynOutput {}
 
 impl Clone for Box<dyn DynOutput> {
-  fn clone(&self) -> Self {
-    dyn_clone::clone_box(self.as_ref())
-  }
+  #[inline]
+  fn clone(&self) -> Self { dyn_clone::clone_box(self.as_ref()) }
 }
 
 /// Extension trait for cloning `dyn DynOutput`s.
@@ -132,9 +126,8 @@ pub trait DynOutputExt {
 }
 
 impl DynOutputExt for dyn DynOutput {
-  fn clone_box(&self) -> Box<Self> {
-    dyn_clone::clone_box(self)
-  }
+  #[inline]
+  fn clone_box(&self) -> Box<Self> { dyn_clone::clone_box(self) }
 }
 
 
@@ -148,36 +141,24 @@ pub trait DynContext {
 impl Context for &mut (dyn DynContext + '_) {
   #[inline]
   fn require_task<T: Task>(&mut self, task: &T) -> T::Output {
-    dbg!(&task);
-    let task = task.as_dyn_clone();
-    dbg!(&task);
+    let task = task.as_dyn_clone(); // Clone and box task, required when used in dynamic context.
     let output = (*self).dyn_require_task(&task);
-    let output = output.as_box_any().downcast::<T::Output>().unwrap();
-    *output
+    // Unwrap OK: task outputs value of type `T::Output`, so downcasting to it will always succeed.
+    *output.as_box_any().downcast::<T::Output>().unwrap()
   }
   #[inline]
-  fn require_file(&mut self, path: &PathBuf) -> Result<File, std::io::Error> {
-    (*self).dyn_require_file(path)
-  }
+  fn require_file(&mut self, path: &PathBuf) -> Result<File, std::io::Error> { (*self).dyn_require_file(path) }
   #[inline]
-  fn provide_file(&mut self, path: &PathBuf) -> Result<(), std::io::Error> {
-    (*self).dyn_provide_file(path)
-  }
+  fn provide_file(&mut self, path: &PathBuf) -> Result<(), std::io::Error> { (*self).dyn_provide_file(path) }
 }
 
 impl<C: Context> DynContext for C {
   #[inline]
-  fn dyn_require_task(&mut self, task: &Box<dyn DynTask>) -> Box<dyn DynOutput> {
-    self.require_task(task)
-  }
+  fn dyn_require_task(&mut self, task: &Box<dyn DynTask>) -> Box<dyn DynOutput> { self.require_task(task) }
   #[inline]
-  fn dyn_require_file(&mut self, path: &PathBuf) -> Result<File, std::io::Error> {
-    self.require_file(path)
-  }
+  fn dyn_require_file(&mut self, path: &PathBuf) -> Result<File, std::io::Error> { self.require_file(path) }
   #[inline]
-  fn dyn_provide_file(&mut self, path: &PathBuf) -> Result<(), std::io::Error> {
-    self.provide_file(path)
-  }
+  fn dyn_provide_file(&mut self, path: &PathBuf) -> Result<(), std::io::Error> { self.provide_file(path) }
 }
 
 
@@ -187,12 +168,14 @@ pub trait DynDependency: Debug {
 }
 
 impl Dependency for &dyn DynDependency {
+  #[inline]
   fn is_consistent<C: Context>(&self, context: &mut C) -> Result<bool, Box<dyn Error>> {
     (*self).dyn_is_consistent(context)
   }
 }
 
 impl<D: Dependency> DynDependency for D {
+  #[inline]
   fn dyn_is_consistent(&self, mut context: &mut dyn DynContext) -> Result<bool, Box<dyn Error>> {
     self.is_consistent(&mut context)
   }
