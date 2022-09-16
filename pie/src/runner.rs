@@ -12,7 +12,7 @@ use crate::trait_object::{DynOutput, DynTaskExt};
 
 /// Incremental runner that runs tasks and checks dependencies recursively in a top-down manner.
 #[derive(Debug)]
-pub struct TopDownRunner<'p, 's, A, H> {
+pub(crate) struct TopDownRunner<'p, 's, A, H> {
   session: &'s mut Session<'p, A, H>,
   task_execution_stack: Vec<TaskNode>,
 }

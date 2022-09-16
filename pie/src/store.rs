@@ -12,14 +12,14 @@ pub type TaskNode = Node;
 pub type FileNode = Node;
 
 #[derive(Debug)]
-pub struct Store<H> {
+pub(crate) struct Store<H> {
   graph: DAG<NodeData, ParentData, ChildData, H>,
   task_to_node: HashMap<Box<dyn DynTask>, TaskNode, H>,
   file_to_node: HashMap<PathBuf, FileNode, H>,
 }
 
 #[derive(Debug)]
-pub enum NodeData {
+pub(crate) enum NodeData {
   Task {
     task: Box<dyn DynTask>,
     dependencies: Option<Vec<Box<dyn DynDependency>>>,
@@ -29,14 +29,14 @@ pub enum NodeData {
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
-pub enum ParentData {
+pub(crate) enum ParentData {
   FileRequiringTask,
   FileProvidingTask,
   TaskRequiringTask,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
-pub enum ChildData {
+pub(crate) enum ChildData {
   RequireFile,
   ProvideFile,
   RequireTask,
@@ -54,10 +54,6 @@ impl<H: BuildHasher + Default> Default for Store<H> {
 }
 
 impl<H: BuildHasher + Default> Store<H> {
-  /// Creates a new `[Store]`.
-  #[inline]
-  pub fn new() -> Self { Default::default() }
-
   #[inline]
   pub fn get_or_create_node_by_task(&mut self, task: Box<dyn DynTask>) -> TaskNode {
     if let Some(node) = self.task_to_node.get(&task) {

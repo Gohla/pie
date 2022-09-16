@@ -7,13 +7,13 @@ use std::time::SystemTime;
 use crate::{Context, Task};
 
 /// A dynamic dependency that can be checked for consistency.
-pub trait Dependency: Debug {
+pub(crate) trait Dependency: Debug {
   fn is_consistent<C: Context>(&self, context: &mut C) -> Result<bool, Box<dyn Error>>;
 }
 
 /// A dependency to (the output of) another task.
 #[derive(Clone, Debug)]
-pub struct TaskDependency<T: Task> {
+pub(crate) struct TaskDependency<T: Task> {
   task: T,
   output: T::Output,
 }
@@ -33,7 +33,7 @@ impl<T: Task> Dependency for TaskDependency<T> {
 
 /// A dependency to (the contents of) a file.
 #[derive(Clone, Debug)]
-pub struct FileDependency {
+pub(crate) struct FileDependency {
   path: PathBuf,
   modification_date: SystemTime,
 }

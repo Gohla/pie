@@ -153,7 +153,7 @@ impl<C: Context> DynContext for C {
 
 
 /// Object-safe version of [`Dependency`].
-pub trait DynDependency: Debug {
+pub(crate) trait DynDependency: Debug {
   fn dyn_is_consistent(&self, context: &mut dyn DynContext) -> Result<bool, Box<dyn Error>>;
 }
 
