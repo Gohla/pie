@@ -7,6 +7,9 @@ use std::fs::File;
 use std::hash::{BuildHasher, Hash};
 use std::path::PathBuf;
 
+use serde::de::DeserializeOwned;
+use serde::Serialize;
+
 use crate::runner::TopDownRunner;
 use crate::store::{Store, TaskNode};
 use crate::tracker::{NoopTracker, Tracker};
@@ -19,9 +22,10 @@ pub mod store;
 pub mod tracker;
 pub mod task;
 pub mod trait_object;
+pub mod deserialize;
 
 /// The unit of computation in a programmatic incremental build system.
-pub trait Task: Eq + Hash + Clone + Any + Debug {
+pub trait Task: Eq + Hash + Clone + Any + Serialize + DeserializeOwned + Debug {
   /// The type of output this task produces when executed. Must implement [`Eq`], [`Clone`], and either not contain any 
   /// references, or only `'static` references.
   type Output: Output;
@@ -108,6 +112,10 @@ impl<A: Tracker + Default, H: BuildHasher + Default> Pie<A, H> {
   /// Gets the mutable [`Tracker`] instance.
   #[inline]
   pub fn tracker_mut(&mut self) -> &mut A { &mut self.tracker }
+
+  pub fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+    self.store.serialize(serializer)
+  }
 }
 
 

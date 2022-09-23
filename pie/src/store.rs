@@ -2,6 +2,8 @@ use std::collections::HashMap;
 use std::hash::BuildHasher;
 use std::path::PathBuf;
 
+use serde::{Deserialize, Serialize};
+
 use pie_graph::{DAG, Node};
 
 use crate::dependency::FileDependency;
@@ -11,31 +13,47 @@ use crate::trait_object::{DynDependency, DynOutput, DynTask};
 pub type TaskNode = Node;
 pub type FileNode = Node;
 
-#[derive(Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub(crate) struct Store<H> {
+  #[serde(bound(
+  serialize = "H: BuildHasher + Default, DAG<NodeData, ParentData, ChildData, H>: serde::Serialize",
+  deserialize = "H: BuildHasher + Default, DAG<NodeData, ParentData, ChildData, H>: serde::Deserialize<'de>"
+  ))] // Set bounds such that `H` does not have to be (de)serializable
   graph: DAG<NodeData, ParentData, ChildData, H>,
+  #[serde(bound(
+  serialize = "H: BuildHasher + Default, HashMap<Box<dyn DynTask>, TaskNode, H>: serde::Serialize",
+  deserialize = "H: BuildHasher + Default, HashMap<Box<dyn DynTask>, TaskNode, H>: serde::Deserialize<'de>"
+  ))] // Set bounds such that `H` does not have to be (de)serializable
+  #[serde(skip)]
   task_to_node: HashMap<Box<dyn DynTask>, TaskNode, H>,
+  #[serde(bound(
+  serialize = "H: BuildHasher + Default, HashMap<PathBuf, FileNode, H>: serde::Serialize",
+  deserialize = "H: BuildHasher + Default, HashMap<PathBuf, FileNode, H>: serde::Deserialize<'de>"
+  ))] // Set bounds such that `H` does not have to be (de)serializable
+  #[serde(skip)]
   file_to_node: HashMap<PathBuf, FileNode, H>,
 }
 
-#[derive(Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub(crate) enum NodeData {
   Task {
     task: Box<dyn DynTask>,
+    #[serde(skip)]
     dependencies: Option<Vec<Box<dyn DynDependency>>>,
+    #[serde(skip)]
     output: Option<Box<dyn DynOutput>>,
   },
   File(PathBuf),
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Debug)]
 pub(crate) enum ParentData {
   FileRequiringTask,
   FileProvidingTask,
   TaskRequiringTask,
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Debug)]
 pub(crate) enum ChildData {
   RequireFile,
   ProvideFile,
