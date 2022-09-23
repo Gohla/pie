@@ -33,8 +33,10 @@ pub trait Task: Eq + Hash + Clone + Any + Serialize + DeserializeOwned + Debug {
   /// `Self::Output`.
   fn execute<C: Context>(&self, context: &mut C) -> Self::Output;
 
+  /// Convert this task into a trait-object-safe version of this trait.
   #[inline]
   fn as_dyn(&self) -> &dyn DynTask { self as &dyn DynTask }
+  /// Downcasts the given reference to a trait-object-safe output into an output of this task's output type.
   #[inline]
   fn downcast_ref_output(output: &Box<dyn DynOutput>) -> Option<&Self::Output> {
     // Note: `output.as_ref` is very important here, because `Box<dyn DynOutput>` also implements `DynOutput`, which 
@@ -42,6 +44,7 @@ pub trait Task: Eq + Hash + Clone + Any + Serialize + DeserializeOwned + Debug {
     // because it will try to downcast the box instead of what is inside the box.
     output.as_ref().as_any().downcast_ref::<Self::Output>()
   }
+  /// Downcasts the given mutable reference to a trait-object-safe output into an output of this task's output type.
   #[inline]
   fn downcast_mut_output(output: &mut Box<dyn DynOutput>) -> Option<&mut Self::Output> {
     // Note: `output.as_mut` is very important here, for the same reason as in `downcast_ref_output`.
