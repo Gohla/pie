@@ -22,10 +22,9 @@ pub mod store;
 pub mod tracker;
 pub mod task;
 pub mod trait_object;
-pub mod deserialize;
 
 /// The unit of computation in a programmatic incremental build system.
-pub trait Task: Eq + Hash + Clone + Any + Serialize + DeserializeOwned + Debug {
+pub trait Task: Eq + Hash + Clone + Serialize + DeserializeOwned + Any + Debug {
   /// The type of output this task produces when executed. Must implement [`Eq`], [`Clone`], and either not contain any 
   /// references, or only `'static` references.
   type Output: Output;

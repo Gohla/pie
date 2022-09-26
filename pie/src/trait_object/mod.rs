@@ -10,15 +10,15 @@ use dyn_clone::DynClone;
 use crate::{Context, Output, Task};
 use crate::dependency::Dependency;
 
+pub mod serde;
+
 /// Object-safe version of [`Task`].
-pub trait DynTask: DynClone + Any + erased_serde::Serialize + Debug {
+pub trait DynTask: DynClone + erased_serde::Serialize + Any + Debug {
   fn dyn_execute(&self, context: &mut dyn DynContext) -> Box<dyn DynOutput>;
   fn dyn_eq(&self, other: &dyn Any) -> bool;
   fn dyn_hash(&self, state: &mut dyn Hasher);
   fn as_any(&self) -> &dyn Any;
 }
-
-erased_serde::serialize_trait_object!(DynTask); // Implement `serde::Serialize` for `dyn DynTask`.
 
 impl<T: Task> DynTask for T {
   #[inline]

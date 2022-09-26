@@ -1,0 +1,13 @@
+[package]
+name = "pie_tagged_serde"
+version = "0.1.0"
+authors = ["Gabriel Konat <gabrielkonat@gmail.com>"]
+edition = "2021"
+publish = false
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+erased-serde = "0.3"
+paste = "1"
+linkme = "0.3"
+lazy_static = "1.4"

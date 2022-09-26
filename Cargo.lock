@@ -206,6 +206,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "lazy_static"
+version = "1.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e2abad23fbc42b3700f2f279844dc832adb2b2eb069b2df918f455c4e18cc646"
+
+[[package]]
 name = "libc"
 version = "0.2.132"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -247,14 +253,22 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2dffe52ecf27772e601905b7522cb4ef790d2cc203488bbd0e2fe85fcb74566d"
 
 [[package]]
+name = "paste"
+version = "1.0.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b1de2e551fb905ac83f73f7aedf2f0cb4a0da7e35efa24a202a936269f1f18e1"
+
+[[package]]
 name = "pie"
 version = "0.1.0"
 dependencies = [
  "assert_matches",
  "dyn-clone",
  "erased-serde",
+ "lazy_static",
  "linkme",
  "pie_graph",
+ "pie_tagged_serde",
  "rstest",
  "serde",
  "tempfile",
@@ -267,6 +281,17 @@ dependencies = [
  "pretty_env_logger",
  "serde",
  "slotmap",
+]
+
+[[package]]
+name = "pie_tagged_serde"
+version = "0.1.0"
+dependencies = [
+ "erased-serde",
+ "lazy_static",
+ "linkme",
+ "paste",
+ "serde",
 ]
 
 [[package]]
