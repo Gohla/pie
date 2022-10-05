@@ -10,6 +10,8 @@ use std::path::PathBuf;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 
+use pie_tagged_serde::Id;
+
 use crate::runner::TopDownRunner;
 use crate::store::{Store, TaskNode};
 use crate::tracker::{NoopTracker, Tracker};
@@ -24,7 +26,7 @@ pub mod task;
 pub mod trait_object;
 
 /// The unit of computation in a programmatic incremental build system.
-pub trait Task: Eq + Hash + Clone + Serialize + DeserializeOwned + Any + Debug {
+pub trait Task: Eq + Hash + Clone + Id + Serialize + DeserializeOwned + Any + Debug {
   /// The type of output this task produces when executed. Must implement [`Eq`], [`Clone`], and either not contain any 
   /// references, or only `'static` references.
   type Output: Output;

@@ -7,13 +7,15 @@ use std::path::PathBuf;
 
 use dyn_clone::DynClone;
 
+use pie_tagged_serde::{DynId, Id};
+
 use crate::{Context, Output, Task};
 use crate::dependency::Dependency;
 
 pub mod serde;
 
 /// Object-safe version of [`Task`].
-pub trait DynTask: DynClone + erased_serde::Serialize + Any + Debug {
+pub trait DynTask: DynClone + DynId + erased_serde::Serialize + Any + Debug {
   fn dyn_execute(&self, context: &mut dyn DynContext) -> Box<dyn DynOutput>;
   fn dyn_eq(&self, other: &dyn Any) -> bool;
   fn dyn_hash(&self, state: &mut dyn Hasher);
@@ -76,6 +78,20 @@ impl DynTaskExt for dyn DynTask {
 impl<T: Task> DynTaskExt for T {
   #[inline]
   fn clone_box(&self) -> Box<dyn DynTask> { self.as_dyn().clone_box() }
+}
+
+// Panicking "dummy" implementations for traits that cannot be properly implemented on `Box<dyn DynTask>`.
+
+impl Id for Box<dyn DynTask> {
+  fn id() -> &'static str {
+    panic!("Id cannot be implemented for `Box<dyn DynTask>` and should not be used");
+  }
+}
+
+impl<'de> ::serde::Deserialize<'de> for Box<dyn DynTask> {
+  fn deserialize<D: ::serde::Deserializer<'de>>(_deserializer: D) -> Result<Self, D::Error> {
+    panic!("Deserialize cannot be implemented for `Box<dyn DynTask>` and should not be used");
+  }
 }
 
 

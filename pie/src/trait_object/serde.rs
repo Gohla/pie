@@ -13,6 +13,6 @@ impl_registry!(dyn crate::trait_object::DynTask, TASK_REGISTRY_FNS, TASK_REGISTR
 #[macro_export]
 macro_rules! register_task {
   ($concrete:ty) => {
-    pie_tagged_serde::register!($concrete, dyn crate::trait_object::DynTask, crate::trait_object::serde::TASK_REGISTRY_FNS);
+    pie_tagged_serde::register!($concrete, dyn $crate::trait_object::DynTask, $crate::trait_object::serde::TASK_REGISTRY_FNS);
   }
 }

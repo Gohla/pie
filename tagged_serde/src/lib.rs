@@ -1,10 +1,9 @@
 use std::collections::BTreeMap;
 use std::fmt;
 
+pub use lazy_static::lazy_static;
 pub use linkme::distributed_slice;
 pub use paste::paste;
-pub use lazy_static::lazy_static;
-
 use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
 use serde::de::{DeserializeSeed, Expected, MapAccess, Visitor};
 use serde::ser::SerializeMap;
@@ -123,6 +122,20 @@ macro_rules! register {
   }
 }
 
+pub fn serialize<O: DynId + Serialize + ?Sized, S: Serializer>(value: &O, serializer: S) -> Result<S::Ok, S::Error> {
+  let mut serializer = serializer.serialize_map(Some(1))?;
+  serializer.serialize_entry(value.dyn_id(), value)?;
+  serializer.end()
+}
+
+pub fn deserialize<'de, O: RegistryProvider + ?Sized + 'static, D: Deserializer<'de>>(deserializer: D) -> Result<Box<O>, D::Error> {
+  let visitor = TaggedVisitor {
+    trait_object: O::trait_object_name(),
+    registry: O::registry(),
+  };
+  deserializer.deserialize_map(visitor)
+}
+
 
 // Internals
 
@@ -132,19 +145,13 @@ fn deserialize_fn<T: for<'de> serde::Deserialize<'de> + Into<Box<O>> + 'static, 
 
 impl<O: DynId + Serialize + ?Sized> Serialize for TaggedSerde<O> {
   fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-    let mut serializer = serializer.serialize_map(Some(1))?;
-    serializer.serialize_entry(self.0.dyn_id(), &self.0)?;
-    serializer.end()
+    serialize(self.0.as_ref(), serializer)
   }
 }
 
 impl<'de, O: RegistryProvider + ?Sized + 'static> Deserialize<'de> for TaggedSerde<O> {
   fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-    let visitor = TaggedVisitor {
-      trait_object: O::trait_object_name(),
-      registry: O::registry(),
-    };
-    deserializer.deserialize_map(visitor).map(|v| TaggedSerde::new(v))
+    deserialize(deserializer).map(|v|TaggedSerde(v))
   }
 }
 

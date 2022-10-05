@@ -2,6 +2,7 @@ use std::fs;
 
 use assert_matches::assert_matches;
 use rstest::{fixture, rstest};
+use serde::{Deserialize, Serialize};
 use tempfile::TempDir;
 
 use ::pie::prelude::*;
@@ -78,7 +79,7 @@ fn test_reuse(mut pie: Pie) {
 
 #[rstest]
 fn test_require_task(mut pie: Pie, temp_dir: TempDir) {
-  #[derive(Clone, PartialEq, Eq, Hash, Debug)]
+  #[derive(Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Debug)]
   struct Combine(ReadStringFromFile);
   impl Task for Combine {
     type Output = Result<String, std::io::ErrorKind>;
@@ -87,6 +88,7 @@ fn test_require_task(mut pie: Pie, temp_dir: TempDir) {
       Ok(context.require_task(&ToLowerCase(text)))
     }
   }
+  register_task!(Combine);
 
   let path = temp_dir.path().join("test.txt");
   fs::write(&path, "HELLO WORLD!").check();
@@ -256,7 +258,7 @@ fn test_provide_file(mut pie: Pie, temp_dir: TempDir) {
 #[rstest]
 #[should_panic(expected = "Cyclic task dependency")]
 fn require_self_cycle_panics(mut pie: Pie) {
-  #[derive(Clone, PartialEq, Eq, Hash, Debug)]
+  #[derive(Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Debug)]
   struct RequireSelf;
   impl Task for RequireSelf {
     type Output = ();
@@ -264,6 +266,8 @@ fn require_self_cycle_panics(mut pie: Pie) {
       context.require_task(self);
     }
   }
+  register_task!(RequireSelf);
+  
   pie.run_in_session(|mut session| {
     session.require(&RequireSelf);
     assert_eq!(session.dependency_check_errors().len(), 0);

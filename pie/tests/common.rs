@@ -3,6 +3,7 @@ use std::fs::File;
 use std::io::{Read, Stdout, Write};
 use std::path::PathBuf;
 
+use serde::{Deserialize, Serialize};
 use tempfile::TempDir;
 
 use pie::prelude::*;
@@ -48,7 +49,7 @@ impl<T: Debug> CheckErrorExt<T> for Result<T, std::io::ErrorKind> {
 
 // Read string from file task
 
-#[derive(Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Debug)]
+#[derive(Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Serialize, Deserialize, Debug)]
 pub struct ReadStringFromFile(pub PathBuf);
 
 impl Task for ReadStringFromFile {
@@ -61,10 +62,12 @@ impl Task for ReadStringFromFile {
   }
 }
 
+register_task!(ReadStringFromFile);
+
 
 // Write string to file task
 
-#[derive(Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Debug)]
+#[derive(Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Serialize, Deserialize, Debug)]
 pub struct WriteStringToFile(pub PathBuf, pub String);
 
 impl Task for WriteStringToFile {
@@ -77,10 +80,12 @@ impl Task for WriteStringToFile {
   }
 }
 
+register_task!(WriteStringToFile);
+
 
 // Make string lowercase
 
-#[derive(Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Debug)]
+#[derive(Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Serialize, Deserialize, Debug)]
 pub struct ToLowerCase(pub String);
 
 impl Task for ToLowerCase {
@@ -89,3 +94,5 @@ impl Task for ToLowerCase {
     self.0.to_lowercase()
   }
 }
+
+register_task!(ToLowerCase);
