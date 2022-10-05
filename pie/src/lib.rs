@@ -55,9 +55,9 @@ pub trait Task: Eq + Hash + Clone + Id + Serialize + DeserializeOwned + Any + De
 
 
 /// Trait alias for task outputs.
-pub trait Output: Eq + Clone + Any + Debug {}
+pub trait Output: Eq + Clone + Id + Serialize + DeserializeOwned + Any + Debug {}
 
-impl<T: Eq + Clone + Any + Debug> Output for T {}
+impl<T: Eq + Clone + Id + Serialize + DeserializeOwned + Any + Debug> Output for T {}
 
 
 /// Incremental context, mediating between tasks and executors, enabling tasks to dynamically create dependencies that 
@@ -91,12 +91,20 @@ impl Pie {
   /// Creates a new [`Pie`] instance.
   #[inline]
   pub fn new() -> Self { Self::default() }
+
+  /// Creates a new [`Pie`] instance with given `store`.
+  #[inline]
+  pub fn with_store(store: Store<RandomState>) -> Self { Self { store, tracker: NoopTracker::default() } }
 }
 
 impl<A: Tracker + Default> Pie<A> {
   /// Creates a new [`Pie`] instance with given `tracker`.
   #[inline]
   pub fn with_tracker(tracker: A) -> Self { Self { store: Store::default(), tracker } }
+
+  /// Creates a new [`Pie`] instance with given `store` and `tracker`.
+  #[inline]
+  pub fn with(store: Store<RandomState>, tracker: A) -> Self { Self { store, tracker } }
 }
 
 impl<A: Tracker + Default, H: BuildHasher + Default> Pie<A, H> {
@@ -110,6 +118,10 @@ impl<A: Tracker + Default, H: BuildHasher + Default> Pie<A, H> {
     f(session)
   }
 
+  /// Gets the [`Store`] instance.
+  #[inline]
+  pub fn store(&self) -> &Store<H> { &self.store }
+
   /// Gets the [`Tracker`] instance.
   #[inline]
   pub fn tracker(&self) -> &A { &self.tracker }
@@ -117,8 +129,10 @@ impl<A: Tracker + Default, H: BuildHasher + Default> Pie<A, H> {
   #[inline]
   pub fn tracker_mut(&mut self) -> &mut A { &mut self.tracker }
 
-  pub fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-    self.store.serialize(serializer)
+  /// Creates a new [`Pie`] instance with the store replaced by the given `store`.
+  #[inline]
+  pub fn replace_store(self, store: Store<H>) -> Self {
+    Self { store, tracker: self.tracker }
   }
 }
 

@@ -96,7 +96,7 @@ impl<'de> ::serde::Deserialize<'de> for Box<dyn DynTask> {
 
 
 /// Object-safe version of [`Output`].
-pub trait DynOutput: DynClone + Any + Debug {
+pub trait DynOutput: DynClone + DynId + erased_serde::Serialize + Any + Debug {
   fn dyn_eq(&self, other: &dyn Any) -> bool;
   fn as_any(&self) -> &dyn Any;
   fn as_any_mut(&mut self) -> &mut dyn Any;
@@ -171,7 +171,7 @@ impl<C: Context> DynContext for C {
 
 
 /// Object-safe version of [`Dependency`].
-pub(crate) trait DynDependency: Debug {
+pub trait DynDependency: DynId + erased_serde::Serialize + Debug {
   fn dyn_is_consistent(&self, context: &mut dyn DynContext) -> Result<bool, Box<dyn Error>>;
 }
 
@@ -186,5 +186,19 @@ impl<D: Dependency> DynDependency for D {
   #[inline]
   fn dyn_is_consistent(&self, mut context: &mut dyn DynContext) -> Result<bool, Box<dyn Error>> {
     self.is_consistent(&mut context)
+  }
+}
+
+// Panicking "dummy" implementations for traits that cannot be properly implemented on `Box<dyn DynTask>`.
+
+impl Id for &dyn DynDependency {
+  fn id() -> &'static str {
+    panic!("Id cannot be implemented for `&dyn DynDependency` and should not be used");
+  }
+}
+
+impl<'de> ::serde::Deserialize<'de> for &dyn DynDependency {
+  fn deserialize<D: ::serde::Deserializer<'de>>(_deserializer: D) -> Result<Self, D::Error> {
+    panic!("Deserialize cannot be implemented for `&dyn DynDependency` and should not be used");
   }
 }
