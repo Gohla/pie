@@ -46,6 +46,12 @@ impl<T: Debug> CheckErrorExt<T> for Result<T, std::io::ErrorKind> {
   }
 }
 
+impl<T: Debug> CheckErrorExt<T> for Result<T, ()> {
+  fn check(self) -> T {
+    self.expect("something failed")
+  }
+}
+
 
 // Read string from file task
 
@@ -53,11 +59,11 @@ impl<T: Debug> CheckErrorExt<T> for Result<T, std::io::ErrorKind> {
 pub struct ReadStringFromFile(pub PathBuf);
 
 impl Task for ReadStringFromFile {
-  type Output = Result<String, std::io::ErrorKind>;
+  type Output = Result<String, ()>;
   fn execute<C: Context>(&self, context: &mut C) -> Self::Output {
-    let mut file = context.require_file(&self.0).map_err(|e| e.kind())?;
+    let mut file = context.require_file(&self.0).map_err(|_| ())?;
     let mut string = String::new();
-    file.read_to_string(&mut string).map_err(|e| e.kind())?;
+    file.read_to_string(&mut string).map_err(|_| ())?;
     Ok(string)
   }
 }
@@ -71,11 +77,11 @@ register_task!(ReadStringFromFile);
 pub struct WriteStringToFile(pub PathBuf, pub String);
 
 impl Task for WriteStringToFile {
-  type Output = Result<(), std::io::ErrorKind>;
+  type Output = Result<(), ()>;
   fn execute<C: Context>(&self, context: &mut C) -> Self::Output {
-    let mut file = File::create(&self.0).map_err(|e| e.kind())?;
-    file.write_all(self.1.as_bytes()).map_err(|e| e.kind())?;
-    context.provide_file(&self.0).map_err(|e| e.kind())?;
+    let mut file = File::create(&self.0).map_err(|_| ())?;
+    file.write_all(self.1.as_bytes()).map_err(|_| ())?;
+    context.provide_file(&self.0).map_err(|_| ())?;
     Ok(())
   }
 }

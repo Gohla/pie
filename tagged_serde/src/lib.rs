@@ -26,6 +26,7 @@ impl<T: Id + ?Sized> DynId for T {
   fn dyn_id(&self) -> &'static str { T::id() }
 }
 
+
 /// Registry for mapping unique identifiers from [`Id`] to a function that deserializes to instances 
 /// of the type of the identifier.
 pub struct Registry<O: ?Sized> {
@@ -53,6 +54,10 @@ impl<O: ?Sized> Registry<O> {
   }
 }
 
+fn deserialize_fn<T: for<'de> serde::Deserialize<'de> + Into<Box<O>> + 'static, O: ?Sized>(deserializer: &mut dyn erased_serde::Deserializer) -> erased_serde::Result<Box<O>> {
+  Ok(erased_serde::deserialize::<T>(deserializer)?.into())
+}
+
 /// Trait for providing a [`Registry`] instance for a specific trait-object, along with the name of the trait object for
 /// error reporting.
 pub trait RegistryProvider {
@@ -60,15 +65,26 @@ pub trait RegistryProvider {
   fn trait_object_name() -> &'static str;
 }
 
-/// Wrapper for tagged serialization where a type is serialized along with its identifier, enabling deserialization of 
-/// a trait object.
-#[repr(transparent)]
-#[derive(Debug)]
-pub struct TaggedSerde<O: ?Sized>(pub Box<O>);
 
-impl<O: ?Sized> TaggedSerde<O> {
-  pub fn new(value: Box<O>) -> Self { Self(value) }
+/// Tagged serialization: serialize a trait object by serializing the value along with the unique identifier of the 
+/// value.
+pub fn serialize_tagged<O: DynId + Serialize + ?Sized, S: Serializer>(value: &O, serializer: S) -> Result<S::Ok, S::Error> {
+  let mut serializer = serializer.serialize_map(Some(1))?;
+  serializer.serialize_entry(value.dyn_id(), value)?;
+  serializer.end()
 }
+
+/// Tagged deserialization: deserialize a trait object by first deserializing the unique identifier of the value, 
+/// looking up the identifier in the corresponding registry, and then using the deserialization function registered with
+/// the registry to deserialize the actual value.
+pub fn deserialize_tagged<'de, O: RegistryProvider + ?Sized + 'static, D: Deserializer<'de>>(deserializer: D) -> Result<Box<O>, D::Error> {
+  let visitor = TaggedVisitor {
+    trait_object: O::trait_object_name(),
+    registry: O::registry(),
+  };
+  deserializer.deserialize_map(visitor)
+}
+
 
 /// Defines a distributed slice for registration functions with id `$distributed_slice_id`, defines a static registry
 /// with name `$registry_id` of type `Registry<$trait_object>` that applies all registration functions, and implements
@@ -122,38 +138,32 @@ macro_rules! register {
   }
 }
 
-pub fn serialize<O: DynId + Serialize + ?Sized, S: Serializer>(value: &O, serializer: S) -> Result<S::Ok, S::Error> {
-  let mut serializer = serializer.serialize_map(Some(1))?;
-  serializer.serialize_entry(value.dyn_id(), value)?;
-  serializer.end()
-}
 
-pub fn deserialize<'de, O: RegistryProvider + ?Sized + 'static, D: Deserializer<'de>>(deserializer: D) -> Result<Box<O>, D::Error> {
-  let visitor = TaggedVisitor {
-    trait_object: O::trait_object_name(),
-    registry: O::registry(),
-  };
-  deserializer.deserialize_map(visitor)
-}
+/// Wrapper for tagged (de)serialization where a type is serialized along with its unique identifier, enabling 
+/// (de)serialization of trait objects. This can be used as a wrapper instead of having to use [`serialize_tagged`] and
+/// [`deserialize_tagged`].
+#[repr(transparent)]
+#[derive(Debug)]
+pub struct TaggedSerde<O: ?Sized>(pub Box<O>);
 
-
-// Internals
-
-fn deserialize_fn<T: for<'de> serde::Deserialize<'de> + Into<Box<O>> + 'static, O: ?Sized>(deserializer: &mut dyn erased_serde::Deserializer) -> erased_serde::Result<Box<O>> {
-  Ok(erased_serde::deserialize::<T>(deserializer)?.into())
+impl<O: ?Sized> TaggedSerde<O> {
+  pub fn new(value: Box<O>) -> Self { Self(value) }
 }
 
 impl<O: DynId + Serialize + ?Sized> Serialize for TaggedSerde<O> {
   fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-    serialize(self.0.as_ref(), serializer)
+    serialize_tagged(self.0.as_ref(), serializer)
   }
 }
 
 impl<'de, O: RegistryProvider + ?Sized + 'static> Deserialize<'de> for TaggedSerde<O> {
   fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-    deserialize(deserializer).map(|v|TaggedSerde(v))
+    deserialize_tagged(deserializer).map(|v| TaggedSerde(v))
   }
 }
+
+
+// Various internals for tagged (de)serialization.
 
 struct TaggedVisitor<T: ?Sized + 'static> {
   trait_object: &'static str,

@@ -6,6 +6,7 @@ use std::hash::{Hash, Hasher};
 use std::path::PathBuf;
 
 use dyn_clone::DynClone;
+use erased_serde::serialize_trait_object;
 
 use pie_tagged_serde::{DynId, Id};
 
@@ -80,6 +81,8 @@ impl<T: Task> DynTaskExt for T {
   fn clone_box(&self) -> Box<dyn DynTask> { self.as_dyn().clone_box() }
 }
 
+serialize_trait_object!(crate::trait_object::DynTask); // Implement `serde::Serialize` for `dyn DynTask`.
+
 // Panicking "dummy" implementations for traits that cannot be properly implemented on `Box<dyn DynTask>`.
 
 impl Id for Box<dyn DynTask> {
@@ -96,7 +99,7 @@ impl<'de> ::serde::Deserialize<'de> for Box<dyn DynTask> {
 
 
 /// Object-safe version of [`Output`].
-pub trait DynOutput: DynClone + DynId + erased_serde::Serialize + Any + Debug {
+pub trait DynOutput: DynClone + erased_serde::Serialize + Any + Debug {
   fn dyn_eq(&self, other: &dyn Any) -> bool;
   fn as_any(&self) -> &dyn Any;
   fn as_any_mut(&mut self) -> &mut dyn Any;
@@ -136,6 +139,16 @@ pub trait DynOutputExt {
 impl DynOutputExt for dyn DynOutput {
   #[inline]
   fn clone_box(&self) -> Box<Self> { dyn_clone::clone_box(self) }
+}
+
+serialize_trait_object!(crate::trait_object::DynOutput); // Implement `serde::Serialize` for `dyn DynOutput`.
+
+// Panicking "dummy" implementations for traits that cannot be properly implemented on `Box<dyn DynTask>`.
+
+impl<'de> ::serde::Deserialize<'de> for Box<dyn DynOutput> {
+  fn deserialize<D: ::serde::Deserializer<'de>>(_deserializer: D) -> Result<Self, D::Error> {
+    panic!("Deserialize cannot be implemented for `Box<dyn DynOutput>` and should not be used");
+  }
 }
 
 
@@ -188,6 +201,8 @@ impl<D: Dependency> DynDependency for D {
     self.is_consistent(&mut context)
   }
 }
+
+serialize_trait_object!(crate::trait_object::DynDependency); // Implement `serde::Serialize` for `dyn DynDependency`.
 
 // Panicking "dummy" implementations for traits that cannot be properly implemented on `Box<dyn DynTask>`.
 

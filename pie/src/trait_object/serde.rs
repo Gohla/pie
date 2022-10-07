@@ -1,10 +1,6 @@
-use erased_serde::serialize_trait_object;
-
 use pie_tagged_serde::{impl_registry, Registry};
 
 // Tasks
-
-serialize_trait_object!(crate::trait_object::DynTask); // Implement `serde::Serialize` for `dyn DynTask`.
 
 impl_registry!(dyn crate::trait_object::DynTask, TASK_REGISTRY_FNS, TASK_REGISTRY);
 
@@ -19,8 +15,6 @@ macro_rules! register_task {
 
 
 // Dependencies
-
-serialize_trait_object!(crate::trait_object::DynDependency); // Implement `serde::Serialize` for `dyn DynDependency`.
 
 impl_registry!(dyn crate::trait_object::DynDependency, DEPENDENCY_REGISTRY_FNS, DEPENDENCY_REGISTRY);
 

@@ -82,7 +82,7 @@ fn test_require_task(mut pie: Pie, temp_dir: TempDir) {
   #[derive(Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Debug)]
   struct Combine(ReadStringFromFile);
   impl Task for Combine {
-    type Output = Result<String, std::io::ErrorKind>;
+    type Output = Result<String, ()>;
     fn execute<C: Context>(&self, context: &mut C) -> Self::Output {
       let text = context.require_task(&self.0)?;
       Ok(context.require_task(&ToLowerCase(text)))

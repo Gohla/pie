@@ -55,9 +55,9 @@ pub trait Task: Eq + Hash + Clone + Id + Serialize + DeserializeOwned + Any + De
 
 
 /// Trait alias for task outputs.
-pub trait Output: Eq + Clone + Id + Serialize + DeserializeOwned + Any + Debug {}
+pub trait Output: Eq + Clone + Serialize + DeserializeOwned + Any + Debug {}
 
-impl<T: Eq + Clone + Id + Serialize + DeserializeOwned + Any + Debug> Output for T {}
+impl<T: Eq + Clone + Serialize + DeserializeOwned + Any + Debug> Output for T {}
 
 
 /// Incremental context, mediating between tasks and executors, enabling tasks to dynamically create dependencies that 

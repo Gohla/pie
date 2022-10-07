@@ -5,7 +5,6 @@ use std::path::PathBuf;
 use serde::{Deserialize, Serialize};
 
 use pie_graph::{DAG, Node};
-use pie_tagged_serde::TaggedSerde;
 
 use crate::dependency::FileDependency;
 use crate::Task;
@@ -38,8 +37,10 @@ pub struct Store<H> {
 #[derive(Serialize, Deserialize, Debug)]
 pub(crate) enum NodeData {
   Task {
-    task: TaggedSerde<dyn DynTask>,
-    dependencies: Option<Vec<TaggedSerde<dyn DynDependency>>>,
+    #[serde(with = "task_serde")]
+    task: Box<dyn DynTask>,
+    #[serde(skip)]
+    dependencies: Option<Vec<Box<dyn DynDependency>>>,
     #[serde(skip)]
     output: Option<Box<dyn DynOutput>>,
   },
@@ -78,7 +79,7 @@ impl<H: BuildHasher + Default> Store<H> {
       *node
     } else {
       let node = self.graph.add_node(NodeData::Task {
-        task: TaggedSerde::new(task.clone()),
+        task: task.clone(),
         dependencies: None,
         output: None,
       });
@@ -89,7 +90,7 @@ impl<H: BuildHasher + Default> Store<H> {
   #[inline]
   pub fn get_task_by_node(&self, task_node: &TaskNode) -> Option<&Box<dyn DynTask>> {
     self.graph.get_node_data(task_node).and_then(|d| match d {
-      NodeData::Task { task, .. } => Some(&task.0),
+      NodeData::Task { task, .. } => Some(task),
       _ => None
     })
   }
@@ -210,3 +211,20 @@ impl<H: BuildHasher + Default> Store<H> {
     self.graph.contains_transitive_dependency(depender_task_node, dependee_task_node)
   }
 }
+
+mod task_serde {
+  use serde::{Deserializer, Serializer};
+
+  use pie_tagged_serde::{deserialize_tagged, serialize_tagged};
+
+  use crate::DynTask;
+
+  pub(crate) fn serialize<S: Serializer>(task: &Box<dyn DynTask>, serializer: S) -> Result<S::Ok, S::Error> {
+    serialize_tagged(task.as_ref(), serializer)
+  }
+
+  pub(crate) fn deserialize<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Box<dyn DynTask>, D::Error> {
+    deserialize_tagged(deserializer)
+  }
+}
+
