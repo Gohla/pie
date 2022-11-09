@@ -270,11 +270,7 @@ version = "0.1.0"
 dependencies = [
  "assert_matches",
  "dyn-clone",
- "erased-serde",
- "lazy_static",
- "linkme",
  "pie_graph",
- "pie_tagged_serde",
  "rstest",
  "serde",
  "serde_json",

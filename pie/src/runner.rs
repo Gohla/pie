@@ -5,22 +5,21 @@ use std::path::PathBuf;
 use pie_graph::Node;
 
 use crate::{Context, Session, Task};
-use crate::dependency::{FileDependency, TaskDependency};
+use crate::dependency::Dependency;
 use crate::store::TaskNode;
 use crate::tracker::Tracker;
-use crate::trait_object::{DynOutput, DynTaskExt};
 
 /// Incremental runner that runs tasks and checks dependencies recursively in a top-down manner.
 #[derive(Debug)]
-pub(crate) struct TopDownRunner<'p, 's, A, H> {
-  session: &'s mut Session<'p, A, H>,
+pub(crate) struct TopDownRunner<'p, 's, T, O, A, H> {
+  session: &'s mut Session<'p, T, O, A, H>,
   task_execution_stack: Vec<TaskNode>,
 }
 
-impl<'p, 's, A: Tracker, H: BuildHasher + Default> TopDownRunner<'p, 's, A, H> {
+impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> TopDownRunner<'p, 's, T, T::Output, A, H> {
   /// Creates a new [`TopDownRunner`] with given [`Tracker`].
   #[inline]
-  pub fn new(session: &'s mut Session<'p, A, H>) -> Self {
+  pub fn new(session: &'s mut Session<'p, T, T::Output, A, H>) -> Self {
     Self {
       session,
       task_execution_stack: Default::default(),
@@ -29,18 +28,16 @@ impl<'p, 's, A: Tracker, H: BuildHasher + Default> TopDownRunner<'p, 's, A, H> {
 
   /// Requires given `task`, returning its up-to-date output.
   #[inline]
-  pub fn require<T: Task>(&mut self, task: &T) -> T::Output {
+  pub fn require(&mut self, task: &T) -> T::Output {
     self.task_execution_stack.clear();
-    self.require_task::<T>(task)
+    self.require_task(task)
   }
 }
 
-impl<'p, 's, A: Tracker, H: BuildHasher + Default> Context for TopDownRunner<'p, 's, A, H> {
-  fn require_task<T: Task>(&mut self, task: &T) -> T::Output {
-    let dyn_task = task.as_dyn();
-    self.session.tracker.require_task(dyn_task);
-    let task_dyn_clone = task.clone_box();
-    let task_node = self.session.store.get_or_create_node_by_task(task_dyn_clone);
+impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> Context<T> for TopDownRunner<'p, 's, T, T::Output, A, H> {
+  fn require_task(&mut self, task: &T) -> T::Output {
+    self.session.tracker.require_task(task);
+    let task_node = self.session.store.get_or_create_node_by_task(task.clone());
     if !self.session.visited.contains(&task_node) && self.should_execute_task(task_node) { // Execute the task, cache and return up-to-date output.
       self.session.store.reset_task(&task_node);
       // Check for cyclic dependency
@@ -53,20 +50,20 @@ impl<'p, 's, A: Tracker, H: BuildHasher + Default> Context for TopDownRunner<'p,
       }
       // Execute task
       self.task_execution_stack.push(task_node);
-      self.session.tracker.execute_task_start(dyn_task);
+      self.session.tracker.execute_task_start(task);
       let output = task.execute(self);
-      self.session.tracker.execute_task_end(dyn_task, &output as &dyn DynOutput);
+      self.session.tracker.execute_task_end(task, &output);
       self.task_execution_stack.pop();
       // Store dependency and output.
       if let Some(current_task_node) = self.task_execution_stack.last() {
-        self.session.store.add_to_dependencies_of_task(*current_task_node, Box::new(TaskDependency::new(task.clone(), output.clone())));
+        self.session.store.add_to_dependencies_of_task(*current_task_node, Dependency::require_task(task.clone(), output.clone()));
       }
-      self.session.store.set_task_output::<T>(task_node, output.clone());
+      self.session.store.set_task_output(task_node, output.clone());
       self.session.visited.insert(task_node);
       output
     } else { // Return already up-to-date output.
       // Unwrap OK: if we should not execute the task, it must have been executed before, and therefore it has an output.
-      let output = self.session.store.get_task_output::<T>(task_node).unwrap().clone();
+      let output = self.session.store.get_task_output(task_node).unwrap().clone();
       output
     }
   }
@@ -74,8 +71,7 @@ impl<'p, 's, A: Tracker, H: BuildHasher + Default> Context for TopDownRunner<'p,
   fn require_file(&mut self, path: &PathBuf) -> Result<File, std::io::Error> {
     self.session.tracker.require_file(path);
     let file_node = self.session.store.get_or_create_file_node(path);
-    let dependency = FileDependency::new(path.clone()).map_err(|e| e.kind())?;
-    let opened = dependency.open();
+    let (dependency, file) = Dependency::require_file(path)?;
     if let Some(current_requiring_task_node) = self.task_execution_stack.last() {
       if let Some(providing_task_node) = self.session.store.get_providing_task_node(&file_node) {
         if !self.session.store.contains_transitive_task_dependency(current_requiring_task_node, &providing_task_node) {
@@ -86,13 +82,13 @@ impl<'p, 's, A: Tracker, H: BuildHasher + Default> Context for TopDownRunner<'p,
       }
       self.session.store.add_file_require_dependency(*current_requiring_task_node, file_node, dependency);
     }
-    opened
+    Ok(file)
   }
 
   fn provide_file(&mut self, path: &PathBuf) -> Result<(), std::io::Error> {
     self.session.tracker.provide_file(path);
     let file_node = self.session.store.get_or_create_file_node(path);
-    let dependency = FileDependency::new(path.clone()).map_err(|e| e.kind())?;
+    let dependency = Dependency::provide_file(path).map_err(|e| e.kind())?;
     if let Some(current_providing_task_node) = self.task_execution_stack.last() {
       if let Some(previous_providing_task_node) = self.session.store.get_providing_task_node(&file_node) {
         let current_providing_task = self.session.store.task_by_node(current_providing_task_node);
@@ -112,7 +108,7 @@ impl<'p, 's, A: Tracker, H: BuildHasher + Default> Context for TopDownRunner<'p,
   }
 }
 
-impl<'p, 's, A: Tracker, H: BuildHasher + Default> TopDownRunner<'p, 's, A, H> {
+impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> TopDownRunner<'p, 's, T, T::Output, A, H> {
   fn should_execute_task(&mut self, task_node: Node) -> bool {
     // Remove task dependencies so that we get ownership over the list of dependencies. If the task does not need to be
     // executed, we will restore the dependencies again.
@@ -121,7 +117,7 @@ impl<'p, 's, A: Tracker, H: BuildHasher + Default> TopDownRunner<'p, 's, A, H> {
       // Task has been executed before, check whether all its dependencies are still consistent. If one or more are not,
       // we need to execute the task.
       for task_dependency in &task_dependencies {
-        match task_dependency.dyn_is_consistent(self) {
+        match task_dependency.is_consistent(self) {
           Ok(false) => return true, // Not consistent -> should execute task.
           Err(e) => { // Error -> store error and assume not consistent -> should execute task.
             self.session.dependency_check_errors.push(e);

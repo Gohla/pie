@@ -6,26 +6,25 @@ use serde::{Deserialize, Serialize};
 
 use pie_graph::{DAG, Node};
 
-use crate::dependency::FileDependency;
+use crate::dependency::Dependency;
 use crate::Task;
-use crate::trait_object::{DynDependency, DynOutput, DynTask};
 
 pub type TaskNode = Node;
 pub type FileNode = Node;
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct Store<H> {
+pub struct Store<T, O, H> {
   #[serde(bound(
-  serialize = "H: BuildHasher + Default, DAG<NodeData, ParentData, ChildData, H>: serde::Serialize",
-  deserialize = "H: BuildHasher + Default, DAG<NodeData, ParentData, ChildData, H>: serde::Deserialize<'de>"
+  serialize = "T: Task, O: serde::Serialize, H: BuildHasher + Default, DAG<NodeData<T, O>, ParentData, ChildData, H>: serde::Serialize",
+  deserialize = "T: Task, O: serde::Deserialize<'de>, H: BuildHasher + Default, DAG<NodeData<T, O>, ParentData, ChildData, H>: serde::Deserialize<'de>"
   ))] // Set bounds such that `H` does not have to be (de)serializable
-  graph: DAG<NodeData, ParentData, ChildData, H>,
+  graph: DAG<NodeData<T, O>, ParentData, ChildData, H>,
   #[serde(bound(
-  serialize = "H: BuildHasher + Default, HashMap<Box<dyn DynTask>, TaskNode, H>: serde::Serialize",
-  deserialize = "H: BuildHasher + Default, HashMap<Box<dyn DynTask>, TaskNode, H>: serde::Deserialize<'de>"
+  serialize = "T: Task, H: BuildHasher + Default, HashMap<T, TaskNode, H>: serde::Serialize",
+  deserialize = "T: Task, H: BuildHasher + Default, HashMap<T, TaskNode, H>: serde::Deserialize<'de>"
   ))] // Set bounds such that `H` does not have to be (de)serializable
   #[serde(skip)]
-  task_to_node: HashMap<Box<dyn DynTask>, TaskNode, H>,
+  task_to_node: HashMap<T, TaskNode, H>,
   #[serde(bound(
   serialize = "H: BuildHasher + Default, HashMap<PathBuf, FileNode, H>: serde::Serialize",
   deserialize = "H: BuildHasher + Default, HashMap<PathBuf, FileNode, H>: serde::Deserialize<'de>"
@@ -35,14 +34,11 @@ pub struct Store<H> {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-pub(crate) enum NodeData {
+pub(crate) enum NodeData<T, O> {
   Task {
-    #[serde(with = "task_serde")]
-    task: Box<dyn DynTask>,
-    #[serde(skip)]
-    dependencies: Option<Vec<Box<dyn DynDependency>>>,
-    #[serde(skip)]
-    output: Option<Box<dyn DynOutput>>,
+    task: T,
+    dependencies: Option<Vec<Dependency<T, O>>>,
+    output: Option<O>,
   },
   File(PathBuf),
 }
@@ -61,7 +57,7 @@ pub(crate) enum ChildData {
   RequireTask,
 }
 
-impl<H: BuildHasher + Default> Default for Store<H> {
+impl<T: Task, H: BuildHasher + Default> Default for Store<T, T::Output, H> {
   #[inline]
   fn default() -> Self {
     Self {
@@ -72,9 +68,9 @@ impl<H: BuildHasher + Default> Default for Store<H> {
   }
 }
 
-impl<H: BuildHasher + Default> Store<H> {
+impl<T: Task, H: BuildHasher + Default> Store<T, T::Output, H> {
   #[inline]
-  pub fn get_or_create_node_by_task(&mut self, task: Box<dyn DynTask>) -> TaskNode {
+  pub fn get_or_create_node_by_task(&mut self, task: T) -> TaskNode {
     if let Some(node) = self.task_to_node.get(&task) {
       *node
     } else {
@@ -88,7 +84,7 @@ impl<H: BuildHasher + Default> Store<H> {
     }
   }
   #[inline]
-  pub fn get_task_by_node(&self, task_node: &TaskNode) -> Option<&Box<dyn DynTask>> {
+  pub fn get_task_by_node(&self, task_node: &TaskNode) -> Option<&T> {
     self.graph.get_node_data(task_node).and_then(|d| match d {
       NodeData::Task { task, .. } => Some(task),
       _ => None
@@ -96,7 +92,7 @@ impl<H: BuildHasher + Default> Store<H> {
   }
 
   #[inline]
-  pub fn task_by_node(&self, task_node: &TaskNode) -> &Box<dyn DynTask> {
+  pub fn task_by_node(&self, task_node: &TaskNode) -> &T {
     self.get_task_by_node(task_node).unwrap()
   }
 
@@ -121,7 +117,7 @@ impl<H: BuildHasher + Default> Store<H> {
 
 
   #[inline]
-  pub fn remove_dependencies_of_task(&mut self, task_node: &TaskNode) -> Option<Vec<Box<dyn DynDependency>>> {
+  pub fn remove_dependencies_of_task(&mut self, task_node: &TaskNode) -> Option<Vec<Dependency<T, T::Output>>> {
     if let Some(NodeData::Task { dependencies, .. }) = self.graph.get_node_data_mut(task_node) {
       std::mem::take(dependencies)
     } else {
@@ -129,13 +125,13 @@ impl<H: BuildHasher + Default> Store<H> {
     }
   }
   #[inline]
-  pub fn set_dependencies_of_task(&mut self, task_node: TaskNode, new_dependencies: Vec<Box<dyn DynDependency>>) {
+  pub fn set_dependencies_of_task(&mut self, task_node: TaskNode, new_dependencies: Vec<Dependency<T, T::Output>>) {
     if let Some(NodeData::Task { ref mut dependencies, .. }) = self.graph.get_node_data_mut(task_node) {
       std::mem::swap(dependencies, &mut Some(new_dependencies));
     }
   }
   #[inline]
-  pub fn add_to_dependencies_of_task(&mut self, task_node: TaskNode, dependency: Box<dyn DynDependency>) {
+  pub fn add_to_dependencies_of_task(&mut self, task_node: TaskNode, dependency: Dependency<T, T::Output>) {
     if let Some(NodeData::Task { ref mut dependencies, .. }) = self.graph.get_node_data_mut(task_node) {
       if let Some(dependencies) = dependencies {
         dependencies.push(dependency);
@@ -155,38 +151,34 @@ impl<H: BuildHasher + Default> Store<H> {
     }
   }
   #[inline]
-  pub fn get_task_output<T: Task>(&self, task_node: TaskNode) -> Option<&T::Output> {
+  pub fn get_task_output(&self, task_node: TaskNode) -> Option<&T::Output> {
     if let Some(NodeData::Task { output: Some(output), .. }) = self.graph.get_node_data(task_node) {
-      T::downcast_ref_output(output)
+      Some(output)
     } else {
       None
     }
   }
   #[inline]
-  pub fn set_task_output<T: Task>(&mut self, task_node: TaskNode, new_output: T::Output) {
+  pub fn set_task_output(&mut self, task_node: TaskNode, new_output: T::Output) {
     if let Some(NodeData::Task { output, .. }) = self.graph.get_node_data_mut(task_node) {
-      if let Some(output) = output {
-        if let Some(output) = T::downcast_mut_output(output) {
-          *output = new_output; // Replace the value inside the box.
-        } else { // Stored output is not of the correct type any more, replace it with a new boxed output.
-          *output = Box::new(new_output);
-        }
+      if let Some(output) = output { // Replace the output.
+        *output = new_output;
       } else { // No output was stored yet, create a new boxed output.
-        *output = Some(Box::new(new_output));
+        *output = Some(new_output);
       }
     }
   }
 
 
   #[inline]
-  pub fn add_file_require_dependency(&mut self, depender_task_node: TaskNode, dependee_file_node: FileNode, dependency: FileDependency) {
+  pub fn add_file_require_dependency(&mut self, depender_task_node: TaskNode, dependee_file_node: FileNode, dependency: Dependency<T, T::Output>) {
     self.graph.add_dependency(depender_task_node, dependee_file_node, ParentData::FileRequiringTask, ChildData::RequireFile).ok(); // Ignore error OK: cycles cannot occur from task to file dependencies, as files do not have dependencies.
-    self.add_to_dependencies_of_task(depender_task_node, Box::new(dependency));
+    self.add_to_dependencies_of_task(depender_task_node, dependency);
   }
   #[inline]
-  pub fn add_file_provide_dependency(&mut self, depender_task_node: TaskNode, dependee_file_node: FileNode, dependency: FileDependency) {
+  pub fn add_file_provide_dependency(&mut self, depender_task_node: TaskNode, dependee_file_node: FileNode, dependency: Dependency<T, T::Output>) {
     self.graph.add_dependency(depender_task_node, dependee_file_node, ParentData::FileProvidingTask, ChildData::ProvideFile).ok(); // Ignore error OK: cycles cannot occur from task to file dependencies, as files do not have dependencies.
-    self.add_to_dependencies_of_task(depender_task_node, Box::new(dependency));
+    self.add_to_dependencies_of_task(depender_task_node, dependency);
   }
 
 
@@ -211,20 +203,3 @@ impl<H: BuildHasher + Default> Store<H> {
     self.graph.contains_transitive_dependency(depender_task_node, dependee_task_node)
   }
 }
-
-mod task_serde {
-  use serde::{Deserializer, Serializer};
-
-  use pie_tagged_serde::{deserialize_tagged, serialize_tagged};
-
-  use crate::DynTask;
-
-  pub(crate) fn serialize<S: Serializer>(task: &Box<dyn DynTask>, serializer: S) -> Result<S::Ok, S::Error> {
-    serialize_tagged(task.as_ref(), serializer)
-  }
-
-  pub(crate) fn deserialize<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Box<dyn DynTask>, D::Error> {
-    deserialize_tagged(deserializer)
-  }
-}
-

@@ -1,44 +1,50 @@
 use std::io;
 use std::io::{Stderr, Stdout};
+use std::marker::PhantomData;
 use std::path::PathBuf;
 
-use crate::trait_object::{DynOutput, DynOutputExt, DynTask, DynTaskExt};
+use crate::Task;
 
 /// Trait for tracking build events. Can be used to implement logging, event tracing, and possibly progress tracking.
-pub trait Tracker {
+pub trait Tracker<T: Task> {
   fn require_file(&mut self, file: &PathBuf);
   fn provide_file(&mut self, file: &PathBuf);
-  fn require_task(&mut self, task: &dyn DynTask);
+  fn require_task(&mut self, task: &T);
 
-  fn execute_task_start(&mut self, task: &dyn DynTask);
-  fn execute_task_end(&mut self, task: &dyn DynTask, output: &dyn DynOutput);
+  fn execute_task_start(&mut self, task: &T);
+  fn execute_task_end(&mut self, task: &T, output: &T::Output);
 }
 
 
 /// A [`Tracker`] that does nothing.
-#[derive(Default, Clone, Debug)]
-pub struct NoopTracker;
+#[derive(Clone, Debug)]
+pub struct NoopTracker<T>(PhantomData<T>);
 
-impl Tracker for NoopTracker {
+impl<T: Task> Default for NoopTracker<T> {
+  #[inline]
+  fn default() -> Self { Self(PhantomData::default()) }
+}
+
+impl<T: Task> Tracker<T> for NoopTracker<T> {
   #[inline]
   fn require_file(&mut self, _file: &PathBuf) {}
   #[inline]
   fn provide_file(&mut self, _file: &PathBuf) {}
   #[inline]
-  fn require_task(&mut self, _task: &dyn DynTask) {}
+  fn require_task(&mut self, _task: &T) {}
 
   #[inline]
-  fn execute_task_start(&mut self, _task: &dyn DynTask) {}
+  fn execute_task_start(&mut self, _task: &T) {}
   #[inline]
-  fn execute_task_end(&mut self, _task: &dyn DynTask, _output: &dyn DynOutput) {}
+  fn execute_task_end(&mut self, _task: &T, _output: &T::Output) {}
 }
 
 
 /// A [`Tracker`] that forwards events to two other [`Tracker`]s.
 #[derive(Default, Clone, Debug)]
-pub struct CompositeTracker<T1, T2>(pub T1, pub T2);
+pub struct CompositeTracker<A1, A2>(pub A1, pub A2);
 
-impl<T1: Tracker, T2: Tracker> Tracker for CompositeTracker<T1, T2> {
+impl<T: Task, T1: Tracker<T>, T2: Tracker<T>> Tracker<T> for CompositeTracker<T1, T2> {
   #[inline]
   fn require_file(&mut self, file: &PathBuf) {
     self.0.require_file(file);
@@ -50,18 +56,18 @@ impl<T1: Tracker, T2: Tracker> Tracker for CompositeTracker<T1, T2> {
     self.1.provide_file(file);
   }
   #[inline]
-  fn require_task(&mut self, task: &dyn DynTask) {
+  fn require_task(&mut self, task: &T) {
     self.0.require_task(task);
     self.1.require_task(task);
   }
 
   #[inline]
-  fn execute_task_start(&mut self, task: &dyn DynTask) {
+  fn execute_task_start(&mut self, task: &T) {
     self.0.execute_task_start(task);
     self.1.execute_task_start(task);
   }
   #[inline]
-  fn execute_task_end(&mut self, task: &dyn DynTask, output: &dyn DynOutput) {
+  fn execute_task_end(&mut self, task: &T, output: &T::Output) {
     self.0.execute_task_end(task, output);
     self.1.execute_task_end(task, output);
   }
@@ -99,7 +105,7 @@ impl WritingTracker<Stderr> {
   pub fn new_stderr_writer() -> Self { Self::new(io::stderr()) }
 }
 
-impl<W: io::Write> Tracker for WritingTracker<W> {
+impl<T: Task, W: io::Write> Tracker<T> for WritingTracker<W> {
   #[inline]
   fn require_file(&mut self, file: &PathBuf) {
     writeln!(&mut self.writer, "Required file: {}", file.display()).ok();
@@ -109,16 +115,16 @@ impl<W: io::Write> Tracker for WritingTracker<W> {
     writeln!(&mut self.writer, "Provided file: {}", file.display()).ok();
   }
   #[inline]
-  fn require_task(&mut self, task: &dyn DynTask) {
+  fn require_task(&mut self, task: &T) {
     writeln!(&mut self.writer, "Required task: {:?}", task).ok();
   }
 
   #[inline]
-  fn execute_task_start(&mut self, task: &dyn DynTask) {
+  fn execute_task_start(&mut self, task: &T) {
     writeln!(&mut self.writer, "Execute task start: {:?}", task).ok();
   }
   #[inline]
-  fn execute_task_end(&mut self, task: &dyn DynTask, output: &dyn DynOutput) {
+  fn execute_task_end(&mut self, task: &T, output: &T::Output) {
     writeln!(&mut self.writer, "Execute task end: {:?} => {:?}", task, output).ok();
   }
 }
@@ -126,43 +132,49 @@ impl<W: io::Write> Tracker for WritingTracker<W> {
 
 /// A [`Tracker`] that stores [`Event`]s in a [`Vec`], useful in testing situations where we check build events after
 /// building. 
-#[derive(Default, Clone, Debug)]
-pub struct EventTracker {
-  events: Vec<Event>,
+#[derive(Clone, Debug)]
+pub struct EventTracker<T: Task> {
+  events: Vec<Event<T>>,
 }
 
 #[derive(Debug, Clone)]
-pub enum Event {
+pub enum Event<T: Task> {
   RequireFile(PathBuf),
   ProvideFile(PathBuf),
-  RequireTask(Box<dyn DynTask>),
+  RequireTask(T),
 
-  ExecuteTaskStart(Box<dyn DynTask>),
-  ExecuteTaskEnd(Box<dyn DynTask>, Box<dyn DynOutput>),
+  ExecuteTaskStart(T),
+  ExecuteTaskEnd(T, T::Output),
+}
+
+impl<T: Task> Default for EventTracker<T> {
+  fn default() -> Self {
+    Self { events: Vec::new() }
+  }
 }
 
 #[allow(dead_code)]
-impl EventTracker {
+impl<T: Task> EventTracker<T> {
   #[inline]
   pub fn new() -> Self { Self::default() }
 
   #[inline]
-  pub fn first(&self) -> Option<&Event> { self.events.first() }
+  pub fn first(&self) -> Option<&Event<T>> { self.events.first() }
   #[inline]
-  pub fn last(&self) -> Option<&Event> { self.events.last() }
+  pub fn last(&self) -> Option<&Event<T>> { self.events.last() }
   #[inline]
-  pub fn get(&self, index: usize) -> Option<&Event> { self.events.get(index) }
+  pub fn get(&self, index: usize) -> Option<&Event<T>> { self.events.get(index) }
   #[inline]
-  pub fn get_from_end(&self, offset: usize) -> Option<&Event> { self.events.get(self.events.len() - 1 - offset) }
+  pub fn get_from_end(&self, offset: usize) -> Option<&Event<T>> { self.events.get(self.events.len() - 1 - offset) }
 
   #[inline]
-  pub fn contains(&self, f: impl FnMut(&Event) -> bool) -> bool { self.events.iter().any(f) }
+  pub fn contains(&self, f: impl FnMut(&Event<T>) -> bool) -> bool { self.events.iter().any(f) }
   #[inline]
-  pub fn contains_no(&self, f: impl FnMut(&Event) -> bool) -> bool { !self.contains(f) }
+  pub fn contains_no(&self, f: impl FnMut(&Event<T>) -> bool) -> bool { !self.contains(f) }
   #[inline]
-  pub fn contains_count(&self, count: usize, f: impl FnMut(&&Event) -> bool) -> bool { self.events.iter().filter(f).count() == count }
+  pub fn contains_count(&self, count: usize, f: impl FnMut(&&Event<T>) -> bool) -> bool { self.events.iter().filter(f).count() == count }
   #[inline]
-  pub fn contains_one(&self, f: impl FnMut(&&Event) -> bool) -> bool { self.contains_count(1, f) }
+  pub fn contains_one(&self, f: impl FnMut(&&Event<T>) -> bool) -> bool { self.contains_count(1, f) }
 
   #[inline]
   pub fn contains_one_execute_start(&self) -> bool {
@@ -173,50 +185,50 @@ impl EventTracker {
     self.contains_no(|e| Self::match_execute_start(e))
   }
   #[inline]
-  pub fn contains_one_execute_start_of(&self, task: &Box<dyn DynTask>) -> bool {
+  pub fn contains_one_execute_start_of(&self, task: &T) -> bool {
     self.contains_one(|e| Self::match_execute_start_of(e, task))
   }
   #[inline]
-  pub fn contains_no_execute_start_of(&self, task: &Box<dyn DynTask>) -> bool {
+  pub fn contains_no_execute_start_of(&self, task: &T) -> bool {
     self.contains_no(|e| Self::match_execute_start_of(e, task))
   }
 
   #[inline]
-  pub fn get_index_of(&self, f: impl FnMut(&Event) -> bool) -> Option<usize> {
+  pub fn get_index_of(&self, f: impl FnMut(&Event<T>) -> bool) -> Option<usize> {
     self.events.iter().position(f)
   }
   #[inline]
-  pub fn get_index_of_execute_start_of(&self, task: &Box<dyn DynTask>) -> Option<usize> {
+  pub fn get_index_of_execute_start_of(&self, task: &T) -> Option<usize> {
     self.get_index_of(|e| Self::match_execute_start_of(e, task))
   }
   #[inline]
-  pub fn get_index_of_execute_end_of(&self, task: &Box<dyn DynTask>) -> Option<usize> {
+  pub fn get_index_of_execute_end_of(&self, task: &T) -> Option<usize> {
     self.get_index_of(|e| Self::match_execute_end_of(e, task))
   }
 
   #[inline]
-  fn match_execute_start(e: &Event) -> bool {
+  fn match_execute_start(e: &Event<T>) -> bool {
     match e {
       Event::ExecuteTaskStart(_) => true,
       _ => false,
     }
   }
   #[inline]
-  fn match_execute_start_of(e: &Event, task: &Box<dyn DynTask>) -> bool {
+  fn match_execute_start_of(e: &Event<T>, task: &T) -> bool {
     match e {
       Event::ExecuteTaskStart(t) if t == task => true,
       _ => false,
     }
   }
   #[inline]
-  fn match_execute_end(e: &Event) -> bool {
+  fn match_execute_end(e: &Event<T>) -> bool {
     match e {
       Event::ExecuteTaskEnd(_, _) => true,
       _ => false,
     }
   }
   #[inline]
-  fn match_execute_end_of(e: &Event, task: &Box<dyn DynTask>) -> bool {
+  fn match_execute_end_of(e: &Event<T>, task: &T) -> bool {
     match e {
       Event::ExecuteTaskEnd(t, _) if t == task => true,
       _ => false,
@@ -224,14 +236,14 @@ impl EventTracker {
   }
 
   #[inline]
-  pub fn iter_events(&self) -> impl Iterator<Item=&Event> { self.events.iter() }
+  pub fn iter_events(&self) -> impl Iterator<Item=&Event<T>> { self.events.iter() }
   #[inline]
-  pub fn take_events(&mut self) -> Vec<Event> { std::mem::take(&mut self.events) }
+  pub fn take_events(&mut self) -> Vec<Event<T>> { std::mem::take(&mut self.events) }
   #[inline]
   pub fn clear(&mut self) { self.events.clear(); }
 }
 
-impl Tracker for EventTracker {
+impl<T: Task> Tracker<T> for EventTracker<T> {
   #[inline]
   fn require_file(&mut self, file: &PathBuf) {
     self.events.push(Event::RequireFile(file.clone()));
@@ -241,16 +253,16 @@ impl Tracker for EventTracker {
     self.events.push(Event::ProvideFile(file.clone()));
   }
   #[inline]
-  fn require_task(&mut self, task: &dyn DynTask) {
-    self.events.push(Event::RequireTask(task.clone_box()));
+  fn require_task(&mut self, task: &T) {
+    self.events.push(Event::RequireTask(task.clone()));
   }
 
   #[inline]
-  fn execute_task_start(&mut self, task: &dyn DynTask) {
-    self.events.push(Event::ExecuteTaskStart(task.clone_box()));
+  fn execute_task_start(&mut self, task: &T) {
+    self.events.push(Event::ExecuteTaskStart(task.clone()));
   }
   #[inline]
-  fn execute_task_end(&mut self, task: &dyn DynTask, output: &dyn DynOutput) {
-    self.events.push(Event::ExecuteTaskEnd(task.clone_box(), output.clone_box()));
+  fn execute_task_end(&mut self, task: &T, output: &T::Output) {
+    self.events.push(Event::ExecuteTaskEnd(task.clone(), output.clone()));
   }
 }

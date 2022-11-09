@@ -7,12 +7,8 @@ publish = false
 
 [dependencies]
 pie_graph = { path = "../graph" }
-pie_tagged_serde = { path = "../tagged_serde" }
 dyn-clone = "1"
 serde = "1"
-erased-serde = "0.3"
-linkme = "0.3"
-lazy_static = "1"
 
 [dev-dependencies]
 rstest = "0.15"
