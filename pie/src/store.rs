@@ -13,7 +13,7 @@ pub type TaskNode = Node;
 pub type FileNode = Node;
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct Store<T, O, H> {
+pub(crate) struct Store<T, O, H> {
   #[serde(bound(
   serialize = "T: Task, O: serde::Serialize, H: BuildHasher + Default, DAG<NodeData<T, O>, ParentData, ChildData, H>: serde::Serialize",
   deserialize = "T: Task, O: serde::Deserialize<'de>, H: BuildHasher + Default, DAG<NodeData<T, O>, ParentData, ChildData, H>: serde::Deserialize<'de>"

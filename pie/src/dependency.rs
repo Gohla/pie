@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 use crate::{Context, Task};
 
 #[derive(Clone, Eq, PartialEq, Hash, Serialize, Deserialize, Debug)]
-pub enum Dependency<T, O> {
+pub(crate) enum Dependency<T, O> {
   RequireFile(PathBuf, SystemTime),
   ProvideFile(PathBuf, SystemTime),
   RequireTask(T, O),

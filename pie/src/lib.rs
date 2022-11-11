@@ -13,7 +13,6 @@ use crate::context::IncrementalTopDownContext;
 use crate::store::{Store, TaskNode};
 use crate::tracker::{NoopTracker, Tracker};
 
-pub mod prelude;
 pub mod dependency;
 pub mod context;
 pub mod store;
