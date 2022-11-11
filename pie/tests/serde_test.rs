@@ -1,3 +1,5 @@
+use ron::{Deserializer, Serializer};
+use ron::ser::PrettyConfig;
 use rstest::{fixture, rstest};
 use tempfile::TempDir;
 
@@ -22,10 +24,18 @@ fn test_serde_roundtrip_one_task(mut pie: Pie<CommonTask>) {
     tracker.clear();
   });
 
-  let json = ron::to_string(pie.store()).unwrap();
-  println!("{}", json);
-  let store = ron::from_str(&json).unwrap();
-  let mut pie = pie.replace_store(store);
+  let mut buffer = Vec::new();
+  let mut serializer = Serializer::new(&mut buffer, Some(PrettyConfig::default()))
+    .unwrap_or_else(|e| panic!("Creating serializer failed: {:?}", e));
+  pie.serialize(&mut serializer)
+    .unwrap_or_else(|e| panic!("Serialization failed: {:?}", e));
+  println!("{}", String::from_utf8(buffer.clone()).expect("Ron should be utf-8"));
+
+  let mut deserializer = Deserializer::from_bytes(&buffer)
+    .unwrap_or_else(|e| panic!("Creating deserializer failed: {:?}", e));
+  let mut pie = pie.deserialize(&mut deserializer)
+    .unwrap_or_else(|e| panic!("Deserialization failed: {:?}", e));
+
   pie.run_in_session(|mut session| {
     session.require(&task);
 

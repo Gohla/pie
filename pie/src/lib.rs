@@ -6,8 +6,8 @@ use std::fs::File;
 use std::hash::{BuildHasher, Hash};
 use std::path::PathBuf;
 
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde::de::DeserializeOwned;
-use serde::Serialize;
 
 use crate::context::IncrementalTopDownContext;
 use crate::store::{Store, TaskNode};
@@ -67,20 +67,12 @@ impl<T: Task> Pie<T, T::Output> {
   /// Creates a new [`Pie`] instance.
   #[inline]
   pub fn new() -> Self { Self::default() }
-
-  /// Creates a new [`Pie`] instance with given `store`.
-  #[inline]
-  pub fn with_store(store: Store<T, T::Output, RandomState>) -> Self { Self { store, tracker: NoopTracker::default() } }
 }
 
 impl<T: Task, A: Tracker<T> + Default> Pie<T, T::Output, A> {
   /// Creates a new [`Pie`] instance with given `tracker`.
   #[inline]
   pub fn with_tracker(tracker: A) -> Self { Self { store: Store::default(), tracker } }
-
-  /// Creates a new [`Pie`] instance with given `store` and `tracker`.
-  #[inline]
-  pub fn with(store: Store<T, T::Output, RandomState>, tracker: A) -> Self { Self { store, tracker } }
 }
 
 impl<T: Task, A: Tracker<T> + Default, H: BuildHasher + Default> Pie<T, T::Output, A, H> {
@@ -94,10 +86,6 @@ impl<T: Task, A: Tracker<T> + Default, H: BuildHasher + Default> Pie<T, T::Outpu
     f(session)
   }
 
-  /// Gets the [`Store`] instance.
-  #[inline]
-  pub fn store(&self) -> &Store<T, T::Output, H> { &self.store }
-
   /// Gets the [`Tracker`] instance.
   #[inline]
   pub fn tracker(&self) -> &A { &self.tracker }
@@ -105,10 +93,14 @@ impl<T: Task, A: Tracker<T> + Default, H: BuildHasher + Default> Pie<T, T::Outpu
   #[inline]
   pub fn tracker_mut(&mut self) -> &mut A { &mut self.tracker }
 
-  /// Creates a new [`Pie`] instance with the store replaced by the given `store`.
-  #[inline]
-  pub fn replace_store(self, store: Store<T, T::Output, H>) -> Self {
-    Self { store, tracker: self.tracker }
+  /// Serializes the state with the given `serializer`.
+  pub fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+    self.store.serialize(serializer)
+  }
+  /// Deserializes the state from the given `deserializer`, and returns a new PIE instance with the deserialized state.
+  pub fn deserialize<'de, D: Deserializer<'de>>(self, deserializer: D) -> Result<Self, D::Error> {
+    let store = Store::deserialize(deserializer)?;
+    Ok(Self { store, tracker: self.tracker })
   }
 }
 
