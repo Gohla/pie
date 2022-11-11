@@ -1,4 +1,3 @@
-use std::any::Any;
 use std::collections::hash_map::RandomState;
 use std::collections::HashSet;
 use std::error::Error;
@@ -22,7 +21,7 @@ pub mod tracker;
 pub mod task;
 
 /// The unit of computation in a programmatic incremental build system.
-pub trait Task: Eq + Hash + Clone + Serialize + DeserializeOwned + Any + Debug {
+pub trait Task: Clone + Eq + Hash + Serialize + DeserializeOwned + Debug {
   /// The type of output this task produces when executed. Must implement [`Eq`], [`Clone`], and either not contain any 
   /// references, or only `'static` references.
   type Output: Output;
@@ -33,9 +32,9 @@ pub trait Task: Eq + Hash + Clone + Serialize + DeserializeOwned + Any + Debug {
 
 
 /// Trait alias for task outputs.
-pub trait Output: Eq + Clone + Serialize + DeserializeOwned + Any + Debug {}
+pub trait Output: Clone + Eq + Serialize + DeserializeOwned + Debug {}
 
-impl<T: Eq + Clone + Serialize + DeserializeOwned + Any + Debug> Output for T {}
+impl<T: Clone + Eq + Serialize + DeserializeOwned + Debug> Output for T {}
 
 
 /// Incremental context, mediating between tasks and executors, enabling tasks to dynamically create dependencies that 

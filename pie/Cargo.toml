@@ -7,11 +7,10 @@ publish = false
 
 [dependencies]
 pie_graph = { path = "../graph" }
-dyn-clone = "1"
 serde = "1"
 
 [dev-dependencies]
 rstest = "0.15"
 tempfile = "3"
 assert_matches = "1"
-serde_json = "1"
+ron = "0.8"

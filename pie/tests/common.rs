@@ -136,6 +136,7 @@ pub enum CommonTask {
   RequireSelf,
 }
 
+#[allow(dead_code)]
 impl CommonTask {
   pub fn read_string_from_file(path: impl Into<PathBuf>) -> Self {
     Self::ReadStringFromFile(ReadStringFromFile(path.into()))
