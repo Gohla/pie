@@ -9,14 +9,14 @@ use crate::dependency::Dependency;
 use crate::store::TaskNode;
 use crate::tracker::Tracker;
 
-/// Incremental runner that runs tasks and checks dependencies recursively in a top-down manner.
+/// Context that incrementally executes tasks and checks dependencies recursively in a top-down manner.
 #[derive(Debug)]
-pub(crate) struct TopDownRunner<'p, 's, T, O, A, H> {
+pub(crate) struct IncrementalTopDownContext<'p, 's, T, O, A, H> {
   session: &'s mut Session<'p, T, O, A, H>,
   task_execution_stack: Vec<TaskNode>,
 }
 
-impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> TopDownRunner<'p, 's, T, T::Output, A, H> {
+impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> IncrementalTopDownContext<'p, 's, T, T::Output, A, H> {
   /// Creates a new [`TopDownRunner`] with given [`Tracker`].
   #[inline]
   pub fn new(session: &'s mut Session<'p, T, T::Output, A, H>) -> Self {
@@ -34,7 +34,7 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> TopDownRunner<'p,
   }
 }
 
-impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> Context<T> for TopDownRunner<'p, 's, T, T::Output, A, H> {
+impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> Context<T> for IncrementalTopDownContext<'p, 's, T, T::Output, A, H> {
   fn require_task(&mut self, task: &T) -> T::Output {
     self.session.tracker.require_task(task);
     let task_node = self.session.store.get_or_create_node_by_task(task.clone());
@@ -108,7 +108,7 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> Context<T> for To
   }
 }
 
-impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> TopDownRunner<'p, 's, T, T::Output, A, H> {
+impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> IncrementalTopDownContext<'p, 's, T, T::Output, A, H> {
   fn should_execute_task(&mut self, task_node: Node) -> bool {
     // Remove task dependencies so that we get ownership over the list of dependencies. If the task does not need to be
     // executed, we will restore the dependencies again.

@@ -9,16 +9,15 @@ use std::path::PathBuf;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 
-use crate::runner::TopDownRunner;
+use crate::context::IncrementalTopDownContext;
 use crate::store::{Store, TaskNode};
 use crate::tracker::{NoopTracker, Tracker};
 
 pub mod prelude;
 pub mod dependency;
-pub mod runner;
+pub mod context;
 pub mod store;
 pub mod tracker;
-pub mod task;
 
 /// The unit of computation in a programmatic incremental build system.
 pub trait Task: Clone + Eq + Hash + Serialize + DeserializeOwned + Debug {
@@ -137,7 +136,7 @@ impl<'p, T: Task, A: Tracker<T> + Default, H: BuildHasher + Default> Session<'p,
   /// Requires given `task`, returning its up-to-date output.
   #[inline]
   pub fn require(&mut self, task: &T) -> T::Output {
-    let mut runner = TopDownRunner::new(self);
+    let mut runner = IncrementalTopDownContext::new(self);
     runner.require(task)
   }
 
