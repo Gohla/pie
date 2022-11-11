@@ -23,13 +23,11 @@ pub struct Store<T, O, H> {
   serialize = "T: Task, H: BuildHasher + Default, HashMap<T, TaskNode, H>: serde::Serialize",
   deserialize = "T: Task, H: BuildHasher + Default, HashMap<T, TaskNode, H>: serde::Deserialize<'de>"
   ))] // Set bounds such that `H` does not have to be (de)serializable
-  #[serde(skip)]
   task_to_node: HashMap<T, TaskNode, H>,
   #[serde(bound(
   serialize = "H: BuildHasher + Default, HashMap<PathBuf, FileNode, H>: serde::Serialize",
   deserialize = "H: BuildHasher + Default, HashMap<PathBuf, FileNode, H>: serde::Deserialize<'de>"
   ))] // Set bounds such that `H` does not have to be (de)serializable
-  #[serde(skip)]
   file_to_node: HashMap<PathBuf, FileNode, H>,
 }
 

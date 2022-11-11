@@ -4,7 +4,6 @@ cargo-features = ["named-profiles", "profile-overrides"]
 members = [
   "pie",
   "graph",
-  "tagged_serde",
 ]
 default-members = [
   "pie",

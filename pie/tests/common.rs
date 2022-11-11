@@ -17,7 +17,7 @@ pub fn create_tracker<T: Task>() -> Tracker<T> {
   CompositeTracker(EventTracker::new(), WritingTracker::new_stdout_writer())
 }
 
-pub type Pie<T: Task> = pie::Pie<T, T::Output, Tracker<T>>;
+pub type Pie<T> = pie::Pie<T, <T as Task>::Output, Tracker<T>>;
 
 pub fn create_pie<T: Task>() -> Pie<T> {
   Pie::with_tracker(create_tracker())
@@ -52,6 +52,18 @@ impl<T: Debug> CheckErrorExt<T> for Result<T, ()> {
   }
 }
 
+impl CheckErrorExt<()> for CommonOutput {
+  fn check(self) -> () {
+    match self {
+      CommonOutput::ReadStringFromFile(r) => { r.check(); }
+      CommonOutput::WriteStringToFile(r) => { r.check(); }
+      CommonOutput::Combine(r) => { r.check(); }
+      _ => {}
+    };
+    ()
+  }
+}
+
 
 // Pseudo-tasks
 
@@ -72,13 +84,13 @@ impl ReadStringFromFile {
 // Write string to file task
 
 #[derive(Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Serialize, Deserialize, Debug)]
-pub struct WriteStringToFile(pub PathBuf, pub String);
+pub struct WriteStringToFile(pub String, pub PathBuf);
 
 impl WriteStringToFile {
   fn execute<T: Task, C: Context<T>>(&self, context: &mut C) -> Result<(), ()> {
-    let mut file = File::create(&self.0).map_err(|_| ())?;
-    file.write_all(self.1.as_bytes()).map_err(|_| ())?;
-    context.provide_file(&self.0).map_err(|_| ())?;
+    let mut file = File::create(&self.1).map_err(|_| ())?;
+    file.write_all(self.0.as_bytes()).map_err(|_| ())?;
+    context.provide_file(&self.1).map_err(|_| ())?;
     Ok(())
   }
 }
@@ -96,13 +108,19 @@ impl ToLowerCase {
 
 // Combine reading and making string to lower case
 
-#[derive(Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Debug)]
-struct Combine(ReadStringFromFile);
+#[derive(Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Serialize, Deserialize, Debug)]
+pub struct Combine(ReadStringFromFile);
 
 impl Combine {
-  fn execute<C: Context<CommonTask>>(&self, context: &mut C) -> CommonOutput {
-    let text = context.require_task(&CommonTask::ReadStringFromFile(self.0.clone()))?; // TODO: remove clone?
-    CommonOutput::Combine(Ok(context.require_task(&CommonTask::ToLowerCase(ToLowerCase(text)))))
+  fn execute<C: Context<CommonTask>>(&self, context: &mut C) -> Result<String, ()> {
+    let text = match context.require_task(&CommonTask::ReadStringFromFile(self.0.clone())) { // TODO: remove clone?
+      CommonOutput::ReadStringFromFile(result) => result?,
+      _ => panic!(""),
+    };
+    match context.require_task(&CommonTask::ToLowerCase(ToLowerCase(text))) {
+      CommonOutput::ToLowerCase(string) => Ok(string),
+      _ => panic!(""),
+    }
   }
 }
 
@@ -114,7 +132,26 @@ pub enum CommonTask {
   ReadStringFromFile(ReadStringFromFile),
   WriteStringToFile(WriteStringToFile),
   ToLowerCase(ToLowerCase),
-  Combine(ReadStringFromFile)
+  Combine(Combine),
+  RequireSelf,
+}
+
+impl CommonTask {
+  pub fn read_string_from_file(path: impl Into<PathBuf>) -> Self {
+    Self::ReadStringFromFile(ReadStringFromFile(path.into()))
+  }
+  pub fn write_string_to_file(string: impl Into<String>, path: impl Into<PathBuf>) -> Self {
+    Self::WriteStringToFile(WriteStringToFile(string.into(), path.into()))
+  }
+  pub fn to_lower_case(string: impl Into<String>) -> Self {
+    Self::ToLowerCase(ToLowerCase(string.into()))
+  }
+  pub fn combine(path: impl Into<PathBuf>) -> Self {
+    Self::Combine(Combine(ReadStringFromFile(path.into())))
+  }
+  pub fn require_self() -> Self {
+    Self::RequireSelf
+  }
 }
 
 #[derive(Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Serialize, Deserialize, Debug)]
@@ -125,9 +162,25 @@ pub enum CommonOutput {
   Combine(Result<String, ()>),
 }
 
+#[allow(dead_code)]
 impl CommonOutput {
+  pub fn read_string_from_file(result: Result<String, ()>) -> Self {
+    Self::ReadStringFromFile(result)
+  }
+  pub fn read_string_from_file_ok(string: impl Into<String>) -> Self {
+    Self::read_string_from_file(Ok(string.into()))
+  }
+  pub fn write_string_to_file(result: Result<(), ()>) -> Self {
+    Self::WriteStringToFile(result)
+  }
   pub fn to_lower_case(string: impl Into<String>) -> Self {
     Self::ToLowerCase(string.into())
+  }
+  pub fn combine(result: Result<String, ()>) -> Self {
+    Self::Combine(result)
+  }
+  pub fn combine_ok(string: impl Into<String>) -> Self {
+    Self::combine(Ok(string.into()))
   }
 }
 
@@ -139,10 +192,8 @@ impl Task for CommonTask {
       CommonTask::ReadStringFromFile(task) => CommonOutput::ReadStringFromFile(task.execute(context)),
       CommonTask::WriteStringToFile(task) => CommonOutput::WriteStringToFile(task.execute(context)),
       CommonTask::ToLowerCase(task) => CommonOutput::ToLowerCase(task.execute(context)),
-      CommonTask::Combine(read_string_from_file) => {
-        let text = context.require_task(&CommonTask::ReadStringFromFile(read_string_from_file.clone()))?; // TODO: remove clone?
-        Ok(context.require_task(&CommonTask::ToLowerCase(ToLowerCase(text))))
-      }
+      CommonTask::Combine(task) => CommonOutput::Combine(task.execute(context)),
+      CommonTask::RequireSelf => context.require_task(&CommonTask::RequireSelf),
     }
   }
 }
