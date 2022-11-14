@@ -71,11 +71,11 @@ impl CheckErrorExt<()> for CommonOutput {
 // Read string from file task
 
 #[derive(Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Serialize, Deserialize, Debug)]
-pub struct ReadStringFromFile(pub PathBuf);
+pub struct ReadStringFromFile(pub PathBuf, pub FileStamper);
 
 impl ReadStringFromFile {
   fn execute<T: Task, C: Context<T>>(&self, context: &mut C) -> Result<String, ()> {
-    let mut file = context.require_file(&self.0, FileStamper::Modified).map_err(|_| ())?;
+    let mut file = context.require_file(&self.0, self.1).map_err(|_| ())?;
     let mut string = String::new();
     file.read_to_string(&mut string).map_err(|_| ())?;
     Ok(string)
@@ -85,13 +85,13 @@ impl ReadStringFromFile {
 // Write string to file task
 
 #[derive(Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Serialize, Deserialize, Debug)]
-pub struct WriteStringToFile(pub String, pub PathBuf);
+pub struct WriteStringToFile(pub String, pub PathBuf, pub FileStamper);
 
 impl WriteStringToFile {
   fn execute<T: Task, C: Context<T>>(&self, context: &mut C) -> Result<(), ()> {
     let mut file = File::create(&self.1).map_err(|_| ())?;
     file.write_all(self.0.as_bytes()).map_err(|_| ())?;
-    context.provide_file(&self.1, FileStamper::Modified).map_err(|_| ())?;
+    context.provide_file(&self.1, self.2).map_err(|_| ())?;
     Ok(())
   }
 }
@@ -139,17 +139,17 @@ pub enum CommonTask {
 
 #[allow(dead_code)]
 impl CommonTask {
-  pub fn read_string_from_file(path: impl Into<PathBuf>) -> Self {
-    Self::ReadStringFromFile(ReadStringFromFile(path.into()))
+  pub fn read_string_from_file(path: impl Into<PathBuf>, stamper: FileStamper) -> Self {
+    Self::ReadStringFromFile(ReadStringFromFile(path.into(), stamper))
   }
-  pub fn write_string_to_file(string: impl Into<String>, path: impl Into<PathBuf>) -> Self {
-    Self::WriteStringToFile(WriteStringToFile(string.into(), path.into()))
+  pub fn write_string_to_file(string: impl Into<String>, path: impl Into<PathBuf>, stamper: FileStamper) -> Self {
+    Self::WriteStringToFile(WriteStringToFile(string.into(), path.into(), stamper))
   }
   pub fn to_lower_case(string: impl Into<String>) -> Self {
     Self::ToLowerCase(ToLowerCase(string.into()))
   }
-  pub fn combine(path: impl Into<PathBuf>) -> Self {
-    Self::Combine(Combine(ReadStringFromFile(path.into())))
+  pub fn combine(path: impl Into<PathBuf>, stamper: FileStamper) -> Self {
+    Self::Combine(Combine(ReadStringFromFile(path.into(), stamper)))
   }
   pub fn require_self() -> Self {
     Self::RequireSelf

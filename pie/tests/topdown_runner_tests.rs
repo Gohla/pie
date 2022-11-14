@@ -4,6 +4,7 @@ use assert_matches::assert_matches;
 use rstest::{fixture, rstest};
 use tempfile::TempDir;
 
+use ::pie::dependency::FileStamper;
 use ::pie::tracker::Event;
 use Event::*;
 
@@ -77,8 +78,8 @@ fn test_require_task(mut pie: Pie<CommonTask>, temp_dir: TempDir) {
   let path = temp_dir.path().join("test.txt");
   fs::write(&path, "HELLO WORLD!").check();
 
-  let read_task = CommonTask::read_string_from_file(&path);
-  let task = CommonTask::combine(&path);
+  let read_task = CommonTask::read_string_from_file(&path, FileStamper::Modified);
+  let task = CommonTask::combine(&path, FileStamper::Modified);
 
   // Require task and observe that all three tasks are executed in dependency order
   pie.run_in_session(|mut session| {
@@ -165,7 +166,7 @@ fn test_require_task(mut pie: Pie<CommonTask>, temp_dir: TempDir) {
 fn test_require_file(mut pie: Pie<CommonTask>, temp_dir: TempDir) {
   let path = temp_dir.path().join("test.txt");
   fs::write(&path, "HELLO WORLD!").check();
-  let task = CommonTask::read_string_from_file(&path);
+  let task = CommonTask::read_string_from_file(&path, FileStamper::Modified);
 
   // Require task and observe that it is executed.
   pie.run_in_session(|mut session| {
@@ -201,7 +202,7 @@ fn test_require_file(mut pie: Pie<CommonTask>, temp_dir: TempDir) {
 #[rstest]
 fn test_provide_file(mut pie: Pie<CommonTask>, temp_dir: TempDir) {
   let path = temp_dir.path().join("test.txt");
-  let task = CommonTask::write_string_to_file("HELLO WORLD!", &path);
+  let task = CommonTask::write_string_to_file("HELLO WORLD!", &path, FileStamper::Modified);
 
   // Require task and observe that it is executed.
   pie.run_in_session(|mut session| {
@@ -251,10 +252,10 @@ fn require_self_cycle_panics(mut pie: Pie<CommonTask>) {
 fn overlapping_provided_file_panics(mut pie: Pie<CommonTask>, temp_dir: TempDir) {
   let path = temp_dir.path().join("test.txt");
   pie.run_in_session(|mut session| {
-    let task_1 = CommonTask::write_string_to_file("Test 1", &path);
+    let task_1 = CommonTask::write_string_to_file("Test 1", &path, FileStamper::Modified);
     session.require(&task_1).check();
     assert_eq!(session.dependency_check_errors().len(), 0);
-    let task_2 = CommonTask::write_string_to_file("Test 2", &path);
+    let task_2 = CommonTask::write_string_to_file("Test 2", &path, FileStamper::Modified);
     session.require(&task_2).check();
     assert_eq!(session.dependency_check_errors().len(), 0);
   });
@@ -265,10 +266,10 @@ fn overlapping_provided_file_panics(mut pie: Pie<CommonTask>, temp_dir: TempDir)
 fn hidden_dependency_during_require_panics(mut pie: Pie<CommonTask>, temp_dir: TempDir) {
   let path = temp_dir.path().join("test.txt");
   pie.run_in_session(|mut session| {
-    let providing_task = CommonTask::write_string_to_file("Test 1", &path);
+    let providing_task = CommonTask::write_string_to_file("Test 1", &path, FileStamper::Modified);
     session.require(&providing_task).check();
     assert_eq!(session.dependency_check_errors().len(), 0);
-    let requiring_task = CommonTask::read_string_from_file(&path);
+    let requiring_task = CommonTask::read_string_from_file(&path, FileStamper::Modified);
     session.require(&requiring_task).check();
     assert_eq!(session.dependency_check_errors().len(), 0);
   });
@@ -280,10 +281,10 @@ fn hidden_dependency_during_provide_panics(mut pie: Pie<CommonTask>, temp_dir: T
   let path = temp_dir.path().join("test.txt");
   fs::write(&path, "test").check();
   pie.run_in_session(|mut session| {
-    let requiring_task = CommonTask::read_string_from_file(&path);
+    let requiring_task = CommonTask::read_string_from_file(&path, FileStamper::Modified);
     session.require(&requiring_task).check();
     assert_eq!(session.dependency_check_errors().len(), 0);
-    let providing_task = CommonTask::write_string_to_file("Test 1", &path);
+    let providing_task = CommonTask::write_string_to_file("Test 1", &path, FileStamper::Modified);
     session.require(&providing_task).check();
     assert_eq!(session.dependency_check_errors().len(), 0);
   });

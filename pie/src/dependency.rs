@@ -51,7 +51,7 @@ impl<T: Task> Dependency<T, T::Output> {
   }
 }
 
-#[derive(Clone, Eq, PartialEq, Hash, Serialize, Deserialize, Debug)]
+#[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Serialize, Deserialize, Debug)]
 pub enum FileStamper {
   Exists,
   Modified,
@@ -98,7 +98,7 @@ impl FileStamper {
   }
 }
 
-#[derive(Clone, Eq, PartialEq, Hash, Serialize, Deserialize, Debug)]
+#[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Serialize, Deserialize, Debug)]
 pub enum FileStamp {
   Exists(bool),
   Modified(SystemTime),
