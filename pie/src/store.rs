@@ -13,12 +13,12 @@ pub type TaskNode = Node;
 pub type FileNode = Node;
 
 #[derive(Serialize, Deserialize, Debug)]
-pub(crate) struct Store<T, O, H> {
+pub(crate) struct Store<T: Task, H> {
   #[serde(bound(
-  serialize = "T: Task, O: serde::Serialize, H: BuildHasher + Default, DAG<NodeData<T, O>, ParentData, ChildData, H>: serde::Serialize",
-  deserialize = "T: Task, O: serde::Deserialize<'de>, H: BuildHasher + Default, DAG<NodeData<T, O>, ParentData, ChildData, H>: serde::Deserialize<'de>"
+  serialize = "T: Task, H: BuildHasher + Default, DAG<NodeData<T, T::Output>, ParentData, ChildData, H>: serde::Serialize",
+  deserialize = "T: Task, H: BuildHasher + Default, DAG<NodeData<T, T::Output>, ParentData, ChildData, H>: serde::Deserialize<'de>"
   ))] // Set bounds such that `H` does not have to be (de)serializable
-  graph: DAG<NodeData<T, O>, ParentData, ChildData, H>,
+  graph: DAG<NodeData<T, T::Output>, ParentData, ChildData, H>,
   #[serde(bound(
   serialize = "T: Task, H: BuildHasher + Default, HashMap<T, TaskNode, H>: serde::Serialize",
   deserialize = "T: Task, H: BuildHasher + Default, HashMap<T, TaskNode, H>: serde::Deserialize<'de>"
@@ -55,7 +55,7 @@ pub(crate) enum ChildData {
   RequireTask,
 }
 
-impl<T: Task, H: BuildHasher + Default> Default for Store<T, T::Output, H> {
+impl<T: Task, H: BuildHasher + Default> Default for Store<T, H> {
   #[inline]
   fn default() -> Self {
     Self {
@@ -66,7 +66,7 @@ impl<T: Task, H: BuildHasher + Default> Default for Store<T, T::Output, H> {
   }
 }
 
-impl<T: Task, H: BuildHasher + Default> Store<T, T::Output, H> {
+impl<T: Task, H: BuildHasher + Default> Store<T, H> {
   #[inline]
   pub fn get_or_create_node_by_task(&mut self, task: T) -> TaskNode {
     if let Some(node) = self.task_to_node.get(&task) {

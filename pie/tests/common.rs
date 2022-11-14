@@ -17,7 +17,7 @@ pub fn create_tracker<T: Task>() -> Tracker<T> {
   CompositeTracker(EventTracker::new(), WritingTracker::new_stdout_writer())
 }
 
-pub type Pie<T> = pie::Pie<T, <T as Task>::Output, Tracker<T>>;
+pub type Pie<T> = pie::Pie<T, Tracker<T>>;
 
 pub fn create_pie<T: Task>() -> Pie<T> {
   Pie::with_tracker(create_tracker())
