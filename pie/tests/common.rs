@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 use tempfile::TempDir;
 
 use pie::{Context, Task};
+use pie::dependency::FileStamper;
 use pie::tracker::{CompositeTracker, EventTracker, WritingTracker};
 
 // Helper functions
@@ -74,7 +75,7 @@ pub struct ReadStringFromFile(pub PathBuf);
 
 impl ReadStringFromFile {
   fn execute<T: Task, C: Context<T>>(&self, context: &mut C) -> Result<String, ()> {
-    let mut file = context.require_file(&self.0).map_err(|_| ())?;
+    let mut file = context.require_file(&self.0, FileStamper::Modified).map_err(|_| ())?;
     let mut string = String::new();
     file.read_to_string(&mut string).map_err(|_| ())?;
     Ok(string)
@@ -90,7 +91,7 @@ impl WriteStringToFile {
   fn execute<T: Task, C: Context<T>>(&self, context: &mut C) -> Result<(), ()> {
     let mut file = File::create(&self.1).map_err(|_| ())?;
     file.write_all(self.0.as_bytes()).map_err(|_| ())?;
-    context.provide_file(&self.1).map_err(|_| ())?;
+    context.provide_file(&self.1, FileStamper::Modified).map_err(|_| ())?;
     Ok(())
   }
 }

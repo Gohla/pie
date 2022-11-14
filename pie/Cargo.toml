@@ -8,6 +8,8 @@ publish = false
 [dependencies]
 pie_graph = { path = "../graph" }
 serde = "1"
+sha2 = "0.10"
+walkdir = "2"
 
 [dev-dependencies]
 rstest = "0.15"

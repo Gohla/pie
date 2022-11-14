@@ -4,7 +4,7 @@ use std::path::PathBuf;
 
 use pie_graph::Node;
 
-use crate::{Context, Session, Task};
+use crate::{Context, FileStamper, Session, Task};
 use crate::dependency::Dependency;
 use crate::store::TaskNode;
 use crate::tracker::Tracker;
@@ -68,10 +68,10 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> Context<T> for In
     }
   }
 
-  fn require_file(&mut self, path: &PathBuf) -> Result<File, std::io::Error> {
+  fn require_file(&mut self, path: &PathBuf, stamper: FileStamper) -> Result<File, std::io::Error> {
     self.session.tracker.require_file(path);
     let file_node = self.session.store.get_or_create_file_node(path);
-    let (dependency, file) = Dependency::require_file(path)?;
+    let (dependency, file) = Dependency::require_file(path, stamper)?;
     if let Some(current_requiring_task_node) = self.task_execution_stack.last() {
       if let Some(providing_task_node) = self.session.store.get_providing_task_node(&file_node) {
         if !self.session.store.contains_transitive_task_dependency(current_requiring_task_node, &providing_task_node) {
@@ -85,10 +85,10 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> Context<T> for In
     Ok(file)
   }
 
-  fn provide_file(&mut self, path: &PathBuf) -> Result<(), std::io::Error> {
+  fn provide_file(&mut self, path: &PathBuf, stamper: FileStamper) -> Result<(), std::io::Error> {
     self.session.tracker.provide_file(path);
     let file_node = self.session.store.get_or_create_file_node(path);
-    let dependency = Dependency::provide_file(path).map_err(|e| e.kind())?;
+    let dependency = Dependency::provide_file(path, stamper).map_err(|e| e.kind())?;
     if let Some(current_providing_task_node) = self.task_execution_stack.last() {
       if let Some(previous_providing_task_node) = self.session.store.get_providing_task_node(&file_node) {
         let current_providing_task = self.session.store.task_by_node(current_providing_task_node);

@@ -10,6 +10,7 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde::de::DeserializeOwned;
 
 use crate::context::IncrementalTopDownContext;
+use crate::dependency::FileStamper;
 use crate::store::{Store, TaskNode};
 use crate::tracker::{NoopTracker, Tracker};
 
@@ -42,11 +43,11 @@ pub trait Context<T: Task> {
   fn require_task(&mut self, task: &T) -> T::Output;
   /// Requires file at given `path`, creating a read-dependency to the file by reading its content or metadata at the 
   /// time this function is called, and returning the opened file. Call this method *before reading from the file*.
-  fn require_file(&mut self, path: &PathBuf) -> Result<File, std::io::Error>;
+  fn require_file(&mut self, path: &PathBuf, stamper: FileStamper) -> Result<File, std::io::Error>;
   /// Provides file at given `path`, creating a write-dependency to it by writing to its content or changing its
   /// metadata at the time this function is called. Call this method *after writing to the file*. This method does not 
   /// return the opened file, as it must be called *after writing to the file*.
-  fn provide_file(&mut self, path: &PathBuf) -> Result<(), std::io::Error>;
+  fn provide_file(&mut self, path: &PathBuf, stamper: FileStamper) -> Result<(), std::io::Error>;
 }
 
 
