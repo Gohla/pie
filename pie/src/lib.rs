@@ -6,9 +6,6 @@ use std::fs::File;
 use std::hash::{BuildHasher, Hash};
 use std::path::PathBuf;
 
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
-use serde::de::DeserializeOwned;
-
 use crate::context::IncrementalTopDownContext;
 use crate::dependency::FileStamper;
 use crate::store::{Store, TaskNode};
@@ -20,7 +17,7 @@ pub mod store;
 pub mod tracker;
 
 /// The unit of computation in a programmatic incremental build system.
-pub trait Task: Clone + Eq + Hash + Serialize + DeserializeOwned + Debug {
+pub trait Task: Clone + Eq + Hash + Debug {
   /// The type of output this task produces when executed. Must implement [`Eq`], [`Clone`], and either not contain any 
   /// references, or only `'static` references.
   type Output: Output;
@@ -31,9 +28,9 @@ pub trait Task: Clone + Eq + Hash + Serialize + DeserializeOwned + Debug {
 
 
 /// Trait alias for task outputs.
-pub trait Output: Clone + Eq + Serialize + DeserializeOwned + Debug {}
+pub trait Output: Clone + Eq + Debug {}
 
-impl<T: Clone + Eq + Serialize + DeserializeOwned + Debug> Output for T {}
+impl<T: Clone + Eq + Debug> Output for T {}
 
 
 /// Incremental context, mediating between tasks and executors, enabling tasks to dynamically create dependencies that 
@@ -94,11 +91,19 @@ impl<T: Task, A: Tracker<T> + Default, H: BuildHasher + Default> Pie<T, A, H> {
   pub fn tracker_mut(&mut self) -> &mut A { &mut self.tracker }
 
   /// Serializes the state with the given `serializer`.
-  pub fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+  pub fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> where
+    T: serde::Serialize,
+    T::Output: serde::Serialize,
+  {
+    use serde::Serialize;
     self.store.serialize(serializer)
   }
   /// Deserializes the state from the given `deserializer`, and returns a new PIE instance with the deserialized state.
-  pub fn deserialize<'de, D: Deserializer<'de>>(self, deserializer: D) -> Result<Self, D::Error> {
+  pub fn deserialize<'de, D: serde::Deserializer<'de>>(self, deserializer: D) -> Result<Self, D::Error> where
+    T: serde::Deserialize<'de>,
+    T::Output: serde::Deserialize<'de>,
+  {
+    use serde::Deserialize;
     let store = Store::deserialize(deserializer)?;
     Ok(Self { store, tracker: self.tracker })
   }

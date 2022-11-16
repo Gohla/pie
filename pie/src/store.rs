@@ -15,13 +15,13 @@ pub type FileNode = Node;
 #[derive(Serialize, Deserialize, Debug)]
 pub(crate) struct Store<T: Task, H> {
   #[serde(bound(
-  serialize = "T: Task, H: BuildHasher + Default, DAG<NodeData<T, T::Output>, ParentData, ChildData, H>: serde::Serialize",
-  deserialize = "T: Task, H: BuildHasher + Default, DAG<NodeData<T, T::Output>, ParentData, ChildData, H>: serde::Deserialize<'de>"
+  serialize = "T: Task + serde::Serialize, H: BuildHasher + Default, DAG<NodeData<T, T::Output>, ParentData, ChildData, H>: serde::Serialize",
+  deserialize = "T: Task + serde::Deserialize<'de>, H: BuildHasher + Default, DAG<NodeData<T, T::Output>, ParentData, ChildData, H>: serde::Deserialize<'de>"
   ))] // Set bounds such that `H` does not have to be (de)serializable
   graph: DAG<NodeData<T, T::Output>, ParentData, ChildData, H>,
   #[serde(bound(
-  serialize = "T: Task, H: BuildHasher + Default, HashMap<T, TaskNode, H>: serde::Serialize",
-  deserialize = "T: Task, H: BuildHasher + Default, HashMap<T, TaskNode, H>: serde::Deserialize<'de>"
+  serialize = "T: Task + serde::Serialize, H: BuildHasher + Default, HashMap<T, TaskNode, H>: serde::Serialize",
+  deserialize = "T: Task + serde::Deserialize<'de>, H: BuildHasher + Default, HashMap<T, TaskNode, H>: serde::Deserialize<'de>"
   ))] // Set bounds such that `H` does not have to be (de)serializable
   task_to_node: HashMap<T, TaskNode, H>,
   #[serde(bound(
