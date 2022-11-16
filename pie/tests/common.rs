@@ -96,6 +96,23 @@ impl WriteStringToFile {
   }
 }
 
+// List directory
+
+#[derive(Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Serialize, Deserialize, Debug)]
+pub struct ListDirectory(pub PathBuf, pub FileStamper);
+
+impl ListDirectory {
+  fn execute<T: Task, C: Context<T>>(&self, context: &mut C) -> Result<String, ()> {
+    context.require_file(&self.0, self.1).map_err(|_| ())?;
+    let paths = std::fs::read_dir(&self.0).map_err(|_| ())?;
+    let paths: String = paths
+      .into_iter()
+      .map(|p| p.unwrap().path().to_string_lossy().to_string())
+      .fold(String::new(), |a, b| a + &b + "\n");
+    Ok(paths)
+  }
+}
+
 // Make string lowercase
 
 #[derive(Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Serialize, Deserialize, Debug)]
@@ -132,6 +149,7 @@ impl Combine {
 pub enum CommonTask {
   ReadStringFromFile(ReadStringFromFile),
   WriteStringToFile(WriteStringToFile),
+  ListDirectory(ListDirectory),
   ToLowerCase(ToLowerCase),
   Combine(Combine),
   RequireSelf,
@@ -144,6 +162,9 @@ impl CommonTask {
   }
   pub fn write_string_to_file(string: impl Into<String>, path: impl Into<PathBuf>, stamper: FileStamper) -> Self {
     Self::WriteStringToFile(WriteStringToFile(string.into(), path.into(), stamper))
+  }
+  pub fn list_directory(path: impl Into<PathBuf>, stamper: FileStamper) -> Self {
+    Self::ListDirectory(ListDirectory(path.into(), stamper))
   }
   pub fn to_lower_case(string: impl Into<String>) -> Self {
     Self::ToLowerCase(ToLowerCase(string.into()))
@@ -160,30 +181,21 @@ impl CommonTask {
 pub enum CommonOutput {
   ReadStringFromFile(Result<String, ()>),
   WriteStringToFile(Result<(), ()>),
+  ListDirectory(Result<String, ()>),
   ToLowerCase(String),
   Combine(Result<String, ()>),
 }
 
 #[allow(dead_code)]
 impl CommonOutput {
-  pub fn read_string_from_file(result: Result<String, ()>) -> Self {
-    Self::ReadStringFromFile(result)
-  }
-  pub fn read_string_from_file_ok(string: impl Into<String>) -> Self {
-    Self::read_string_from_file(Ok(string.into()))
-  }
-  pub fn write_string_to_file(result: Result<(), ()>) -> Self {
-    Self::WriteStringToFile(result)
-  }
-  pub fn to_lower_case(string: impl Into<String>) -> Self {
-    Self::ToLowerCase(string.into())
-  }
-  pub fn combine(result: Result<String, ()>) -> Self {
-    Self::Combine(result)
-  }
-  pub fn combine_ok(string: impl Into<String>) -> Self {
-    Self::combine(Ok(string.into()))
-  }
+  pub fn read_string_from_file(result: Result<String, ()>) -> Self { Self::ReadStringFromFile(result) }
+  pub fn read_string_from_file_ok(string: impl Into<String>) -> Self { Self::read_string_from_file(Ok(string.into())) }
+  pub fn write_string_to_file(result: Result<(), ()>) -> Self { Self::WriteStringToFile(result) }
+  pub fn list_directory(result: Result<String, ()>) -> Self { Self::ListDirectory(result) }
+  pub fn list_directory_ok(string: impl Into<String>) -> Self { Self::list_directory(Ok(string.into())) }
+  pub fn to_lower_case(string: impl Into<String>) -> Self { Self::ToLowerCase(string.into()) }
+  pub fn combine(result: Result<String, ()>) -> Self { Self::Combine(result) }
+  pub fn combine_ok(string: impl Into<String>) -> Self { Self::combine(Ok(string.into())) }
 }
 
 impl Task for CommonTask {
@@ -193,6 +205,7 @@ impl Task for CommonTask {
     match self {
       CommonTask::ReadStringFromFile(task) => CommonOutput::ReadStringFromFile(task.execute(context)),
       CommonTask::WriteStringToFile(task) => CommonOutput::WriteStringToFile(task.execute(context)),
+      CommonTask::ListDirectory(task) => CommonOutput::ListDirectory(task.execute(context)),
       CommonTask::ToLowerCase(task) => CommonOutput::ToLowerCase(task.execute(context)),
       CommonTask::Combine(task) => CommonOutput::Combine(task.execute(context)),
       CommonTask::RequireSelf => context.require_task(&CommonTask::RequireSelf),
