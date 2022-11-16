@@ -8,8 +8,8 @@ publish = false
 [dependencies]
 pie_graph = { path = "../graph" }
 serde = { version = "1", optional = true }
-sha2 = "0.10"
-walkdir = "2"
+sha2 = { version = "0.10", optional = true }
+walkdir = { version = "2", optional = true }
 
 [dev-dependencies]
 serde = "1"
@@ -19,5 +19,7 @@ assert_matches = "1"
 ron = "0.8"
 
 [features]
-default = []
+default = ["recursive_stampers", "hash_stampers"]
 serde = ["dep:serde"]
+recursive_stampers = ["dep:walkdir"]
+hash_stampers = ["dep:sha2"]

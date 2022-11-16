@@ -1,12 +1,8 @@
 use std::error::Error;
 use std::fmt::Debug;
 use std::fs::File;
-use std::os::unix::ffi::OsStrExt;
 use std::path::PathBuf;
 use std::time::SystemTime;
-
-use sha2::{Digest, Sha256};
-use walkdir::WalkDir;
 
 use crate::{Context, Task};
 
@@ -57,8 +53,11 @@ impl<T: Task> Dependency<T, T::Output> {
 pub enum FileStamper {
   Exists,
   Modified,
+  #[cfg(feature = "recursive_stampers")]
   ModifiedRecursive,
+  #[cfg(feature = "hash_stampers")]
   Hash,
+  #[cfg(all(feature = "hash_stampers", feature = "recursive_stampers"))]
   HashRecursive,
 }
 
@@ -71,7 +70,9 @@ impl FileStamper {
       FileStamper::Modified => {
         Ok(FileStamp::Modified(File::open(path)?.metadata()?.modified()?))
       }
+      #[cfg(feature = "recursive_stampers")]
       FileStamper::ModifiedRecursive => {
+        use walkdir::WalkDir;
         let mut latest_modification_date = SystemTime::UNIX_EPOCH;
         for entry in WalkDir::new(path).into_iter() {
           let entry_modification_date = entry?.metadata()?.modified()?;
@@ -81,7 +82,9 @@ impl FileStamper {
         }
         Ok(FileStamp::Modified(latest_modification_date))
       }
+      #[cfg(feature = "hash_stampers")]
       FileStamper::Hash => {
+        use sha2::{Digest, Sha256};
         let mut file = File::open(path)?;
         let mut hasher = Sha256::new();
         if file.metadata()?.is_file() {
@@ -92,7 +95,10 @@ impl FileStamper {
         }
         Ok(FileStamp::Hash(hasher.finalize().into()))
       }
+      #[cfg(all(feature = "hash_stampers", feature = "recursive_stampers"))]
       FileStamper::HashRecursive => {
+        use sha2::{Digest, Sha256};
+        use walkdir::WalkDir;
         let mut hasher = Sha256::new();
         for entry in WalkDir::new(path).into_iter() {
           let mut file = File::open(entry?.path())?;
@@ -105,7 +111,10 @@ impl FileStamper {
     }
   }
 
-  fn hash_directory(hasher: &mut Sha256, path: &PathBuf) -> Result<(), std::io::Error> {
+  #[cfg(feature = "hash_stampers")]
+  fn hash_directory(hasher: &mut sha2::Sha256, path: &PathBuf) -> Result<(), std::io::Error> {
+    use sha2::Digest;
+    use std::os::unix::ffi::OsStrExt;
     for entry in std::fs::read_dir(path)?.into_iter() {
       hasher.update(entry?.file_name().as_bytes());
     }
