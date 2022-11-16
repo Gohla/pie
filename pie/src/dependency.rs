@@ -1,6 +1,7 @@
 use std::error::Error;
 use std::fmt::Debug;
 use std::fs::File;
+use std::os::unix::ffi::OsStrExt;
 use std::path::PathBuf;
 use std::time::SystemTime;
 
@@ -82,19 +83,32 @@ impl FileStamper {
       FileStamper::Hash => {
         let mut file = File::open(path)?;
         let mut hasher = Sha256::new();
-        std::io::copy(&mut file, &mut hasher)?;
+        if file.metadata()?.is_file() {
+          std::io::copy(&mut file, &mut hasher)?;
+        } else {
+          drop(file); // Drop file because we have to re-open it with `std::fs::read_dir`.
+          Self::hash_directory(&mut hasher, path)?;
+        }
         Ok(FileStamp::Hash(hasher.finalize().into()))
       }
       FileStamper::HashRecursive => {
         let mut hasher = Sha256::new();
         for entry in WalkDir::new(path).into_iter() {
           let mut file = File::open(entry?.path())?;
+          // Skip hashing directories: added/removed files are already represented by hash changes.
           if !file.metadata()?.is_file() { continue; }
           std::io::copy(&mut file, &mut hasher)?;
         }
         Ok(FileStamp::Hash(hasher.finalize().into()))
       }
     }
+  }
+
+  fn hash_directory(hasher: &mut Sha256, path: &PathBuf) -> Result<(), std::io::Error> {
+    for entry in std::fs::read_dir(path)?.into_iter() {
+      hasher.update(entry?.file_name().as_bytes());
+    }
+    Ok(())
   }
 }
 
