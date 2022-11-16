@@ -5,13 +5,13 @@ use std::os::unix::ffi::OsStrExt;
 use std::path::PathBuf;
 use std::time::SystemTime;
 
-use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use walkdir::WalkDir;
 
 use crate::{Context, Task};
 
-#[derive(Clone, Eq, PartialEq, Hash, Serialize, Deserialize, Debug)]
+#[derive(Clone, Eq, PartialEq, Hash, Debug)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub(crate) enum Dependency<T, O> {
   RequireFile(PathBuf, FileStamper, FileStamp),
   ProvideFile(PathBuf, FileStamper, FileStamp),
@@ -52,7 +52,8 @@ impl<T: Task> Dependency<T, T::Output> {
   }
 }
 
-#[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Serialize, Deserialize, Debug)]
+#[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Debug)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum FileStamper {
   Exists,
   Modified,
@@ -112,7 +113,8 @@ impl FileStamper {
   }
 }
 
-#[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Serialize, Deserialize, Debug)]
+#[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Debug)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum FileStamp {
   Exists(bool),
   Modified(SystemTime),

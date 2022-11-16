@@ -91,6 +91,7 @@ impl<T: Task, A: Tracker<T> + Default, H: BuildHasher + Default> Pie<T, A, H> {
   pub fn tracker_mut(&mut self) -> &mut A { &mut self.tracker }
 
   /// Serializes the state with the given `serializer`.
+  #[cfg(feature = "serde")]
   pub fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> where
     T: serde::Serialize,
     T::Output: serde::Serialize,
@@ -99,6 +100,7 @@ impl<T: Task, A: Tracker<T> + Default, H: BuildHasher + Default> Pie<T, A, H> {
     self.store.serialize(serializer)
   }
   /// Deserializes the state from the given `deserializer`, and returns a new PIE instance with the deserialized state.
+  #[cfg(feature = "serde")]
   pub fn deserialize<'de, D: serde::Deserializer<'de>>(self, deserializer: D) -> Result<Self, D::Error> where
     T: serde::Deserialize<'de>,
     T::Output: serde::Deserialize<'de>,

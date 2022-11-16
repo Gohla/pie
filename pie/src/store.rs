@@ -2,8 +2,6 @@ use std::collections::HashMap;
 use std::hash::BuildHasher;
 use std::path::PathBuf;
 
-use serde::{Deserialize, Serialize};
-
 use pie_graph::{DAG, Node};
 
 use crate::dependency::Dependency;
@@ -12,26 +10,28 @@ use crate::Task;
 pub type TaskNode = Node;
 pub type FileNode = Node;
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Debug)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub(crate) struct Store<T: Task, H> {
-  #[serde(bound(
+  #[cfg_attr(feature = "serde", serde(bound(
   serialize = "T: Task + serde::Serialize, H: BuildHasher + Default, DAG<NodeData<T, T::Output>, ParentData, ChildData, H>: serde::Serialize",
   deserialize = "T: Task + serde::Deserialize<'de>, H: BuildHasher + Default, DAG<NodeData<T, T::Output>, ParentData, ChildData, H>: serde::Deserialize<'de>"
-  ))] // Set bounds such that `H` does not have to be (de)serializable
+  )))] // Set bounds such that `H` does not have to be (de)serializable
   graph: DAG<NodeData<T, T::Output>, ParentData, ChildData, H>,
-  #[serde(bound(
+  #[cfg_attr(feature = "serde", serde(bound(
   serialize = "T: Task + serde::Serialize, H: BuildHasher + Default, HashMap<T, TaskNode, H>: serde::Serialize",
   deserialize = "T: Task + serde::Deserialize<'de>, H: BuildHasher + Default, HashMap<T, TaskNode, H>: serde::Deserialize<'de>"
-  ))] // Set bounds such that `H` does not have to be (de)serializable
+  )))] // Set bounds such that `H` does not have to be (de)serializable
   task_to_node: HashMap<T, TaskNode, H>,
-  #[serde(bound(
+  #[cfg_attr(feature = "serde", serde(bound(
   serialize = "H: BuildHasher + Default, HashMap<PathBuf, FileNode, H>: serde::Serialize",
   deserialize = "H: BuildHasher + Default, HashMap<PathBuf, FileNode, H>: serde::Deserialize<'de>"
-  ))] // Set bounds such that `H` does not have to be (de)serializable
+  )))] // Set bounds such that `H` does not have to be (de)serializable
   file_to_node: HashMap<PathBuf, FileNode, H>,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Debug)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub(crate) enum NodeData<T, O> {
   Task {
     task: T,
@@ -41,14 +41,16 @@ pub(crate) enum NodeData<T, O> {
   File(PathBuf),
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub(crate) enum ParentData {
   FileRequiringTask,
   FileProvidingTask,
   TaskRequiringTask,
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub(crate) enum ChildData {
   RequireFile,
   ProvideFile,
