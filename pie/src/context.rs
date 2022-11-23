@@ -4,7 +4,7 @@ use std::path::PathBuf;
 
 use pie_graph::Node;
 
-use crate::{Context, FileStamper, Session, Task};
+use crate::{Context, FileStamper, OutputStamper, Session, Task};
 use crate::dependency::Dependency;
 use crate::store::TaskNode;
 use crate::tracker::Tracker;
@@ -35,7 +35,7 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> IncrementalTopDow
 }
 
 impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> Context<T> for IncrementalTopDownContext<'p, 's, T, A, H> {
-  fn require_task(&mut self, task: &T) -> T::Output {
+  fn require_task_with_stamper(&mut self, task: &T, stamper: OutputStamper) -> T::Output {
     self.session.tracker.require_task(task);
     let task_node = self.session.store.get_or_create_node_by_task(task.clone());
     if !self.session.visited.contains(&task_node) && self.should_execute_task(task_node) { // Execute the task, cache and return up-to-date output.
@@ -56,7 +56,7 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> Context<T> for In
       self.task_execution_stack.pop();
       // Store dependency and output.
       if let Some(current_task_node) = self.task_execution_stack.last() {
-        self.session.store.add_to_dependencies_of_task(*current_task_node, Dependency::require_task(task.clone(), output.clone()));
+        self.session.store.add_to_dependencies_of_task(*current_task_node, Dependency::require_task(task.clone(), output.clone(), stamper));
       }
       self.session.store.set_task_output(task_node, output.clone());
       self.session.visited.insert(task_node);
@@ -68,7 +68,7 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> Context<T> for In
     }
   }
 
-  fn require_file(&mut self, path: &PathBuf, stamper: FileStamper) -> Result<File, std::io::Error> {
+  fn require_file_with_stamper(&mut self, path: &PathBuf, stamper: FileStamper) -> Result<File, std::io::Error> {
     self.session.tracker.require_file(path);
     let file_node = self.session.store.get_or_create_file_node(path);
     let (dependency, file) = Dependency::require_file(path, stamper)?;
@@ -85,7 +85,7 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> Context<T> for In
     Ok(file)
   }
 
-  fn provide_file(&mut self, path: &PathBuf, stamper: FileStamper) -> Result<(), std::io::Error> {
+  fn provide_file_with_stamper(&mut self, path: &PathBuf, stamper: FileStamper) -> Result<(), std::io::Error> {
     self.session.tracker.provide_file(path);
     let file_node = self.session.store.get_or_create_file_node(path);
     let dependency = Dependency::provide_file(path, stamper).map_err(|e| e.kind())?;
@@ -106,6 +106,13 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> Context<T> for In
     }
     Ok(())
   }
+
+  #[inline]
+  fn default_output_stamper(&self) -> OutputStamper { OutputStamper::Equals }
+  #[inline]
+  fn default_require_file_stamper(&self) -> FileStamper { FileStamper::Modified }
+  #[inline]
+  fn default_provide_file_stamper(&self) -> FileStamper { FileStamper::Modified }
 }
 
 impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> IncrementalTopDownContext<'p, 's, T, A, H> {

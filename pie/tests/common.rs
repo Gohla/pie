@@ -75,7 +75,7 @@ pub struct ReadStringFromFile(pub PathBuf, pub FileStamper);
 
 impl ReadStringFromFile {
   fn execute<T: Task, C: Context<T>>(&self, context: &mut C) -> Result<String, ()> {
-    let mut file = context.require_file(&self.0, self.1).map_err(|_| ())?;
+    let mut file = context.require_file_with_stamper(&self.0, self.1).map_err(|_| ())?;
     let mut string = String::new();
     file.read_to_string(&mut string).map_err(|_| ())?;
     Ok(string)
@@ -91,7 +91,7 @@ impl WriteStringToFile {
   fn execute<T: Task, C: Context<T>>(&self, context: &mut C) -> Result<(), ()> {
     let mut file = File::create(&self.1).map_err(|_| ())?;
     file.write_all(self.0.as_bytes()).map_err(|_| ())?;
-    context.provide_file(&self.1, self.2).map_err(|_| ())?;
+    context.provide_file_with_stamper(&self.1, self.2).map_err(|_| ())?;
     Ok(())
   }
 }
@@ -103,7 +103,7 @@ pub struct ListDirectory(pub PathBuf, pub FileStamper);
 
 impl ListDirectory {
   fn execute<T: Task, C: Context<T>>(&self, context: &mut C) -> Result<String, ()> {
-    context.require_file(&self.0, self.1).map_err(|_| ())?;
+    context.require_file_with_stamper(&self.0, self.1).map_err(|_| ())?;
     let paths = std::fs::read_dir(&self.0).map_err(|_| ())?;
     let paths: String = paths
       .into_iter()

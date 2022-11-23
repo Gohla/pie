@@ -11,7 +11,7 @@ use crate::{Context, Task};
 pub(crate) enum Dependency<T, O> {
   RequireFile(PathBuf, FileStamper, FileStamp),
   ProvideFile(PathBuf, FileStamper, FileStamp),
-  RequireTask(T, O),
+  RequireTask(T, OutputStamper, OutputStamp<O>),
 }
 
 impl<T: Task> Dependency<T, T::Output> {
@@ -30,15 +30,20 @@ impl<T: Task> Dependency<T, T::Output> {
     Ok(dependency)
   }
 
-  pub fn require_task(task: T, output: T::Output) -> Self {
-    Self::RequireTask(task, output)
+  pub fn require_task(task: T, output: T::Output, stamper: OutputStamper) -> Self {
+    let stamp = stamper.stamp(output);
+    Self::RequireTask(task, stamper, stamp)
   }
 
   pub fn is_consistent<C: Context<T>>(&self, context: &mut C) -> Result<bool, Box<dyn Error>> {
     match self {
       Dependency::RequireFile(path, stamper, stamp) => Self::file_is_consistent(path, stamper, stamp),
       Dependency::ProvideFile(path, stamper, stamp) => Self::file_is_consistent(path, stamper, stamp),
-      Dependency::RequireTask(task, output) => Ok(context.require_task(task) == *output),
+      Dependency::RequireTask(task, stamper, stamp) => {
+        let output = context.require_task(task);
+        let new_stamp = stamper.stamp(output);
+        Ok(new_stamp == *stamp)
+      }
     }
   }
 
@@ -47,6 +52,9 @@ impl<T: Task> Dependency<T, T::Output> {
     Ok(new_stamp == *stamp)
   }
 }
+
+
+// File stampers
 
 #[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -127,4 +135,30 @@ pub enum FileStamp {
   Exists(bool),
   Modified(SystemTime),
   Hash([u8; 32]),
+}
+
+
+// Output stampers
+
+#[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Debug)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+pub enum OutputStamper {
+  Inconsequential,
+  Equals,
+}
+
+impl OutputStamper {
+  pub fn stamp<O>(&self, output: O) -> OutputStamp<O> {
+    match self {
+      OutputStamper::Inconsequential => OutputStamp::Inconsequential,
+      OutputStamper::Equals => OutputStamp::Equals(output),
+    }
+  }
+}
+
+#[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Debug)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+pub enum OutputStamp<O> {
+  Inconsequential,
+  Equals(O),
 }
