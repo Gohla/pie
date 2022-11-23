@@ -1,6 +1,6 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="DT topdown_runner_tests" type="CargoCommandRunConfiguration" factoryName="Cargo Command">
-    <option name="command" value="test --profile=dbg --package pie --test topdown_runner_tests" />
+  <configuration default="false" name="DT file_stamp_tests" type="CargoCommandRunConfiguration" factoryName="Cargo Command">
+    <option name="command" value="test --profile=dbg --package pie --test file_stamp_test" />
     <option name="workingDirectory" value="file://$PROJECT_DIR$" />
     <option name="channel" value="DEFAULT" />
     <option name="requiredFeatures" value="true" />

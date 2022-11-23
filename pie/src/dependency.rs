@@ -114,9 +114,8 @@ impl FileStamper {
   #[cfg(feature = "hash_stampers")]
   fn hash_directory(hasher: &mut sha2::Sha256, path: &PathBuf) -> Result<(), std::io::Error> {
     use sha2::Digest;
-    use std::os::unix::ffi::OsStrExt;
     for entry in std::fs::read_dir(path)?.into_iter() {
-      hasher.update(entry?.file_name().as_bytes());
+      hasher.update(entry?.file_name().to_string_lossy().as_bytes());
     }
     Ok(())
   }
