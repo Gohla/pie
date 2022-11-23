@@ -3,7 +3,7 @@ use std::fs;
 use rstest::{fixture, rstest};
 use tempfile::TempDir;
 
-use ::pie::dependency::FileStamper;
+use ::pie::stamp::FileStamper;
 
 use crate::common::{CheckErrorExt, CommonTask, Pie};
 

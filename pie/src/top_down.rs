@@ -4,8 +4,9 @@ use std::path::PathBuf;
 
 use pie_graph::Node;
 
-use crate::{Context, FileStamper, OutputStamper, Session, Task};
+use crate::{Context, Session, Task};
 use crate::dependency::Dependency;
+use crate::stamp::{FileStamper, OutputStamper};
 use crate::store::TaskNode;
 use crate::tracker::Tracker;
 

@@ -4,7 +4,7 @@ use assert_matches::assert_matches;
 use rstest::{fixture, rstest};
 use tempfile::TempDir;
 
-use ::pie::dependency::FileStamper;
+use ::pie::stamp::FileStamper;
 use ::pie::tracker::Event;
 use Event::*;
 

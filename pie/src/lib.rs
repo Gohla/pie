@@ -6,23 +6,24 @@ use std::fs::File;
 use std::hash::{BuildHasher, Hash};
 use std::path::PathBuf;
 
-use crate::context::IncrementalTopDownContext;
-use crate::dependency::{FileStamper, OutputStamper};
+use stamp::{FileStamper, OutputStamper};
+
 use crate::store::{Store, TaskNode};
+use crate::top_down::IncrementalTopDownContext;
 use crate::tracker::{NoopTracker, Tracker};
 
-pub mod dependency;
-pub mod context;
-pub mod store;
+pub mod stamp;
 pub mod tracker;
+mod dependency;
+mod store;
+mod top_down;
+mod bottom_up;
 
 /// The unit of computation in a programmatic incremental build system.
 pub trait Task: Clone + Eq + Hash + Debug {
-  /// The type of output this task produces when executed. Must implement [`Eq`], [`Clone`], and either not contain any 
-  /// references, or only `'static` references.
+  /// The type of output this task produces when executed.
   type Output: Output;
-  /// Execute the task, with `context` providing a means to specify dependencies, producing an instance of 
-  /// `Self::Output`.
+  /// Execute the task, with `context` providing a means to specify dependencies, returning `Self::Output`.
   fn execute<C: Context<Self>>(&self, context: &mut C) -> Self::Output;
 }
 
@@ -34,15 +35,15 @@ impl<T: Clone + Eq + Debug> Output for T {}
 
 
 /// Incremental context, mediating between tasks and executors, enabling tasks to dynamically create dependencies that 
-/// executors check for consistency and use in incremental execution.
+/// executors use for incremental execution.
 pub trait Context<T: Task> {
-  /// Requires given `task`, creating a dependency to it with the default output stamper, and returning its up-to-date 
+  /// Requires given `task`, creating a dependency to it with the default output stamper, returning its up-to-date 
   /// output.
   #[inline]
   fn require_task(&mut self, task: &T) -> T::Output {
     self.require_task_with_stamper(task, self.default_output_stamper())
   }
-  /// Requires given `task`, creating a dependency to it with given `stamper`, and returning its up-to-date output.
+  /// Requires given `task`, creating a dependency to it with given `stamper`, returning its up-to-date output.
   fn require_task_with_stamper(&mut self, task: &T, stamper: OutputStamper) -> T::Output;
 
   /// Requires file at given `path`, creating a read-dependency to it by creating a stamp with the default require file 
@@ -142,7 +143,7 @@ impl<T: Task, A: Tracker<T> + Default, H: BuildHasher + Default> Pie<T, A, H> {
 }
 
 
-/// A session in which builds are executed. Every task is only executed once each session.
+/// A session in which builds are executed. Every task is executed at most once each session.
 #[derive(Debug)]
 pub struct Session<'p, T: Task, A, H> {
   store: &'p mut Store<T, H>,

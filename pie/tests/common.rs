@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use tempfile::TempDir;
 
 use pie::{Context, Task};
-use pie::dependency::FileStamper;
+use pie::stamp::FileStamper;
 use pie::tracker::{CompositeTracker, EventTracker, WritingTracker};
 
 // Helper functions
