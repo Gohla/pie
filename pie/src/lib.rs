@@ -9,15 +9,14 @@ use std::path::PathBuf;
 use stamp::{FileStamper, OutputStamper};
 
 use crate::store::{Store, TaskNode};
-use crate::top_down::IncrementalTopDownContext;
+use crate::context::top_down::IncrementalTopDownContext;
 use crate::tracker::{NoopTracker, Tracker};
 
 pub mod stamp;
 pub mod tracker;
 mod dependency;
 mod store;
-mod top_down;
-mod bottom_up;
+mod context;
 
 /// The unit of computation in a programmatic incremental build system.
 pub trait Task: Clone + Eq + Hash + Debug {

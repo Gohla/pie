@@ -17,7 +17,7 @@ pub(crate) struct Store<T: Task, H> {
   serialize = "T: Task + serde::Serialize, H: BuildHasher + Default, DAG<NodeData<T, T::Output>, ParentData, ChildData, H>: serde::Serialize",
   deserialize = "T: Task + serde::Deserialize<'de>, H: BuildHasher + Default, DAG<NodeData<T, T::Output>, ParentData, ChildData, H>: serde::Deserialize<'de>"
   )))] // Set bounds such that `H` does not have to be (de)serializable
-  graph: DAG<NodeData<T, T::Output>, ParentData, ChildData, H>,
+  pub graph: DAG<NodeData<T, T::Output>, ParentData, ChildData, H>,
   #[cfg_attr(feature = "serde", serde(bound(
   serialize = "T: Task + serde::Serialize, H: BuildHasher + Default, HashMap<T, TaskNode, H>: serde::Serialize",
   deserialize = "T: Task + serde::Deserialize<'de>, H: BuildHasher + Default, HashMap<T, TaskNode, H>: serde::Deserialize<'de>"
@@ -189,17 +189,25 @@ impl<T: Task, H: BuildHasher + Default> Store<T, H> {
     }
   }
 
-
+  /// Get all task nodes that require given `task_node`.
   #[inline]
-  pub fn get_providing_task_node(&self, file_node: &FileNode) -> Option<&TaskNode> {
-    self.graph.get_incoming_dependencies(file_node).filter_map(|(n, pe)| if pe == &ParentData::FileProvidingTask { Some(n) } else { None }).next()
+  pub fn get_task_nodes_requiring_task<'a>(&'a self, task_node: &'a TaskNode) -> impl Iterator<Item=&TaskNode> + '_ {
+    self.graph.get_incoming_dependencies(task_node).filter_map(|(n, pe)| if pe == &ParentData::TaskRequiringTask { Some(n) } else { None })
   }
-  #[inline]
-  pub fn get_requiring_task_nodes<'a>(&'a self, file_node: &'a FileNode) -> impl Iterator<Item=&TaskNode> + '_ {
-    self.graph.get_incoming_dependencies(file_node).filter_map(|(n, pe)| if pe == &ParentData::FileRequiringTask { Some(n) } else { None })
-  }
+  /// Checks whether there is a direct or transitive dependency from `depender_task_node` to `dependee_task_node`.
   #[inline]
   pub fn contains_transitive_task_dependency(&self, depender_task_node: &TaskNode, dependee_task_node: &TaskNode) -> bool {
     self.graph.contains_transitive_dependency(depender_task_node, dependee_task_node)
+  }
+
+  /// Get all task nodes that require given `file_node`.
+  #[inline]
+  pub fn get_task_nodes_requiring_file<'a>(&'a self, file_node: &'a FileNode) -> impl Iterator<Item=&TaskNode> + '_ {
+    self.graph.get_incoming_dependencies(file_node).filter_map(|(n, pe)| if pe == &ParentData::FileRequiringTask { Some(n) } else { None })
+  }
+  /// Get the task node that provides given `file_node`, or `None` if there is none.
+  #[inline]
+  pub fn get_task_node_providing_file(&self, file_node: &FileNode) -> Option<&TaskNode> {
+    self.graph.get_incoming_dependencies(file_node).filter_map(|(n, pe)| if pe == &ParentData::FileProvidingTask { Some(n) } else { None }).next()
   }
 }

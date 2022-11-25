@@ -2,6 +2,8 @@ use std::fs::File;
 use std::path::PathBuf;
 use std::time::SystemTime;
 
+// File stampers
+
 #[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum FileStamper {
@@ -82,6 +84,9 @@ pub enum FileStamp {
   Modified(SystemTime),
   Hash([u8; 32]),
 }
+
+
+// Output stampers
 
 #[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
