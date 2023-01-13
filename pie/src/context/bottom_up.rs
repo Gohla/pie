@@ -5,7 +5,7 @@ use std::fs::File;
 use std::hash::BuildHasher;
 use std::path::PathBuf;
 
-use crate::{Context, Session, Task, TaskNode};
+use crate::{Context, Session, Task, TaskNodeId};
 use crate::context::ContextShared;
 use crate::stamp::{FileStamper, OutputStamper};
 use crate::store::Store;
@@ -49,7 +49,7 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> IncrementalBottom
     todo!()
   }
 
-  fn execute_and_schedule(&mut self, task_node: TaskNode) {
+  fn execute_and_schedule(&mut self, task_node: TaskNodeId) {
     let task = self.shared.session.store.task_by_node(&task_node).clone(); // TODO: get rid of clone?
     self.shared.pre_execute(&task, task_node);
     let output = task.execute(self);
@@ -87,8 +87,8 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> Context<T> for In
 
 #[derive(Default, Debug)]
 struct Queue<H> {
-  set: HashSet<TaskNode, H>,
-  vec: Vec<TaskNode>,
+  set: HashSet<TaskNodeId, H>,
+  vec: Vec<TaskNodeId>,
 }
 
 impl<H: BuildHasher + Default> Queue<H> {
@@ -96,14 +96,14 @@ impl<H: BuildHasher + Default> Queue<H> {
   fn new() -> Self { Self::default() }
 
   #[inline]
-  fn add(&mut self, task_node: TaskNode) {
+  fn add(&mut self, task_node: TaskNodeId) {
     if self.set.contains(&task_node) { return; }
     self.set.insert(task_node);
     self.vec.push(task_node);
   }
 
   #[inline]
-  fn pop<T: Task>(&mut self, store: &Store<T, H>) -> Option<TaskNode> {
+  fn pop<T: Task>(&mut self, store: &Store<T, H>) -> Option<TaskNodeId> {
     self.vec.sort_unstable_by(|n1, n2| store.graph.topo_cmp(n1, n2));
     self.vec.pop()
   }

@@ -5,7 +5,7 @@ use std::path::PathBuf;
 use crate::{Session, Task};
 use crate::dependency::Dependency;
 use crate::stamp::{FileStamper, OutputStamper};
-use crate::store::TaskNode;
+use crate::store::TaskNodeId;
 use crate::tracker::Tracker;
 
 pub(crate) mod bottom_up;
@@ -14,7 +14,7 @@ pub(crate) mod top_down;
 #[derive(Debug)]
 struct ContextShared<'p, 's, T: Task, A, H> {
   pub(crate) session: &'s mut Session<'p, T, A, H>,
-  pub(crate) task_execution_stack: Vec<TaskNode>,
+  pub(crate) task_execution_stack: Vec<TaskNodeId>,
 }
 
 impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> ContextShared<'p, 's, T, A, H> {
@@ -37,7 +37,7 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> ContextShared<'p,
           panic!("Hidden dependency; file '{}' is required by the current task '{:?}' without a dependency to providing task: {:?}", path.display(), current_requiring_task, providing_task);
         }
       }
-      self.session.store.add_file_require_dependency(*current_requiring_task_node, file_node, dependency);
+      self.session.store.add_file_require_dependency(current_requiring_task_node, &file_node, dependency);
     }
     Ok(file)
   }
@@ -59,20 +59,20 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> ContextShared<'p,
           panic!("Hidden dependency; file '{}' is provided by the current task '{:?}' without a dependency from requiring task '{:?}' to the current providing task", path.display(), current_providing_task, requiring_task);
         }
       }
-      self.session.store.add_file_provide_dependency(*current_providing_task_node, file_node, dependency);
+      self.session.store.add_file_provide_dependency(current_providing_task_node, &file_node, dependency);
     }
     Ok(())
   }
 
-  fn pre_execute(&mut self, task: &T, task_node: TaskNode) {
+  fn pre_execute(&mut self, task: &T, task_node: TaskNodeId) {
     self.task_execution_stack.push(task_node);
     self.session.tracker.execute_task_start(task);
   }
 
-  fn post_execute(&mut self, task: &T, task_node: TaskNode, output: &T::Output) {
+  fn post_execute(&mut self, task: &T, task_node: TaskNodeId, output: &T::Output) {
     self.session.tracker.execute_task_end(task, output);
     self.task_execution_stack.pop();
-    self.session.store.set_task_output(task_node, output.clone());
+    self.session.store.set_task_output(&task_node, output.clone());
   }
 
   #[inline]

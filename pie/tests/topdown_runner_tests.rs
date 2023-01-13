@@ -243,9 +243,17 @@ fn test_provide_file(mut pie: Pie<CommonTask>, temp_dir: TempDir) {
 fn require_self_cycle_panics(mut pie: Pie<CommonTask>) {
   pie.run_in_session(|mut session| {
     session.require(&CommonTask::require_self());
-    assert_eq!(session.dependency_check_errors().len(), 0);
   });
 }
+
+#[rstest]
+#[should_panic(expected = "Cyclic task dependency")]
+fn require_cycle_panics(mut pie: Pie<CommonTask>) {
+  pie.run_in_session(|mut session| {
+    session.require(&CommonTask::require_cycle_a());
+  });
+}
+
 
 #[rstest]
 #[should_panic(expected = "Overlapping provided file")]

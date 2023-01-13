@@ -153,6 +153,8 @@ pub enum CommonTask {
   ToLowerCase(ToLowerCase),
   Combine(Combine),
   RequireSelf,
+  RequireCycleA,
+  RequireCycleB,
 }
 
 #[allow(dead_code)]
@@ -174,6 +176,12 @@ impl CommonTask {
   }
   pub fn require_self() -> Self {
     Self::RequireSelf
+  }
+  pub fn require_cycle_a() -> Self {
+    Self::RequireCycleA
+  }
+  pub fn require_cycle_b() -> Self {
+    Self::RequireCycleB
   }
 }
 
@@ -209,6 +217,8 @@ impl Task for CommonTask {
       CommonTask::ToLowerCase(task) => CommonOutput::ToLowerCase(task.execute(context)),
       CommonTask::Combine(task) => CommonOutput::Combine(task.execute(context)),
       CommonTask::RequireSelf => context.require_task(&CommonTask::RequireSelf),
+      CommonTask::RequireCycleA => context.require_task(&CommonTask::RequireCycleB),
+      CommonTask::RequireCycleB => context.require_task(&CommonTask::RequireCycleA),
     }
   }
 }

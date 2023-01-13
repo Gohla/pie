@@ -7,27 +7,27 @@ use pie_graph::{DAG, NodeId};
 use crate::dependency::Dependency;
 use crate::Task;
 
-pub type TaskNode = NodeId;
-pub type FileNode = NodeId;
+pub type TaskNodeId = NodeId;
+pub type FileNodeId = NodeId;
 
 #[derive(Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub(crate) struct Store<T: Task, H> {
   #[cfg_attr(feature = "serde", serde(bound(
-  serialize = "T: Task + serde::Serialize, H: BuildHasher + Default, DAG<NodeData<T, T::Output>, Dependency<T, T::Output>, H>: serde::Serialize",
-  deserialize = "T: Task + serde::Deserialize<'de>, H: BuildHasher + Default, DAG<NodeData<T, T::Output>, Dependency<T, T::Output>, H>: serde::Deserialize<'de>"
+  serialize = "T: Task + serde::Serialize, H: BuildHasher + Default, DAG<NodeData<T, T::Output>, Option<Dependency<T, T::Output>>, H>: serde::Serialize",
+  deserialize = "T: Task + serde::Deserialize<'de>, H: BuildHasher + Default, DAG<NodeData<T, T::Output>, Option<Dependency<T, T::Output>>, H>: serde::Deserialize<'de>"
   )))] // Set bounds such that `H` does not have to be (de)serializable
-  pub graph: DAG<NodeData<T, T::Output>, Dependency<T, T::Output>, H>,
+  pub graph: DAG<NodeData<T, T::Output>, Option<Dependency<T, T::Output>>, H>,
   #[cfg_attr(feature = "serde", serde(bound(
-  serialize = "T: Task + serde::Serialize, H: BuildHasher + Default, HashMap<T, TaskNode, H>: serde::Serialize",
-  deserialize = "T: Task + serde::Deserialize<'de>, H: BuildHasher + Default, HashMap<T, TaskNode, H>: serde::Deserialize<'de>"
+  serialize = "T: Task + serde::Serialize, H: BuildHasher + Default, HashMap<T, TaskNodeId, H>: serde::Serialize",
+  deserialize = "T: Task + serde::Deserialize<'de>, H: BuildHasher + Default, HashMap<T, TaskNodeId, H>: serde::Deserialize<'de>"
   )))] // Set bounds such that `H` does not have to be (de)serializable
-  task_to_node: HashMap<T, TaskNode, H>,
+  task_to_node: HashMap<T, TaskNodeId, H>,
   #[cfg_attr(feature = "serde", serde(bound(
-  serialize = "H: BuildHasher + Default, HashMap<PathBuf, FileNode, H>: serde::Serialize",
-  deserialize = "H: BuildHasher + Default, HashMap<PathBuf, FileNode, H>: serde::Deserialize<'de>"
+  serialize = "H: BuildHasher + Default, HashMap<PathBuf, FileNodeId, H>: serde::Serialize",
+  deserialize = "H: BuildHasher + Default, HashMap<PathBuf, FileNodeId, H>: serde::Deserialize<'de>"
   )))] // Set bounds such that `H` does not have to be (de)serializable
-  file_to_node: HashMap<PathBuf, FileNode, H>,
+  file_to_node: HashMap<PathBuf, FileNodeId, H>,
 }
 
 #[derive(Debug)]
@@ -53,7 +53,7 @@ impl<T: Task, H: BuildHasher + Default> Default for Store<T, H> {
 
 impl<T: Task, H: BuildHasher + Default> Store<T, H> {
   #[inline]
-  pub fn get_or_create_node_by_task(&mut self, task: T) -> TaskNode {
+  pub fn get_or_create_node_by_task(&mut self, task: T) -> TaskNodeId {
     if let Some(node) = self.task_to_node.get(&task) {
       *node
     } else {
@@ -66,7 +66,7 @@ impl<T: Task, H: BuildHasher + Default> Store<T, H> {
     }
   }
   #[inline]
-  pub fn get_task_by_node(&self, task_node: &TaskNode) -> Option<&T> {
+  pub fn get_task_by_node(&self, task_node: &TaskNodeId) -> Option<&T> {
     self.graph.get_node_data(task_node).and_then(|d| match d {
       NodeData::Task { task, .. } => Some(task),
       _ => None
@@ -74,13 +74,13 @@ impl<T: Task, H: BuildHasher + Default> Store<T, H> {
   }
 
   #[inline]
-  pub fn task_by_node(&self, task_node: &TaskNode) -> &T {
+  pub fn task_by_node(&self, task_node: &TaskNodeId) -> &T {
     self.get_task_by_node(task_node).unwrap()
   }
 
 
   #[inline]
-  pub fn get_or_create_file_node(&mut self, path: &PathBuf) -> FileNode {
+  pub fn get_or_create_file_node(&mut self, path: &PathBuf) -> FileNodeId {
     // TODO: normalize path?
     if let Some(file_node) = self.file_to_node.get(path) {
       *file_node
@@ -93,40 +93,32 @@ impl<T: Task, H: BuildHasher + Default> Store<T, H> {
 
 
   #[inline]
-  pub fn remove_dependencies_of_task(&mut self, task_node: &TaskNode) -> Option<Vec<Dependency<T, T::Output>>> {
-    self.graph.remove_dependencies_of_node(task_node)
+  pub fn remove_dependencies_of_task(&mut self, depender: &TaskNodeId) -> Option<Vec<(NodeId, Option<Dependency<T, T::Output>>)>> {
+    self.graph.remove_dependencies_of_node(depender)
   }
   #[inline]
-  pub fn set_dependencies_of_task(&mut self, task_node: TaskNode, new_dependencies: Vec<Dependency<T, T::Output>>) -> Result<(), pie_graph::Error> {
-    self.graph.remove_dependencies_of_node(task_node);
-    for dependency in new_dependencies {
-      let target = self.get_dependency_target(&dependency);
-      self.graph.add_edge(task_node, target, dependency)?;
+  pub fn set_dependencies_of_task(&mut self, depender: &TaskNodeId, new_dependencies: Vec<(NodeId, Option<Dependency<T, T::Output>>)>) -> Result<(), pie_graph::Error> {
+    self.graph.remove_dependencies_of_node(depender);
+    for (dependee, dependency) in new_dependencies {
+      self.graph.add_edge(depender, dependee, dependency)?;
     }
     Ok(())
   }
   #[inline]
-  pub fn would_dependency_edge_induce_cycle(&mut self, depender: TaskNode, dependee: TaskNode) -> bool {
-    self.graph.would_edge_induce_cycle(depender, dependee)
-  }
-  #[inline]
-  pub fn add_to_dependencies_of_task(&mut self, task_node: TaskNode, dependency: Dependency<T, T::Output>) -> Result<(), pie_graph::Error> {
-    let target = self.get_dependency_target(&dependency);
-    self.graph.add_edge(task_node, target, dependency)?;
+  pub fn add_to_dependencies_of_task(&mut self, depender: &TaskNodeId, dependee: &NodeId, dependency: Option<Dependency<T, T::Output>>) -> Result<(), pie_graph::Error> {
+    self.graph.add_edge(depender, dependee, dependency)?;
     Ok(())
   }
   #[inline]
-  fn get_dependency_target(&self, dependency: &Dependency<T, T::Output>) -> NodeId {
-    match dependency {
-      Dependency::RequireFile(path, _, _) => self.file_to_node[path],
-      Dependency::ProvideFile(path, _, _) => self.file_to_node[path],
-      Dependency::RequireTask(task, _, _) => self.task_to_node[task],
+  pub fn update_dependency_of_task(&mut self, depender: &TaskNodeId, dependee: &NodeId, dependency: Option<Dependency<T, T::Output>>) {
+    if let Some(data) = self.graph.get_dependency_data_mut(depender, dependee) {
+      *data = dependency;
     }
   }
 
 
   #[inline]
-  pub fn task_has_output(&self, task_node: TaskNode) -> bool {
+  pub fn task_has_output(&self, task_node: &TaskNodeId) -> bool {
     if let Some(NodeData::Task { output: Some(_), .. }) = self.graph.get_node_data(task_node) {
       true
     } else {
@@ -134,7 +126,7 @@ impl<T: Task, H: BuildHasher + Default> Store<T, H> {
     }
   }
   #[inline]
-  pub fn get_task_output(&self, task_node: TaskNode) -> Option<&T::Output> {
+  pub fn get_task_output(&self, task_node: &TaskNodeId) -> Option<&T::Output> {
     if let Some(NodeData::Task { output: Some(output), .. }) = self.graph.get_node_data(task_node) {
       Some(output)
     } else {
@@ -142,7 +134,7 @@ impl<T: Task, H: BuildHasher + Default> Store<T, H> {
     }
   }
   #[inline]
-  pub fn set_task_output(&mut self, task_node: TaskNode, new_output: T::Output) {
+  pub fn set_task_output(&mut self, task_node: &TaskNodeId, new_output: T::Output) {
     if let Some(NodeData::Task { output, .. }) = self.graph.get_node_data_mut(task_node) {
       if let Some(output) = output { // Replace the output.
         *output = new_output;
@@ -154,40 +146,40 @@ impl<T: Task, H: BuildHasher + Default> Store<T, H> {
 
 
   #[inline]
-  pub fn add_file_require_dependency(&mut self, depender_task_node: TaskNode, dependee_file_node: FileNode, dependency: Dependency<T, T::Output>) {
-    self.graph.add_edge(depender_task_node, dependee_file_node, dependency).ok(); // Ignore error OK: cycles cannot occur from task to file dependencies, as files do not have dependencies.
+  pub fn add_file_require_dependency(&mut self, depender: &TaskNodeId, dependee: &FileNodeId, dependency: Dependency<T, T::Output>) {
+    self.graph.add_edge(depender, dependee, Some(dependency)).ok(); // OK: cycles cannot occur from task to file dependencies, as files do not have dependencies.
   }
   #[inline]
-  pub fn add_file_provide_dependency(&mut self, depender_task_node: TaskNode, dependee_file_node: FileNode, dependency: Dependency<T, T::Output>) {
-    self.graph.add_edge(depender_task_node, dependee_file_node, dependency).ok(); // Ignore error OK: cycles cannot occur from task to file dependencies, as files do not have dependencies.
+  pub fn add_file_provide_dependency(&mut self, depender: &TaskNodeId, dependee: &FileNodeId, dependency: Dependency<T, T::Output>) {
+    self.graph.add_edge(depender, dependee, Some(dependency)).ok(); // OK: cycles cannot occur from task to file dependencies, as files do not have dependencies.
   }
 
 
   #[inline]
-  pub fn reset_task(&mut self, task_node: &TaskNode) {
+  pub fn reset_task(&mut self, task_node: &TaskNodeId) {
     self.graph.remove_dependencies_of_node(task_node);
     // TODO: should this remove output?
   }
 
   /// Get all task nodes that require given `task_node`.
   #[inline]
-  pub fn get_task_nodes_requiring_task<'a>(&'a self, task_node: &'a TaskNode) -> impl Iterator<Item=&TaskNode> + '_ {
-    self.graph.get_incoming_dependencies(task_node).filter_map(|(n, d)| if d.is_task_require() { Some(n) } else { None })
+  pub fn get_task_nodes_requiring_task<'a>(&'a self, task_node: &'a TaskNodeId) -> impl Iterator<Item=&TaskNodeId> + '_ {
+    self.graph.get_incoming_dependencies(task_node).filter_map(|(n, d)| d.as_ref().and_then(|d| if d.is_task_require() { Some(n) } else { None }))
   }
   /// Checks whether there is a direct or transitive dependency from `depender_task_node` to `dependee_task_node`.
   #[inline]
-  pub fn contains_transitive_task_dependency(&self, depender_task_node: &TaskNode, dependee_task_node: &TaskNode) -> bool {
-    self.graph.contains_transitive_dependency(depender_task_node, dependee_task_node)
+  pub fn contains_transitive_task_dependency(&self, depender: &TaskNodeId, dependee: &TaskNodeId) -> bool {
+    self.graph.contains_transitive_dependency(depender, dependee)
   }
 
   /// Get all task nodes that require given `file_node`.
   #[inline]
-  pub fn get_task_nodes_requiring_file<'a>(&'a self, file_node: &'a FileNode) -> impl Iterator<Item=&TaskNode> + '_ {
-    self.graph.get_incoming_dependencies(file_node).filter_map(|(n, d)| if d.is_require_file() { Some(n) } else { None })
+  pub fn get_task_nodes_requiring_file<'a>(&'a self, file_node: &'a FileNodeId) -> impl Iterator<Item=&TaskNodeId> + '_ {
+    self.graph.get_incoming_dependencies(file_node).filter_map(|(n, d)| d.as_ref().and_then(|d| if d.is_require_file() { Some(n) } else { None }))
   }
   /// Get the task node that provides given `file_node`, or `None` if there is none.
   #[inline]
-  pub fn get_task_node_providing_file(&self, file_node: &FileNode) -> Option<&TaskNode> {
-    self.graph.get_incoming_dependencies(file_node).filter_map(|(n, d)| if d.is_provide_file() { Some(n) } else { None }).next()
+  pub fn get_task_node_providing_file(&self, file_node: &FileNodeId) -> Option<&TaskNodeId> {
+    self.graph.get_incoming_dependencies(file_node).filter_map(|(n, d)| d.as_ref().and_then(|d| if d.is_provide_file() { Some(n) } else { None })).next()
   }
 }

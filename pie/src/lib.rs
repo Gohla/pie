@@ -8,7 +8,7 @@ use std::path::PathBuf;
 
 use stamp::{FileStamper, OutputStamper};
 
-use crate::store::{Store, TaskNode};
+use crate::store::{Store, TaskNodeId};
 use crate::context::top_down::IncrementalTopDownContext;
 use crate::tracker::{NoopTracker, Tracker};
 
@@ -147,7 +147,7 @@ impl<T: Task, A: Tracker<T> + Default, H: BuildHasher + Default> Pie<T, A, H> {
 pub struct Session<'p, T: Task, A, H> {
   store: &'p mut Store<T, H>,
   tracker: &'p mut A,
-  visited: HashSet<TaskNode, H>,
+  visited: HashSet<TaskNodeId, H>,
   dependency_check_errors: Vec<Box<dyn Error>>,
 }
 

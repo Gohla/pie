@@ -434,43 +434,6 @@ impl<N, E, H: BuildHasher + Default> DAG<N, E, H> {
     Ok(true)
   }
 
-  /// Checks whether adding a directed edge from `pred` to `succ` would induce a cycle.
-  pub fn would_edge_induce_cycle(
-    &mut self,
-    pred: impl Borrow<NodeId>,
-    succ: impl Borrow<NodeId>,
-  ) -> bool {
-    let pred = pred.borrow();
-    let succ = succ.borrow();
-
-    if pred == succ { // Introduces cycle to self.
-      return true;
-    }
-
-    // Insert forward edge
-    let mut no_prev_edge = self.nodes[pred.0].children.insert(*succ);
-    let upper_bound = self.nodes[pred.0].topo_order;
-    // Insert backward edge TODO: not needed for cycle checking?
-    no_prev_edge = no_prev_edge && self.nodes[succ.0].parents.insert(*pred);
-    let lower_bound = self.nodes[succ.0].topo_order;
-    if !no_prev_edge { // If edge already exists, then it cannot introduce a cycle.
-      return false;
-    }
-
-    let cycle = if lower_bound < upper_bound {
-      let mut visited = HashSet::<_, H>::default(); // OPTO: reuse allocation.
-      self.dfs_forward_cycle_check(*succ, &mut visited, upper_bound)
-    } else {
-      false
-    };
-
-    // Need to remove parent + child + edge info that was previously added
-    self.nodes[pred.0].children.remove(succ);
-    self.nodes[succ.0].parents.remove(pred); // TODO: not needed for cycle checking?
-
-    cycle
-  }
-
   /// Returns true if the graph contains a direct dependency from `pred` to `succ`.
   ///
   /// Returns false if either node is not found, or if there is no dependency.
@@ -564,7 +527,7 @@ impl<N, E, H: BuildHasher + Default> DAG<N, E, H> {
       }
 
       let children = &self.nodes.get(key.0).unwrap().children;
-      if children.contains(&succ) {
+      if children.contains(succ) {
         return true;
       } else {
         stack.extend(children.iter());
@@ -574,6 +537,23 @@ impl<N, E, H: BuildHasher + Default> DAG<N, E, H> {
 
     // If we exhaust the stack, then there is no transitive dependency.
     false
+  }
+
+
+  /// Gets data for given `node`.
+  #[inline]
+  pub fn get_dependency_data(&self, pred: impl Borrow<NodeId>, succ: impl Borrow<NodeId>) -> Option<&E> {
+    let pred = pred.borrow();
+    let succ = succ.borrow();
+    self.edges.get(&(*pred, *succ))
+  }
+
+  /// Gets mutable data for given `node`.
+  #[inline]
+  pub fn get_dependency_data_mut(&mut self, pred: impl Borrow<NodeId>, succ: impl Borrow<NodeId>) -> Option<&mut E> {
+    let pred = pred.borrow();
+    let succ = succ.borrow();
+    self.edges.get_mut(&(*pred, *succ))
   }
 
 
@@ -589,8 +569,8 @@ impl<N, E, H: BuildHasher + Default> DAG<N, E, H> {
 
   /// Gets the outgoing dependency nodes of given `node`.
   #[inline]
-  pub fn get_outgoing_dependency_nodes(&self, node: impl Borrow<NodeId>) -> impl Iterator<Item=&NodeId> + '_ {
-    let node = node.borrow();
+  pub fn get_outgoing_dependency_nodes(&self, node_id: impl Borrow<NodeId>) -> impl Iterator<Item=&NodeId> + '_ {
+    let node = node_id.borrow();
     self.nodes.get(node.0)
       .into_iter()
       .flat_map(|d| d.children.iter())
@@ -598,9 +578,9 @@ impl<N, E, H: BuildHasher + Default> DAG<N, E, H> {
 
   /// Gets the outgoing dependency data of given `node`.
   #[inline]
-  pub fn get_outgoing_dependency_data(&self, node: impl Borrow<NodeId>) -> impl Iterator<Item=&N> + '_ {
-    let node = node.borrow();
-    self.nodes.get(node.0)
+  pub fn get_outgoing_dependency_data(&self, node_id: impl Borrow<NodeId>) -> impl Iterator<Item=&N> + '_ {
+    let node_id = node_id.borrow();
+    self.nodes.get(node_id.0)
       .into_iter()
       .flat_map(|d| d.children.iter())
       .flat_map(|c| self.nodes.get(c.0).into_iter())
@@ -620,18 +600,18 @@ impl<N, E, H: BuildHasher + Default> DAG<N, E, H> {
 
   /// Gets the incoming dependency nodes of given `node`.
   #[inline]
-  pub fn get_incoming_dependency_nodes(&self, node: impl Borrow<NodeId>) -> impl Iterator<Item=&NodeId> + '_ {
-    let node = node.borrow();
-    self.nodes.get(node.0)
+  pub fn get_incoming_dependency_nodes(&self, node_id: impl Borrow<NodeId>) -> impl Iterator<Item=&NodeId> + '_ {
+    let node_id = *node_id.borrow();
+    self.nodes.get(node_id.0)
       .into_iter()
       .flat_map(|d| d.parents.iter())
   }
 
   /// Gets the incoming dependency data of given `node`.
   #[inline]
-  pub fn get_incoming_dependency_data(&self, node: impl Borrow<NodeId>) -> impl Iterator<Item=&N> + '_ {
-    let node = node.borrow();
-    self.nodes.get(node.0)
+  pub fn get_incoming_dependency_data(&self, node_id: impl Borrow<NodeId>) -> impl Iterator<Item=&N> + '_ {
+    let node_id = node_id.borrow();
+    self.nodes.get(node_id.0)
       .into_iter()
       .flat_map(|d| d.parents.iter())
       .flat_map(|c| self.nodes.get(c.0).into_iter())
@@ -684,7 +664,7 @@ impl<N, E, H: BuildHasher + Default> DAG<N, E, H> {
   /// Attempt to remove all outgoing dependencies of `pred_id` from the graph, returning
   /// `Some(edge_data)` if any dependencies were removed, or `None` if the node does not exist or 
   /// does not have any dependencies.
-  pub fn remove_dependencies_of_node(&mut self, pred_id: impl Borrow<NodeId>) -> Option<Vec<E>> { // TODO: test!
+  pub fn remove_dependencies_of_node(&mut self, pred_id: impl Borrow<NodeId>) -> Option<Vec<(NodeId, E)>> { // TODO: test!
     let pred_id = pred_id.borrow();
     if !self.nodes.contains_key(pred_id.0) {
       return None;
@@ -701,7 +681,7 @@ impl<N, E, H: BuildHasher + Default> DAG<N, E, H> {
         succ.parents.remove(&pred_id);
       }
       if let Some(data) = self.edges.remove(&(*pred_id, succ_id)) {
-        edge_data.push(data);
+        edge_data.push((succ_id, data));
       }
     }
     Some(edge_data)
@@ -952,29 +932,6 @@ impl<N, E, H: BuildHasher + Default> DAG<N, E, H> {
     }
 
     Ok(result)
-  }
-
-  fn dfs_forward_cycle_check(
-    &self,
-    start_key: NodeId,
-    visited: &mut HashSet<NodeId, H>,
-    upper_bound: TopoOrder,
-  ) -> bool {
-    let mut stack = Vec::new(); // OPTO: reuse allocation
-    stack.push(start_key);
-    while let Some(next_key) = stack.pop() {
-      visited.insert(next_key);
-      for child_key in self.get_node(next_key).children.iter() {
-        let child_topo_order = self.get_node(*child_key).topo_order;
-        if child_topo_order == upper_bound {
-          return true;
-        }
-        if !visited.contains(child_key) && child_topo_order < upper_bound {
-          stack.push(*child_key);
-        }
-      }
-    }
-    false
   }
 
   fn dfs_backward(
