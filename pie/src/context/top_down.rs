@@ -2,7 +2,7 @@ use std::fs::File;
 use std::hash::BuildHasher;
 use std::path::PathBuf;
 
-use pie_graph::Node;
+use pie_graph::NodeId;
 
 use crate::{Context, Session, Task};
 use crate::context::ContextShared;
@@ -39,21 +39,21 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> Context<T> for In
     let task_node = self.shared.session.store.get_or_create_node_by_task(task.clone());
     let output = if !self.shared.session.visited.contains(&task_node) && self.should_execute_task(task_node) { // Execute the task, cache and return up-to-date output.
       self.shared.session.store.reset_task(&task_node);
-      
+
       if let Some(current_task_node) = self.shared.task_execution_stack.last() {
-        if let Err(pie_graph::Error::CycleDetected) = self.shared.session.store.add_task_dependency_edge(*current_task_node, task_node) {
+        if self.shared.session.store.would_dependency_edge_induce_cycle(*current_task_node, task_node) {
           let current_task = self.shared.session.store.task_by_node(current_task_node);
           let task_stack: Vec<_> = self.shared.task_execution_stack.iter().map(|task_node| self.shared.session.store.task_by_node(task_node)).collect();
           panic!("Cyclic task dependency; current task '{:?}' is requiring task '{:?}' which was already required. Task stack: {:?}", current_task, task, task_stack);
         }
       }
-      
+
       self.shared.pre_execute(task, task_node);
       let output = task.execute(self);
       self.shared.post_execute(task, task_node, &output);
-      
+
       if let Some(current_task_node) = self.shared.task_execution_stack.last() {
-        self.shared.session.store.add_to_dependencies_of_task(*current_task_node, Dependency::require_task(task.clone(), output.clone(), stamper));
+        self.shared.session.store.add_to_dependencies_of_task(*current_task_node, Dependency::require_task(task.clone(), output.clone(), stamper)).ok(); // Ignore error, already checked for cycles before.
       }
       output
     } else { // Return already up-to-date output.
@@ -83,7 +83,7 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> Context<T> for In
 }
 
 impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> IncrementalTopDownContext<'p, 's, T, A, H> {
-  fn should_execute_task(&mut self, task_node: Node) -> bool {
+  fn should_execute_task(&mut self, task_node: NodeId) -> bool {
     // Remove task dependencies so that we get ownership over the list of dependencies. If the task does not need to be
     // executed, we will restore the dependencies again.
     let task_dependencies = self.shared.session.store.remove_dependencies_of_task(&task_node);
@@ -101,7 +101,8 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> IncrementalTopDow
         }
       }
       // Task is consistent and does not need to be executed. Restore the previous dependencies.
-      self.shared.session.store.set_dependencies_of_task(task_node, task_dependencies); // OPTO: removing and inserting into a HashMap due to ownership requirements.
+      // OPTO: removing and inserting due to ownership requirements.
+      self.shared.session.store.set_dependencies_of_task(task_node, task_dependencies).ok(); // Ok: dependencies did not induce a cycle, so we can ignore the error when setting the same dependencies again.
       false
     } else if self.shared.session.store.task_has_output(task_node) {
       // Task has no dependencies; but has been executed before, so it never has to be executed again.

@@ -45,18 +45,18 @@
 //!
 //! assert_eq!(dag.len(), 7);
 //!
-//! dag.add_dependency(&lion, &human, (), ()).unwrap();
-//! dag.add_dependency(&lion, &gazelle, (), ()).unwrap();
+//! dag.add_edge(&lion, &human, ()).unwrap();
+//! dag.add_edge(&lion, &gazelle, ()).unwrap();
 //!
-//! dag.add_dependency(&human, &dog, (), ()).unwrap();
-//! dag.add_dependency(&human, &cat, (), ()).unwrap();
+//! dag.add_edge(&human, &dog, ()).unwrap();
+//! dag.add_edge(&human, &cat, ()).unwrap();
 //!
-//! dag.add_dependency(&dog, &cat, (), ()).unwrap();
-//! dag.add_dependency(&cat, &mouse, (), ()).unwrap();
+//! dag.add_edge(&dog, &cat, ()).unwrap();
+//! dag.add_edge(&cat, &mouse, ()).unwrap();
 //!
-//! dag.add_dependency(&gazelle, &grass, (), ()).unwrap();
+//! dag.add_edge(&gazelle, &grass, ()).unwrap();
 //!
-//! dag.add_dependency(&mouse, &grass, (), ()).unwrap();
+//! dag.add_edge(&mouse, &grass, ()).unwrap();
 //!
 //! let pairs = dag
 //!     .descendants_unsorted(&human)
@@ -97,6 +97,9 @@ use std::hash::BuildHasher;
 
 use slotmap::{DefaultKey, SlotMap};
 
+type TopoOrder = u32;
+
+
 /// Data structure for maintaining a directed-acyclic graph (DAG) with topological ordering, maintained in an 
 /// incremental fashion.
 ///
@@ -105,64 +108,65 @@ use slotmap::{DefaultKey, SlotMap};
 /// [module-level documentation]: index.html
 #[derive(Clone, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-pub struct DAG<N, PE, CE, H = RandomState> {
+pub struct DAG<N, E, H = RandomState> {
   #[cfg_attr(feature = "serde", serde(bound(
-  serialize = "N: serde::Serialize, PE: serde::Serialize, CE: serde::Serialize, H: BuildHasher + Default, SlotMap<DefaultKey, NodeRepr<N, PE, CE, H>>: serde::Serialize",
-  deserialize = "N: serde::Deserialize<'de>, PE: serde::Deserialize<'de>, CE: serde::Deserialize<'de>, SlotMap<DefaultKey, NodeRepr<N, PE, CE, H>>: serde::Deserialize<'de>"
+  serialize = "N: serde::Serialize, H: BuildHasher + Default, SlotMap<DefaultKey, Node<N, H>>: serde::Serialize",
+  deserialize = "N: serde::Deserialize<'de>, SlotMap<DefaultKey, Node<N, H>>: serde::Deserialize<'de>"
   )))] // Set bounds such that `H` does not have to be (de)serializable
-  node_repr: SlotMap<DefaultKey, NodeRepr<N, PE, CE, H>>,
+  nodes: SlotMap<DefaultKey, Node<N, H>>,
+  #[cfg_attr(feature = "serde", serde(bound(
+  serialize = "E: serde::Serialize, H: BuildHasher + Default, HashMap<(NodeId, NodeId), E, H>: serde::Serialize",
+  deserialize = "E: serde::Deserialize<'de>, HashMap<(NodeId, NodeId), E, H>: serde::Deserialize<'de>"
+  )))] // Set bounds such that `H` does not have to be (de)serializable
+  edges: HashMap<(NodeId, NodeId), E, H>,
   last_topo_order: TopoOrder,
 }
 
 
 /// An identifier of a node in the [`DAG`].
 ///
-/// This identifier contains metadata so that a node which has been passed to [`DAG::delete_node`] will not be confused
-/// with a node created later.
+/// This identifier contains metadata so that a node which has been passed to [`DAG::delete_node`] 
+/// will not be confused with a node created later.
 #[repr(transparent)]
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-pub struct Node(DefaultKey);
+pub struct NodeId(DefaultKey);
 
-impl From<DefaultKey> for Node {
+impl From<DefaultKey> for NodeId {
   #[inline]
   fn from(src: DefaultKey) -> Self { Self(src) }
 }
 
 
-/// The representation of a node, with all information about it ordering, which nodes it points to, and which nodes
-/// point to it.
+/// A node with all information about it ordering, which nodes it points to, and which nodes point to it.
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-struct NodeRepr<N, PE, CE, H> {
+struct Node<N, H> {
   topo_order: TopoOrder,
   data: N,
   #[cfg_attr(feature = "serde", serde(bound(
-  serialize = "PE: serde::Serialize, H: BuildHasher + Default, HashMap<Node, PE, H>: serde::Serialize",
-  deserialize = "PE: serde::Deserialize<'de>, H: BuildHasher + Default, HashMap<Node, PE, H>: serde::Deserialize<'de>"
+  serialize = "H: BuildHasher + Default, HashSet<NodeId, H>: serde::Serialize",
+  deserialize = "H: BuildHasher + Default, HashSet<NodeId, H>: serde::Deserialize<'de>"
   )))] // Set bounds such that `H` does not have to be (de)serializable
-  parents: HashMap<Node, PE, H>,
+  parents: HashSet<NodeId, H>,
   #[cfg_attr(feature = "serde", serde(bound(
-  serialize = "CE: serde::Serialize, H: BuildHasher + Default, HashMap<Node, PE, H>: serde::Serialize",
-  deserialize = "CE: serde::Deserialize<'de>, H: BuildHasher + Default, HashMap<Node, PE, H>: serde::Deserialize<'de>"
+  serialize = "H: BuildHasher + Default, HashSet<NodeId, H>: serde::Serialize",
+  deserialize = "H: BuildHasher + Default, HashSet<NodeId, H>: serde::Deserialize<'de>"
   )))] // Set bounds such that `H` does not have to be (de)serializable
-  children: HashMap<Node, CE, H>,
+  children: HashSet<NodeId, H>,
 }
 
-impl<N, PE, CE, H: BuildHasher + Default> NodeRepr<N, PE, CE, H> {
+impl<N, H: BuildHasher + Default> Node<N, H> {
   /// Create a new node entry with the specified topological order.
   fn new(topo_order: TopoOrder, data: N) -> Self {
-    NodeRepr {
+    Node {
       topo_order,
       data,
-      parents: HashMap::default(),
-      children: HashMap::default(),
+      parents: Default::default(),
+      children: Default::default(),
     }
   }
 }
-
-
-type TopoOrder = u32;
 
 
 /// Different types of failures that can occur while updating or querying the graph.
@@ -189,13 +193,13 @@ impl fmt::Display for Error {
 impl std::error::Error for Error {}
 
 
-impl<N, PE, CE> DAG<N, PE, CE> {
+impl<N, E> DAG<N, E> {
   /// Create a new DAG.
   ///
   /// # Examples
   /// ```
   /// use pie_graph::DAG;
-  /// let dag = DAG::<(), (), ()>::new();
+  /// let dag = DAG::<(), ()>::new();
   ///
   /// assert!(dag.is_empty());
   /// ```
@@ -203,20 +207,20 @@ impl<N, PE, CE> DAG<N, PE, CE> {
   pub fn new() -> Self { Self::with_default_hasher() }
 }
 
-impl<N, PE, CE, H: BuildHasher + Default> DAG<N, PE, CE, H> {
+impl<N, E, H: BuildHasher + Default> DAG<N, E, H> {
   /// Create a new DAG.
   ///
   /// # Examples
   /// ```
   /// use pie_graph::DAG;
-  /// let dag = DAG::<(), (), ()>::new();
+  /// let dag = DAG::<(), ()>::new();
   ///
   /// assert!(dag.is_empty());
   /// ```
   #[inline]
-  pub fn with_default_hasher() -> Self { Self { last_topo_order: 0, node_repr: SlotMap::new() } }
+  pub fn with_default_hasher() -> Self { Self { last_topo_order: 0, nodes: SlotMap::new(), edges: Default::default() } }
 
-  /// Add a new node with `data` to the graph and return a unique [`Node`] which identifies it.
+  /// Add a new node with `data` to the graph and return a unique [`NodeId`] which identifies it.
   ///
   /// Initially this node will not have any order relative to the nodes that are already in the graph. Only when 
   /// relations are added with [`add_dependency`] will the order begin to matter.
@@ -224,7 +228,7 @@ impl<N, PE, CE, H: BuildHasher + Default> DAG<N, PE, CE, H> {
   /// # Examples
   /// ```
   /// use pie_graph::DAG;
-  /// let mut dag = DAG::<(), (), ()>::new();
+  /// let mut dag = DAG::<(), ()>::new();
   ///
   /// let cat = dag.add_node(());
   /// let dog = dag.add_node(());
@@ -246,11 +250,11 @@ impl<N, PE, CE, H: BuildHasher + Default> DAG<N, PE, CE, H> {
   ///
   /// [`add_dependency`]: struct.IncrementalTopo.html#method.add_dependency
   #[inline]
-  pub fn add_node(&mut self, data: N) -> Node {
+  pub fn add_node(&mut self, data: N) -> NodeId {
     let next_topo_order = self.last_topo_order + 1;
     self.last_topo_order = next_topo_order;
-    let node_data = NodeRepr::new(next_topo_order, data);
-    Node(self.node_repr.insert(node_data))
+    let node_data = Node::new(next_topo_order, data);
+    NodeId(self.nodes.insert(node_data))
   }
 
   /// Returns true if the graph contains the specified `node.`
@@ -258,7 +262,7 @@ impl<N, PE, CE, H: BuildHasher + Default> DAG<N, PE, CE, H> {
   /// # Examples
   /// ```
   /// use pie_graph::DAG;
-  /// let mut dag = DAG::<(), (), ()>::new();
+  /// let mut dag = DAG::<(), ()>::new();
   ///
   /// let cat = dag.add_node(());
   /// let dog = dag.add_node(());
@@ -267,23 +271,23 @@ impl<N, PE, CE, H: BuildHasher + Default> DAG<N, PE, CE, H> {
   /// assert!(dag.contains_node(dog));
   /// ```
   #[inline]
-  pub fn contains_node(&self, node: impl Borrow<Node>) -> bool {
+  pub fn contains_node(&self, node: impl Borrow<NodeId>) -> bool {
     let node = node.borrow();
-    self.node_repr.contains_key(node.0)
+    self.nodes.contains_key(node.0)
   }
 
   /// Gets data for given `node`.
   #[inline]
-  pub fn get_node_data(&self, node: impl Borrow<Node>) -> Option<&N> {
+  pub fn get_node_data(&self, node: impl Borrow<NodeId>) -> Option<&N> {
     let node = node.borrow();
-    self.node_repr.get(node.0).map(|d| &d.data)
+    self.nodes.get(node.0).map(|d| &d.data)
   }
 
   /// Gets mutable data for given `node`.
   #[inline]
-  pub fn get_node_data_mut(&mut self, node: impl Borrow<Node>) -> Option<&mut N> {
+  pub fn get_node_data_mut(&mut self, node: impl Borrow<NodeId>) -> Option<&mut N> {
     let node = node.borrow();
-    self.node_repr.get_mut(node.0).map(|d| &mut d.data)
+    self.nodes.get_mut(node.0).map(|d| &mut d.data)
   }
 
   /// Attempt to remove `node` from graph, returning true if the node was contained and removed.
@@ -291,7 +295,7 @@ impl<N, PE, CE, H: BuildHasher + Default> DAG<N, PE, CE, H> {
   /// # Examples
   /// ```
   /// use pie_graph::DAG;
-  /// let mut dag = DAG::<(), (), ()>::new();
+  /// let mut dag = DAG::<(), ()>::new();
   ///
   /// let cat = dag.add_node(());
   /// let dog = dag.add_node(());
@@ -302,28 +306,30 @@ impl<N, PE, CE, H: BuildHasher + Default> DAG<N, PE, CE, H> {
   /// assert!(!dag.remove_node(cat));
   /// assert!(!dag.remove_node(dog));
   /// ```
-  pub fn remove_node(&mut self, node: Node) -> bool {
-    if !self.node_repr.contains_key(node.0) {
+  pub fn remove_node(&mut self, node_id: NodeId) -> bool {
+    if !self.nodes.contains_key(node_id.0) {
       return false;
     }
 
-    // Remove associated data
-    let data = self.node_repr.remove(node.0).unwrap();
+    // Remove node
+    let node = self.nodes.remove(node_id.0).unwrap();
     // Delete forward edges
-    for child in data.children.keys() {
-      if let Some(child_repr) = self.node_repr.get_mut(child.0) {
-        child_repr.parents.remove(&node.into());
+    for child in &node.children {
+      if let Some(child_node) = self.nodes.get_mut(child.0) {
+        child_node.parents.remove(&node_id.into());
       }
+      self.edges.remove(&(node_id, *child));
     }
     // Delete backward edges
-    for parent in data.parents.keys() {
-      if let Some(parent_repr) = self.node_repr.get_mut(parent.0) {
-        parent_repr.children.remove(&node.into());
+    for parent in &node.parents {
+      if let Some(parent_node) = self.nodes.get_mut(parent.0) {
+        parent_node.children.remove(&node_id.into());
       }
+      self.edges.remove(&(*parent, node_id));
     }
     // OPTO: inefficient compaction step
-    for (_, other_node) in self.node_repr.iter_mut() {
-      if other_node.topo_order > data.topo_order {
+    for (_, other_node) in self.nodes.iter_mut() {
+      if other_node.topo_order > node.topo_order {
         other_node.topo_order -= 1;
       }
     }
@@ -356,9 +362,9 @@ impl<N, PE, CE, H: BuildHasher + Default> DAG<N, PE, CE, H> {
   /// let dog = dag.add_node(());
   /// let human = dag.add_node(());
   ///
-  /// assert!(dag.add_dependency(&human, dog, (), ()).unwrap());
-  /// assert!(dag.add_dependency(&human, cat, (), ()).unwrap());
-  /// assert!(dag.add_dependency(&cat, mouse, (), ()).unwrap());
+  /// assert!(dag.add_edge(&human, dog, ()).unwrap());
+  /// assert!(dag.add_edge(&human, cat, ()).unwrap());
+  /// assert!(dag.add_edge(&cat, mouse, ()).unwrap());
   /// ```
   ///
   /// Here is an example which returns [`Error::CycleDetected`] when
@@ -369,24 +375,23 @@ impl<N, PE, CE, H: BuildHasher + Default> DAG<N, PE, CE, H> {
   /// let mut dag = DAG::new();
   ///
   /// let n0 = dag.add_node(());
-  /// assert_eq!(dag.add_dependency(&n0, &n0, (), ()), Err(Error::CycleDetected));
+  /// assert_eq!(dag.add_edge(&n0, &n0, ()), Err(Error::CycleDetected));
   ///
   /// let n1 = dag.add_node(());
   ///
-  /// assert!(dag.add_dependency(&n0, &n1, (), ()).unwrap());
-  /// assert_eq!(dag.add_dependency(&n1, &n0, (), ()), Err(Error::CycleDetected));
+  /// assert!(dag.add_edge(&n0, &n1, ()).unwrap());
+  /// assert_eq!(dag.add_edge(&n1, &n0, ()), Err(Error::CycleDetected));
   ///
   /// let n2 = dag.add_node(());
   ///
-  /// assert!(dag.add_dependency(&n1, &n2, (), ()).unwrap());
-  /// assert_eq!(dag.add_dependency(&n2, &n0, (), ()), Err(Error::CycleDetected));
+  /// assert!(dag.add_edge(&n1, &n2, ()).unwrap());
+  /// assert_eq!(dag.add_edge(&n2, &n0, ()), Err(Error::CycleDetected));
   /// ```
-  pub fn add_dependency(
+  pub fn add_edge(
     &mut self,
-    pred: impl Borrow<Node>,
-    succ: impl Borrow<Node>,
-    parent_data: PE,
-    child_data: CE,
+    pred: impl Borrow<NodeId>,
+    succ: impl Borrow<NodeId>,
+    data: E,
   ) -> Result<bool, Error> {
     let pred = pred.borrow();
     let succ = succ.borrow();
@@ -396,15 +401,16 @@ impl<N, PE, CE, H: BuildHasher + Default> DAG<N, PE, CE, H> {
     }
 
     // Insert forward edge
-    let mut no_prev_edge = self.node_repr[pred.0].children.insert(*succ, child_data).is_none();
-    let upper_bound = self.node_repr[pred.0].topo_order;
+    let mut no_prev_edge = self.nodes[pred.0].children.insert(*succ);
+    let upper_bound = self.nodes[pred.0].topo_order;
     // Insert backward edge
-    no_prev_edge = no_prev_edge && self.node_repr[succ.0].parents.insert(*pred, parent_data).is_none();
-    let lower_bound = self.node_repr[succ.0].topo_order;
-    // If edge already exists short circuit
-    if !no_prev_edge {
+    no_prev_edge = no_prev_edge && self.nodes[succ.0].parents.insert(*pred);
+    let lower_bound = self.nodes[succ.0].topo_order;
+    if !no_prev_edge { // If edge already exists short circuit
       return Ok(false);
     }
+    self.edges.insert((*pred, *succ), data);
+
     // If the affected region of the graph has non-zero size (i.e. the upper and
     // lower bound are equal) then perform an update to the topological ordering of
     // the graph
@@ -413,9 +419,10 @@ impl<N, PE, CE, H: BuildHasher + Default> DAG<N, PE, CE, H> {
       // Walk changes forward from the succ, checking for any cycles that would be introduced
       let change_forward = match self.dfs_forward(*succ, &mut visited, upper_bound) {
         Ok(change_set) => change_set,
-        Err(err) => { // Need to remove parent + child info that was previously added
-          self.node_repr[pred.0].children.remove(succ);
-          self.node_repr[succ.0].parents.remove(pred);
+        Err(err) => { // Need to remove parent + child + edge info that was previously added
+          self.nodes[pred.0].children.remove(succ);
+          self.nodes[succ.0].parents.remove(pred);
+          self.edges.remove(&(*pred, *succ));
           return Err(err);
         }
       };
@@ -425,6 +432,43 @@ impl<N, PE, CE, H: BuildHasher + Default> DAG<N, PE, CE, H> {
     }
 
     Ok(true)
+  }
+
+  /// Checks whether adding a directed edge from `pred` to `succ` would induce a cycle.
+  pub fn would_edge_induce_cycle(
+    &mut self,
+    pred: impl Borrow<NodeId>,
+    succ: impl Borrow<NodeId>,
+  ) -> bool {
+    let pred = pred.borrow();
+    let succ = succ.borrow();
+
+    if pred == succ { // Introduces cycle to self.
+      return true;
+    }
+
+    // Insert forward edge
+    let mut no_prev_edge = self.nodes[pred.0].children.insert(*succ);
+    let upper_bound = self.nodes[pred.0].topo_order;
+    // Insert backward edge TODO: not needed for cycle checking?
+    no_prev_edge = no_prev_edge && self.nodes[succ.0].parents.insert(*pred);
+    let lower_bound = self.nodes[succ.0].topo_order;
+    if !no_prev_edge { // If edge already exists, then it cannot introduce a cycle.
+      return false;
+    }
+
+    let cycle = if lower_bound < upper_bound {
+      let mut visited = HashSet::<_, H>::default(); // OPTO: reuse allocation.
+      self.dfs_forward_cycle_check(*succ, &mut visited, upper_bound)
+    } else {
+      false
+    };
+
+    // Need to remove parent + child + edge info that was previously added
+    self.nodes[pred.0].children.remove(succ);
+    self.nodes[succ.0].parents.remove(pred); // TODO: not needed for cycle checking?
+
+    cycle
   }
 
   /// Returns true if the graph contains a direct dependency from `pred` to `succ`.
@@ -441,22 +485,22 @@ impl<N, PE, CE, H: BuildHasher + Default> DAG<N, PE, CE, H> {
   /// let human = dag.add_node(());
   /// let horse = dag.add_node(());
   ///
-  /// assert!(dag.add_dependency(&human, &cat, (), ()).unwrap());
-  /// assert!(dag.add_dependency(&cat, &mouse, (), ()).unwrap());
+  /// assert!(dag.add_edge(&human, &cat, ()).unwrap());
+  /// assert!(dag.add_edge(&cat, &mouse, ()).unwrap());
   ///
   /// assert!(dag.contains_dependency(&cat, &mouse));
   /// assert!(!dag.contains_dependency(&human, &mouse));
   /// assert!(!dag.contains_dependency(&cat, &horse));
   /// ```
   #[inline]
-  pub fn contains_dependency(&self, pred: impl Borrow<Node>, succ: impl Borrow<Node>) -> bool {
+  pub fn contains_dependency(&self, pred: impl Borrow<NodeId>, succ: impl Borrow<NodeId>) -> bool {
     let pred = pred.borrow();
     let succ = succ.borrow();
 
-    if !self.node_repr.contains_key(pred.0) || !self.node_repr.contains_key(succ.0) {
+    if !self.nodes.contains_key(pred.0) || !self.nodes.contains_key(succ.0) {
       return false;
     }
-    self.node_repr[pred.0].children.contains_key(&succ)
+    self.edges.contains_key(&(*pred, *succ))
   }
 
   /// Returns true if the graph contains a transitive dependency from `pred` to `succ`.
@@ -476,23 +520,23 @@ impl<N, PE, CE, H: BuildHasher + Default> DAG<N, PE, CE, H> {
   /// let dog = dag.add_node(());
   /// let human = dag.add_node(());
   ///
-  /// assert!(dag.add_dependency(&human, &cat, (), ()).unwrap());
-  /// assert!(dag.add_dependency(&human, &dog, (), ()).unwrap());
-  /// assert!(dag.add_dependency(&cat, &mouse, (), ()).unwrap());
+  /// assert!(dag.add_edge(&human, &cat, ()).unwrap());
+  /// assert!(dag.add_edge(&human, &dog, ()).unwrap());
+  /// assert!(dag.add_edge(&cat, &mouse, ()).unwrap());
   ///
   /// assert!(dag.contains_transitive_dependency(&human, &mouse));
   /// assert!(!dag.contains_transitive_dependency(&dog, &mouse));
   /// ```
   pub fn contains_transitive_dependency(
     &self,
-    pred: impl Borrow<Node>,
-    succ: impl Borrow<Node>,
+    pred: impl Borrow<NodeId>,
+    succ: impl Borrow<NodeId>,
   ) -> bool {
     let pred = pred.borrow();
     let succ = succ.borrow();
 
     // If either node is missing, return quick
-    if !self.node_repr.contains_key(pred.0) || !self.node_repr.contains_key(succ.0) {
+    if !self.nodes.contains_key(pred.0) || !self.nodes.contains_key(succ.0) {
       return false;
     }
 
@@ -519,11 +563,11 @@ impl<N, PE, CE, H: BuildHasher + Default> DAG<N, PE, CE, H> {
         visited.insert(key);
       }
 
-      let children = &self.node_repr.get(key.0).unwrap().children;
-      if children.contains_key(&succ) {
+      let children = &self.nodes.get(key.0).unwrap().children;
+      if children.contains(&succ) {
         return true;
       } else {
-        stack.extend(children.keys());
+        stack.extend(children.iter());
         continue;
       }
     }
@@ -535,66 +579,68 @@ impl<N, PE, CE, H: BuildHasher + Default> DAG<N, PE, CE, H> {
 
   /// Gets the outgoing dependencies of given `node`.
   #[inline]
-  pub fn get_outgoing_dependencies(&self, node: impl Borrow<Node>) -> impl Iterator<Item=(&Node, &CE)> + '_ {
-    let node = node.borrow();
-    self.node_repr.get(node.0)
+  pub fn get_outgoing_dependencies(&self, node_id: impl Borrow<NodeId>) -> impl Iterator<Item=(&NodeId, &E)> + '_ {
+    let node_id = *node_id.borrow();
+    self.nodes.get(node_id.0)
       .into_iter()
-      .flat_map(|d| d.children.iter())
+      .flat_map(|node| node.children.iter())
+      .map(move |child_node_id| (child_node_id, self.edges.get(&(node_id, *child_node_id)).unwrap()))
   }
 
   /// Gets the outgoing dependency nodes of given `node`.
   #[inline]
-  pub fn get_outgoing_dependency_nodes(&self, node: impl Borrow<Node>) -> impl Iterator<Item=&Node> + '_ {
+  pub fn get_outgoing_dependency_nodes(&self, node: impl Borrow<NodeId>) -> impl Iterator<Item=&NodeId> + '_ {
     let node = node.borrow();
-    self.node_repr.get(node.0)
+    self.nodes.get(node.0)
       .into_iter()
-      .flat_map(|d| d.children.keys())
+      .flat_map(|d| d.children.iter())
   }
 
   /// Gets the outgoing dependency data of given `node`.
   #[inline]
-  pub fn get_outgoing_dependency_data(&self, node: impl Borrow<Node>) -> impl Iterator<Item=&N> + '_ {
+  pub fn get_outgoing_dependency_data(&self, node: impl Borrow<NodeId>) -> impl Iterator<Item=&N> + '_ {
     let node = node.borrow();
-    self.node_repr.get(node.0)
+    self.nodes.get(node.0)
       .into_iter()
-      .flat_map(|d| d.children.keys())
-      .flat_map(|c| self.node_repr.get(c.0).into_iter())
+      .flat_map(|d| d.children.iter())
+      .flat_map(|c| self.nodes.get(c.0).into_iter())
       .map(|nr| &nr.data)
   }
 
 
   /// Gets the incoming dependencies of given `node`.
   #[inline]
-  pub fn get_incoming_dependencies(&self, node: impl Borrow<Node>) -> impl Iterator<Item=(&Node, &PE)> + '_ {
-    let node = node.borrow();
-    self.node_repr.get(node.0)
+  pub fn get_incoming_dependencies(&self, node_id: impl Borrow<NodeId>) -> impl Iterator<Item=(&NodeId, &E)> + '_ {
+    let node_id = *node_id.borrow();
+    self.nodes.get(node_id.0)
       .into_iter()
-      .flat_map(|d| d.parents.iter())
+      .flat_map(|node| node.parents.iter())
+      .map(move |parent_node_id| (parent_node_id, self.edges.get(&(*parent_node_id, node_id)).unwrap()))
   }
 
   /// Gets the incoming dependency nodes of given `node`.
   #[inline]
-  pub fn get_incoming_dependency_nodes(&self, node: impl Borrow<Node>) -> impl Iterator<Item=&Node> + '_ {
+  pub fn get_incoming_dependency_nodes(&self, node: impl Borrow<NodeId>) -> impl Iterator<Item=&NodeId> + '_ {
     let node = node.borrow();
-    self.node_repr.get(node.0)
+    self.nodes.get(node.0)
       .into_iter()
-      .flat_map(|d| d.parents.keys())
+      .flat_map(|d| d.parents.iter())
   }
 
   /// Gets the incoming dependency data of given `node`.
   #[inline]
-  pub fn get_incoming_dependency_data(&self, node: impl Borrow<Node>) -> impl Iterator<Item=&N> + '_ {
+  pub fn get_incoming_dependency_data(&self, node: impl Borrow<NodeId>) -> impl Iterator<Item=&N> + '_ {
     let node = node.borrow();
-    self.node_repr.get(node.0)
+    self.nodes.get(node.0)
       .into_iter()
-      .flat_map(|d| d.parents.keys())
-      .flat_map(|c| self.node_repr.get(c.0).into_iter())
+      .flat_map(|d| d.parents.iter())
+      .flat_map(|c| self.nodes.get(c.0).into_iter())
       .map(|nr| &nr.data)
   }
 
 
-  /// Attempt to remove the dependency from `pred` to `succ` from the graph, returning `true` if the dependency was 
-  /// removed.
+  /// Attempt to remove the dependency from `pred` to `succ` from the graph, returning 
+  /// `Some(edge_data)` if the dependency was removed, or `None` otherwise.
   ///
   /// Returns `false` is either node is not found in the graph.
   ///
@@ -611,29 +657,54 @@ impl<N, PE, CE, H: BuildHasher + Default> DAG<N, PE, CE, H> {
   /// let dog = dag.add_node(());
   /// let human = dag.add_node(());
   ///
-  /// assert!(dag.add_dependency(&human, &cat, (), ()).unwrap());
-  /// assert!(dag.add_dependency(&human, &dog, (), ()).unwrap());
-  /// assert!(dag.add_dependency(&cat, &mouse, (), ()).unwrap());
+  /// assert!(dag.add_edge(&human, &cat, ()).unwrap());
+  /// assert!(dag.add_edge(&human, &dog, ()).unwrap());
+  /// assert!(dag.add_edge(&cat, &mouse, ()).unwrap());
   ///
-  /// assert!(dag.remove_dependency(&cat, mouse));
-  /// assert!(dag.remove_dependency(&human, dog));
-  /// assert!(!dag.remove_dependency(&human, mouse));
+  /// assert!(dag.remove_dependency(&cat, mouse).is_some());
+  /// assert!(dag.remove_dependency(&human, dog).is_some());
+  /// assert!(dag.remove_dependency(&human, mouse).is_none());
   /// ```
-  pub fn remove_dependency(&mut self, pred: impl Borrow<Node>, succ: impl Borrow<Node>) -> bool {
+  pub fn remove_dependency(&mut self, pred: impl Borrow<NodeId>, succ: impl Borrow<NodeId>) -> Option<E> {
     let pred = pred.borrow();
     let succ = succ.borrow();
 
-    if !self.node_repr.contains_key(pred.0) || !self.node_repr.contains_key(succ.0) {
-      return false;
+    if !self.nodes.contains_key(pred.0) || !self.nodes.contains_key(succ.0) {
+      return None;
     }
-    let pred_children = &mut self.node_repr[pred.0].children;
-    if !pred_children.contains_key(&succ) {
-      return false;
+    let pred_children = &mut self.nodes[pred.0].children;
+    if !pred_children.contains(&succ) {
+      return None;
     }
     pred_children.remove(&succ);
-    self.node_repr[succ.0].parents.remove(&pred);
+    self.nodes[succ.0].parents.remove(&pred);
+    self.edges.remove(&(*pred, *succ))
+  }
 
-    true
+  /// Attempt to remove all outgoing dependencies of `pred_id` from the graph, returning
+  /// `Some(edge_data)` if any dependencies were removed, or `None` if the node does not exist or 
+  /// does not have any dependencies.
+  pub fn remove_dependencies_of_node(&mut self, pred_id: impl Borrow<NodeId>) -> Option<Vec<E>> { // TODO: test!
+    let pred_id = pred_id.borrow();
+    if !self.nodes.contains_key(pred_id.0) {
+      return None;
+    }
+
+    let children: Vec<_> = self.nodes[pred_id.0].children.drain().collect(); // OPTO: reuse allocation
+    if children.is_empty() {
+      return None;
+    }
+
+    let mut edge_data = Vec::new();
+    for succ_id in children {
+      if let Some(succ) = self.nodes.get_mut(succ_id.0) {
+        succ.parents.remove(&pred_id);
+      }
+      if let Some(data) = self.edges.remove(&(*pred_id, succ_id)) {
+        edge_data.push(data);
+      }
+    }
+    Some(edge_data)
   }
 
   /// Return the number of nodes within the graph.
@@ -641,7 +712,7 @@ impl<N, PE, CE, H: BuildHasher + Default> DAG<N, PE, CE, H> {
   /// # Examples
   /// ```
   /// use pie_graph::DAG;
-  /// let mut dag = DAG::<(), (), ()>::new();
+  /// let mut dag = DAG::<(), ()>::new();
   ///
   /// let cat = dag.add_node(());
   /// let mouse = dag.add_node(());
@@ -652,7 +723,7 @@ impl<N, PE, CE, H: BuildHasher + Default> DAG<N, PE, CE, H> {
   /// ```
   #[inline]
   pub fn len(&self) -> usize {
-    self.node_repr.len()
+    self.nodes.len()
   }
 
   /// Return `true` if there are no nodes in the graph.
@@ -660,7 +731,7 @@ impl<N, PE, CE, H: BuildHasher + Default> DAG<N, PE, CE, H> {
   /// # Examples
   /// ```
   /// use pie_graph::DAG;
-  /// let mut dag = DAG::<(), (), ()>::new();
+  /// let mut dag = DAG::<(), ()>::new();
   ///
   /// assert!(dag.is_empty());
   ///
@@ -689,9 +760,9 @@ impl<N, PE, CE, H: BuildHasher + Default> DAG<N, PE, CE, H> {
   /// let dog = dag.add_node(());
   /// let human = dag.add_node(());
   ///
-  /// assert!(dag.add_dependency(&human, &cat, (), ()).unwrap());
-  /// assert!(dag.add_dependency(&human, &dog, (), ()).unwrap());
-  /// assert!(dag.add_dependency(&cat, &mouse, (), ()).unwrap());
+  /// assert!(dag.add_edge(&human, &cat, ()).unwrap());
+  /// assert!(dag.add_edge(&human, &dog, ()).unwrap());
+  /// assert!(dag.add_edge(&cat, &mouse, ()).unwrap());
   ///
   /// let pairs = dag.iter_unsorted().collect::<HashSet<_>>();
   ///
@@ -701,8 +772,8 @@ impl<N, PE, CE, H: BuildHasher + Default> DAG<N, PE, CE, H> {
   /// assert_eq!(pairs, expected_pairs);
   /// ```
   #[inline]
-  pub fn iter_unsorted(&self) -> impl Iterator<Item=(TopoOrder, Node)> + '_ {
-    self.node_repr
+  pub fn iter_unsorted(&self) -> impl Iterator<Item=(TopoOrder, NodeId)> + '_ {
+    self.nodes
       .iter()
       .map(|(index, node)| (node.topo_order, index.into()))
   }
@@ -727,10 +798,10 @@ impl<N, PE, CE, H: BuildHasher + Default> DAG<N, PE, CE, H> {
   /// let dog = dag.add_node(());
   /// let human = dag.add_node(());
   ///
-  /// assert!(dag.add_dependency(&human, &cat, (), ()).unwrap());
-  /// assert!(dag.add_dependency(&human, &dog, (), ()).unwrap());
-  /// assert!(dag.add_dependency(&dog, &cat, (), ()).unwrap());
-  /// assert!(dag.add_dependency(&cat, &mouse, (), ()).unwrap());
+  /// assert!(dag.add_edge(&human, &cat, ()).unwrap());
+  /// assert!(dag.add_edge(&human, &dog, ()).unwrap());
+  /// assert!(dag.add_edge(&dog, &cat, ()).unwrap());
+  /// assert!(dag.add_edge(&cat, &mouse, ()).unwrap());
   ///
   /// let pairs = dag
   ///     .descendants_unsorted(human)
@@ -744,16 +815,16 @@ impl<N, PE, CE, H: BuildHasher + Default> DAG<N, PE, CE, H> {
   /// ```
   pub fn descendants_unsorted(
     &self,
-    node: impl Borrow<Node>,
-  ) -> Result<DescendantsUnsorted<N, PE, CE, H>, Error> {
+    node: impl Borrow<NodeId>,
+  ) -> Result<DescendantsUnsorted<N, E, H>, Error> {
     let node = node.borrow();
-    if !self.node_repr.contains_key(node.0) {
+    if !self.nodes.contains_key(node.0) {
       return Err(Error::NodeMissing);
     }
 
     let mut stack = Vec::new(); // OPTO: reuse allocation
     // Add all children of selected node
-    stack.extend(self.node_repr[node.0].children.keys());
+    stack.extend(self.nodes[node.0].children.iter());
     let visited = HashSet::<_, H>::default(); // OPTO: reuse allocation
 
     Ok(DescendantsUnsorted {
@@ -782,30 +853,30 @@ impl<N, PE, CE, H: BuildHasher + Default> DAG<N, PE, CE, H> {
   /// let dog = dag.add_node(());
   /// let human = dag.add_node(());
   ///
-  /// assert!(dag.add_dependency(&human, &cat, (), ()).unwrap());
-  /// assert!(dag.add_dependency(&human, &dog, (), ()).unwrap());
-  /// assert!(dag.add_dependency(&dog, &cat, (), ()).unwrap());
-  /// assert!(dag.add_dependency(&cat, &mouse, (), ()).unwrap());
+  /// assert!(dag.add_edge(&human, &cat, ()).unwrap());
+  /// assert!(dag.add_edge(&human, &dog, ()).unwrap());
+  /// assert!(dag.add_edge(&dog, &cat, ()).unwrap());
+  /// assert!(dag.add_edge(&cat, &mouse, ()).unwrap());
   ///
   /// let ordered_nodes = dag.descendants(human).unwrap().collect::<Vec<_>>();
   ///
   /// assert_eq!(ordered_nodes, vec![dog, cat, mouse]);
   /// ```
-  pub fn descendants(&self, node: impl Borrow<Node>) -> Result<Descendants<N, PE, CE, H>, Error> {
+  pub fn descendants(&self, node: impl Borrow<NodeId>) -> Result<Descendants<N, E, H>, Error> {
     let node = node.borrow();
-    if !self.node_repr.contains_key(node.0) {
+    if !self.nodes.contains_key(node.0) {
       return Err(Error::NodeMissing);
     }
 
     let mut queue = BinaryHeap::new(); // OPTO: reuse allocation
     // Add all children of selected node
     queue.extend(
-      self.node_repr[node.0]
+      self.nodes[node.0]
         .children
-        .keys()
+        .iter()
         .cloned()
         .map(|child_key| {
-          let child_order = self.get_node_repr(child_key).topo_order;
+          let child_order = self.get_node(child_key).topo_order;
           (Reverse(child_order), child_key)
         }),
     );
@@ -833,31 +904,31 @@ impl<N, PE, CE, H: BuildHasher + Default> DAG<N, PE, CE, H> {
   /// let human = dag.add_node(());
   /// let horse = dag.add_node(());
   ///
-  /// assert!(dag.add_dependency(&human, &cat, (), ()).unwrap());
-  /// assert!(dag.add_dependency(&human, &dog, (), ()).unwrap());
-  /// assert!(dag.add_dependency(&dog, &cat, (), ()).unwrap());
-  /// assert!(dag.add_dependency(&cat, &mouse, (), ()).unwrap());
+  /// assert!(dag.add_edge(&human, &cat, ()).unwrap());
+  /// assert!(dag.add_edge(&human, &dog, ()).unwrap());
+  /// assert!(dag.add_edge(&dog, &cat, ()).unwrap());
+  /// assert!(dag.add_edge(&cat, &mouse, ()).unwrap());
   ///
   /// assert_eq!(dag.topo_cmp(&human, &mouse), Less);
   /// assert_eq!(dag.topo_cmp(&cat, &dog), Greater);
   /// assert_eq!(dag.topo_cmp(&cat, &horse), Less);
   /// ```
   #[inline]
-  pub fn topo_cmp(&self, node_a: impl Borrow<Node>, node_b: impl Borrow<Node>) -> Ordering {
+  pub fn topo_cmp(&self, node_a: impl Borrow<NodeId>, node_b: impl Borrow<NodeId>) -> Ordering {
     let node_a = node_a.borrow();
     let node_b = node_b.borrow();
-    self.node_repr[node_a.0]
+    self.nodes[node_a.0]
       .topo_order
-      .cmp(&self.node_repr[node_b.0].topo_order)
+      .cmp(&self.nodes[node_b.0].topo_order)
   }
 
 
   fn dfs_forward(
     &self,
-    start_key: Node,
-    visited: &mut HashSet<Node, H>,
+    start_key: NodeId,
+    visited: &mut HashSet<NodeId, H>,
     upper_bound: TopoOrder,
-  ) -> Result<HashSet<Node, H>, Error> {
+  ) -> Result<HashSet<NodeId, H>, Error> {
     let mut stack = Vec::new(); // OPTO: reuse allocation
     let mut result = HashSet::<_, H>::default(); // OPTO: reuse allocation
 
@@ -867,8 +938,8 @@ impl<N, PE, CE, H: BuildHasher + Default> DAG<N, PE, CE, H> {
       visited.insert(next_key);
       result.insert(next_key);
 
-      for child_key in self.get_node_repr(next_key).children.keys() {
-        let child_topo_order = self.get_node_repr(*child_key).topo_order;
+      for child_key in self.get_node(next_key).children.iter() {
+        let child_topo_order = self.get_node(*child_key).topo_order;
 
         if child_topo_order == upper_bound {
           return Err(Error::CycleDetected);
@@ -883,12 +954,35 @@ impl<N, PE, CE, H: BuildHasher + Default> DAG<N, PE, CE, H> {
     Ok(result)
   }
 
+  fn dfs_forward_cycle_check(
+    &self,
+    start_key: NodeId,
+    visited: &mut HashSet<NodeId, H>,
+    upper_bound: TopoOrder,
+  ) -> bool {
+    let mut stack = Vec::new(); // OPTO: reuse allocation
+    stack.push(start_key);
+    while let Some(next_key) = stack.pop() {
+      visited.insert(next_key);
+      for child_key in self.get_node(next_key).children.iter() {
+        let child_topo_order = self.get_node(*child_key).topo_order;
+        if child_topo_order == upper_bound {
+          return true;
+        }
+        if !visited.contains(child_key) && child_topo_order < upper_bound {
+          stack.push(*child_key);
+        }
+      }
+    }
+    false
+  }
+
   fn dfs_backward(
     &self,
-    start_key: Node,
-    visited: &mut HashSet<Node, H>,
+    start_key: NodeId,
+    visited: &mut HashSet<NodeId, H>,
     lower_bound: TopoOrder,
-  ) -> HashSet<Node, H> {
+  ) -> HashSet<NodeId, H> {
     let mut stack = Vec::new(); // OPTO: reuse allocation
     let mut result = HashSet::<_, H>::default(); // OPTO: reuse allocation
 
@@ -898,8 +992,8 @@ impl<N, PE, CE, H: BuildHasher + Default> DAG<N, PE, CE, H> {
       visited.insert(next_key);
       result.insert(next_key);
 
-      for parent_key in self.get_node_repr(next_key).parents.keys() {
-        let parent_topo_order = self.get_node_repr(*parent_key).topo_order;
+      for parent_key in self.get_node(next_key).parents.iter() {
+        let parent_topo_order = self.get_node(*parent_key).topo_order;
 
         if !visited.contains(parent_key) && lower_bound < parent_topo_order {
           stack.push(*parent_key);
@@ -912,18 +1006,18 @@ impl<N, PE, CE, H: BuildHasher + Default> DAG<N, PE, CE, H> {
 
   fn reorder_nodes(
     &mut self,
-    change_forward: HashSet<Node, H>,
-    change_backward: HashSet<Node, H>,
+    change_forward: HashSet<NodeId, H>,
+    change_backward: HashSet<NodeId, H>,
   ) {
     let mut change_forward: Vec<_> = change_forward
       .into_iter()
-      .map(|key| (key, self.get_node_repr(key).topo_order))
+      .map(|key| (key, self.get_node(key).topo_order))
       .collect(); // OPTO: reuse allocation
     change_forward.sort_unstable_by_key(|pair| pair.1);
 
     let mut change_backward: Vec<_> = change_backward
       .into_iter()
-      .map(|key| (key, self.get_node_repr(key).topo_order))
+      .map(|key| (key, self.get_node(key).topo_order))
       .collect(); // OPTO: reuse allocation
     change_backward.sort_unstable_by_key(|pair| pair.1);
 
@@ -943,15 +1037,15 @@ impl<N, PE, CE, H: BuildHasher + Default> DAG<N, PE, CE, H> {
     all_topo_orders.sort_unstable();
 
     for (key, topo_order) in all_keys.into_iter().zip(all_topo_orders.into_iter()) {
-      self.node_repr
+      self.nodes
         .get_mut(key.0)
         .unwrap()
         .topo_order = topo_order;
     }
   }
 
-  fn get_node_repr(&self, idx: Node) -> &NodeRepr<N, PE, CE, H> {
-    self.node_repr.get(idx.0).unwrap()
+  fn get_node(&self, idx: NodeId) -> &Node<N, H> {
+    self.nodes.get(idx.0).unwrap()
   }
 }
 
@@ -969,10 +1063,10 @@ impl<N, PE, CE, H: BuildHasher + Default> DAG<N, PE, CE, H> {
 /// let dog = dag.add_node(());
 /// let human = dag.add_node(());
 ///
-/// assert!(dag.add_dependency(&human, &cat, (), ()).unwrap());
-/// assert!(dag.add_dependency(&human, &dog, (), ()).unwrap());
-/// assert!(dag.add_dependency(&dog, &cat, (), ()).unwrap());
-/// assert!(dag.add_dependency(&cat, &mouse, (), ()).unwrap());
+/// assert!(dag.add_edge(&human, &cat, ()).unwrap());
+/// assert!(dag.add_edge(&human, &dog, ()).unwrap());
+/// assert!(dag.add_edge(&dog, &cat, ()).unwrap());
+/// assert!(dag.add_edge(&cat, &mouse, ()).unwrap());
 ///
 /// let pairs = dag
 ///     .descendants_unsorted(human)
@@ -985,14 +1079,14 @@ impl<N, PE, CE, H: BuildHasher + Default> DAG<N, PE, CE, H> {
 /// assert_eq!(pairs, expected_pairs);
 /// ```
 #[derive(Debug)]
-pub struct DescendantsUnsorted<'a, N, PE, CE, H> {
-  dag: &'a DAG<N, PE, CE, H>,
-  stack: Vec<Node>,
-  visited: HashSet<Node, H>,
+pub struct DescendantsUnsorted<'a, N, E, H> {
+  dag: &'a DAG<N, E, H>,
+  stack: Vec<NodeId>,
+  visited: HashSet<NodeId, H>,
 }
 
-impl<'a, N, PE, CE, H: BuildHasher> Iterator for DescendantsUnsorted<'a, N, PE, CE, H> {
-  type Item = (TopoOrder, Node);
+impl<'a, N, E, H: BuildHasher> Iterator for DescendantsUnsorted<'a, N, E, H> {
+  type Item = (TopoOrder, NodeId);
   #[inline]
   fn next(&mut self) -> Option<Self::Item> {
     while let Some(node) = self.stack.pop() {
@@ -1001,9 +1095,9 @@ impl<'a, N, PE, CE, H: BuildHasher> Iterator for DescendantsUnsorted<'a, N, PE, 
       } else {
         self.visited.insert(node);
       }
-      let node_repr = self.dag.node_repr.get(node.0).unwrap();
+      let node_repr = self.dag.nodes.get(node.0).unwrap();
       let order = node_repr.topo_order;
-      self.stack.extend(node_repr.children.keys());
+      self.stack.extend(node_repr.children.iter());
       return Some((order, node));
     }
 
@@ -1024,24 +1118,24 @@ impl<'a, N, PE, CE, H: BuildHasher> Iterator for DescendantsUnsorted<'a, N, PE, 
 /// let dog = dag.add_node(());
 /// let human = dag.add_node(());
 ///
-/// assert!(dag.add_dependency(&human, &cat, (), ()).unwrap());
-/// assert!(dag.add_dependency(&human, &dog, (), ()).unwrap());
-/// assert!(dag.add_dependency(&dog, &cat, (), ()).unwrap());
-/// assert!(dag.add_dependency(&cat, &mouse, (), ()).unwrap());
+/// assert!(dag.add_edge(&human, &cat, ()).unwrap());
+/// assert!(dag.add_edge(&human, &dog, ()).unwrap());
+/// assert!(dag.add_edge(&dog, &cat, ()).unwrap());
+/// assert!(dag.add_edge(&cat, &mouse, ()).unwrap());
 ///
 /// let ordered_nodes = dag.descendants(human).unwrap().collect::<Vec<_>>();
 ///
 /// assert_eq!(ordered_nodes, vec![dog, cat, mouse]);
 /// ```
 #[derive(Debug)]
-pub struct Descendants<'a, N, PE, CE, H> {
-  dag: &'a DAG<N, PE, CE, H>,
-  queue: BinaryHeap<(Reverse<TopoOrder>, Node)>,
-  visited: HashSet<Node, H>,
+pub struct Descendants<'a, N, E, H> {
+  dag: &'a DAG<N, E, H>,
+  queue: BinaryHeap<(Reverse<TopoOrder>, NodeId)>,
+  visited: HashSet<NodeId, H>,
 }
 
-impl<'a, N, PE, CE, H: BuildHasher + Default> Iterator for Descendants<'a, N, PE, CE, H> {
-  type Item = Node;
+impl<'a, N, E, H: BuildHasher + Default> Iterator for Descendants<'a, N, E, H> {
+  type Item = NodeId;
 
   fn next(&mut self) -> Option<Self::Item> {
     loop {
@@ -1052,9 +1146,9 @@ impl<'a, N, PE, CE, H: BuildHasher + Default> Iterator for Descendants<'a, N, PE
           self.visited.insert(node);
         }
 
-        let node_repr = self.dag.node_repr.get(node.0).unwrap();
-        for child in node_repr.children.keys() {
-          let order = self.dag.get_node_repr(*child).topo_order;
+        let node_repr = self.dag.nodes.get(node.0).unwrap();
+        for child in node_repr.children.iter() {
+          let order = self.dag.get_node(*child).topo_order;
           self.queue.push((Reverse(order), *child))
         }
 
@@ -1073,7 +1167,7 @@ mod tests {
 
   use super::*;
 
-  fn get_basic_dag() -> Result<([Node; 7], DAG<(), (), ()>), Error> {
+  fn get_basic_dag() -> Result<([NodeId; 7], DAG<(), ()>), Error> {
     let mut dag = DAG::new();
 
     let dog = dag.add_node(());
@@ -1086,25 +1180,25 @@ mod tests {
 
     assert_eq!(dag.len(), 7);
 
-    dag.add_dependency(lion, human, (), ())?;
-    dag.add_dependency(lion, gazelle, (), ())?;
+    dag.add_edge(lion, human, ())?;
+    dag.add_edge(lion, gazelle, ())?;
 
-    dag.add_dependency(human, dog, (), ())?;
-    dag.add_dependency(human, cat, (), ())?;
+    dag.add_edge(human, dog, ())?;
+    dag.add_edge(human, cat, ())?;
 
-    dag.add_dependency(dog, cat, (), ())?;
-    dag.add_dependency(cat, mouse, (), ())?;
+    dag.add_edge(dog, cat, ())?;
+    dag.add_edge(cat, mouse, ())?;
 
-    dag.add_dependency(gazelle, grass, (), ())?;
+    dag.add_edge(gazelle, grass, ())?;
 
-    dag.add_dependency(mouse, grass, (), ())?;
+    dag.add_edge(mouse, grass, ())?;
 
     Ok(([dog, cat, mouse, lion, human, gazelle, grass], dag))
   }
 
   #[test]
   fn add_nodes_basic() {
-    let mut dag = DAG::<_, (), ()>::new();
+    let mut dag = DAG::<_, ()>::new();
 
     let dog = dag.add_node(());
     let cat = dag.add_node(());
@@ -1122,7 +1216,7 @@ mod tests {
 
   #[test]
   fn delete_nodes() {
-    let mut dag = DAG::<_, (), ()>::new();
+    let mut dag = DAG::<_, ()>::new();
 
     let dog = dag.add_node(());
     let cat = dag.add_node(());
@@ -1149,11 +1243,11 @@ mod tests {
 
     assert_eq!(dag.len(), 3);
 
-    assert!(dag.add_dependency(&n1, &n2, (), ()).is_ok());
-    assert!(dag.add_dependency(&n2, &n3, (), ()).is_ok());
+    assert!(dag.add_edge(&n1, &n2, ()).is_ok());
+    assert!(dag.add_edge(&n2, &n3, ()).is_ok());
 
-    assert!(dag.add_dependency(&n3, &n1, (), ()).is_err());
-    assert!(dag.add_dependency(&n1, &n1, (), ()).is_err());
+    assert!(dag.add_edge(&n3, &n1, ()).is_err());
+    assert!(dag.add_edge(&n1, &n1, ()).is_err());
   }
 
   #[test]
@@ -1198,9 +1292,9 @@ mod tests {
 
     assert_eq!(dag.len(), 3);
 
-    dag.add_dependency(&human, &dog, (), ()).unwrap();
-    dag.add_dependency(&human, &cat, (), ()).unwrap();
-    dag.add_dependency(&dog, &cat, (), ()).unwrap();
+    dag.add_edge(&human, &dog, ()).unwrap();
+    dag.add_edge(&human, &cat, ()).unwrap();
+    dag.add_edge(&dog, &cat, ()).unwrap();
 
     let animal_order: Vec<_> = dag.descendants(&human).unwrap().collect();
 
@@ -1216,10 +1310,10 @@ mod tests {
     let dog = dag.add_node(());
     let human = dag.add_node(());
 
-    assert!(dag.add_dependency(&human, &cat, (), ()).unwrap());
-    assert!(dag.add_dependency(&human, &dog, (), ()).unwrap());
-    assert!(dag.add_dependency(&dog, &cat, (), ()).unwrap());
-    assert!(dag.add_dependency(&cat, &mouse, (), ()).unwrap());
+    assert!(dag.add_edge(&human, &cat, ()).unwrap());
+    assert!(dag.add_edge(&human, &dog, ()).unwrap());
+    assert!(dag.add_edge(&dog, &cat, ()).unwrap());
+    assert!(dag.add_edge(&cat, &mouse, ()).unwrap());
 
     let pairs = dag
       .descendants_unsorted(&human)
@@ -1243,10 +1337,10 @@ mod tests {
     let human = dag.add_node(());
     let horse = dag.add_node(());
 
-    assert!(dag.add_dependency(&human, &cat, (), ()).unwrap());
-    assert!(dag.add_dependency(&human, &dog, (), ()).unwrap());
-    assert!(dag.add_dependency(&dog, &cat, (), ()).unwrap());
-    assert!(dag.add_dependency(&cat, &mouse, (), ()).unwrap());
+    assert!(dag.add_edge(&human, &cat, ()).unwrap());
+    assert!(dag.add_edge(&human, &dog, ()).unwrap());
+    assert!(dag.add_edge(&dog, &cat, ()).unwrap());
+    assert!(dag.add_edge(&cat, &mouse, ()).unwrap());
 
     assert_eq!(dag.topo_cmp(&human, &mouse), Less);
     assert_eq!(dag.topo_cmp(&cat, &dog), Greater);

@@ -22,18 +22,37 @@ impl<T: Task> Dependency<T, T::Output> {
     let dependency = Self::RequireFile(path, stamper, stamp);
     Ok((dependency, file))
   }
-
   pub fn provide_file(path: impl Into<PathBuf>, stamper: FileStamper) -> Result<Self, std::io::Error> {
     let path = path.into();
     let stamp = stamper.stamp(&path)?;
     let dependency = Self::ProvideFile(path, stamper, stamp);
     Ok(dependency)
   }
-
   pub fn require_task(task: T, output: T::Output, stamper: OutputStamper) -> Self {
     let stamp = stamper.stamp(output);
     Self::RequireTask(task, stamper, stamp)
   }
+
+
+  pub fn is_require_file(&self) -> bool {
+    match self {
+      Dependency::RequireFile(_, _, _) => true,
+      _ => false,
+    }
+  }
+  pub fn is_provide_file(&self) -> bool {
+    match self {
+      Dependency::ProvideFile(_, _, _) => true,
+      _ => false,
+    }
+  }
+  pub fn is_task_require(&self) -> bool {
+    match self {
+      Dependency::RequireTask(_, _, _) => true,
+      _ => false,
+    }
+  }
+
 
   pub fn is_consistent<C: Context<T>>(&self, context: &mut C) -> Result<bool, Box<dyn Error>> {
     match self {
@@ -46,7 +65,6 @@ impl<T: Task> Dependency<T, T::Output> {
       }
     }
   }
-
   fn file_is_consistent(path: &PathBuf, stamper: &FileStamper, stamp: &FileStamp) -> Result<bool, Box<dyn Error>> {
     let new_stamp = stamper.stamp(path)?;
     Ok(new_stamp == *stamp)

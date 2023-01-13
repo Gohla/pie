@@ -1,3 +1,5 @@
+#![allow(unused_variables, dead_code)]
+
 use std::collections::HashSet;
 use std::fs::File;
 use std::hash::BuildHasher;
