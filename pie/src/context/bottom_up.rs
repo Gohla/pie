@@ -51,6 +51,7 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> IncrementalBottom
 
   fn execute_and_schedule(&mut self, task_node: TaskNodeId) {
     let task = self.shared.session.store.task_by_node(&task_node).clone(); // TODO: get rid of clone?
+    self.shared.session.store.reset_task(&task_node);
     self.shared.pre_execute(&task, task_node);
     let output = task.execute(self);
     self.shared.post_execute(&task, task_node, &output);
