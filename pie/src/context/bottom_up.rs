@@ -11,7 +11,7 @@ use crate::stamp::{FileStamper, OutputStamper};
 use crate::store::Store;
 use crate::tracker::Tracker;
 
-/// Context that incrementally executes tasks and checks dependencies recursively in a bottom-up manner.
+/// Context that incrementally executes tasks and checks dependencies in a bottom-up manner.
 #[derive(Debug)]
 pub(crate) struct IncrementalBottomUpContext<'p, 's, T: Task, A, H> {
   shared: ContextShared<'p, 's, T, A, H>,
@@ -29,34 +29,56 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> IncrementalBottom
 
   #[inline]
   pub(crate) fn update_affected_by(&mut self, changed_files: &[PathBuf]) {
+    // Create a new queue of scheduled tasks.
     self.scheduled = Queue::new();
-    self.schedule_affected_by_files(changed_files);
+    // Schedule affected tasks that require or provide a changed file.
+    for changed_file in changed_files {
+      let file_node = self.shared.session.store.get_or_create_file_node(changed_file);
+      for (requiring_task_node, dependency) in self.shared.session.store.get_tasks_requiring_or_providing_file(&file_node) {
+        match dependency.require_or_provide_file_is_consistent() {
+          Err(e) => {
+            self.shared.session.dependency_check_errors.push(e);
+            self.scheduled.add(*requiring_task_node);
+          }
+          Ok(false) => self.scheduled.add(*requiring_task_node),
+          _ => {}
+        }
+      }
+    }
+    // Execute the top scheduled task in the queue until it is empty.
     while let Some(task_node) = self.scheduled.pop(&mut self.shared.session.store) {
       self.execute_and_schedule(task_node);
     }
   }
 
 
-  fn schedule_affected_by_files(&mut self, changed_files: &[PathBuf]) {
-    todo!()
-  }
-
-  fn schedule_affected_by_required_files(&mut self, required_files: &[PathBuf]) {
-    todo!()
-  }
-
-  fn schedule_affected_by_required_task(&mut self, task: &T) {
-    todo!()
-  }
-
   fn execute_and_schedule(&mut self, task_node: TaskNodeId) {
     let task = self.shared.session.store.task_by_node(&task_node).clone(); // TODO: get rid of clone?
+
     self.shared.session.store.reset_task(&task_node);
     self.shared.pre_execute(&task, task_node);
     let output = task.execute(self);
     self.shared.post_execute(&task, task_node, &output);
-    for requiring_task_node in self.shared.session.store.get_task_nodes_requiring_task(&task_node) {
-      todo!()
+
+    // Schedule affected tasks that require `task`.
+    for (requiring_task_node, dependency) in self.shared.session.store.get_tasks_requiring_task(&task_node) {
+      if !dependency.require_task_is_consistent_with(output.clone()) { // TODO: get rid of clone
+        self.scheduled.add(*requiring_task_node);
+      }
+    }
+
+    // Schedule affected tasks that require files provided by `task`.
+    for provided_file in self.shared.session.store.get_provided_files(&task_node) {
+      for (requiring_task_node, dependency) in self.shared.session.store.get_tasks_requiring_file(provided_file) {
+        match dependency.require_or_provide_file_is_consistent() {
+          Err(e) => {
+            self.shared.session.dependency_check_errors.push(e);
+            self.scheduled.add(*requiring_task_node);
+          }
+          Ok(false) => self.scheduled.add(*requiring_task_node),
+          _ => {}
+        }
+      }
     }
   }
 }
@@ -83,6 +105,7 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> Context<T> for In
   #[inline]
   fn default_provide_file_stamper(&self) -> FileStamper { FileStamper::Modified }
 }
+
 
 // Queue implementation
 

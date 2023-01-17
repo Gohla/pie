@@ -46,6 +46,13 @@ impl<T: Task> Dependency<T, T::Output> {
       _ => false,
     }
   }
+  pub fn is_file_dependency(&self) -> bool {
+    match self {
+      Dependency::RequireFile(_, _, _) => true,
+      Dependency::ProvideFile(_, _, _) => true,
+      _ => false,
+    }
+  }
   pub fn is_task_require(&self) -> bool {
     match self {
       Dependency::RequireTask(_, _, _) => true,
@@ -65,6 +72,27 @@ impl<T: Task> Dependency<T, T::Output> {
       }
     }
   }
+  pub fn require_or_provide_file_is_consistent(&self) -> Result<bool, Box<dyn Error>> {
+    match self {
+      Dependency::RequireFile(path, stamper, stamp) => {
+        Self::file_is_consistent(path, stamper, stamp)
+      }
+      Dependency::ProvideFile(path, stamper, stamp) => {
+        Self::file_is_consistent(path, stamper, stamp)
+      }
+      _ => Ok(false),
+    }
+  }
+  pub fn require_task_is_consistent_with(&self, output: T::Output) -> bool {
+    match self {
+      Dependency::RequireTask(_, stamper, stamp) => {
+        let new_stamp = stamper.stamp(output);
+        new_stamp == *stamp
+      }
+      _ => false,
+    }
+  }
+
   fn file_is_consistent(path: &PathBuf, stamper: &FileStamper, stamp: &FileStamp) -> Result<bool, Box<dyn Error>> {
     let new_stamp = stamper.stamp(path)?;
     Ok(new_stamp == *stamp)

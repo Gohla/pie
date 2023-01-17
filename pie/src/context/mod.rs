@@ -30,7 +30,7 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> ContextShared<'p,
     let file_node = self.session.store.get_or_create_file_node(path);
     let (dependency, file) = Dependency::require_file(path, stamper)?;
     if let Some(current_requiring_task_node) = self.task_execution_stack.last() {
-      if let Some(providing_task_node) = self.session.store.get_task_node_providing_file(&file_node) {
+      if let Some(providing_task_node) = self.session.store.get_task_providing_file(&file_node) {
         if !self.session.store.contains_transitive_task_dependency(current_requiring_task_node, &providing_task_node) {
           let current_requiring_task = self.session.store.task_by_node(current_requiring_task_node);
           let providing_task = self.session.store.task_by_node(&providing_task_node);
@@ -47,12 +47,12 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> ContextShared<'p,
     let file_node = self.session.store.get_or_create_file_node(path);
     let dependency = Dependency::provide_file(path, stamper).map_err(|e| e.kind())?;
     if let Some(current_providing_task_node) = self.task_execution_stack.last() {
-      if let Some(previous_providing_task_node) = self.session.store.get_task_node_providing_file(&file_node) {
+      if let Some(previous_providing_task_node) = self.session.store.get_task_providing_file(&file_node) {
         let current_providing_task = self.session.store.task_by_node(current_providing_task_node);
         let previous_providing_task = self.session.store.task_by_node(&previous_providing_task_node);
         panic!("Overlapping provided file; file '{}' is provided by the current task '{:?}' that was previously provided by task: {:?}", path.display(), current_providing_task, previous_providing_task);
       }
-      for requiring_task_node in self.session.store.get_task_nodes_requiring_file(&file_node) {
+      for (requiring_task_node, _) in self.session.store.get_tasks_requiring_file(&file_node) {
         if !self.session.store.contains_transitive_task_dependency(&requiring_task_node, current_providing_task_node) {
           let current_providing_task = self.session.store.task_by_node(current_providing_task_node);
           let requiring_task = self.session.store.task_by_node(&requiring_task_node);

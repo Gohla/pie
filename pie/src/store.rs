@@ -161,25 +161,42 @@ impl<T: Task, H: BuildHasher + Default> Store<T, H> {
     // TODO: should this remove output?
   }
 
-  /// Get all task nodes that require given `task_node`.
-  #[inline]
-  pub fn get_task_nodes_requiring_task<'a>(&'a self, task_node: &'a TaskNodeId) -> impl Iterator<Item=&TaskNodeId> + '_ {
-    self.graph.get_incoming_dependencies(task_node).filter_map(|(n, d)| d.as_ref().and_then(|d| if d.is_task_require() { Some(n) } else { None }))
-  }
+
   /// Checks whether there is a direct or transitive dependency from `depender_task_node` to `dependee_task_node`.
   #[inline]
   pub fn contains_transitive_task_dependency(&self, depender: &TaskNodeId, dependee: &TaskNodeId) -> bool {
     self.graph.contains_transitive_dependency(depender, dependee)
   }
 
-  /// Get all task nodes that require given `file_node`.
+
+  /// Get all requirer task nodes and corresponding dependencies of tasks that require given `task_node`.
   #[inline]
-  pub fn get_task_nodes_requiring_file<'a>(&'a self, file_node: &'a FileNodeId) -> impl Iterator<Item=&TaskNodeId> + '_ {
-    self.graph.get_incoming_dependencies(file_node).filter_map(|(n, d)| d.as_ref().and_then(|d| if d.is_require_file() { Some(n) } else { None }))
+  pub fn get_tasks_requiring_task<'a>(&'a self, task_node: &'a TaskNodeId) -> impl Iterator<Item=(&TaskNodeId, &Dependency<T, T::Output>)> + '_ {
+    self.graph.get_incoming_dependencies(task_node)
+      .filter_map(|(n, d)| d.as_ref().and_then(|d| if d.is_task_require() { Some((n, d)) } else { None }))
   }
-  /// Get the task node that provides given `file_node`, or `None` if there is none.
+  /// Get all requirer task nodes and corresponding dependencies of tasks that require given `file_node`.
   #[inline]
-  pub fn get_task_node_providing_file(&self, file_node: &FileNodeId) -> Option<&TaskNodeId> {
-    self.graph.get_incoming_dependencies(file_node).filter_map(|(n, d)| d.as_ref().and_then(|d| if d.is_provide_file() { Some(n) } else { None })).next()
+  pub fn get_tasks_requiring_file<'a>(&'a self, file_node: &'a FileNodeId) -> impl Iterator<Item=(&TaskNodeId, &Dependency<T, T::Output>)> + '_ {
+    self.graph.get_incoming_dependencies(file_node)
+      .filter_map(|(n, d)| d.as_ref().and_then(|d| if d.is_require_file() { Some((n, d)) } else { None }))
+  }
+  /// Get the node of the tasks that provide given `file_node`, or `None` if there is none.
+  #[inline]
+  pub fn get_task_providing_file(&self, file_node: &FileNodeId) -> Option<&TaskNodeId> {
+    self.graph.get_incoming_dependencies(file_node)
+      .filter_map(|(n, d)| d.as_ref().and_then(|d| if d.is_provide_file() { Some(n) } else { None })).next()
+  }
+  /// Get all requirer task nodes and corresponding dependencies of tasks that require or provide given `file_node`.
+  #[inline]
+  pub fn get_tasks_requiring_or_providing_file<'a>(&'a self, file_node: &'a FileNodeId) -> impl Iterator<Item=(&TaskNodeId, &Dependency<T, T::Output>)> + '_ {
+    self.graph.get_incoming_dependencies(file_node)
+      .filter_map(|(n, d)| d.as_ref().and_then(|d| if d.is_file_dependency() { Some((n, d)) } else { None }))
+  }
+  /// Get all file nodes of files that are provided by given `task_node`.
+  #[inline]
+  pub fn get_provided_files<'a>(&'a self, task_node: &'a TaskNodeId) -> impl Iterator<Item=&FileNodeId> + '_ {
+    self.graph.get_outgoing_dependencies(task_node)
+      .filter_map(|(n, d)| d.as_ref().and_then(|d| if d.is_provide_file() { Some(n) } else { None }))
   }
 }
