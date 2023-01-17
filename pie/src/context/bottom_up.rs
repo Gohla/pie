@@ -52,23 +52,17 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> IncrementalBottom
   }
 
 
-  fn execute_and_schedule(&mut self, task_node: TaskNodeId) {
-    let task = self.shared.session.store.task_by_node(&task_node).clone(); // TODO: get rid of clone?
-
-    self.shared.session.store.reset_task(&task_node);
-    self.shared.pre_execute(&task, task_node);
-    let output = task.execute(self);
-    self.shared.post_execute(&task, task_node, &output);
-
+  fn execute_and_schedule(&mut self, task_node_id: TaskNodeId) {
+    let task = self.shared.session.store.task_by_node(&task_node_id).clone(); // TODO: get rid of clone?
+    let output = self.execute(task_node_id, &task);
     // Schedule affected tasks that require `task`.
-    for (requiring_task_node, dependency) in self.shared.session.store.get_tasks_requiring_task(&task_node) {
+    for (requiring_task_node, dependency) in self.shared.session.store.get_tasks_requiring_task(&task_node_id) {
       if !dependency.require_task_is_consistent_with(output.clone()) { // TODO: get rid of clone
         self.scheduled.add(*requiring_task_node);
       }
     }
-
     // Schedule affected tasks that require files provided by `task`.
-    for provided_file in self.shared.session.store.get_provided_files(&task_node) {
+    for provided_file in self.shared.session.store.get_provided_files(&task_node_id) {
       for (requiring_task_node, dependency) in self.shared.session.store.get_tasks_requiring_file(provided_file) {
         match dependency.require_or_provide_file_is_consistent() {
           Err(e) => {
@@ -81,12 +75,53 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> IncrementalBottom
       }
     }
   }
+
+  fn execute(&mut self, task_node_id: TaskNodeId, task: &T) -> T::Output {
+    self.shared.session.store.reset_task(&task_node_id);
+    self.shared.pre_execute(&task, task_node_id);
+    let output = task.execute(self);
+    self.shared.post_execute(&task, task_node_id, &output);
+    self.shared.session.visited.insert(task_node_id);
+    output
+  }
+
+  fn require_scheduled_now(&mut self, task_node_id: &TaskNodeId) -> Option<T::Output> {
+    todo!()
+  }
 }
 
 
 impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> Context<T> for IncrementalBottomUpContext<'p, 's, T, A, H> {
   fn require_task_with_stamper(&mut self, task: &T, stamper: OutputStamper) -> T::Output {
-    todo!()
+    let task_node_id = self.shared.session.store.get_or_create_node_by_task(task.clone());
+
+    if self.shared.session.visited.contains(&task_node_id) {
+      // Unwrap OK: if we should not execute the task, it must have been executed before, and therefore it has an output.
+      let output = self.shared.session.store.get_task_output(&task_node_id).unwrap().clone();
+      return output;
+    }
+
+    if !self.shared.session.store.task_has_output(&task_node_id) {
+      return self.execute(task_node_id, task);
+    }
+
+    // Task is in dependency graph, because we have stored data for it.
+
+    if let Some(output) = self.require_scheduled_now(&task_node_id) {
+      // Task was scheduled. That is, it was either directly or indirectly affected. Therefore, it has been
+      // executed, and we return the result of that execution.
+      output
+    } else {
+      // Task was not scheduled. That is, it was not directly affected by resource changes, and not indirectly
+      // affected by other tasks. Therefore, we did not execute it.
+
+      // Mark as visited
+      self.shared.session.visited.insert(task_node_id);
+
+      // Unwrap OK: we don't have to execute the task and an output exists.
+      let output = self.shared.session.store.get_task_output(&task_node_id).unwrap().clone();
+      return output;
+    }
   }
 
   #[inline]
@@ -120,6 +155,9 @@ impl<H: BuildHasher + Default> Queue<H> {
   fn new() -> Self { Self::default() }
 
   #[inline]
+  fn is_not_empty(&self) -> bool { !self.vec.is_empty() }
+
+  #[inline]
   fn add(&mut self, task_node: TaskNodeId) {
     if self.set.contains(&task_node) { return; }
     self.set.insert(task_node);
@@ -130,5 +168,10 @@ impl<H: BuildHasher + Default> Queue<H> {
   fn pop<T: Task>(&mut self, store: &Store<T, H>) -> Option<TaskNodeId> {
     self.vec.sort_unstable_by(|n1, n2| store.graph.topo_cmp(n1, n2));
     self.vec.pop()
+  }
+
+  #[inline]
+  fn poll_least_task_with_dependency_to(&self) {
+    todo!()
   }
 } 

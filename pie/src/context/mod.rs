@@ -64,15 +64,15 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> ContextShared<'p,
     Ok(())
   }
 
-  fn pre_execute(&mut self, task: &T, task_node: TaskNodeId) {
-    self.task_execution_stack.push(task_node);
+  fn pre_execute(&mut self, task: &T, task_node_id: TaskNodeId) {
+    self.task_execution_stack.push(task_node_id);
     self.session.tracker.execute_task_start(task);
   }
 
-  fn post_execute(&mut self, task: &T, task_node: TaskNodeId, output: &T::Output) {
+  fn post_execute(&mut self, task: &T, task_node_id: TaskNodeId, output: &T::Output) {
     self.session.tracker.execute_task_end(task, output);
     self.task_execution_stack.pop();
-    self.session.store.set_task_output(&task_node, output.clone());
+    self.session.store.set_task_output(&task_node_id, output.clone());
   }
 
   #[inline]
