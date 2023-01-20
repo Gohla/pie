@@ -173,7 +173,7 @@ impl<T: Task, H: BuildHasher + Default> Store<T, H> {
   #[inline]
   pub fn get_tasks_requiring_task<'a>(&'a self, task_node: &'a TaskNodeId) -> impl Iterator<Item=(&TaskNodeId, &Dependency<T, T::Output>)> + '_ {
     self.graph.get_incoming_dependencies(task_node)
-      .filter_map(|(n, d)| d.as_ref().and_then(|d| if d.is_task_require() { Some((n, d)) } else { None }))
+      .filter_map(|(n, d)| d.as_ref().and_then(|d| if d.is_require_task() { Some((n, d)) } else { None }))
   }
   /// Get all requirer task nodes and corresponding dependencies of tasks that require given `file_node`.
   #[inline]

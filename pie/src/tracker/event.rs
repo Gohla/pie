@@ -1,134 +1,9 @@
-use std::io;
-use std::io::{Stderr, Stdout};
-use std::marker::PhantomData;
 use std::path::PathBuf;
 
+use crate::dependency::{FileDependency, TaskDependency};
+use crate::stamp::{FileStamp, OutputStamp};
 use crate::Task;
-
-/// Trait for tracking build events. Can be used to implement logging, event tracing, and possibly progress tracking.
-pub trait Tracker<T: Task> {
-  fn require_file(&mut self, file: &PathBuf);
-  fn provide_file(&mut self, file: &PathBuf);
-  fn require_task(&mut self, task: &T);
-
-  fn execute_task_start(&mut self, task: &T);
-  fn execute_task_end(&mut self, task: &T, output: &T::Output);
-}
-
-
-/// A [`Tracker`] that does nothing.
-#[derive(Clone, Debug)]
-pub struct NoopTracker<T>(PhantomData<T>);
-
-impl<T: Task> Default for NoopTracker<T> {
-  #[inline]
-  fn default() -> Self { Self(PhantomData::default()) }
-}
-
-impl<T: Task> Tracker<T> for NoopTracker<T> {
-  #[inline]
-  fn require_file(&mut self, _file: &PathBuf) {}
-  #[inline]
-  fn provide_file(&mut self, _file: &PathBuf) {}
-  #[inline]
-  fn require_task(&mut self, _task: &T) {}
-
-  #[inline]
-  fn execute_task_start(&mut self, _task: &T) {}
-  #[inline]
-  fn execute_task_end(&mut self, _task: &T, _output: &T::Output) {}
-}
-
-
-/// A [`Tracker`] that forwards events to two other [`Tracker`]s.
-#[derive(Default, Clone, Debug)]
-pub struct CompositeTracker<A1, A2>(pub A1, pub A2);
-
-impl<T: Task, T1: Tracker<T>, T2: Tracker<T>> Tracker<T> for CompositeTracker<T1, T2> {
-  #[inline]
-  fn require_file(&mut self, file: &PathBuf) {
-    self.0.require_file(file);
-    self.1.require_file(file);
-  }
-  #[inline]
-  fn provide_file(&mut self, file: &PathBuf) {
-    self.0.provide_file(file);
-    self.1.provide_file(file);
-  }
-  #[inline]
-  fn require_task(&mut self, task: &T) {
-    self.0.require_task(task);
-    self.1.require_task(task);
-  }
-
-  #[inline]
-  fn execute_task_start(&mut self, task: &T) {
-    self.0.execute_task_start(task);
-    self.1.execute_task_start(task);
-  }
-  #[inline]
-  fn execute_task_end(&mut self, task: &T, output: &T::Output) {
-    self.0.execute_task_end(task, output);
-    self.1.execute_task_end(task, output);
-  }
-}
-
-
-/// A [`Tracker`] that writes events to a [`std::io::Write`] instance, for example [`std::io::Stdout`].
-#[derive(Debug, Clone)]
-pub struct WritingTracker<W> {
-  writer: W,
-}
-
-impl Default for WritingTracker<Stdout> {
-  #[inline]
-  fn default() -> Self { Self::new_stdout_writer() }
-}
-
-impl Default for WritingTracker<Stderr> {
-  #[inline]
-  fn default() -> Self { Self::new_stderr_writer() }
-}
-
-impl<W: io::Write> WritingTracker<W> {
-  #[inline]
-  pub fn new(writer: W) -> Self { Self { writer } }
-}
-
-impl WritingTracker<Stdout> {
-  #[inline]
-  pub fn new_stdout_writer() -> Self { Self::new(io::stdout()) }
-}
-
-impl WritingTracker<Stderr> {
-  #[inline]
-  pub fn new_stderr_writer() -> Self { Self::new(io::stderr()) }
-}
-
-impl<T: Task, W: io::Write> Tracker<T> for WritingTracker<W> {
-  #[inline]
-  fn require_file(&mut self, file: &PathBuf) {
-    writeln!(&mut self.writer, "Required file: {}", file.display()).ok();
-  }
-  #[inline]
-  fn provide_file(&mut self, file: &PathBuf) {
-    writeln!(&mut self.writer, "Provided file: {}", file.display()).ok();
-  }
-  #[inline]
-  fn require_task(&mut self, task: &T) {
-    writeln!(&mut self.writer, "Required task: {:?}", task).ok();
-  }
-
-  #[inline]
-  fn execute_task_start(&mut self, task: &T) {
-    writeln!(&mut self.writer, "Execute task start: {:?}", task).ok();
-  }
-  #[inline]
-  fn execute_task_end(&mut self, task: &T, output: &T::Output) {
-    writeln!(&mut self.writer, "Execute task end: {:?} => {:?}", task, output).ok();
-  }
-}
-
+use crate::tracker::Tracker;
 
 /// A [`Tracker`] that stores [`Event`]s in a [`Vec`], useful in testing situations where we check build events after
 /// building. 
@@ -265,4 +140,48 @@ impl<T: Task> Tracker<T> for EventTracker<T> {
   fn execute_task_end(&mut self, task: &T, output: &T::Output) {
     self.events.push(Event::ExecuteTaskEnd(task.clone(), output.clone()));
   }
+  #[inline]
+  fn up_to_date(&mut self, _task: &T) {}
+
+  #[inline]
+  fn require_top_down_initial_start(&mut self, _task: &T) {}
+  #[inline]
+  fn check_top_down_start(&mut self, _task: &T) {}
+  #[inline]
+  fn check_require_file_start(&mut self, _dependency: &FileDependency) {}
+  #[inline]
+  fn check_require_file_end(&mut self, _dependency: &FileDependency, _inconsistent: Option<&FileStamp>) {}
+  #[inline]
+  fn check_provide_file_start(&mut self, _dependency: &FileDependency) {}
+  #[inline]
+  fn check_provide_file_end(&mut self, _dependency: &FileDependency, _inconsistent: Option<&FileStamp>) {}
+  #[inline]
+  fn check_require_task_start(&mut self, _dependency: &TaskDependency<T, T::Output>) {}
+  #[inline]
+  fn check_require_task_end(&mut self, _dependency: &TaskDependency<T, T::Output>, _inconsistent: Option<&OutputStamp<T::Output>>) {}
+  #[inline]
+  fn check_top_down_end(&mut self, _task: &T) {}
+  #[inline]
+  fn require_top_down_initial_end(&mut self, _task: &T, _output: &T::Output) {}
+
+  #[inline]
+  fn require_bottom_up_initial_start(&mut self, _changed_files: &[PathBuf]) {}
+  #[inline]
+  fn require_bottom_up_initial_end(&mut self) {}
+  #[inline]
+  fn schedule_affected_by_file_start(&mut self, _file: &PathBuf) {}
+  #[inline]
+  fn check_affected_by_require_file(&mut self, _dependency: &FileDependency, _inconsistent: Option<&FileStamp>) {}
+  #[inline]
+  fn check_affected_by_provide_file(&mut self, _dependency: &FileDependency, _inconsistent: Option<&FileStamp>) {}
+  #[inline]
+  fn schedule_affected_by_file_end(&mut self, _file: &PathBuf) {}
+  #[inline]
+  fn check_affected_by_task_output_start(&mut self, _output: &T::Output) {}
+  #[inline]
+  fn check_affected_by_require_task(&mut self, _dependency: &TaskDependency<T, T::Output>, _inconsistent: Option<&OutputStamp<T::Output>>) {}
+  #[inline]
+  fn check_affected_by_task_output_end(&mut self, _output: &T::Output) {}
+  #[inline]
+  fn schedule_task(&mut self, _task: &T) {}
 }

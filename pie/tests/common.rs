@@ -8,11 +8,13 @@ use tempfile::TempDir;
 
 use pie::{Context, Task};
 use pie::stamp::FileStamper;
-use pie::tracker::{CompositeTracker, EventTracker, WritingTracker};
+use pie::tracker::CompositeTracker;
+use pie::tracker::event::EventTracker;
+use pie::tracker::writing::WritingTracker;
 
 // Helper functions
 
-pub type Tracker<T> = CompositeTracker<EventTracker<T>, WritingTracker<Stdout>>;
+pub type Tracker<T> = CompositeTracker<EventTracker<T>, WritingTracker<Stdout, T>>;
 
 pub fn create_tracker<T: Task>() -> Tracker<T> {
   CompositeTracker(EventTracker::new(), WritingTracker::new_stdout_writer())

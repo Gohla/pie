@@ -5,8 +5,7 @@ use rstest::{fixture, rstest};
 use tempfile::TempDir;
 
 use ::pie::stamp::FileStamper;
-use ::pie::tracker::Event;
-use Event::*;
+use ::pie::tracker::event::Event::*;
 
 use crate::common::{CheckErrorExt, CommonOutput, CommonTask, Pie, ToLowerCase};
 

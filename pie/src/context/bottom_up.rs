@@ -40,7 +40,7 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> IncrementalBottom
             self.shared.session.dependency_check_errors.push(e);
             self.scheduled.add(*requiring_task_node);
           }
-          Ok(false) => self.scheduled.add(*requiring_task_node),
+          Ok(Some(_)) => self.scheduled.add(*requiring_task_node),
           _ => {}
         }
       }
@@ -52,12 +52,12 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> IncrementalBottom
   }
 
 
-  fn execute_and_schedule(&mut self, task_node_id: TaskNodeId) {
+  fn execute_and_schedule(&mut self, task_node_id: TaskNodeId) -> T::Output {
     let task = self.shared.session.store.task_by_node(&task_node_id).clone(); // TODO: get rid of clone?
     let output = self.execute(task_node_id, &task);
     // Schedule affected tasks that require `task`.
     for (requiring_task_node, dependency) in self.shared.session.store.get_tasks_requiring_task(&task_node_id) {
-      if !dependency.require_task_is_consistent_with(output.clone()) { // TODO: get rid of clone
+      if dependency.require_task_is_consistent_with(output.clone()).is_some() { // TODO: get rid of clone
         self.scheduled.add(*requiring_task_node);
       }
     }
@@ -69,11 +69,12 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> IncrementalBottom
             self.shared.session.dependency_check_errors.push(e);
             self.scheduled.add(*requiring_task_node);
           }
-          Ok(false) => self.scheduled.add(*requiring_task_node),
+          Ok(Some(_)) => self.scheduled.add(*requiring_task_node),
           _ => {}
         }
       }
     }
+    output
   }
 
   fn execute(&mut self, task_node_id: TaskNodeId, task: &T) -> T::Output {
@@ -86,7 +87,15 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> IncrementalBottom
   }
 
   fn require_scheduled_now(&mut self, task_node_id: &TaskNodeId) -> Option<T::Output> {
-    todo!()
+    while self.scheduled.is_not_empty() {
+      if let Some(min_task_node_id) = self.scheduled.pop_least_task_with_dependency_to(task_node_id, &self.shared.session.store) {
+        let output = self.execute_and_schedule(min_task_node_id);
+        if min_task_node_id == *task_node_id {
+          return Some(output);
+        }
+      }
+    }
+    None
   }
 }
 
@@ -96,16 +105,18 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> Context<T> for In
     let task_node_id = self.shared.session.store.get_or_create_node_by_task(task.clone());
 
     if self.shared.session.visited.contains(&task_node_id) {
-      // Unwrap OK: if we should not execute the task, it must have been executed before, and therefore it has an output.
+      // Unwrap OK: if we have already visited the task this session, it must have an output.
       let output = self.shared.session.store.get_task_output(&task_node_id).unwrap().clone();
       return output;
     }
 
     if !self.shared.session.store.task_has_output(&task_node_id) {
+      // Have not executed the task before, so we just execute it.
       return self.execute(task_node_id, task);
     }
 
-    // Task is in dependency graph, because we have stored data for it.
+    // Task has an output, thus it has been executed before, therefore it has been scheduled if affected, or not 
+    // scheduled if not affected. 
 
     if let Some(output) = self.require_scheduled_now(&task_node_id) {
       // Task was scheduled. That is, it was either directly or indirectly affected. Therefore, it has been
@@ -114,6 +125,7 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> Context<T> for In
     } else {
       // Task was not scheduled. That is, it was not directly affected by resource changes, and not indirectly
       // affected by other tasks. Therefore, we did not execute it.
+      // TODO: can it be scheduled later, invalidating this claim? If not, explain why.
 
       // Mark as visited
       self.shared.session.visited.insert(task_node_id);
@@ -142,7 +154,7 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> Context<T> for In
 }
 
 
-// Queue implementation
+// Dependency ordered priority queue implementation
 
 #[derive(Default, Debug)]
 struct Queue<H> {
@@ -154,24 +166,42 @@ impl<H: BuildHasher + Default> Queue<H> {
   #[inline]
   fn new() -> Self { Self::default() }
 
+  /// Checks whether the queue is not empty.
   #[inline]
   fn is_not_empty(&self) -> bool { !self.vec.is_empty() }
 
+  /// Add a task to the priority queue. Does nothing if the task is already in the queue.
   #[inline]
-  fn add(&mut self, task_node: TaskNodeId) {
-    if self.set.contains(&task_node) { return; }
-    self.set.insert(task_node);
-    self.vec.push(task_node);
+  fn add(&mut self, task_node_id: TaskNodeId) {
+    if self.set.contains(&task_node_id) { return; }
+    self.set.insert(task_node_id);
+    self.vec.push(task_node_id);
   }
 
+  /// Remove the last task (task with the least amount of dependencies to other tasks in the queue) from the queue and
+  /// return it.
   #[inline]
   fn pop<T: Task>(&mut self, store: &Store<T, H>) -> Option<TaskNodeId> {
-    self.vec.sort_unstable_by(|n1, n2| store.graph.topo_cmp(n1, n2));
+    self.sort_by_dependencies(store);
     self.vec.pop()
   }
 
+  /// Remove the last task (task with the least amount of dependencies to other tasks in the queue) that has a
+  /// (transitive) dependency to given task, and return it.
   #[inline]
-  fn poll_least_task_with_dependency_to(&self) {
-    todo!()
+  fn pop_least_task_with_dependency_to<T: Task>(&mut self, dependee: &TaskNodeId, store: &Store<T, H>) -> Option<TaskNodeId> {
+    self.sort_by_dependencies(store);
+    let tasks: Vec<(usize, &TaskNodeId)> = self.vec.iter().enumerate().rev().collect(); // TODO: remove copy?
+    for (idx, depender) in tasks {
+      if store.contains_transitive_task_dependency(depender, dependee) {
+        return Some(self.vec.swap_remove(idx));
+      }
+    }
+    None
+  }
+  
+  #[inline]
+  fn sort_by_dependencies<T: Task>(&mut self, store: &Store<T, H>) {
+    self.vec.sort_unstable_by(|n1, n2| store.graph.topo_cmp(n1, n2));
   }
 } 
