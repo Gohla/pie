@@ -30,12 +30,6 @@ pub struct TaskDependency<T, O> {
   pub stamp: OutputStamp<O>,
 }
 
-#[derive(Clone, Eq, PartialEq, Hash, Debug)]
-pub enum InconsistentDependency<O> {
-  File(FileStamp),
-  Task(OutputStamp<O>),
-}
-
 impl<T: Task> Dependency<T, T::Output> {
   #[inline]
   pub fn require_file(path: impl Into<PathBuf>, stamper: FileStamper) -> Result<(Self, File), std::io::Error> {
@@ -155,6 +149,28 @@ impl<T: Task> Dependency<T, T::Output> {
       None
     } else {
       Some(new_stamp)
+    }
+  }
+}
+
+#[derive(Clone, Eq, PartialEq, Hash, Debug)]
+pub enum InconsistentDependency<O> {
+  File(FileStamp),
+  Task(OutputStamp<O>),
+}
+
+impl<O: Debug> InconsistentDependency<O> {
+  pub fn unwrap_as_file_stamp(&self) -> &FileStamp {
+    match self {
+      InconsistentDependency::File(s) => s,
+      InconsistentDependency::Task(_) => panic!("attempt to unwrap {:?} as file stamp", self),
+    }
+  }
+
+  pub fn unwrap_as_output_stamp(&self) -> &OutputStamp<O> {
+    match self {
+      InconsistentDependency::File(_) => panic!("attempt to unwrap {:?} as output stamp", self),
+      InconsistentDependency::Task(s) => s,
     }
   }
 }

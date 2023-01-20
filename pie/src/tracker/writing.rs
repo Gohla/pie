@@ -1,3 +1,4 @@
+use std::error::Error;
 use std::io;
 use std::io::{Stderr, Stdout};
 use std::marker::PhantomData;
@@ -82,13 +83,13 @@ impl<W: io::Write, T: Task> Tracker<T> for WritingTracker<W, T> {
   #[inline]
   fn check_require_file_start(&mut self, _dependency: &FileDependency) {}
   #[inline]
-  fn check_require_file_end(&mut self, dependency: &FileDependency, inconsistent: Option<&FileStamp>) {
+  fn check_require_file_end(&mut self, dependency: &FileDependency, inconsistent: Result<Option<&FileStamp>, &dyn Error>) {
     self.write_file_dependency(dependency, inconsistent);
   }
   #[inline]
   fn check_provide_file_start(&mut self, _dependency: &FileDependency) {}
   #[inline]
-  fn check_provide_file_end(&mut self, dependency: &FileDependency, inconsistent: Option<&FileStamp>) {
+  fn check_provide_file_end(&mut self, dependency: &FileDependency, inconsistent: Result<Option<&FileStamp>, &dyn Error>) {
     self.write_file_dependency(dependency, inconsistent);
   }
   #[inline]
@@ -118,11 +119,11 @@ impl<W: io::Write, T: Task> Tracker<T> for WritingTracker<W, T> {
     self.indent();
   }
   #[inline]
-  fn check_affected_by_require_file(&mut self, dependency: &FileDependency, inconsistent: Option<&FileStamp>) {
+  fn check_affected_by_require_file(&mut self, dependency: &FileDependency, inconsistent: Result<Option<&FileStamp>, &dyn Error>) {
     self.write_file_dependency(dependency, inconsistent);
   }
   #[inline]
-  fn check_affected_by_provide_file(&mut self, dependency: &FileDependency, inconsistent: Option<&FileStamp>) {
+  fn check_affected_by_provide_file(&mut self, dependency: &FileDependency, inconsistent: Result<Option<&FileStamp>, &dyn Error>) {
     self.write_file_dependency(dependency, inconsistent);
   }
   #[inline]
@@ -171,11 +172,11 @@ impl<W: io::Write, T: Task> WritingTracker<W, T> {
   }
 
   #[inline]
-  fn write_file_dependency(&mut self, dependency: &FileDependency, inconsistent: Option<&FileStamp>) {
-    if let Some(new_stamp) = inconsistent {
-      self.write(format_args!("☒ {} ({:?} ≠ {:?})", dependency.path.display(), dependency.stamp, new_stamp));
-    } else {
-      self.write(format_args!("☑ {} ({:?})", dependency.path.display(), dependency.stamp));
+  fn write_file_dependency(&mut self, dependency: &FileDependency, inconsistent: Result<Option<&FileStamp>, &dyn Error>) {
+    match inconsistent {
+      Ok(Some(new_stamp)) => self.write(format_args!("☒ {} ({:?} ≠ {:?})", dependency.path.display(), dependency.stamp, new_stamp)),
+      Ok(None) => self.write(format_args!("☑ {} ({:?})", dependency.path.display(), dependency.stamp)),
+      Err(e) => self.write(format_args!("☒ {} (error: {:?})", dependency.path.display(), e))
     }
   }
   #[inline]

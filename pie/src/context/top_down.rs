@@ -28,7 +28,10 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> IncrementalTopDow
   #[inline]
   pub(crate) fn require(&mut self, task: &T) -> T::Output {
     self.shared.task_execution_stack.clear();
-    self.require_task(task)
+    self.shared.session.tracker.require_top_down_initial_start(task);
+    let output = self.require_task(task);
+    self.shared.session.tracker.require_top_down_initial_end(task, &output);
+    output
   }
 }
 
@@ -45,7 +48,7 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> Context<T> for In
       }
     }
 
-    let output = if !self.shared.session.visited.contains(&task_node) && self.should_execute_task(&task_node) { // Execute the task, cache and return up-to-date output.
+    let output = if !self.shared.session.visited.contains(&task_node) && self.should_execute_task(&task_node, task) { // Execute the task, cache and return up-to-date output.
       self.shared.session.store.reset_task(&task_node);
       self.shared.pre_execute(task, task_node);
       let output = task.execute(self);
@@ -84,16 +87,21 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> Context<T> for In
 }
 
 impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> IncrementalTopDownContext<'p, 's, T, A, H> {
-  fn should_execute_task(&mut self, task_node: &TaskNodeId) -> bool {
+  fn should_execute_task(&mut self, task_node: &TaskNodeId, task: &T) -> bool {
+    self.shared.session.tracker.check_top_down_start(task);
+
     // Remove task dependencies so that we get ownership over the list of dependencies. If the task does not need to be
     // executed, we will restore the dependencies again.
     let task_dependencies = self.shared.session.store.remove_dependencies_of_task(task_node);
-    if let Some(task_dependencies) = task_dependencies {
+    let result = if let Some(task_dependencies) = task_dependencies {
       // Task has been executed before, check whether all its dependencies are still consistent. If one or more are not,
       // we need to execute the task.
       for (_, dependency) in &task_dependencies {
         if let Some(dependency) = dependency {
-          match dependency.is_consistent(self) {
+          self.shared.session.tracker.check_dependency_start(dependency);
+          let inconsistent = dependency.is_consistent(self);
+          self.shared.session.tracker.check_dependency_end(dependency, inconsistent.as_ref().map_err(|e| e.as_ref()).map(|o| o.as_ref()));
+          match inconsistent {
             Ok(Some(_)) => return true, // Not consistent -> should execute task.
             Err(e) => { // Error -> store error and assume not consistent -> should execute task.
               self.shared.session.dependency_check_errors.push(e);
@@ -113,6 +121,9 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> IncrementalTopDow
     } else {
       // Task has not been executed, so we need to execute it.
       true
-    }
+    };
+
+    self.shared.session.tracker.check_top_down_end(task);
+    result
   }
 }
