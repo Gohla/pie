@@ -54,16 +54,15 @@ pub trait Tracker<T: Task> {
   fn check_top_down_end(&mut self, task: &T);
   fn require_top_down_initial_end(&mut self, task: &T, output: &T::Output);
 
-  fn require_bottom_up_initial_start(&mut self, changed_files: &[PathBuf]);
-  fn schedule_affected_by_file_start(&mut self, file: &PathBuf);
-  fn check_affected_by_require_file(&mut self, dependency: &FileDependency, inconsistent: Result<Option<&FileStamp>, &dyn Error>);
-  fn check_affected_by_provide_file(&mut self, dependency: &FileDependency, inconsistent: Result<Option<&FileStamp>, &dyn Error>);
-  fn schedule_affected_by_file_end(&mut self, file: &PathBuf);
-  fn check_affected_by_task_output_start(&mut self, output: &T::Output);
+  fn update_affected_by_start<'a, I: IntoIterator<Item=&'a PathBuf> + Clone>(&mut self, changed_files: I);
+  fn schedule_affected_by_file_start(&mut self, path: &PathBuf);
+  fn check_affected_by_file(&mut self, dependency: &FileDependency, inconsistent: Result<Option<&FileStamp>, &dyn Error>);
+  fn schedule_affected_by_file_end(&mut self, path: &PathBuf);
+  fn check_affected_by_task_start(&mut self, task: &T);
   fn check_affected_by_require_task(&mut self, dependency: &TaskDependency<T, T::Output>, inconsistent: Option<&OutputStamp<T::Output>>);
-  fn check_affected_by_task_output_end(&mut self, output: &T::Output);
+  fn check_affected_by_task_end(&mut self, task: &T);
   fn schedule_task(&mut self, task: &T);
-  fn require_bottom_up_initial_end(&mut self);
+  fn update_affected_by_end(&mut self);
 }
 
 
@@ -113,25 +112,23 @@ impl<T: Task> Tracker<T> for NoopTracker<T> {
   fn require_top_down_initial_end(&mut self, _task: &T, _output: &T::Output) {}
 
   #[inline]
-  fn require_bottom_up_initial_start(&mut self, _changed_files: &[PathBuf]) {}
+  fn update_affected_by_start<'a, I: IntoIterator<Item=&'a PathBuf>>(&mut self, _changed_files: I) {}
   #[inline]
   fn schedule_affected_by_file_start(&mut self, _file: &PathBuf) {}
   #[inline]
-  fn check_affected_by_require_file(&mut self, _dependency: &FileDependency, _inconsistent: Result<Option<&FileStamp>, &dyn Error>) {}
-  #[inline]
-  fn check_affected_by_provide_file(&mut self, _dependency: &FileDependency, _inconsistent: Result<Option<&FileStamp>, &dyn Error>) {}
+  fn check_affected_by_file(&mut self, _dependency: &FileDependency, _inconsistent: Result<Option<&FileStamp>, &dyn Error>) {}
   #[inline]
   fn schedule_affected_by_file_end(&mut self, _file: &PathBuf) {}
   #[inline]
-  fn check_affected_by_task_output_start(&mut self, _output: &T::Output) {}
+  fn check_affected_by_task_start(&mut self, _task: &T) {}
   #[inline]
   fn check_affected_by_require_task(&mut self, _dependency: &TaskDependency<T, T::Output>, _inconsistent: Option<&OutputStamp<T::Output>>) {}
   #[inline]
-  fn check_affected_by_task_output_end(&mut self, _output: &T::Output) {}
+  fn check_affected_by_task_end(&mut self, _task: &T) {}
   #[inline]
   fn schedule_task(&mut self, _task: &T) {}
   #[inline]
-  fn require_bottom_up_initial_end(&mut self) {}
+  fn update_affected_by_end(&mut self) {}
 }
 
 
@@ -224,9 +221,9 @@ impl<T: Task, T1: Tracker<T>, T2: Tracker<T>> Tracker<T> for CompositeTracker<T1
   }
 
   #[inline]
-  fn require_bottom_up_initial_start(&mut self, changed_files: &[PathBuf]) {
-    self.0.require_bottom_up_initial_start(changed_files);
-    self.1.require_bottom_up_initial_start(changed_files);
+  fn update_affected_by_start<'a, I: IntoIterator<Item=&'a PathBuf> + Clone>(&mut self, changed_files: I) {
+    self.0.update_affected_by_start(changed_files.clone());
+    self.1.update_affected_by_start(changed_files);
   }
   #[inline]
   fn schedule_affected_by_file_start(&mut self, file: &PathBuf) {
@@ -234,14 +231,9 @@ impl<T: Task, T1: Tracker<T>, T2: Tracker<T>> Tracker<T> for CompositeTracker<T1
     self.1.schedule_affected_by_file_start(file);
   }
   #[inline]
-  fn check_affected_by_require_file(&mut self, dependency: &FileDependency, inconsistent: Result<Option<&FileStamp>, &dyn Error>) {
-    self.0.check_affected_by_require_file(dependency, inconsistent);
-    self.1.check_affected_by_require_file(dependency, inconsistent);
-  }
-  #[inline]
-  fn check_affected_by_provide_file(&mut self, dependency: &FileDependency, inconsistent: Result<Option<&FileStamp>, &dyn Error>) {
-    self.0.check_affected_by_provide_file(dependency, inconsistent);
-    self.1.check_affected_by_provide_file(dependency, inconsistent);
+  fn check_affected_by_file(&mut self, dependency: &FileDependency, inconsistent: Result<Option<&FileStamp>, &dyn Error>) {
+    self.0.check_affected_by_file(dependency, inconsistent);
+    self.1.check_affected_by_file(dependency, inconsistent);
   }
   #[inline]
   fn schedule_affected_by_file_end(&mut self, file: &PathBuf) {
@@ -249,9 +241,9 @@ impl<T: Task, T1: Tracker<T>, T2: Tracker<T>> Tracker<T> for CompositeTracker<T1
     self.1.schedule_affected_by_file_end(file);
   }
   #[inline]
-  fn check_affected_by_task_output_start(&mut self, output: &T::Output) {
-    self.0.check_affected_by_task_output_start(output);
-    self.1.check_affected_by_task_output_start(output);
+  fn check_affected_by_task_start(&mut self, task: &T) {
+    self.0.check_affected_by_task_start(task);
+    self.1.check_affected_by_task_start(task);
   }
   #[inline]
   fn check_affected_by_require_task(&mut self, dependency: &TaskDependency<T, T::Output>, inconsistent: Option<&OutputStamp<T::Output>>) {
@@ -259,9 +251,9 @@ impl<T: Task, T1: Tracker<T>, T2: Tracker<T>> Tracker<T> for CompositeTracker<T1
     self.1.check_affected_by_require_task(dependency, inconsistent);
   }
   #[inline]
-  fn check_affected_by_task_output_end(&mut self, output: &T::Output) {
-    self.0.check_affected_by_task_output_end(output);
-    self.1.check_affected_by_task_output_end(output);
+  fn check_affected_by_task_end(&mut self, task: &T) {
+    self.0.check_affected_by_task_end(task);
+    self.1.check_affected_by_task_end(task);
   }
   #[inline]
   fn schedule_task(&mut self, task: &T) {
@@ -269,8 +261,8 @@ impl<T: Task, T1: Tracker<T>, T2: Tracker<T>> Tracker<T> for CompositeTracker<T1
     self.1.schedule_task(task);
   }
   #[inline]
-  fn require_bottom_up_initial_end(&mut self) {
-    self.0.require_bottom_up_initial_end();
-    self.1.require_bottom_up_initial_end();
+  fn update_affected_by_end(&mut self) {
+    self.0.update_affected_by_end();
+    self.1.update_affected_by_end();
   }
 }

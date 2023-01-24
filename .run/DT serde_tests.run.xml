@@ -1,6 +1,6 @@
 <component name="ProjectRunConfigurationManager">
   <configuration default="false" name="DT serde_tests" type="CargoCommandRunConfiguration" factoryName="Cargo Command">
-    <option name="command" value="test --profile=dbg --package pie --test serde_tests" />
+    <option name="command" value="test --profile=dbg --package pie --test serde" />
     <option name="workingDirectory" value="file://$PROJECT_DIR$" />
     <option name="channel" value="DEFAULT" />
     <option name="requiredFeatures" value="true" />

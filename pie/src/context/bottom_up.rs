@@ -28,19 +28,25 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> IncrementalBottom
   }
 
   #[inline]
-  pub(crate) fn update_affected_by(&mut self, changed_files: &[PathBuf]) {
+  pub(crate) fn update_affected_by<'a, I: IntoIterator<Item=&'a PathBuf> + Clone>(&mut self, changed_files: I) {
+    self.shared.session.tracker.update_affected_by_start(changed_files.clone());
+
     // Create a new queue of scheduled tasks.
     self.scheduled = Queue::new();
     // Schedule affected tasks that require or provide a changed file.
     for changed_file in changed_files {
-      let file_node = self.shared.session.store.get_or_create_file_node(changed_file);
+      let file_node = self.shared.session.store.get_or_create_file_node(&changed_file);
       for (requiring_task_node, dependency) in self.shared.session.store.get_tasks_requiring_or_providing_file(&file_node) {
-        match dependency.require_or_provide_file_is_consistent() {
+        match dependency.is_inconsistent() {
           Err(e) => {
             self.shared.session.dependency_check_errors.push(e);
             self.scheduled.add(*requiring_task_node);
           }
-          Ok(Some(_)) => self.scheduled.add(*requiring_task_node),
+          Ok(Some(_)) => { // Schedule task; can't extract method due to self borrow above.
+            let task = self.shared.session.store.task_by_node(requiring_task_node);
+            self.shared.session.tracker.schedule_task(task);
+            self.scheduled.add(*requiring_task_node);
+          }
           _ => {}
         }
       }
@@ -49,31 +55,55 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> IncrementalBottom
     while let Some(task_node) = self.scheduled.pop(&mut self.shared.session.store) {
       self.execute_and_schedule(task_node);
     }
+
+    self.shared.session.tracker.update_affected_by_end();
   }
 
 
   fn execute_and_schedule(&mut self, task_node_id: TaskNodeId) -> T::Output {
+    // Execute `task`
     let task = self.shared.session.store.task_by_node(&task_node_id).clone(); // TODO: get rid of clone?
     let output = self.execute(task_node_id, &task);
-    // Schedule affected tasks that require `task`.
-    for (requiring_task_node, dependency) in self.shared.session.store.get_tasks_requiring_task(&task_node_id) {
-      if dependency.require_task_is_consistent_with(output.clone()).is_some() { // TODO: get rid of clone
-        self.scheduled.add(*requiring_task_node);
-      }
-    }
+
     // Schedule affected tasks that require files provided by `task`.
     for provided_file in self.shared.session.store.get_provided_files(&task_node_id) {
+      let path = self.shared.session.store.path_by_node(provided_file);
+      self.shared.session.tracker.schedule_affected_by_file_start(path);
+
       for (requiring_task_node, dependency) in self.shared.session.store.get_tasks_requiring_file(provided_file) {
-        match dependency.require_or_provide_file_is_consistent() {
+        let inconsistent = dependency.is_inconsistent();
+        self.shared.session.tracker.check_affected_by_file(dependency, inconsistent.as_ref().map_err(|e| e.as_ref()).map(|o| o.as_ref()));
+        match inconsistent {
           Err(e) => {
             self.shared.session.dependency_check_errors.push(e);
             self.scheduled.add(*requiring_task_node);
           }
-          Ok(Some(_)) => self.scheduled.add(*requiring_task_node),
+          Ok(Some(_)) => { // Schedule task; can't extract method due to self borrow above.
+            let task = self.shared.session.store.task_by_node(requiring_task_node);
+            self.shared.session.tracker.schedule_task(task);
+            self.scheduled.add(*requiring_task_node);
+          }
           _ => {}
         }
       }
+
+      self.shared.session.tracker.schedule_affected_by_file_end(path);
     }
+
+    // Schedule affected tasks that require `task`'s output.
+    self.shared.session.tracker.check_affected_by_task_start(&task);
+    for (requiring_task_node, dependency) in self.shared.session.store.get_tasks_requiring_task(&task_node_id) {
+      let inconsistent = dependency.is_inconsistent_with(output.clone());
+      self.shared.session.tracker.check_affected_by_require_task(dependency, inconsistent.as_ref());
+      if let Some(_) = inconsistent { // TODO: get rid of clone
+        // Schedule task; can't extract method due to self borrow above.
+        let task = self.shared.session.store.task_by_node(requiring_task_node);
+        self.shared.session.tracker.schedule_task(task);
+        self.scheduled.add(*requiring_task_node);
+      }
+    }
+    self.shared.session.tracker.check_affected_by_task_end(&task);
+
     output
   }
 
@@ -199,7 +229,7 @@ impl<H: BuildHasher + Default> Queue<H> {
     }
     None
   }
-  
+
   #[inline]
   fn sort_by_dependencies<T: Task>(&mut self, store: &Store<T, H>) {
     self.vec.sort_unstable_by(|n1, n2| store.graph.topo_cmp(n1, n2));

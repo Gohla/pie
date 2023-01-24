@@ -99,7 +99,7 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> IncrementalTopDow
       for (_, dependency) in &task_dependencies {
         if let Some(dependency) = dependency {
           self.shared.session.tracker.check_dependency_start(dependency);
-          let inconsistent = dependency.is_consistent(self);
+          let inconsistent = dependency.is_inconsistent(self);
           self.shared.session.tracker.check_dependency_end(dependency, inconsistent.as_ref().map_err(|e| e.as_ref()).map(|o| o.as_ref()));
           match inconsistent {
             Ok(Some(_)) => return true, // Not consistent -> should execute task.

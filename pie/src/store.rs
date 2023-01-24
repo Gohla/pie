@@ -4,7 +4,7 @@ use std::path::PathBuf;
 
 use pie_graph::{DAG, NodeId};
 
-use crate::dependency::Dependency;
+use crate::dependency::{Dependency, FileDependency, TaskDependency};
 use crate::Task;
 
 pub type TaskNodeId = NodeId;
@@ -66,16 +66,15 @@ impl<T: Task, H: BuildHasher + Default> Store<T, H> {
     }
   }
   #[inline]
-  pub fn get_task_by_node(&self, task_node: &TaskNodeId) -> Option<&T> {
-    self.graph.get_node_data(task_node).and_then(|d| match d {
+  pub fn get_task_by_node(&self, task_node_id: &TaskNodeId) -> Option<&T> {
+    self.graph.get_node_data(task_node_id).and_then(|d| match d {
       NodeData::Task { task, .. } => Some(task),
       _ => None
     })
   }
-
   #[inline]
-  pub fn task_by_node(&self, task_node: &TaskNodeId) -> &T {
-    self.get_task_by_node(task_node).unwrap()
+  pub fn task_by_node(&self, task_node_id: &TaskNodeId) -> &T {
+    self.get_task_by_node(task_node_id).unwrap()
   }
 
 
@@ -90,7 +89,17 @@ impl<T: Task, H: BuildHasher + Default> Store<T, H> {
       node
     }
   }
-
+  #[inline]
+  pub fn get_path_by_node(&self, file_node_id: &FileNodeId) -> Option<&PathBuf> {
+    self.graph.get_node_data(file_node_id).and_then(|d| match d {
+      NodeData::File(path) => Some(path),
+      _ => None
+    })
+  }
+  #[inline]
+  pub fn path_by_node(&self, file_node_id: &FileNodeId) -> &PathBuf {
+    self.get_path_by_node(file_node_id).unwrap()
+  }
 
   #[inline]
   pub fn remove_dependencies_of_task(&mut self, depender: &TaskNodeId) -> Option<Vec<(NodeId, Option<Dependency<T, T::Output>>)>> {
@@ -171,15 +180,15 @@ impl<T: Task, H: BuildHasher + Default> Store<T, H> {
 
   /// Get all requirer task nodes and corresponding dependencies of tasks that require given `task_node`.
   #[inline]
-  pub fn get_tasks_requiring_task<'a>(&'a self, task_node: &'a TaskNodeId) -> impl Iterator<Item=(&TaskNodeId, &Dependency<T, T::Output>)> + '_ {
+  pub fn get_tasks_requiring_task<'a>(&'a self, task_node: &'a TaskNodeId) -> impl Iterator<Item=(&TaskNodeId, &TaskDependency<T, T::Output>)> + '_ {
     self.graph.get_incoming_dependencies(task_node)
-      .filter_map(|(n, d)| d.as_ref().and_then(|d| if d.is_require_task() { Some((n, d)) } else { None }))
+      .filter_map(|(n, d)| d.as_ref().and_then(|d| d.as_task_dependency().map(|d| (n, d))))
   }
   /// Get all requirer task nodes and corresponding dependencies of tasks that require given `file_node`.
   #[inline]
-  pub fn get_tasks_requiring_file<'a>(&'a self, file_node: &'a FileNodeId) -> impl Iterator<Item=(&TaskNodeId, &Dependency<T, T::Output>)> + '_ {
+  pub fn get_tasks_requiring_file<'a>(&'a self, file_node: &'a FileNodeId) -> impl Iterator<Item=(&TaskNodeId, &FileDependency)> + '_ {
     self.graph.get_incoming_dependencies(file_node)
-      .filter_map(|(n, d)| d.as_ref().and_then(|d| if d.is_require_file() { Some((n, d)) } else { None }))
+      .filter_map(|(n, d)| d.as_ref().and_then(|d| d.as_require_file_dependency().map(|d| (n, d))))
   }
   /// Get the node of the tasks that provide given `file_node`, or `None` if there is none.
   #[inline]
@@ -189,9 +198,9 @@ impl<T: Task, H: BuildHasher + Default> Store<T, H> {
   }
   /// Get all requirer task nodes and corresponding dependencies of tasks that require or provide given `file_node`.
   #[inline]
-  pub fn get_tasks_requiring_or_providing_file<'a>(&'a self, file_node: &'a FileNodeId) -> impl Iterator<Item=(&TaskNodeId, &Dependency<T, T::Output>)> + '_ {
+  pub fn get_tasks_requiring_or_providing_file<'a>(&'a self, file_node: &'a FileNodeId) -> impl Iterator<Item=(&TaskNodeId, &FileDependency)> + '_ {
     self.graph.get_incoming_dependencies(file_node)
-      .filter_map(|(n, d)| d.as_ref().and_then(|d| if d.is_file_dependency() { Some((n, d)) } else { None }))
+      .filter_map(|(n, d)| d.as_ref().and_then(|d| d.as_file_dependency().map(|d| (n, d))))
   }
   /// Get all file nodes of files that are provided by given `task_node`.
   #[inline]

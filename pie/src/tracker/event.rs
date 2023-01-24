@@ -70,6 +70,31 @@ impl<T: Task> EventTracker<T> {
   }
 
   #[inline]
+  pub fn contains_one_execute_end(&self) -> bool {
+    self.contains_one(|e| Self::match_execute_end(e))
+  }
+  #[inline]
+  pub fn contains_no_execute_end(&self) -> bool {
+    self.contains_no(|e| Self::match_execute_end(e))
+  }
+  #[inline]
+  pub fn contains_one_execute_end_of(&self, task: &T) -> bool {
+    self.contains_one(|e| Self::match_execute_end_of(e, task))
+  }
+  #[inline]
+  pub fn contains_no_execute_end_of(&self, task: &T) -> bool {
+    self.contains_no(|e| Self::match_execute_end_of(e, task))
+  }
+  #[inline]
+  pub fn contains_one_execute_end_of_with(&self, task: &T, output: &T::Output) -> bool {
+    self.contains_one(|e| Self::match_execute_end_of_with(e, task, output))
+  }
+  #[inline]
+  pub fn contains_no_execute_end_of_with(&self, task: &T, output: &T::Output) -> bool {
+    self.contains_no(|e| Self::match_execute_end_of_with(e, task, output))
+  }
+
+  #[inline]
   pub fn get_index_of(&self, f: impl FnMut(&Event<T>) -> bool) -> Option<usize> {
     self.events.iter().position(f)
   }
@@ -80,6 +105,10 @@ impl<T: Task> EventTracker<T> {
   #[inline]
   pub fn get_index_of_execute_end_of(&self, task: &T) -> Option<usize> {
     self.get_index_of(|e| Self::match_execute_end_of(e, task))
+  }
+  #[inline]
+  pub fn get_index_of_execute_end_of_with(&self, task: &T, output: &T::Output) -> Option<usize> {
+    self.get_index_of(|e| Self::match_execute_end_of_with(e, task, output))
   }
 
   #[inline]
@@ -107,6 +136,13 @@ impl<T: Task> EventTracker<T> {
   fn match_execute_end_of(e: &Event<T>, task: &T) -> bool {
     match e {
       Event::ExecuteTaskEnd(t, _) if t == task => true,
+      _ => false,
+    }
+  }
+  #[inline]
+  fn match_execute_end_of_with(e: &Event<T>, task: &T, output: &T::Output) -> bool {
+    match e {
+      Event::ExecuteTaskEnd(t, o) if t == task && o == output => true,
       _ => false,
     }
   }
@@ -166,23 +202,21 @@ impl<T: Task> Tracker<T> for EventTracker<T> {
   fn require_top_down_initial_end(&mut self, _task: &T, _output: &T::Output) {}
 
   #[inline]
-  fn require_bottom_up_initial_start(&mut self, _changed_files: &[PathBuf]) {}
+  fn update_affected_by_start<'a, I: IntoIterator<Item=&'a PathBuf> + Clone>(&mut self, _changed_files: I) {}
   #[inline]
-  fn require_bottom_up_initial_end(&mut self) {}
+  fn update_affected_by_end(&mut self) {}
   #[inline]
   fn schedule_affected_by_file_start(&mut self, _file: &PathBuf) {}
   #[inline]
-  fn check_affected_by_require_file(&mut self, _dependency: &FileDependency, _inconsistent: Result<Option<&FileStamp>, &dyn Error>) {}
-  #[inline]
-  fn check_affected_by_provide_file(&mut self, _dependency: &FileDependency, _inconsistent: Result<Option<&FileStamp>, &dyn Error>) {}
+  fn check_affected_by_file(&mut self, _dependency: &FileDependency, _inconsistent: Result<Option<&FileStamp>, &dyn Error>) {}
   #[inline]
   fn schedule_affected_by_file_end(&mut self, _file: &PathBuf) {}
   #[inline]
-  fn check_affected_by_task_output_start(&mut self, _output: &T::Output) {}
+  fn check_affected_by_task_start(&mut self, _task: &T) {}
   #[inline]
   fn check_affected_by_require_task(&mut self, _dependency: &TaskDependency<T, T::Output>, _inconsistent: Option<&OutputStamp<T::Output>>) {}
   #[inline]
-  fn check_affected_by_task_output_end(&mut self, _output: &T::Output) {}
+  fn check_affected_by_task_end(&mut self, _task: &T) {}
   #[inline]
   fn schedule_task(&mut self, _task: &T) {}
 }

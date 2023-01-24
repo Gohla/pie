@@ -52,32 +52,32 @@ impl<W: io::Write, T: Task> Tracker<T> for WritingTracker<W, T> {
 
   #[inline]
   fn execute_task_start(&mut self, task: &T) {
-    self.write(format_args!("→ {:?}", task));
+    self.writeln(format_args!("→ {:?}", task));
     self.indent();
   }
   #[inline]
   fn execute_task_end(&mut self, _task: &T, output: &T::Output) {
     self.unindent();
-    self.write(format_args!("← {:?}", output));
+    self.writeln(format_args!("← {:?}", output));
   }
   #[inline]
   fn up_to_date(&mut self, task: &T) {
-    self.write(format_args!("✓ {:?}", task))
+    self.writeln(format_args!("✓ {:?}", task))
   }
 
   #[inline]
   fn require_top_down_initial_start(&mut self, task: &T) {
-    self.write(format_args!("Top-down build start: {:?}", task));
+    self.writeln(format_args!("Top-down build start: {:?}", task));
     self.indent();
   }
   #[inline]
   fn require_top_down_initial_end(&mut self, _task: &T, output: &T::Output) {
     self.unindent();
-    self.write(format_args!("Top-down build end: {:?}", output));
+    self.writeln(format_args!("Top-down build end: {:?}", output));
   }
   #[inline]
   fn check_top_down_start(&mut self, task: &T) {
-    self.write(format_args!("? {:?}", task));
+    self.writeln(format_args!("? {:?}", task));
     self.indent();
   }
   #[inline]
@@ -104,26 +104,31 @@ impl<W: io::Write, T: Task> Tracker<T> for WritingTracker<W, T> {
   }
 
   #[inline]
-  fn require_bottom_up_initial_start(&mut self, changed_files: &[PathBuf]) {
-    self.write(format_args!("Bottom-up build start: {:?}", changed_files));
+  fn update_affected_by_start<'a, I: IntoIterator<Item=&'a PathBuf> + Clone>(&mut self, changed_files: I) {
+    self.write_indentation();
+    self.write(format_args!("Bottom-up build start: "));
+    let mut iter = changed_files.into_iter();
+    if let Some(changed_file) = iter.next() {
+      self.write(format_args!("{}", changed_file.display()));
+      for changed_file in iter {
+        self.write(format_args!(", {}", changed_file.display()));
+      }
+    }
+    self.write_nl();
     self.indent();
   }
   #[inline]
-  fn require_bottom_up_initial_end(&mut self) {
+  fn update_affected_by_end(&mut self) {
     self.unindent();
-    self.write(format_args!("Bottom-up build end"));
+    self.writeln(format_args!("Bottom-up build end"));
   }
   #[inline]
   fn schedule_affected_by_file_start(&mut self, file: &PathBuf) {
-    self.write(format_args!("¿ {}", file.display()));
+    self.writeln(format_args!("¿ {}", file.display()));
     self.indent();
   }
   #[inline]
-  fn check_affected_by_require_file(&mut self, dependency: &FileDependency, inconsistent: Result<Option<&FileStamp>, &dyn Error>) {
-    self.write_file_dependency(dependency, inconsistent);
-  }
-  #[inline]
-  fn check_affected_by_provide_file(&mut self, dependency: &FileDependency, inconsistent: Result<Option<&FileStamp>, &dyn Error>) {
+  fn check_affected_by_file(&mut self, dependency: &FileDependency, inconsistent: Result<Option<&FileStamp>, &dyn Error>) {
     self.write_file_dependency(dependency, inconsistent);
   }
   #[inline]
@@ -131,8 +136,8 @@ impl<W: io::Write, T: Task> Tracker<T> for WritingTracker<W, T> {
     self.unindent();
   }
   #[inline]
-  fn check_affected_by_task_output_start(&mut self, output: &T::Output) {
-    self.write(format_args!("¿ {:?}", output));
+  fn check_affected_by_task_start(&mut self, task: &T) {
+    self.writeln(format_args!("¿ {:?}", task));
     self.indent();
   }
   #[inline]
@@ -140,18 +145,22 @@ impl<W: io::Write, T: Task> Tracker<T> for WritingTracker<W, T> {
     self.write_task_dependency(dependency, inconsistent);
   }
   #[inline]
-  fn check_affected_by_task_output_end(&mut self, _output: &T::Output) {
+  fn check_affected_by_task_end(&mut self, _task: &T) {
     self.unindent();
   }
   #[inline]
   fn schedule_task(&mut self, task: &T) {
-    self.write(format_args!("↑ {:?}", task));
+    self.writeln(format_args!("↑ {:?}", task));
   }
 }
 
 impl<W: io::Write, T: Task> WritingTracker<W, T> {
   #[inline]
   fn write(&mut self, args: std::fmt::Arguments) {
+    write!(&mut self.writer, "{}", args).ok();
+  }
+  #[inline]
+  fn writeln(&mut self, args: std::fmt::Arguments) {
     self.write_indentation();
     writeln!(&mut self.writer, "{}", args).ok();
   }
@@ -160,6 +169,10 @@ impl<W: io::Write, T: Task> WritingTracker<W, T> {
     for _ in 0..self.indentation {
       write!(&mut self.writer, " ").ok();
     }
+  }
+  #[inline]
+  fn write_nl(&mut self) {
+    write!(&mut self.writer, "\n").ok();
   }
 
   #[inline]
@@ -174,17 +187,17 @@ impl<W: io::Write, T: Task> WritingTracker<W, T> {
   #[inline]
   fn write_file_dependency(&mut self, dependency: &FileDependency, inconsistent: Result<Option<&FileStamp>, &dyn Error>) {
     match inconsistent {
-      Ok(Some(new_stamp)) => self.write(format_args!("☒ {} ({:?} ≠ {:?})", dependency.path.display(), dependency.stamp, new_stamp)),
-      Ok(None) => self.write(format_args!("☑ {} ({:?})", dependency.path.display(), dependency.stamp)),
-      Err(e) => self.write(format_args!("☒ {} (error: {:?})", dependency.path.display(), e))
+      Ok(Some(new_stamp)) => self.writeln(format_args!("☒ {} ({:?} ≠ {:?})", dependency.path.display(), dependency.stamp, new_stamp)),
+      Ok(None) => self.writeln(format_args!("☑ {} ({:?})", dependency.path.display(), dependency.stamp)),
+      Err(e) => self.writeln(format_args!("☒ {} (error: {:?})", dependency.path.display(), e))
     }
   }
   #[inline]
   fn write_task_dependency(&mut self, dependency: &TaskDependency<T, T::Output>, inconsistent: Option<&OutputStamp<T::Output>>) {
     if let Some(new_stamp) = inconsistent {
-      self.write(format_args!("☒ {:?} ({:?} ≠ {:?})", dependency.task, dependency.stamp, new_stamp));
+      self.writeln(format_args!("☒ {:?} ({:?} ≠ {:?})", dependency.task, dependency.stamp, new_stamp));
     } else {
-      self.write(format_args!("☑ {:?} ({:?})", dependency.task, dependency.stamp));
+      self.writeln(format_args!("☑ {:?} ({:?})", dependency.task, dependency.stamp));
     }
   }
 }

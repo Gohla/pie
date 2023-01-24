@@ -8,8 +8,9 @@ use std::path::PathBuf;
 
 use stamp::{FileStamper, OutputStamper};
 
-use crate::store::{Store, TaskNodeId};
+use crate::context::bottom_up::IncrementalBottomUpContext;
 use crate::context::top_down::IncrementalTopDownContext;
+use crate::store::{Store, TaskNodeId};
 use crate::tracker::{NoopTracker, Tracker};
 
 pub mod stamp;
@@ -165,8 +166,15 @@ impl<'p, T: Task, A: Tracker<T> + Default, H: BuildHasher + Default> Session<'p,
   /// Requires given `task`, returning its up-to-date output.
   #[inline]
   pub fn require(&mut self, task: &T) -> T::Output {
-    let mut runner = IncrementalTopDownContext::new(self);
-    runner.require(task)
+    let mut context = IncrementalTopDownContext::new(self);
+    context.require(task)
+  }
+
+  /// Make up-to-date all tasks (transitively) affected by changed files.
+  #[inline]
+  pub fn update_affected_by<'a, I: IntoIterator<Item=&'a PathBuf> + Clone>(&mut self, changed_files: I) {
+    let mut context = IncrementalBottomUpContext::new(self);
+    context.update_affected_by(changed_files);
   }
 
   /// Gets the [`Tracker`] instance.

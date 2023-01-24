@@ -91,6 +91,20 @@ impl<T: Task> Dependency<T, T::Output> {
     }
   }
   #[inline]
+  pub fn as_require_file_dependency(&self) -> Option<&FileDependency> {
+    match self {
+      Dependency::RequireFile(d) => Some(d),
+      _ => None,
+    }
+  }
+  #[inline]
+  pub fn as_provide_file_dependency(&self) -> Option<&FileDependency> {
+    match self {
+      Dependency::ProvideFile(d) => Some(d),
+      _ => None,
+    }
+  }
+  #[inline]
   pub fn as_task_dependency(&self) -> Option<&TaskDependency<T, T::Output>> {
     match self {
       Dependency::RequireTask(d) => Some(d),
@@ -98,50 +112,47 @@ impl<T: Task> Dependency<T, T::Output> {
     }
   }
 
+  /// Checks whether this dependency is inconsistent, returning:
+  /// - `Ok(Some(stamp))` if the dependency is inconsistent (with `stamp` being the new stamp of the dependency),
+  /// - `Ok(None)` if the dependency is consistent,
+  /// - `Err(e)` if there was an error checking the dependency for consistency.
   #[inline]
-  pub fn is_consistent<C: Context<T>>(&self, context: &mut C) -> Result<Option<InconsistentDependency<T::Output>>, Box<dyn Error>> {
+  pub fn is_inconsistent<C: Context<T>>(&self, context: &mut C) -> Result<Option<InconsistentDependency<T::Output>>, Box<dyn Error>> {
     match self {
-      Dependency::RequireFile(FileDependency { path, stamper, stamp }) => {
-        Self::file_is_consistent(path, stamper, stamp)
+      Dependency::RequireFile(d) => {
+        d.is_inconsistent()
           .map(|s| s.map(|s| InconsistentDependency::File(s)))
       }
-      Dependency::ProvideFile(FileDependency { path, stamper, stamp }) => {
-        Self::file_is_consistent(path, stamper, stamp)
+      Dependency::ProvideFile(d) => {
+        d.is_inconsistent()
           .map(|s| s.map(|s| InconsistentDependency::File(s)))
       }
-      Dependency::RequireTask(TaskDependency { task, stamper, stamp }) => {
-        let output = context.require_task(task);
-        Ok(Self::task_is_consistent(output, stamper, stamp)
+      Dependency::RequireTask(d) => {
+        Ok(d.is_inconsistent(context)
           .map(|s| InconsistentDependency::Task(s)))
       }
     }
   }
+}
+
+impl<T: Task> TaskDependency<T, T::Output> {
+  /// Checks whether this task dependency is inconsistent, returning:
+  /// - `Some(stamp)` if this dependency is inconsistent (with `stamp` being the new stamp of the dependency),
+  /// - `None` if this dependency is consistent.
   #[inline]
-  pub fn require_or_provide_file_is_consistent(&self) -> Result<Option<FileStamp>, Box<dyn Error>> {
-    if let Some(FileDependency { path, stamper, stamp }) = self.as_file_dependency() {
-      Self::file_is_consistent(path, stamper, stamp)
-    } else {
-      Ok(None)
-    }
+  pub fn is_inconsistent<C: Context<T>>(&self, context: &mut C) -> Option<OutputStamp<T::Output>> {
+    let output = context.require_task(&self.task);
+    self.is_inconsistent_with(output)
   }
+  /// Checks whether this task dependency is inconsistent with given `output`, returning:
+  /// - `Some(stamp)` if this dependency is inconsistent (with `stamp` being the new stamp of the dependency),
+  /// - `None` if this dependency is consistent.
   #[inline]
-  pub fn require_task_is_consistent_with(&self, output: T::Output) -> Option<OutputStamp<T::Output>> {
-    if let Some(TaskDependency { stamper, stamp, .. }) = self.as_task_dependency() {
-      Self::task_is_consistent(output, stamper, stamp)
-    } else {
-      None
-    }
+  pub fn is_inconsistent_with(&self, output: T::Output) -> Option<OutputStamp<T::Output>> {
+    Self::task_is_consistent(output, &self.stamper, &self.stamp)
   }
 
-  fn file_is_consistent(path: &PathBuf, stamper: &FileStamper, stamp: &FileStamp) -> Result<Option<FileStamp>, Box<dyn Error>> {
-    let new_stamp = stamper.stamp(path)?;
-    let consistent = new_stamp == *stamp;
-    if consistent {
-      Ok(None)
-    } else {
-      Ok(Some(new_stamp))
-    }
-  }
+  #[inline]
   fn task_is_consistent(output: T::Output, stamper: &OutputStamper, stamp: &OutputStamp<T::Output>) -> Option<OutputStamp<T::Output>> {
     let new_stamp = stamper.stamp(output);
     let consistent = new_stamp == *stamp;
@@ -149,6 +160,23 @@ impl<T: Task> Dependency<T, T::Output> {
       None
     } else {
       Some(new_stamp)
+    }
+  }
+}
+
+impl FileDependency {
+  /// Checks whether this file dependency is inconsistent, returning:
+  /// - `Ok(Some(stamp))` if this dependency is inconsistent (with `stamp` being the new stamp of the dependency),
+  /// - `Ok(None)` if this dependency is consistent,
+  /// - `Err(e)` if there was an error checking this dependency for consistency.
+  #[inline]
+  pub fn is_inconsistent(&self) -> Result<Option<FileStamp>, Box<dyn Error>> {
+    let new_stamp = self.stamper.stamp(&self.path)?;
+    let consistent = new_stamp == self.stamp;
+    if consistent {
+      Ok(None)
+    } else {
+      Ok(Some(new_stamp))
     }
   }
 }
