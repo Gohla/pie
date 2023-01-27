@@ -16,7 +16,7 @@ fn temp_dir() -> TempDir { common::temp_dir() }
 
 #[rstest]
 fn test_serde_roundtrip_one_task(mut pie: Pie<CommonTask>) {
-  let task = CommonTask::to_lower_case("CAPITALIZED");
+  let task = CommonTask::to_lower_case(CommonTask::string_constant("CAPITALIZED"));
   pie.run_in_session(|mut session| {
     session.require(&task);
 

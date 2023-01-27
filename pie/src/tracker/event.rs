@@ -11,6 +11,7 @@ use crate::tracker::Tracker;
 #[derive(Clone, Debug)]
 pub struct EventTracker<T: Task> {
   events: Vec<Event<T>>,
+  clear_on_build_start: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -25,14 +26,19 @@ pub enum Event<T: Task> {
 
 impl<T: Task> Default for EventTracker<T> {
   fn default() -> Self {
-    Self { events: Vec::new() }
+    Self { events: Vec::new(), clear_on_build_start: true }
   }
 }
 
 #[allow(dead_code)]
 impl<T: Task> EventTracker<T> {
   #[inline]
-  pub fn new() -> Self { Self::default() }
+  pub fn new(clear_on_build_start: bool) -> Self {
+    Self {
+      clear_on_build_start,
+      ..Self::default()
+    }
+  }
 
   #[inline]
   pub fn first(&self) -> Option<&Event<T>> { self.events.first() }
@@ -48,50 +54,55 @@ impl<T: Task> EventTracker<T> {
   #[inline]
   pub fn contains_no(&self, f: impl FnMut(&Event<T>) -> bool) -> bool { !self.contains(f) }
   #[inline]
-  pub fn contains_count(&self, count: usize, f: impl FnMut(&&Event<T>) -> bool) -> bool { self.events.iter().filter(f).count() == count }
+  pub fn contains_one(&self, f: impl FnMut(&&Event<T>) -> bool) -> bool { self.contains_n(1, f) }
   #[inline]
-  pub fn contains_one(&self, f: impl FnMut(&&Event<T>) -> bool) -> bool { self.contains_count(1, f) }
+  pub fn contains_n(&self, n: usize, f: impl FnMut(&&Event<T>) -> bool) -> bool { self.events.iter().filter(f).count() == n }
 
-  #[inline]
-  pub fn contains_one_execute_start(&self) -> bool {
-    self.contains_one(|e| Self::match_execute_start(e))
-  }
+
   #[inline]
   pub fn contains_no_execute_start(&self) -> bool {
     self.contains_no(|e| Self::match_execute_start(e))
   }
   #[inline]
-  pub fn contains_one_execute_start_of(&self, task: &T) -> bool {
-    self.contains_one(|e| Self::match_execute_start_of(e, task))
+  pub fn contains_one_execute_start(&self) -> bool {
+    self.contains_one(|e| Self::match_execute_start(e))
+  }
+  #[inline]
+  pub fn contains_execute_starts(&self, n: usize) -> bool {
+    self.contains_n(n, |e| Self::match_execute_start(e))
   }
   #[inline]
   pub fn contains_no_execute_start_of(&self, task: &T) -> bool {
     self.contains_no(|e| Self::match_execute_start_of(e, task))
   }
-
   #[inline]
-  pub fn contains_one_execute_end(&self) -> bool {
-    self.contains_one(|e| Self::match_execute_end(e))
+  pub fn contains_one_execute_start_of(&self, task: &T) -> bool {
+    self.contains_one(|e| Self::match_execute_start_of(e, task))
   }
+
   #[inline]
   pub fn contains_no_execute_end(&self) -> bool {
     self.contains_no(|e| Self::match_execute_end(e))
   }
   #[inline]
-  pub fn contains_one_execute_end_of(&self, task: &T) -> bool {
-    self.contains_one(|e| Self::match_execute_end_of(e, task))
+  pub fn contains_one_execute_end(&self) -> bool {
+    self.contains_one(|e| Self::match_execute_end(e))
   }
   #[inline]
   pub fn contains_no_execute_end_of(&self, task: &T) -> bool {
     self.contains_no(|e| Self::match_execute_end_of(e, task))
   }
   #[inline]
-  pub fn contains_one_execute_end_of_with(&self, task: &T, output: &T::Output) -> bool {
-    self.contains_one(|e| Self::match_execute_end_of_with(e, task, output))
+  pub fn contains_one_execute_end_of(&self, task: &T) -> bool {
+    self.contains_one(|e| Self::match_execute_end_of(e, task))
   }
   #[inline]
   pub fn contains_no_execute_end_of_with(&self, task: &T, output: &T::Output) -> bool {
     self.contains_no(|e| Self::match_execute_end_of_with(e, task, output))
+  }
+  #[inline]
+  pub fn contains_one_execute_end_of_with(&self, task: &T, output: &T::Output) -> bool {
+    self.contains_one(|e| Self::match_execute_end_of_with(e, task, output))
   }
 
   #[inline]
@@ -181,7 +192,11 @@ impl<T: Task> Tracker<T> for EventTracker<T> {
   fn up_to_date(&mut self, _task: &T) {}
 
   #[inline]
-  fn require_top_down_initial_start(&mut self, _task: &T) {}
+  fn require_top_down_initial_start(&mut self, _task: &T) {
+    if self.clear_on_build_start {
+      self.events.clear();
+    }
+  }
   #[inline]
   fn check_top_down_start(&mut self, _task: &T) {}
   #[inline]
@@ -202,7 +217,11 @@ impl<T: Task> Tracker<T> for EventTracker<T> {
   fn require_top_down_initial_end(&mut self, _task: &T, _output: &T::Output) {}
 
   #[inline]
-  fn update_affected_by_start<'a, I: IntoIterator<Item=&'a PathBuf> + Clone>(&mut self, _changed_files: I) {}
+  fn update_affected_by_start<'a, I: IntoIterator<Item=&'a PathBuf> + Clone>(&mut self, _changed_files: I) {
+    if self.clear_on_build_start {
+      self.events.clear();
+    }
+  }
   #[inline]
   fn update_affected_by_end(&mut self) {}
   #[inline]
