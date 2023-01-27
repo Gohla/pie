@@ -1,9 +1,13 @@
+use std::fs;
+
 use ron::{Deserializer, Serializer};
 use ron::ser::PrettyConfig;
 use rstest::{fixture, rstest};
 use tempfile::TempDir;
 
-use crate::common::{CommonTask, Pie};
+use ::pie::stamp::FileStamper;
+
+use crate::common::{CheckErrorExt, CommonTask, Pie};
 
 mod common;
 
@@ -15,8 +19,12 @@ fn temp_dir() -> TempDir { common::temp_dir() }
 
 
 #[rstest]
-fn test_serde_roundtrip_one_task(mut pie: Pie<CommonTask>) {
-  let task = CommonTask::to_lower_case(CommonTask::string_constant("CAPITALIZED"));
+fn test_serde_roundtrip_one_task(mut pie: Pie<CommonTask>, temp_dir: TempDir) {
+  let path = temp_dir.path().join("test.txt");
+  fs::write(&path, "HELLO WORLD!").check();
+
+  let task = CommonTask::combine_a(&path, FileStamper::Modified);
+
   pie.run_in_session(|mut session| {
     session.require(&task);
 
