@@ -91,6 +91,14 @@ impl<T: Task> Dependency<T, T::Output> {
     }
   }
   #[inline]
+  pub fn as_require_or_provide_file_dependency(&self, provide: bool) -> Option<&FileDependency> {
+    match self {
+      Dependency::RequireFile(d) => Some(d),
+      Dependency::ProvideFile(d) => provide.then_some(d),
+      _ => None,
+    }
+  }
+  #[inline]
   pub fn as_require_file_dependency(&self) -> Option<&FileDependency> {
     match self {
       Dependency::RequireFile(d) => Some(d),

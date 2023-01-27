@@ -202,15 +202,15 @@ impl<T: Task> Tracker<T> for EventTracker<T> {
   #[inline]
   fn check_require_file_start(&mut self, _dependency: &FileDependency) {}
   #[inline]
-  fn check_require_file_end(&mut self, _dependency: &FileDependency, _inconsistent: Result<Option<&FileStamp>, &dyn Error>) {}
+  fn check_require_file_end(&mut self, _requiring_task: &T, _dependency: &FileDependency, _inconsistent: Result<Option<&FileStamp>, &dyn Error>) {}
   #[inline]
   fn check_provide_file_start(&mut self, _dependency: &FileDependency) {}
   #[inline]
-  fn check_provide_file_end(&mut self, _dependency: &FileDependency, _inconsistent: Result<Option<&FileStamp>, &dyn Error>) {}
+  fn check_provide_file_end(&mut self, _requiring_task: &T, _dependency: &FileDependency, _inconsistent: Result<Option<&FileStamp>, &dyn Error>) {}
   #[inline]
   fn check_require_task_start(&mut self, _dependency: &TaskDependency<T, T::Output>) {}
   #[inline]
-  fn check_require_task_end(&mut self, _dependency: &TaskDependency<T, T::Output>, _inconsistent: Option<&OutputStamp<T::Output>>) {}
+  fn check_require_task_end(&mut self, _requiring_task: &T, _dependency: &TaskDependency<T, T::Output>, _inconsistent: Option<&OutputStamp<T::Output>>) {}
   #[inline]
   fn check_top_down_end(&mut self, _task: &T) {}
   #[inline]
@@ -225,15 +225,15 @@ impl<T: Task> Tracker<T> for EventTracker<T> {
   #[inline]
   fn update_affected_by_end(&mut self) {}
   #[inline]
-  fn schedule_affected_by_file_start(&mut self, _file: &PathBuf) {}
+  fn check_affected_by_file_start(&mut self, _file: &PathBuf) {}
   #[inline]
-  fn check_affected_by_file(&mut self, _dependency: &FileDependency, _inconsistent: Result<Option<&FileStamp>, &dyn Error>) {}
+  fn check_affected_by_file(&mut self, _requiring_task: &T, _dependency: &FileDependency, _inconsistent: Result<Option<&FileStamp>, &dyn Error>) {}
   #[inline]
-  fn schedule_affected_by_file_end(&mut self, _file: &PathBuf) {}
+  fn check_affected_by_file_end(&mut self, _file: &PathBuf) {}
   #[inline]
   fn check_affected_by_task_start(&mut self, _task: &T) {}
   #[inline]
-  fn check_affected_by_require_task(&mut self, _dependency: &TaskDependency<T, T::Output>, _inconsistent: Option<&OutputStamp<T::Output>>) {}
+  fn check_affected_by_require_task(&mut self, _requiring_task: &T, _dependency: &TaskDependency<T, T::Output>, _inconsistent: Option<&OutputStamp<T::Output>>) {}
   #[inline]
   fn check_affected_by_task_end(&mut self, _task: &T) {}
   #[inline]

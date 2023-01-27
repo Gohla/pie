@@ -83,20 +83,20 @@ impl<W: io::Write, T: Task> Tracker<T> for WritingTracker<W, T> {
   #[inline]
   fn check_require_file_start(&mut self, _dependency: &FileDependency) {}
   #[inline]
-  fn check_require_file_end(&mut self, dependency: &FileDependency, inconsistent: Result<Option<&FileStamp>, &dyn Error>) {
-    self.write_file_dependency(dependency, inconsistent);
+  fn check_require_file_end(&mut self, requiring_task: &T, dependency: &FileDependency, inconsistent: Result<Option<&FileStamp>, &dyn Error>) {
+    self.write_file_dependency(requiring_task, dependency, inconsistent);
   }
   #[inline]
   fn check_provide_file_start(&mut self, _dependency: &FileDependency) {}
   #[inline]
-  fn check_provide_file_end(&mut self, dependency: &FileDependency, inconsistent: Result<Option<&FileStamp>, &dyn Error>) {
-    self.write_file_dependency(dependency, inconsistent);
+  fn check_provide_file_end(&mut self, requiring_task: &T, dependency: &FileDependency, inconsistent: Result<Option<&FileStamp>, &dyn Error>) {
+    self.write_file_dependency(requiring_task, dependency, inconsistent);
   }
   #[inline]
   fn check_require_task_start(&mut self, _dependency: &TaskDependency<T, T::Output>) {}
   #[inline]
-  fn check_require_task_end(&mut self, dependency: &TaskDependency<T, T::Output>, inconsistent: Option<&OutputStamp<T::Output>>) {
-    self.write_task_dependency(dependency, inconsistent);
+  fn check_require_task_end(&mut self, requiring_task: &T, dependency: &TaskDependency<T, T::Output>, inconsistent: Option<&OutputStamp<T::Output>>) {
+    self.write_task_dependency(requiring_task, dependency, inconsistent);
   }
   #[inline]
   fn check_top_down_end(&mut self, _task: &T) {
@@ -123,16 +123,16 @@ impl<W: io::Write, T: Task> Tracker<T> for WritingTracker<W, T> {
     self.writeln(format_args!("Bottom-up build end"));
   }
   #[inline]
-  fn schedule_affected_by_file_start(&mut self, file: &PathBuf) {
+  fn check_affected_by_file_start(&mut self, file: &PathBuf) {
     self.writeln(format_args!("¿ {}", file.display()));
     self.indent();
   }
   #[inline]
-  fn check_affected_by_file(&mut self, dependency: &FileDependency, inconsistent: Result<Option<&FileStamp>, &dyn Error>) {
-    self.write_file_dependency(dependency, inconsistent);
+  fn check_affected_by_file(&mut self, requiring_task: &T, dependency: &FileDependency, inconsistent: Result<Option<&FileStamp>, &dyn Error>) {
+    self.write_file_dependency(requiring_task, dependency, inconsistent);
   }
   #[inline]
-  fn schedule_affected_by_file_end(&mut self, _file: &PathBuf) {
+  fn check_affected_by_file_end(&mut self, _file: &PathBuf) {
     self.unindent();
   }
   #[inline]
@@ -141,8 +141,8 @@ impl<W: io::Write, T: Task> Tracker<T> for WritingTracker<W, T> {
     self.indent();
   }
   #[inline]
-  fn check_affected_by_require_task(&mut self, dependency: &TaskDependency<T, T::Output>, inconsistent: Option<&OutputStamp<T::Output>>) {
-    self.write_task_dependency(dependency, inconsistent);
+  fn check_affected_by_require_task(&mut self, requiring_task: &T, dependency: &TaskDependency<T, T::Output>, inconsistent: Option<&OutputStamp<T::Output>>) {
+    self.write_task_dependency(requiring_task, dependency, inconsistent);
   }
   #[inline]
   fn check_affected_by_task_end(&mut self, _task: &T) {
@@ -185,19 +185,19 @@ impl<W: io::Write, T: Task> WritingTracker<W, T> {
   }
 
   #[inline]
-  fn write_file_dependency(&mut self, dependency: &FileDependency, inconsistent: Result<Option<&FileStamp>, &dyn Error>) {
+  fn write_file_dependency(&mut self, requiring_task: &T, dependency: &FileDependency, inconsistent: Result<Option<&FileStamp>, &dyn Error>) {
     match inconsistent {
-      Ok(Some(new_stamp)) => self.writeln(format_args!("☒ {} ({:?} ≠ {:?})", dependency.path.display(), dependency.stamp, new_stamp)),
-      Ok(None) => self.writeln(format_args!("☑ {} ({:?})", dependency.path.display(), dependency.stamp)),
-      Err(e) => self.writeln(format_args!("☒ {} (error: {:?})", dependency.path.display(), e))
+      Ok(Some(new_stamp)) => self.writeln(format_args!("☒ {:?} [{:?} ≠ {:?}]", requiring_task, dependency.stamp, new_stamp)),
+      Ok(None) => self.writeln(format_args!("☑ {:?} [{:?}]", requiring_task, dependency.stamp)),
+      Err(e) => self.writeln(format_args!("☒ {:?} [error: {:?}]", requiring_task, e))
     }
   }
   #[inline]
-  fn write_task_dependency(&mut self, dependency: &TaskDependency<T, T::Output>, inconsistent: Option<&OutputStamp<T::Output>>) {
+  fn write_task_dependency(&mut self, requiring_task: &T, dependency: &TaskDependency<T, T::Output>, inconsistent: Option<&OutputStamp<T::Output>>) {
     if let Some(new_stamp) = inconsistent {
-      self.writeln(format_args!("☒ {:?} ({:?} ≠ {:?})", dependency.task, dependency.stamp, new_stamp));
+      self.writeln(format_args!("☒ {:?} [{:?} ≠ {:?}]", requiring_task, dependency.stamp, new_stamp));
     } else {
-      self.writeln(format_args!("☑ {:?} ({:?})", dependency.task, dependency.stamp));
+      self.writeln(format_args!("☑ {:?} [{:?}]", requiring_task, dependency.stamp));
     }
   }
 }

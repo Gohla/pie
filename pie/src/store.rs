@@ -198,9 +198,9 @@ impl<T: Task, H: BuildHasher + Default> Store<T, H> {
   }
   /// Get all requirer task nodes and corresponding dependencies of tasks that require or provide given `file_node`.
   #[inline]
-  pub fn get_tasks_requiring_or_providing_file<'a>(&'a self, file_node: &'a FileNodeId) -> impl Iterator<Item=(&TaskNodeId, &FileDependency)> + '_ {
+  pub fn get_tasks_requiring_or_providing_file<'a>(&'a self, file_node: &'a FileNodeId, provide: bool) -> impl Iterator<Item=(&TaskNodeId, &FileDependency)> + '_ {
     self.graph.get_incoming_dependencies(file_node)
-      .filter_map(|(n, d)| d.as_ref().and_then(|d| d.as_file_dependency().map(|d| (n, d))))
+      .filter_map(move |(n, d)| d.as_ref().and_then(move |d| d.as_require_or_provide_file_dependency(provide).map(|d| (n, d))))
   }
   /// Get all file nodes of files that are provided by given `task_node`.
   #[inline]
