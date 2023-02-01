@@ -28,6 +28,7 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> ContextShared<'p,
   fn require_file_with_stamper(&mut self, path: &PathBuf, stamper: FileStamper) -> Result<File, std::io::Error> {
     self.session.tracker.require_file(path);
     let file_node = self.session.store.get_or_create_file_node(path);
+    // TODO: this should still make a dependency even if the file could not be opened, for example if it does not exist!
     let (dependency, file) = Dependency::require_file(path, stamper)?;
     if let Some(current_requiring_task_node) = self.task_execution_stack.last() {
       if let Some(providing_task_node) = self.session.store.get_task_providing_file(&file_node) {
@@ -45,6 +46,7 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> ContextShared<'p,
   fn provide_file_with_stamper(&mut self, path: &PathBuf, stamper: FileStamper) -> Result<(), std::io::Error> {
     self.session.tracker.provide_file(path);
     let file_node = self.session.store.get_or_create_file_node(path);
+    // TODO: this should still make a dependency even if the file could not be opened, for example if it does not exist!
     let dependency = Dependency::provide_file(path, stamper).map_err(|e| e.kind())?;
     if let Some(current_providing_task_node) = self.task_execution_stack.last() {
       if let Some(previous_providing_task_node) = self.session.store.get_task_providing_file(&file_node) {
