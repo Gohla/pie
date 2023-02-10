@@ -1,6 +1,9 @@
+use std::fmt::{Debug, Formatter};
 use std::fs::File;
 use std::path::PathBuf;
 use std::time::SystemTime;
+
+use serde::Serializer;
 
 // File stampers
 
@@ -77,12 +80,38 @@ impl FileStamper {
   }
 }
 
-#[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Debug)]
+#[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum FileStamp {
   Exists(bool),
   Modified(SystemTime),
   Hash([u8; 32]),
+}
+
+impl Debug for FileStamp {
+  fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+    match self {
+      FileStamp::Exists(b) => {
+        f.serialize_str("Exists(")?;
+        b.fmt(f)?;
+      }
+      FileStamp::Modified(st) => {
+        f.serialize_str("Modified(")?;
+        st.fmt(f)?;
+      }
+      FileStamp::Hash(h) => {
+        f.serialize_str("Hash(")?;
+        for b in h.chunks(2) {
+          match b {
+            [b1, b2] => write!(f, "{:02x}", *b1 as u16 + *b2 as u16)?,
+            [b] => write!(f, "{:02x}", b)?,
+            _ => {}
+          }
+        }
+      }
+    }
+    f.serialize_str(")")
+  }
 }
 
 
