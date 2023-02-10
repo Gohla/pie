@@ -44,9 +44,9 @@ impl<T> WritingTracker<Stderr, T> {
 
 impl<W: io::Write, T: Task> Tracker<T> for WritingTracker<W, T> {
   #[inline]
-  fn require_file(&mut self, _file: &PathBuf) {}
+  fn require_file(&mut self, _dependency: &FileDependency) {}
   #[inline]
-  fn provide_file(&mut self, _file: &PathBuf) {}
+  fn provide_file(&mut self, _dependency: &FileDependency) {}
   #[inline]
   fn require_task(&mut self, _task: &T) {}
 

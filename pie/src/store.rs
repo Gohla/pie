@@ -53,15 +53,15 @@ impl<T: Task, H: BuildHasher + Default> Default for Store<T, H> {
 
 impl<T: Task, H: BuildHasher + Default> Store<T, H> {
   #[inline]
-  pub fn get_or_create_node_by_task(&mut self, task: T) -> TaskNodeId {
-    if let Some(node) = self.task_to_node.get(&task) {
+  pub fn get_or_create_node_by_task(&mut self, task: &T) -> TaskNodeId {
+    if let Some(node) = self.task_to_node.get(task) {
       *node
     } else {
       let node = self.graph.add_node(NodeData::Task {
         task: task.clone(),
         output: None,
       });
-      self.task_to_node.insert(task, node);
+      self.task_to_node.insert(task.clone(), node);
       node
     }
   }

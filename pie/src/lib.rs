@@ -50,13 +50,13 @@ pub trait Context<T: Task> {
   /// stamper. Returns the opened file (in read-only mode). Call this method *just before reading from the file*, so 
   /// that the stamp corresponds to the data that you are reading.
   #[inline]
-  fn require_file(&mut self, path: &PathBuf) -> Result<File, std::io::Error> {
+  fn require_file(&mut self, path: &PathBuf) -> Result<Option<File>, std::io::Error> {
     self.require_file_with_stamper(path, self.default_require_file_stamper())
   }
   /// Requires file at given `path`, creating a read-dependency to it by creating a stamp with given `stamper`. 
-  /// Returns the opened file (in read-only mode). Call this method *just before reading from the file*, so that the
-  /// stamp corresponds to the data that you are reading.
-  fn require_file_with_stamper(&mut self, path: &PathBuf, stamper: FileStamper) -> Result<File, std::io::Error>;
+  /// Returns the opened file (in read-only mode) if the file exists, `None` otherwise. Call this method *just before 
+  /// reading from the file*, so that the stamp corresponds to the data that you are reading.
+  fn require_file_with_stamper(&mut self, path: &PathBuf, stamper: FileStamper) -> Result<Option<File>, std::io::Error>;
 
   /// Provides file at given `path`, creating a write-dependency to it by creating a stamp with the default provide file
   /// stamper. Call this method *after writing to the file*, so that the stamp corresponds to the data that you've

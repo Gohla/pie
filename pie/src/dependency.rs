@@ -32,19 +32,12 @@ pub struct TaskDependency<T, O> {
 
 impl<T: Task> Dependency<T, T::Output> {
   #[inline]
-  pub fn require_file(path: impl Into<PathBuf>, stamper: FileStamper) -> Result<(Self, File), std::io::Error> {
-    let path = path.into();
-    let stamp = stamper.stamp(&path)?;
-    let file = File::open(&path)?;
-    let dependency = Self::RequireFile(FileDependency { path, stamper, stamp });
-    Ok((dependency, file))
+  pub fn require_file(dependency: FileDependency) -> Self {
+    Self::RequireFile(dependency)
   }
   #[inline]
-  pub fn provide_file(path: impl Into<PathBuf>, stamper: FileStamper) -> Result<Self, std::io::Error> {
-    let path = path.into();
-    let stamp = stamper.stamp(&path)?;
-    let dependency = Self::ProvideFile(FileDependency { path, stamper, stamp });
-    Ok(dependency)
+  pub fn provide_file(dependency: FileDependency) -> Self {
+    Self::ProvideFile(dependency)
   }
   #[inline]
   pub fn require_task(task: T, output: T::Output, stamper: OutputStamper) -> Self {
@@ -174,6 +167,27 @@ impl<T: Task> TaskDependency<T, T::Output> {
 }
 
 impl FileDependency {
+  #[inline]
+  pub fn new(path: impl Into<PathBuf>, stamper: FileStamper) -> Result<Self, std::io::Error> {
+    let path = path.into();
+    let stamp = stamper.stamp(&path)?;
+    let dependency = FileDependency { path, stamper, stamp };
+    Ok(dependency)
+  }
+  #[inline]
+  pub fn new_with_file(path: impl Into<PathBuf>, stamper: FileStamper) -> Result<(Self, Option<File>), std::io::Error> {
+    let path = path.into();
+    let stamp = stamper.stamp(&path)?;
+    let exists = path.try_exists()?;
+    let file = if exists {
+      Some(File::open(&path)?)
+    } else {
+      None
+    };
+    let dependency = FileDependency { path, stamper, stamp };
+    Ok((dependency, file))
+  }
+
   /// Checks whether this file dependency is inconsistent, returning:
   /// - `Ok(Some(stamp))` if this dependency is inconsistent (with `stamp` being the new stamp of the dependency),
   /// - `Ok(None)` if this dependency is consistent,

@@ -27,7 +27,11 @@ impl FileStamper {
         Ok(FileStamp::Exists(path.try_exists()?))
       }
       FileStamper::Modified => {
-        Ok(FileStamp::Modified(File::open(path)?.metadata()?.modified()?))
+        let exists = path.try_exists()?;
+        if !exists {
+          return Ok(FileStamp::Modified(None));
+        }
+        Ok(FileStamp::Modified(Some(File::open(path)?.metadata()?.modified()?)))
       }
       #[cfg(feature = "recursive_stampers")]
       FileStamper::ModifiedRecursive => {
@@ -39,10 +43,15 @@ impl FileStamper {
             latest_modification_date = entry_modification_date;
           }
         }
-        Ok(FileStamp::Modified(latest_modification_date))
+        Ok(FileStamp::Modified(Some(latest_modification_date)))
       }
       #[cfg(feature = "hash_stampers")]
       FileStamper::Hash => {
+        let exists = path.try_exists()?;
+        if !exists {
+          return Ok(FileStamp::Hash(None));
+        }
+
         use sha2::{Digest, Sha256};
         let mut file = File::open(path)?;
         let mut hasher = Sha256::new();
@@ -52,7 +61,7 @@ impl FileStamper {
           drop(file); // Drop file because we have to re-open it with `std::fs::read_dir`.
           Self::hash_directory(&mut hasher, path)?;
         }
-        Ok(FileStamp::Hash(hasher.finalize().into()))
+        Ok(FileStamp::Hash(Some(hasher.finalize().into())))
       }
       #[cfg(all(feature = "hash_stampers", feature = "recursive_stampers"))]
       FileStamper::HashRecursive => {
@@ -65,7 +74,7 @@ impl FileStamper {
           if !file.metadata()?.is_file() { continue; }
           std::io::copy(&mut file, &mut hasher)?;
         }
-        Ok(FileStamp::Hash(hasher.finalize().into()))
+        Ok(FileStamp::Hash(Some(hasher.finalize().into())))
       }
     }
   }
@@ -84,8 +93,8 @@ impl FileStamper {
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum FileStamp {
   Exists(bool),
-  Modified(SystemTime),
-  Hash([u8; 32]),
+  Modified(Option<SystemTime>),
+  Hash(Option<[u8; 32]>),
 }
 
 impl Debug for FileStamp {
@@ -101,12 +110,19 @@ impl Debug for FileStamp {
       }
       FileStamp::Hash(h) => {
         f.serialize_str("Hash(")?;
-        for b in h.chunks(2) {
-          match b {
-            [b1, b2] => write!(f, "{:02x}", *b1 as u16 + *b2 as u16)?,
-            [b] => write!(f, "{:02x}", b)?,
-            _ => {}
+        match h {
+          Some(h) => {
+            f.serialize_str("Some(")?;
+            for b in h.chunks(2) {
+              match b {
+                [b1, b2] => write!(f, "{:02x}", *b1 as u16 + *b2 as u16)?,
+                [b] => write!(f, "{:02x}", b)?,
+                _ => {}
+              }
+            }
+            f.serialize_str(")")?;
           }
+          h => h.fmt(f)?,
         }
       }
     }

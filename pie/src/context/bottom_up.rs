@@ -149,7 +149,9 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> IncrementalBottom
 
 impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> Context<T> for IncrementalBottomUpContext<'p, 's, T, A, H> {
   fn require_task_with_stamper(&mut self, task: &T, stamper: OutputStamper) -> T::Output {
-    let task_node_id = self.shared.session.store.get_or_create_node_by_task(task.clone());
+    self.shared.session.tracker.require_task(task);
+    
+    let task_node_id = self.shared.session.store.get_or_create_node_by_task(task);
 
     if self.shared.session.visited.contains(&task_node_id) {
       // Unwrap OK: if we have already visited the task this session, it must have an output.
@@ -184,7 +186,7 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> Context<T> for In
   }
 
   #[inline]
-  fn require_file_with_stamper(&mut self, path: &PathBuf, stamper: FileStamper) -> Result<File, std::io::Error> {
+  fn require_file_with_stamper(&mut self, path: &PathBuf, stamper: FileStamper) -> Result<Option<File>, std::io::Error> {
     self.shared.require_file_with_stamper(path, stamper)
   }
   #[inline]

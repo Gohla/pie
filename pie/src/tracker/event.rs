@@ -16,8 +16,8 @@ pub struct EventTracker<T: Task> {
 
 #[derive(Debug, Clone)]
 pub enum Event<T: Task> {
-  RequireFile(PathBuf),
-  ProvideFile(PathBuf),
+  RequireFile(FileDependency),
+  ProvideFile(FileDependency),
   RequireTask(T),
 
   ExecuteTaskStart(T),
@@ -40,6 +40,7 @@ impl<T: Task> EventTracker<T> {
     }
   }
 
+
   #[inline]
   pub fn first(&self) -> Option<&Event<T>> { self.events.first() }
   #[inline]
@@ -58,6 +59,48 @@ impl<T: Task> EventTracker<T> {
   #[inline]
   pub fn contains_n(&self, n: usize, f: impl FnMut(&&Event<T>) -> bool) -> bool { self.events.iter().filter(f).count() == n }
 
+  #[inline]
+  pub fn get_index_of(&self, f: impl FnMut(&Event<T>) -> bool) -> Option<usize> {
+    self.events.iter().position(f)
+  }
+
+
+  #[inline]
+  pub fn contains_no_require_file_start(&self) -> bool {
+    self.contains_no(|e| Self::match_require_file(e))
+  }
+  #[inline]
+  pub fn contains_one_require_file_start(&self) -> bool {
+    self.contains_one(|e| Self::match_require_file(e))
+  }
+  #[inline]
+  pub fn contains_require_file_starts(&self, n: usize) -> bool {
+    self.contains_n(n, |e| Self::match_require_file(e))
+  }
+  #[inline]
+  pub fn contains_no_require_file_start_of(&self, path: impl Into<PathBuf> + Clone) -> bool {
+    self.contains_no(|e| Self::match_require_file_of(e, path.clone()))
+  }
+  #[inline]
+  pub fn contains_one_require_file_start_of(&self, path: impl Into<PathBuf> + Clone) -> bool {
+    self.contains_one(|e| Self::match_require_file_of(e, path.clone()))
+  }
+  #[inline]
+  pub fn contains_require_file_start_of(&self, n: usize, path: impl Into<PathBuf> + Clone) -> bool {
+    self.contains_n(n, |e| Self::match_require_file_of(e, path.clone()))
+  }
+  #[inline]
+  pub fn contains_no_require_file_start_of_with(&self, path: impl Into<PathBuf> + Clone, stamp_fn: impl Fn(FileStamp) -> bool + Clone) -> bool {
+    self.contains_no(|e| Self::match_require_file_of_with(e, path.clone(), stamp_fn.clone()))
+  }
+  #[inline]
+  pub fn contains_one_require_file_start_of_with(&self, path: impl Into<PathBuf> + Clone, stamp_fn: impl Fn(FileStamp) -> bool + Clone) -> bool {
+    self.contains_one(|e| Self::match_require_file_of_with(e, path.clone(), stamp_fn.clone()))
+  }
+  #[inline]
+  pub fn contains_require_file_start_of_with(&self, n: usize, path: impl Into<PathBuf> + Clone, stamp_fn: impl Fn(FileStamp) -> bool + Clone) -> bool {
+    self.contains_n(n, |e| Self::match_require_file_of_with(e, path.clone(), stamp_fn.clone()))
+  }
 
   #[inline]
   pub fn contains_no_execute_start(&self) -> bool {
@@ -79,7 +122,15 @@ impl<T: Task> EventTracker<T> {
   pub fn contains_one_execute_start_of(&self, task: &T) -> bool {
     self.contains_one(|e| Self::match_execute_start_of(e, task))
   }
+  #[inline]
+  pub fn contains_executes_start_of(&self, n: usize, task: &T) -> bool {
+    self.contains_n(n, |e| Self::match_execute_start_of(e, task))
+  }
 
+  #[inline]
+  pub fn contains_execute_ends(&self, n: usize) -> bool {
+    self.contains_n(n, |e| Self::match_execute_end(e))
+  }
   #[inline]
   pub fn contains_no_execute_end(&self) -> bool {
     self.contains_no(|e| Self::match_execute_end(e))
@@ -87,6 +138,10 @@ impl<T: Task> EventTracker<T> {
   #[inline]
   pub fn contains_one_execute_end(&self) -> bool {
     self.contains_one(|e| Self::match_execute_end(e))
+  }
+  #[inline]
+  pub fn contains_execute_ends_of(&self, n: usize, task: &T) -> bool {
+    self.contains_n(n, |e| Self::match_execute_end_of(e, task))
   }
   #[inline]
   pub fn contains_no_execute_end_of(&self, task: &T) -> bool {
@@ -104,11 +159,12 @@ impl<T: Task> EventTracker<T> {
   pub fn contains_one_execute_end_of_with(&self, task: &T, output: &T::Output) -> bool {
     self.contains_one(|e| Self::match_execute_end_of_with(e, task, output))
   }
-
   #[inline]
-  pub fn get_index_of(&self, f: impl FnMut(&Event<T>) -> bool) -> Option<usize> {
-    self.events.iter().position(f)
+  pub fn contains_execute_ends_of_with(&self, n: usize, task: &T, output: &T::Output) -> bool {
+    self.contains_n(n, |e| Self::match_execute_end_of_with(e, task, output))
   }
+
+
   #[inline]
   pub fn get_index_of_execute_start_of(&self, task: &T) -> Option<usize> {
     self.get_index_of(|e| Self::match_execute_start_of(e, task))
@@ -120,6 +176,51 @@ impl<T: Task> EventTracker<T> {
   #[inline]
   pub fn get_index_of_execute_end_of_with(&self, task: &T, output: &T::Output) -> Option<usize> {
     self.get_index_of(|e| Self::match_execute_end_of_with(e, task, output))
+  }
+
+
+  #[inline]
+  fn match_require_file(e: &Event<T>) -> bool {
+    match e {
+      Event::RequireFile(_) => true,
+      _ => false,
+    }
+  }
+  #[inline]
+  fn match_require_file_of(e: &Event<T>, path: impl Into<PathBuf>) -> bool {
+    match e {
+      Event::RequireFile(d) if d.path == path.into() => true,
+      _ => false,
+    }
+  }
+  #[inline]
+  fn match_require_file_of_with(e: &Event<T>, path: impl Into<PathBuf>, stamp_fn: impl Fn(FileStamp) -> bool) -> bool {
+    match e {
+      Event::RequireFile(d) if d.path == path.into() && stamp_fn(d.stamp) => true,
+      _ => false,
+    }
+  }
+
+  #[inline]
+  fn match_provide_file(e: &Event<T>) -> bool {
+    match e {
+      Event::ProvideFile(_) => true,
+      _ => false,
+    }
+  }
+  #[inline]
+  fn match_provide_file_of(e: &Event<T>, path: impl Into<PathBuf>) -> bool {
+    match e {
+      Event::ProvideFile(d) if d.path == path.into() => true,
+      _ => false,
+    }
+  }
+  #[inline]
+  fn match_provide_file_of_with(e: &Event<T>, path: impl Into<PathBuf>, stamp: FileStamp) -> bool {
+    match e {
+      Event::ProvideFile(d) if d.path == path.into() && d.stamp == stamp => true,
+      _ => false,
+    }
   }
 
   #[inline]
@@ -168,12 +269,12 @@ impl<T: Task> EventTracker<T> {
 
 impl<T: Task> Tracker<T> for EventTracker<T> {
   #[inline]
-  fn require_file(&mut self, file: &PathBuf) {
-    self.events.push(Event::RequireFile(file.clone()));
+  fn require_file(&mut self, dependency: &FileDependency) {
+    self.events.push(Event::RequireFile(dependency.clone()));
   }
   #[inline]
-  fn provide_file(&mut self, file: &PathBuf) {
-    self.events.push(Event::ProvideFile(file.clone()));
+  fn provide_file(&mut self, dependency: &FileDependency) {
+    self.events.push(Event::ProvideFile(dependency.clone()));
   }
   #[inline]
   fn require_task(&mut self, task: &T) {

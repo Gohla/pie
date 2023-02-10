@@ -11,8 +11,8 @@ pub mod event;
 
 /// Trait for tracking build events. Can be used to implement logging, event tracing, and possibly progress tracking.
 pub trait Tracker<T: Task> {
-  fn require_file(&mut self, file: &PathBuf);
-  fn provide_file(&mut self, file: &PathBuf);
+  fn require_file(&mut self, dependency: &FileDependency);
+  fn provide_file(&mut self, dependency: &FileDependency);
   fn require_task(&mut self, task: &T);
 
   fn execute_task_start(&mut self, task: &T);
@@ -79,9 +79,9 @@ impl<T: Task> Default for NoopTracker<T> {
 
 impl<T: Task> Tracker<T> for NoopTracker<T> {
   #[inline]
-  fn require_file(&mut self, _file: &PathBuf) {}
+  fn require_file(&mut self, _dependency: &FileDependency) {}
   #[inline]
-  fn provide_file(&mut self, _file: &PathBuf) {}
+  fn provide_file(&mut self, _dependency: &FileDependency) {}
   #[inline]
   fn require_task(&mut self, _task: &T) {}
 
@@ -144,14 +144,14 @@ pub struct CompositeTracker<A1, A2>(pub A1, pub A2);
 
 impl<T: Task, T1: Tracker<T>, T2: Tracker<T>> Tracker<T> for CompositeTracker<T1, T2> {
   #[inline]
-  fn require_file(&mut self, file: &PathBuf) {
-    self.0.require_file(file);
-    self.1.require_file(file);
+  fn require_file(&mut self, dependency: &FileDependency) {
+    self.0.require_file(dependency);
+    self.1.require_file(dependency);
   }
   #[inline]
-  fn provide_file(&mut self, file: &PathBuf) {
-    self.0.provide_file(file);
-    self.1.provide_file(file);
+  fn provide_file(&mut self, dependency: &FileDependency) {
+    self.0.provide_file(dependency);
+    self.1.provide_file(dependency);
   }
   #[inline]
   fn require_task(&mut self, task: &T) {

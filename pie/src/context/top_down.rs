@@ -38,7 +38,7 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> IncrementalTopDow
 impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> Context<T> for IncrementalTopDownContext<'p, 's, T, A, H> {
   fn require_task_with_stamper(&mut self, task: &T, stamper: OutputStamper) -> T::Output {
     self.shared.session.tracker.require_task(task);
-    let task_node = self.shared.session.store.get_or_create_node_by_task(task.clone());
+    let task_node = self.shared.session.store.get_or_create_node_by_task(task);
 
     if let Some(current_task_node) = self.shared.task_execution_stack.last() {
       if let Err(pie_graph::Error::CycleDetected) = self.shared.session.store.add_to_dependencies_of_task(current_task_node, &task_node, None) {
@@ -70,7 +70,7 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> Context<T> for In
   }
 
   #[inline]
-  fn require_file_with_stamper(&mut self, path: &PathBuf, stamper: FileStamper) -> Result<File, std::io::Error> {
+  fn require_file_with_stamper(&mut self, path: &PathBuf, stamper: FileStamper) -> Result<Option<File>, std::io::Error> {
     self.shared.require_file_with_stamper(path, stamper)
   }
   #[inline]
@@ -116,7 +116,6 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> IncrementalTopDow
         }
       }
       // Task is consistent and does not need to be executed. Restore the previous dependencies.
-      // OPTO: removing and inserting due to ownership requirements.
       self.shared.session.store.set_dependencies_of_task(task_node, task_dependencies).ok(); // Ok: dependencies did not induce a cycle before, so we can ignore the error when setting the same dependencies again.
       false
     } else if self.shared.session.store.task_has_output(task_node) {

@@ -78,9 +78,10 @@ pub struct ReadStringFromFile(pub PathBuf, pub FileStamper);
 
 impl ReadStringFromFile {
   fn execute<T: Task, C: Context<T>>(&self, context: &mut C) -> Result<String, ()> {
-    let mut file = context.require_file_with_stamper(&self.0, self.1).map_err(|_| ())?;
     let mut string = String::new();
-    file.read_to_string(&mut string).map_err(|_| ())?;
+    if let Some(mut file) = context.require_file_with_stamper(&self.0, self.1).map_err(|_| ())? {
+      file.read_to_string(&mut string).map_err(|_| ())?;
+    }
     Ok(string)
   }
 }
