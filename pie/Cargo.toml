@@ -13,7 +13,7 @@ walkdir = { version = "2", optional = true }
 
 [dev-dependencies]
 serde = "1"
-rstest = "0.15"
+rstest = "0.16"
 tempfile = "3"
 assert_matches = "1"
 ron = "0.8"
