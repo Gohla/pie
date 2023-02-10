@@ -30,7 +30,6 @@ fn test_modified_stamp_on_file(mut pie: Pie<CommonTask>, temp_dir: TempDir) {
 
     let tracker = &mut session.tracker_mut().0;
     assert!(tracker.contains_one_execute_start_of(&task));
-    tracker.clear();
   });
   // Stamp unchanged: no execution
   pie.run_in_session(|mut session| {
@@ -38,7 +37,6 @@ fn test_modified_stamp_on_file(mut pie: Pie<CommonTask>, temp_dir: TempDir) {
 
     let tracker = &mut session.tracker_mut().0;
     assert!(tracker.contains_no_execute_start());
-    tracker.clear();
   });
   // Stamp changed even though file contents is the same: execute
   fs::write(&path, "hello world!").check();
@@ -47,7 +45,6 @@ fn test_modified_stamp_on_file(mut pie: Pie<CommonTask>, temp_dir: TempDir) {
 
     let tracker = &mut session.tracker_mut().0;
     assert!(tracker.contains_one_execute_start_of(&task));
-    tracker.clear();
   });
 
   // Modified recursive stamper; should work exactly the same as modified stamper when used on a file.
@@ -59,7 +56,6 @@ fn test_modified_stamp_on_file(mut pie: Pie<CommonTask>, temp_dir: TempDir) {
 
     let tracker = &mut session.tracker_mut().0;
     assert!(tracker.contains_one_execute_start_of(&task));
-    tracker.clear();
   });
   // Stamp unchanged: no execution
   pie.run_in_session(|mut session| {
@@ -67,7 +63,6 @@ fn test_modified_stamp_on_file(mut pie: Pie<CommonTask>, temp_dir: TempDir) {
 
     let tracker = &mut session.tracker_mut().0;
     assert!(tracker.contains_no_execute_start());
-    tracker.clear();
   });
   // Stamp changed even though file contents is the same: execute
   fs::write(&path, "hello world!").check();
@@ -76,7 +71,6 @@ fn test_modified_stamp_on_file(mut pie: Pie<CommonTask>, temp_dir: TempDir) {
 
     let tracker = &mut session.tracker_mut().0;
     assert!(tracker.contains_one_execute_start_of(&task));
-    tracker.clear();
   });
 }
 
@@ -96,7 +90,6 @@ fn test_modified_stamp_on_directory(mut pie: Pie<CommonTask>, temp_dir: TempDir)
 
     let tracker = &mut session.tracker_mut().0;
     assert!(tracker.contains_one_execute_start_of(&task));
-    tracker.clear();
   });
   // Stamp unchanged: no execution
   pie.run_in_session(|mut session| {
@@ -104,7 +97,6 @@ fn test_modified_stamp_on_directory(mut pie: Pie<CommonTask>, temp_dir: TempDir)
 
     let tracker = &mut session.tracker_mut().0;
     assert!(tracker.contains_no_execute_start());
-    tracker.clear();
   });
   // File was changed but this does not affect directory modified time: no execution
   fs::write(&file_path_1, "hello world!").check();
@@ -113,7 +105,6 @@ fn test_modified_stamp_on_directory(mut pie: Pie<CommonTask>, temp_dir: TempDir)
 
     let tracker = &mut session.tracker_mut().0;
     assert!(tracker.contains_no_execute_start());
-    tracker.clear();
   });
   // File was added and this changes directory modified time: execution
   let file_path_2 = dir_path.join("test2.txt");
@@ -123,7 +114,6 @@ fn test_modified_stamp_on_directory(mut pie: Pie<CommonTask>, temp_dir: TempDir)
 
     let tracker = &mut session.tracker_mut().0;
     assert!(tracker.contains_one_execute_start_of(&task));
-    tracker.clear();
   });
   // File was removed and this changes directory modified time: execution
   fs::remove_file(&file_path_2).check();
@@ -132,7 +122,6 @@ fn test_modified_stamp_on_directory(mut pie: Pie<CommonTask>, temp_dir: TempDir)
 
     let tracker = &mut session.tracker_mut().0;
     assert!(tracker.contains_one_execute_start_of(&task));
-    tracker.clear();
   });
 
   // Modified recursive stamper
@@ -145,7 +134,6 @@ fn test_modified_stamp_on_directory(mut pie: Pie<CommonTask>, temp_dir: TempDir)
 
     let tracker = &mut session.tracker_mut().0;
     assert!(tracker.contains_one_execute_start_of(&task));
-    tracker.clear();
   });
   // Stamp unchanged: no execution
   pie.run_in_session(|mut session| {
@@ -153,7 +141,6 @@ fn test_modified_stamp_on_directory(mut pie: Pie<CommonTask>, temp_dir: TempDir)
 
     let tracker = &mut session.tracker_mut().0;
     assert!(tracker.contains_no_execute_start());
-    tracker.clear();
   });
   // File was changed and this affects the latest modified date: execute
   fs::write(&file_path_1, "hello world!").check();
@@ -162,7 +149,6 @@ fn test_modified_stamp_on_directory(mut pie: Pie<CommonTask>, temp_dir: TempDir)
 
     let tracker = &mut session.tracker_mut().0;
     assert!(tracker.contains_one_execute_start_of(&task));
-    tracker.clear();
   });
   // File was added and this changes directory modified time: execution
   let file_path_2 = dir_path.join("test2.txt");
@@ -172,7 +158,6 @@ fn test_modified_stamp_on_directory(mut pie: Pie<CommonTask>, temp_dir: TempDir)
 
     let tracker = &mut session.tracker_mut().0;
     assert!(tracker.contains_one_execute_start_of(&task));
-    tracker.clear();
   });
   // File was removed and this changes directory modified time: execution
   fs::remove_file(&file_path_2).check();
@@ -181,7 +166,6 @@ fn test_modified_stamp_on_directory(mut pie: Pie<CommonTask>, temp_dir: TempDir)
 
     let tracker = &mut session.tracker_mut().0;
     assert!(tracker.contains_one_execute_start_of(&task));
-    tracker.clear();
   });
 }
 
@@ -199,7 +183,6 @@ fn test_hash_stamp_on_file(mut pie: Pie<CommonTask>, temp_dir: TempDir) {
 
     let tracker = &mut session.tracker_mut().0;
     assert!(tracker.contains_one_execute_start_of(&task));
-    tracker.clear();
   });
   // Stamp unchanged: no execution
   pie.run_in_session(|mut session| {
@@ -207,7 +190,6 @@ fn test_hash_stamp_on_file(mut pie: Pie<CommonTask>, temp_dir: TempDir) {
 
     let tracker = &mut session.tracker_mut().0;
     assert!(tracker.contains_no_execute_start());
-    tracker.clear();
   });
   // Stamp unchanged because file contents are unchanged: no execution
   fs::write(&path, "hello world!").check();
@@ -216,7 +198,6 @@ fn test_hash_stamp_on_file(mut pie: Pie<CommonTask>, temp_dir: TempDir) {
 
     let tracker = &mut session.tracker_mut().0;
     assert!(tracker.contains_no_execute_start());
-    tracker.clear();
   });
   // Stamp changed because file contents are changed: execute
   fs::write(&path, "hello world!!").check();
@@ -225,7 +206,6 @@ fn test_hash_stamp_on_file(mut pie: Pie<CommonTask>, temp_dir: TempDir) {
 
     let tracker = &mut session.tracker_mut().0;
     assert!(tracker.contains_one_execute_start_of(&task));
-    tracker.clear();
   });
 
   // Hash recursive stamper; should work exactly the same as hash stamper when used on a file.
@@ -238,7 +218,6 @@ fn test_hash_stamp_on_file(mut pie: Pie<CommonTask>, temp_dir: TempDir) {
 
     let tracker = &mut session.tracker_mut().0;
     assert!(tracker.contains_one_execute_start_of(&task));
-    tracker.clear();
   });
   // Stamp unchanged: no execution
   pie.run_in_session(|mut session| {
@@ -246,7 +225,6 @@ fn test_hash_stamp_on_file(mut pie: Pie<CommonTask>, temp_dir: TempDir) {
 
     let tracker = &mut session.tracker_mut().0;
     assert!(tracker.contains_no_execute_start());
-    tracker.clear();
   });
   // Stamp unchanged because file contents are unchanged: no execution
   fs::write(&path, "hello world!").check();
@@ -255,7 +233,6 @@ fn test_hash_stamp_on_file(mut pie: Pie<CommonTask>, temp_dir: TempDir) {
 
     let tracker = &mut session.tracker_mut().0;
     assert!(tracker.contains_no_execute_start());
-    tracker.clear();
   });
   // Stamp changed because file contents are changed: execute
   fs::write(&path, "hello world!!").check();
@@ -264,7 +241,6 @@ fn test_hash_stamp_on_file(mut pie: Pie<CommonTask>, temp_dir: TempDir) {
 
     let tracker = &mut session.tracker_mut().0;
     assert!(tracker.contains_one_execute_start_of(&task));
-    tracker.clear();
   });
 }
 
@@ -284,7 +260,6 @@ fn test_hash_stamp_on_directory(mut pie: Pie<CommonTask>, temp_dir: TempDir) {
 
     let tracker = &mut session.tracker_mut().0;
     assert!(tracker.contains_one_execute_start_of(&task));
-    tracker.clear();
   });
   // Stamp unchanged: no execution
   pie.run_in_session(|mut session| {
@@ -292,7 +267,6 @@ fn test_hash_stamp_on_directory(mut pie: Pie<CommonTask>, temp_dir: TempDir) {
 
     let tracker = &mut session.tracker_mut().0;
     assert!(tracker.contains_no_execute_start());
-    tracker.clear();
   });
   // Stamp unchanged because file contents are unchanged: no execution
   fs::write(&file_path_1, "hello world!").check();
@@ -301,7 +275,6 @@ fn test_hash_stamp_on_directory(mut pie: Pie<CommonTask>, temp_dir: TempDir) {
 
     let tracker = &mut session.tracker_mut().0;
     assert!(tracker.contains_no_execute_start());
-    tracker.clear();
   });
   // Stamp changed because file contents are changed, but does not affect directory hash: no execution
   fs::write(&file_path_1, "hello world!!").check();
@@ -310,7 +283,6 @@ fn test_hash_stamp_on_directory(mut pie: Pie<CommonTask>, temp_dir: TempDir) {
 
     let tracker = &mut session.tracker_mut().0;
     assert!(tracker.contains_no_execute_start());
-    tracker.clear();
   });
   // File was added and this changes directory hash: execution
   let file_path_2 = dir_path.join("test2.txt");
@@ -320,7 +292,6 @@ fn test_hash_stamp_on_directory(mut pie: Pie<CommonTask>, temp_dir: TempDir) {
 
     let tracker = &mut session.tracker_mut().0;
     assert!(tracker.contains_one_execute_start_of(&task));
-    tracker.clear();
   });
   // File was removed and this changes directory hash: execution
   fs::remove_file(&file_path_2).check();
@@ -329,7 +300,6 @@ fn test_hash_stamp_on_directory(mut pie: Pie<CommonTask>, temp_dir: TempDir) {
 
     let tracker = &mut session.tracker_mut().0;
     assert!(tracker.contains_one_execute_start_of(&task));
-    tracker.clear();
   });
 
   // Hash recursive stamper
@@ -342,7 +312,6 @@ fn test_hash_stamp_on_directory(mut pie: Pie<CommonTask>, temp_dir: TempDir) {
 
     let tracker = &mut session.tracker_mut().0;
     assert!(tracker.contains_one_execute_start_of(&task));
-    tracker.clear();
   });
   // Stamp unchanged: no execution
   pie.run_in_session(|mut session| {
@@ -350,7 +319,6 @@ fn test_hash_stamp_on_directory(mut pie: Pie<CommonTask>, temp_dir: TempDir) {
 
     let tracker = &mut session.tracker_mut().0;
     assert!(tracker.contains_no_execute_start());
-    tracker.clear();
   });
   // Stamp unchanged because file contents are unchanged: no execution
   fs::write(&file_path_1, "hello world!").check();
@@ -359,7 +327,6 @@ fn test_hash_stamp_on_directory(mut pie: Pie<CommonTask>, temp_dir: TempDir) {
 
     let tracker = &mut session.tracker_mut().0;
     assert!(tracker.contains_no_execute_start());
-    tracker.clear();
   });
   // Stamp changed because file contents are changed: execute
   fs::write(&file_path_1, "hello world!!").check();
@@ -368,7 +335,6 @@ fn test_hash_stamp_on_directory(mut pie: Pie<CommonTask>, temp_dir: TempDir) {
 
     let tracker = &mut session.tracker_mut().0;
     assert!(tracker.contains_one_execute_start_of(&task));
-    tracker.clear();
   });
   // File was added and this changes the hash: execution
   let file_path_2 = dir_path.join("test2.txt");
@@ -378,7 +344,6 @@ fn test_hash_stamp_on_directory(mut pie: Pie<CommonTask>, temp_dir: TempDir) {
 
     let tracker = &mut session.tracker_mut().0;
     assert!(tracker.contains_one_execute_start_of(&task));
-    tracker.clear();
   });
   // File was removed and this changes the hash: execution
   fs::remove_file(&file_path_2).check();
@@ -387,6 +352,5 @@ fn test_hash_stamp_on_directory(mut pie: Pie<CommonTask>, temp_dir: TempDir) {
 
     let tracker = &mut session.tracker_mut().0;
     assert!(tracker.contains_one_execute_start_of(&task));
-    tracker.clear();
   });
 }

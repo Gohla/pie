@@ -18,9 +18,9 @@ fn main() {
   let mut pie = create_pie(WritingTracker::new_stdout_writer());
 
   pie.run_in_session(|mut session| {
-    let read_task = PlaygroundTask::read_string_from_file("in.txt", FileStamper::Modified);
+    let read_task = PlaygroundTask::read_string_from_file("target/data/in.txt", FileStamper::Modified);
     let to_lower_task = PlaygroundTask::to_lower_case(read_task);
-    let write_task = PlaygroundTask::write_string_to_file(to_lower_task, "out.txt", FileStamper::Modified);
+    let write_task = PlaygroundTask::write_string_to_file(to_lower_task, "target/data/out.txt", FileStamper::Modified);
     session.require(&write_task);
   });
 
@@ -32,7 +32,6 @@ fn main() {
 
 #[derive(Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Serialize, Deserialize, Debug)]
 pub enum PlaygroundTask {
-  StringConstant(String),
   ToLowerCase(ToLowerCase),
   ReadStringFromFile(ReadStringFromFile),
   WriteStringToFile(WriteStringToFile),
@@ -40,7 +39,6 @@ pub enum PlaygroundTask {
 
 #[derive(Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Serialize, Deserialize, Debug)]
 pub enum PlaygroundOutput {
-  StringConstant(String),
   ToLowerCase(Result<String, ()>),
   ReadStringFromFile(Result<String, ()>),
   WriteStringToFile(Result<(), ()>),
@@ -83,13 +81,27 @@ impl WriteStringToFile {
   }
 }
 
+#[derive(Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Serialize, Deserialize, Debug)]
+pub struct ListDirectory(pub PathBuf, pub FileStamper);
+
+impl ListDirectory {
+  fn execute<T: Task, C: Context<T>>(&self, context: &mut C) -> Result<Vec<PathBuf>, ()> {
+    context.require_file_with_stamper(&self.0, self.1).map_err(|_| ())?;
+    let paths = std::fs::read_dir(&self.0).map_err(|_| ())?;
+    let paths: Vec<PathBuf> = paths
+      .into_iter()
+      .map(|p| p.unwrap().path())
+      .collect();
+    Ok(paths)
+  }
+}
+
 impl Task for PlaygroundTask {
   type Output = PlaygroundOutput;
 
   fn execute<C: Context<Self>>(&self, context: &mut C) -> Self::Output {
     use PlaygroundTask::*;
     match self {
-      StringConstant(s) => PlaygroundOutput::StringConstant(s.clone()),
       ToLowerCase(t) => PlaygroundOutput::ToLowerCase(t.execute(context)),
       ReadStringFromFile(t) => PlaygroundOutput::ReadStringFromFile(t.execute(context)),
       WriteStringToFile(t) => PlaygroundOutput::WriteStringToFile(t.execute(context)),
@@ -101,9 +113,6 @@ impl Task for PlaygroundTask {
 // Task helpers
 
 impl PlaygroundTask {
-  pub fn string_constant(string: impl Into<String>) -> Self {
-    Self::StringConstant(string.into())
-  }
   pub fn read_string_from_file(path: impl Into<PathBuf>, stamper: FileStamper) -> Self {
     Self::ReadStringFromFile(ReadStringFromFile(path.into(), stamper))
   }
@@ -119,7 +128,6 @@ impl PlaygroundOutput {
   pub fn into_string(self) -> Result<String, ()> {
     use PlaygroundOutput::*;
     let string = match self {
-      StringConstant(s) => s,
       ToLowerCase(r) => r?,
       ReadStringFromFile(r) => r?,
       o => panic!("Output {:?} does not contain a string", o),
@@ -133,7 +141,7 @@ impl PlaygroundOutput {
 
 fn create_pie<A: Tracker<PlaygroundTask> + Default>(tracker: A) -> Pie<PlaygroundTask, A> {
   let pie = Pie::<PlaygroundTask, _>::with_tracker(tracker);
-  if let Ok(mut file) = File::open("pie.store") {
+  if let Ok(mut file) = File::open("target/data/pie.store") {
     let mut buffer = Vec::new();
     file.read_to_end(&mut buffer).expect("Reading store file failed");
     let mut deserializer = Deserializer::from_bytes(&buffer)
@@ -149,5 +157,6 @@ fn serialize<A: Tracker<PlaygroundTask> + Default>(pie: Pie<PlaygroundTask, A>) 
   let mut serializer = Serializer::new(&mut buffer, Some(PrettyConfig::default()))
     .unwrap_or_else(|e| panic!("Creating serializer failed: {:?}", e));
   pie.serialize(&mut serializer).expect("Serialization failed");
-  fs::write("pie.store", buffer).expect("Writing store failed");
+  fs::create_dir_all("target/data/").expect("Creating directories for store failed");
+  fs::write("target/data/pie.store", buffer).expect("Writing store failed");
 }
