@@ -60,7 +60,8 @@ impl CheckErrorExt<()> for CommonOutput {
     match self {
       CommonOutput::ReadStringFromFile(r) => { r.check(); }
       CommonOutput::WriteStringToFile(r) => { r.check(); }
-      CommonOutput::CombineA(r) => { r.check(); }
+      CommonOutput::ListDirectory(r) => { r.check(); }
+      CommonOutput::ToLowerCase(r) => { r.check(); }
       _ => {}
     };
     ()
@@ -95,7 +96,6 @@ impl WriteStringToFile {
       CommonOutput::StringConstant(s) => s,
       CommonOutput::ReadStringFromFile(r) => r?,
       CommonOutput::ToLowerCase(r) => r?,
-      CommonOutput::CombineA(r) => r?,
       _ => panic!(),
     };
     let mut file = File::create(&self.1).map_err(|_| ())?;
@@ -132,43 +132,9 @@ impl ToLowerCase {
     let string = match context.require_task(self.0.as_ref()) {
       CommonOutput::StringConstant(s) => s,
       CommonOutput::ReadStringFromFile(r) => r?,
-      CommonOutput::CombineA(r) => r?,
       _ => panic!(),
     };
     Ok(string.to_lowercase())
-  }
-}
-
-// Combine reading and making string to lower case
-
-#[derive(Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Serialize, Deserialize, Debug)]
-pub struct CombineA(pub PathBuf, pub FileStamper);
-
-impl CombineA {
-  fn execute<C: Context<CommonTask>>(&self, context: &mut C) -> Result<String, ()> {
-    let read_string_from_file = CommonTask::read_string_from_file(self.0.clone(), self.1.clone());
-    let to_lower_case = CommonTask::to_lower_case(read_string_from_file);
-    match context.require_task(&to_lower_case) {
-      CommonOutput::ToLowerCase(r) => r,
-      _ => panic!(""),
-    }
-  }
-}
-
-// Combine reading and making string to lower case, then write the result
-
-#[derive(Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Serialize, Deserialize, Debug)]
-pub struct CombineB(pub PathBuf, pub FileStamper, pub PathBuf, pub FileStamper);
-
-impl CombineB {
-  fn execute<C: Context<CommonTask>>(&self, context: &mut C) -> Result<(), ()> {
-    let read_string_from_file = CommonTask::read_string_from_file(self.0.clone(), self.1.clone());
-    let to_lower_case = CommonTask::to_lower_case(read_string_from_file);
-    let write_string_to_file = CommonTask::write_string_to_file(to_lower_case, self.2.clone(), self.3.clone());
-    match context.require_task(&write_string_to_file) {
-      CommonOutput::WriteStringToFile(r) => r,
-      _ => panic!(""),
-    }
   }
 }
 
@@ -182,8 +148,6 @@ pub enum CommonTask {
   WriteStringToFile(WriteStringToFile),
   ListDirectory(ListDirectory),
   ToLowerCase(ToLowerCase),
-  CombineA(CombineA),
-  CombineB(CombineB),
   RequireSelf,
   RequireCycleA,
   RequireCycleB,
@@ -213,12 +177,7 @@ impl CommonTask {
   pub fn to_lower_case_constant(string: impl Into<String>) -> Self {
     Self::ToLowerCase(ToLowerCase(Box::new(Self::string_constant(string))))
   }
-  pub fn combine_a(path: impl Into<PathBuf>, stamper: FileStamper) -> Self {
-    Self::CombineA(CombineA(path.into(), stamper))
-  }
-  pub fn combine_b(read_path: impl Into<PathBuf>, read_stamper: FileStamper, write_path: impl Into<PathBuf>, write_stamper: FileStamper) -> Self {
-    Self::CombineB(CombineB(read_path.into(), read_stamper, write_path.into(), write_stamper))
-  }
+
   pub fn require_self() -> Self {
     Self::RequireSelf
   }
@@ -237,8 +196,6 @@ pub enum CommonOutput {
   WriteStringToFile(Result<(), ()>),
   ListDirectory(Result<String, ()>),
   ToLowerCase(Result<String, ()>),
-  CombineA(Result<String, ()>),
-  CombineB(Result<(), ()>),
 }
 
 #[allow(clippy::wrong_self_convention)]
@@ -248,14 +205,11 @@ impl CommonOutput {
   pub fn read_string_from_file(result: Result<String, ()>) -> Self { Self::ReadStringFromFile(result) }
   pub fn read_string_from_file_ok(string: impl Into<String>) -> Self { Self::read_string_from_file(Ok(string.into())) }
   pub fn write_string_to_file(result: Result<(), ()>) -> Self { Self::WriteStringToFile(result) }
+  pub fn write_string_to_file_ok() -> Self { Self::WriteStringToFile(Ok(())) }
   pub fn list_directory(result: Result<String, ()>) -> Self { Self::ListDirectory(result) }
   pub fn list_directory_ok(string: impl Into<String>) -> Self { Self::list_directory(Ok(string.into())) }
   pub fn to_lower_case(result: impl Into<Result<String, ()>>) -> Self { Self::ToLowerCase(result.into()) }
   pub fn to_lower_case_ok(string: impl Into<String>) -> Self { Self::ToLowerCase(Ok(string.into())) }
-  pub fn combine_a(result: Result<String, ()>) -> Self { Self::CombineA(result) }
-  pub fn combine_a_ok(string: impl Into<String>) -> Self { Self::combine_a(Ok(string.into())) }
-  pub fn combine_b(result: Result<(), ()>) -> Self { Self::CombineB(result) }
-  pub fn combine_b_ok() -> Self { Self::combine_b(Ok(())) }
 }
 
 impl Task for CommonTask {
@@ -268,8 +222,6 @@ impl Task for CommonTask {
       CommonTask::WriteStringToFile(task) => CommonOutput::WriteStringToFile(task.execute(context)),
       CommonTask::ListDirectory(task) => CommonOutput::ListDirectory(task.execute(context)),
       CommonTask::ToLowerCase(task) => CommonOutput::ToLowerCase(task.execute(context)),
-      CommonTask::CombineA(task) => CommonOutput::CombineA(task.execute(context)),
-      CommonTask::CombineB(task) => CommonOutput::CombineB(task.execute(context)),
       CommonTask::RequireSelf => context.require_task(&CommonTask::RequireSelf),
       CommonTask::RequireCycleA => context.require_task(&CommonTask::RequireCycleB),
       CommonTask::RequireCycleB => context.require_task(&CommonTask::RequireCycleA),

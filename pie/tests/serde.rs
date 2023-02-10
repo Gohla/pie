@@ -23,7 +23,7 @@ fn test_serde_roundtrip_one_task(mut pie: Pie<CommonTask>, temp_dir: TempDir) {
   let path = temp_dir.path().join("test.txt");
   fs::write(&path, "HELLO WORLD!").check();
 
-  let task = CommonTask::combine_a(&path, FileStamper::Modified);
+  let task = CommonTask::to_lower_case(CommonTask::read_string_from_file(&path, FileStamper::Modified));
 
   pie.run_in_session(|mut session| {
     session.require(&task);

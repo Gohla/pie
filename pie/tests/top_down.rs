@@ -75,12 +75,11 @@ fn test_require_task(mut pie: Pie<CommonTask>, temp_dir: TempDir) {
   fs::write(&path, "HELLO WORLD!").check();
 
   let read_task = CommonTask::read_string_from_file(&path, FileStamper::Modified);
-  let to_lowercase_task = CommonTask::to_lower_case(read_task.clone());
-  let task = CommonTask::combine_a(&path, FileStamper::Modified);
+  let task = CommonTask::to_lower_case(read_task.clone());
 
   // Require task and observe that all three tasks are executed in dependency order
   pie.run_in_session(|mut session| {
-    assert_eq!(session.require(&task), CommonOutput::combine_a_ok("hello world!"));
+    assert_eq!(session.require(&task), CommonOutput::to_lower_case_ok("hello world!"));
 
     let tracker = &mut session.tracker_mut().0;
 
@@ -90,27 +89,19 @@ fn test_require_task(mut pie: Pie<CommonTask>, temp_dir: TempDir) {
     assert_matches!(task_end, Some(_));
     assert!(task_start < task_end);
 
-    let to_lowercase_task_start = tracker.get_index_of_execute_start_of(&to_lowercase_task);
-    assert_matches!(to_lowercase_task_start, Some(_));
-    let to_lowercase_task_end = tracker.get_index_of_execute_end_of(&to_lowercase_task);
-    assert_matches!(to_lowercase_task_end, Some(_));
-    assert!(to_lowercase_task_start < to_lowercase_task_end);
-    assert!(to_lowercase_task_start > task_start);
-    
     let read_task_start = tracker.get_index_of_execute_start_of(&read_task);
     assert_matches!(read_task_start, Some(_));
     let read_task_end = tracker.get_index_of_execute_end_of(&read_task);
     assert_matches!(read_task_end, Some(_));
     assert!(read_task_start > task_start);
-    assert!(read_task_start > to_lowercase_task_start);
+    assert!(read_task_start > task_start);
 
     assert!(task_end > read_task_end);
-    assert!(task_end > to_lowercase_task_end);
   });
 
   // Require task again and observe that no tasks are executed since they are not affected.
   pie.run_in_session(|mut session| {
-    assert_eq!(session.require(&task), CommonOutput::combine_a_ok("hello world!"));
+    assert_eq!(session.require(&task), CommonOutput::to_lower_case_ok("hello world!"));
 
     let tracker = &mut session.tracker_mut().0;
     assert!(tracker.contains_no_execute_start());
@@ -121,7 +112,7 @@ fn test_require_task(mut pie: Pie<CommonTask>, temp_dir: TempDir) {
 
   // Require task and observe that all three tasks are re-executed in reverse dependency order
   pie.run_in_session(|mut session| {
-    assert_eq!(session.require(&task), CommonOutput::combine_a_ok("!dlrow olleh"));
+    assert_eq!(session.require(&task), CommonOutput::to_lower_case_ok("!dlrow olleh"));
 
     let tracker = &mut session.tracker_mut().0;
 
@@ -130,19 +121,11 @@ fn test_require_task(mut pie: Pie<CommonTask>, temp_dir: TempDir) {
     let read_task_end = tracker.get_index_of_execute_end_of(&read_task);
     assert_matches!(read_task_end, Some(_));
 
-    let to_lowercase_task_start = tracker.get_index_of_execute_start_of(&to_lowercase_task);
-    assert_matches!(to_lowercase_task_start, Some(_));
-    let to_lowercase_task_end = tracker.get_index_of_execute_end_of(&to_lowercase_task);
-    assert_matches!(to_lowercase_task_end, Some(_));
-
     let task_start = tracker.get_index_of_execute_start_of(&task);
     assert_matches!(task_start, Some(_));
     let task_end = tracker.get_index_of_execute_end_of(&task);
     assert_matches!(task_end, Some(_));
-
-    assert!(task_end > to_lowercase_task_end);
     assert!(task_end > read_task_end);
-    assert!(to_lowercase_task_end > read_task_end);
   });
 
   // TODO: once stampers are implemented, only change the modification date such that ReadStringFromFile re-executes but

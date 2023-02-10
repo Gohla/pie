@@ -58,11 +58,10 @@ fn test_indirectly_affected_tasks(mut pie: Pie<CommonTask>, temp_dir: TempDir) {
   fs::write(&path, "HELLO WORLD!").check();
 
   let read_task = CommonTask::read_string_from_file(&path, FileStamper::Modified);
-  let to_lowercase_task = CommonTask::to_lower_case(read_task.clone());
-  let task = CommonTask::combine_a(&path, FileStamper::Modified);
+  let task = CommonTask::to_lower_case(read_task.clone());
 
   pie.run_in_session(|mut session| {
-    assert_eq!(session.require(&task), CommonOutput::combine_a_ok("hello world!"));
+    assert_eq!(session.require(&task), CommonOutput::to_lower_case_ok("hello world!"));
     assert_eq!(session.dependency_check_errors().len(), 0);
   });
 
@@ -77,9 +76,7 @@ fn test_indirectly_affected_tasks(mut pie: Pie<CommonTask>, temp_dir: TempDir) {
     let tracker = &mut session.tracker_mut().0;
     let read_task_end = tracker.get_index_of_execute_end_of_with(&read_task, &CommonOutput::read_string_from_file_ok("HELLO WORLD!!"));
     assert_matches!(read_task_end, Some(_));
-    let to_lowercase_task_end = tracker.get_index_of_execute_end_of_with(&to_lowercase_task, &CommonOutput::to_lower_case_ok("hello world!!"));
-    assert_matches!(to_lowercase_task_end, Some(_));
-    let task_end = tracker.get_index_of_execute_end_of_with(&task, &CommonOutput::combine_a_ok("hello world!!"));
+    let task_end = tracker.get_index_of_execute_end_of_with(&task, &CommonOutput::to_lower_case_ok("hello world!!"));
     assert_matches!(task_end, Some(_));
     assert!(task_end > read_task_end);
   });
@@ -87,24 +84,25 @@ fn test_indirectly_affected_tasks(mut pie: Pie<CommonTask>, temp_dir: TempDir) {
 
 #[rstest]
 fn test_indirectly_affected_tasks_early_cutoff(mut pie: Pie<CommonTask>, temp_dir: TempDir) {
-  let path = temp_dir.path().join("in.txt");
-  fs::write(&path, "HELLO WORLD!").check();
+  let read_path = temp_dir.path().join("in.txt");
+  fs::write(&read_path, "HELLO WORLD!").check();
+  let write_path = temp_dir.path().join("out.txt");
 
-  let read_task = CommonTask::read_string_from_file(&path, FileStamper::Modified);
+  let read_task = CommonTask::read_string_from_file(&read_path, FileStamper::Modified);
   let to_lowercase_task = CommonTask::to_lower_case(read_task.clone());
-  let task = CommonTask::combine_a(&path, FileStamper::Modified);
+  let write_task = CommonTask::write_string_to_file(to_lowercase_task.clone(), write_path, FileStamper::Modified);
 
   pie.run_in_session(|mut session| {
-    assert_eq!(session.require(&task), CommonOutput::combine_a_ok("hello world!"));
+    assert_eq!(session.require(&write_task), CommonOutput::write_string_to_file_ok());
     assert_eq!(session.dependency_check_errors().len(), 0);
   });
 
   // Change the file that ReadStringFromFile requires, directly affecting it, indirectly affecting ToLowerCase, but not 
-  // affecting CombineA because the output from ToLowerCase does not change.
-  fs::write(&path, "hello world!").check();
+  // affecting WriteStringToFile because the output from ToLowerCase does not change.
+  fs::write(&read_path, "hello world!").check();
 
   pie.run_in_session(|mut session| {
-    session.update_affected_by(&[path.clone()]);
+    session.update_affected_by(&[read_path.clone()]);
     assert_eq!(session.dependency_check_errors().len(), 0);
 
     let tracker = &mut session.tracker_mut().0;
@@ -112,6 +110,6 @@ fn test_indirectly_affected_tasks_early_cutoff(mut pie: Pie<CommonTask>, temp_di
     assert_matches!(read_task_end, Some(_));
     let to_lowercase_task_end = tracker.get_index_of_execute_end_of_with(&to_lowercase_task, &CommonOutput::to_lower_case_ok("hello world!"));
     assert_matches!(to_lowercase_task_end, Some(_));
-    assert!(tracker.contains_no_execute_end_of(&task));
+    assert!(tracker.contains_no_execute_end_of(&write_task));
   });
 }
