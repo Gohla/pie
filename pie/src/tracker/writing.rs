@@ -123,12 +123,14 @@ impl<W: io::Write, T: Task> Tracker<T> for WritingTracker<W, T> {
     self.writeln(format_args!("Bottom-up build end"));
   }
   #[inline]
+  fn check_affected_by_file_start(&mut self, _requiring_task: &T, _dependency: &FileDependency) {}
+  #[inline]
   fn schedule_affected_by_file_start(&mut self, file: &PathBuf) {
     self.writeln(format_args!("¿ {}", file.display()));
     self.indent();
   }
   #[inline]
-  fn check_affected_by_file(&mut self, requiring_task: &T, dependency: &FileDependency, inconsistent: Result<Option<&FileStamp>, &dyn Error>) {
+  fn check_affected_by_file_end(&mut self, requiring_task: &T, dependency: &FileDependency, inconsistent: Result<Option<&FileStamp>, &dyn Error>) {
     self.write_file_dependency_in_task_context(requiring_task, dependency, inconsistent);
   }
   #[inline]
@@ -141,7 +143,9 @@ impl<W: io::Write, T: Task> Tracker<T> for WritingTracker<W, T> {
     self.indent();
   }
   #[inline]
-  fn check_affected_by_require_task(&mut self, requiring_task: &T, dependency: &TaskDependency<T, T::Output>, inconsistent: Option<&OutputStamp<T::Output>>) {
+  fn check_affected_by_required_task_start(&mut self, _requiring_task: &T, _dependency: &TaskDependency<T, T::Output>) {}
+  #[inline]
+  fn check_affected_by_required_task_end(&mut self, requiring_task: &T, dependency: &TaskDependency<T, T::Output>, inconsistent: Option<OutputStamp<&T::Output>>) {
     self.write_task_dependency_in_task_context(requiring_task, dependency, inconsistent);
   }
   #[inline]
@@ -210,7 +214,7 @@ impl<W: io::Write, T: Task> WritingTracker<W, T> {
     }
   }
   #[inline]
-  fn write_task_dependency_in_task_context(&mut self, requiring_task: &T, dependency: &TaskDependency<T, T::Output>, inconsistent: Option<&OutputStamp<T::Output>>) {
+  fn write_task_dependency_in_task_context(&mut self, requiring_task: &T, dependency: &TaskDependency<T, T::Output>, inconsistent: Option<OutputStamp<&T::Output>>) {
     if let Some(new_stamp) = inconsistent {
       self.writeln(format_args!("☒ {:?} [{:?} ≠ {:?}]", requiring_task, dependency.stamp, new_stamp));
     } else {

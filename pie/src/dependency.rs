@@ -150,20 +150,21 @@ impl<T: Task> TaskDependency<T, T::Output> {
   #[inline]
   pub fn is_inconsistent<C: Context<T>>(&self, context: &mut C) -> Option<OutputStamp<T::Output>> {
     let output = context.require_task(&self.task);
-    self.is_inconsistent_with(output)
+    let new_stamp = self.stamper.stamp(output);
+    let consistent = new_stamp == self.stamp;
+    if consistent {
+      None
+    } else {
+      Some(new_stamp)
+    }
   }
   /// Checks whether this task dependency is inconsistent with given `output`, returning:
   /// - `Some(stamp)` if this dependency is inconsistent (with `stamp` being the new stamp of the dependency),
   /// - `None` if this dependency is consistent.
   #[inline]
-  pub fn is_inconsistent_with(&self, output: T::Output) -> Option<OutputStamp<T::Output>> {
-    Self::task_is_consistent(output, &self.stamper, &self.stamp)
-  }
-
-  #[inline]
-  fn task_is_consistent(output: T::Output, stamper: &OutputStamper, stamp: &OutputStamp<T::Output>) -> Option<OutputStamp<T::Output>> {
-    let new_stamp = stamper.stamp(output);
-    let consistent = new_stamp == *stamp;
+  pub fn is_inconsistent_with<'a>(&self, output: &'a T::Output) -> Option<OutputStamp<&'a T::Output>> {
+    let new_stamp = self.stamper.stamp(output);
+    let consistent = new_stamp == self.stamp.as_ref();
     if consistent {
       None
     } else {

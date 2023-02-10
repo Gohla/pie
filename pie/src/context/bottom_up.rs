@@ -66,9 +66,10 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> IncrementalBottom
   ) {
     tracker.schedule_affected_by_file_start(path);
     for (requiring_task_node, dependency) in store.get_tasks_requiring_or_providing_file(file_node_id, providing) {
-      let inconsistent = dependency.is_inconsistent();
       let requiring_task = store.task_by_node(requiring_task_node);
-      tracker.check_affected_by_file(requiring_task, dependency, inconsistent.as_ref().map_err(|e| e.as_ref()).map(|o| o.as_ref()));
+      tracker.check_affected_by_file_start(requiring_task, dependency);
+      let inconsistent = dependency.is_inconsistent();
+      tracker.check_affected_by_file_end(requiring_task, dependency, inconsistent.as_ref().map_err(|e| e.as_ref()).map(|o| o.as_ref()));
       match inconsistent {
         Err(e) => {
           dependency_check_errors.push(e);
@@ -107,10 +108,11 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> IncrementalBottom
     // Schedule affected tasks that require `task`'s output.
     self.shared.session.tracker.schedule_affected_by_task_start(&task);
     for (requiring_task_node, dependency) in self.shared.session.store.get_tasks_requiring_task(&task_node_id) {
-      let inconsistent = dependency.is_inconsistent_with(output.clone());
       let requiring_task = self.shared.session.store.task_by_node(requiring_task_node);
-      self.shared.session.tracker.check_affected_by_require_task(requiring_task, dependency, inconsistent.as_ref());
-      if let Some(_) = inconsistent { // TODO: get rid of clone
+      self.shared.session.tracker.check_affected_by_required_task_start(requiring_task, dependency);
+      let inconsistent = dependency.is_inconsistent_with(&output);
+      self.shared.session.tracker.check_affected_by_required_task_end(requiring_task, dependency, inconsistent);
+      if let Some(_) = inconsistent {
         // Schedule task; can't extract method due to self borrow above.
         let task = self.shared.session.store.task_by_node(requiring_task_node);
         self.shared.session.tracker.schedule_task(task);
