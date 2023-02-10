@@ -64,7 +64,7 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> IncrementalBottom
     dependency_check_errors: &mut Vec<Box<dyn Error>>,
     scheduled: &mut Queue<H>,
   ) {
-    tracker.check_affected_by_file_start(path);
+    tracker.schedule_affected_by_file_start(path);
     for (requiring_task_node, dependency) in store.get_tasks_requiring_or_providing_file(file_node_id, providing) {
       let inconsistent = dependency.is_inconsistent();
       let requiring_task = store.task_by_node(requiring_task_node);
@@ -82,7 +82,7 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> IncrementalBottom
         _ => {}
       }
     }
-    tracker.check_affected_by_file_end(path);
+    tracker.schedule_affected_by_file_end(path);
   }
 
   fn execute_and_schedule(&mut self, task_node_id: TaskNodeId) -> T::Output {
@@ -105,7 +105,7 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> IncrementalBottom
     }
 
     // Schedule affected tasks that require `task`'s output.
-    self.shared.session.tracker.check_affected_by_task_start(&task);
+    self.shared.session.tracker.schedule_affected_by_task_start(&task);
     for (requiring_task_node, dependency) in self.shared.session.store.get_tasks_requiring_task(&task_node_id) {
       let inconsistent = dependency.is_inconsistent_with(output.clone());
       let requiring_task = self.shared.session.store.task_by_node(requiring_task_node);
@@ -117,7 +117,7 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> IncrementalBottom
         self.scheduled.add(*requiring_task_node);
       }
     }
-    self.shared.session.tracker.check_affected_by_task_end(&task);
+    self.shared.session.tracker.schedule_affected_by_task_end(&task);
 
     output
   }

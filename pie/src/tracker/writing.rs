@@ -83,19 +83,19 @@ impl<W: io::Write, T: Task> Tracker<T> for WritingTracker<W, T> {
   #[inline]
   fn check_require_file_start(&mut self, _dependency: &FileDependency) {}
   #[inline]
-  fn check_require_file_end(&mut self, _requiring_task: &T, dependency: &FileDependency, inconsistent: Result<Option<&FileStamp>, &dyn Error>) {
+  fn check_require_file_end(&mut self, dependency: &FileDependency, inconsistent: Result<Option<&FileStamp>, &dyn Error>) {
     self.write_file_dependency(dependency, inconsistent);
   }
   #[inline]
   fn check_provide_file_start(&mut self, _dependency: &FileDependency) {}
   #[inline]
-  fn check_provide_file_end(&mut self, _requiring_task: &T, dependency: &FileDependency, inconsistent: Result<Option<&FileStamp>, &dyn Error>) {
+  fn check_provide_file_end(&mut self, dependency: &FileDependency, inconsistent: Result<Option<&FileStamp>, &dyn Error>) {
     self.write_file_dependency(dependency, inconsistent);
   }
   #[inline]
   fn check_require_task_start(&mut self, _dependency: &TaskDependency<T, T::Output>) {}
   #[inline]
-  fn check_require_task_end(&mut self, _requiring_task: &T, dependency: &TaskDependency<T, T::Output>, inconsistent: Option<&OutputStamp<T::Output>>) {
+  fn check_require_task_end(&mut self, dependency: &TaskDependency<T, T::Output>, inconsistent: Option<&OutputStamp<T::Output>>) {
     self.write_task_dependency(dependency, inconsistent);
   }
   #[inline]
@@ -123,7 +123,7 @@ impl<W: io::Write, T: Task> Tracker<T> for WritingTracker<W, T> {
     self.writeln(format_args!("Bottom-up build end"));
   }
   #[inline]
-  fn check_affected_by_file_start(&mut self, file: &PathBuf) {
+  fn schedule_affected_by_file_start(&mut self, file: &PathBuf) {
     self.writeln(format_args!("¿ {}", file.display()));
     self.indent();
   }
@@ -132,11 +132,11 @@ impl<W: io::Write, T: Task> Tracker<T> for WritingTracker<W, T> {
     self.write_file_dependency_in_task_context(requiring_task, dependency, inconsistent);
   }
   #[inline]
-  fn check_affected_by_file_end(&mut self, _file: &PathBuf) {
+  fn schedule_affected_by_file_end(&mut self, _file: &PathBuf) {
     self.unindent();
   }
   #[inline]
-  fn check_affected_by_task_start(&mut self, task: &T) {
+  fn schedule_affected_by_task_start(&mut self, task: &T) {
     self.writeln(format_args!("¿ {:?}", task));
     self.indent();
   }
@@ -145,7 +145,7 @@ impl<W: io::Write, T: Task> Tracker<T> for WritingTracker<W, T> {
     self.write_task_dependency_in_task_context(requiring_task, dependency, inconsistent);
   }
   #[inline]
-  fn check_affected_by_task_end(&mut self, _task: &T) {
+  fn schedule_affected_by_task_end(&mut self, _task: &T) {
     self.unindent();
   }
   #[inline]
