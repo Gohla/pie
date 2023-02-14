@@ -62,6 +62,7 @@ impl CheckErrorExt<()> for CommonOutput {
       CommonOutput::WriteStringToFile(r) => { r.check(); }
       CommonOutput::ListDirectory(r) => { r.check(); }
       CommonOutput::ToLowerCase(r) => { r.check(); }
+      CommonOutput::ToUpperCase(r) => { r.check(); }
       _ => {}
     };
     ()
@@ -93,12 +94,7 @@ pub struct WriteStringToFile(pub Box<CommonTask>, pub PathBuf, pub FileStamper);
 
 impl WriteStringToFile {
   fn execute<C: Context<CommonTask>>(&self, context: &mut C) -> Result<(), ()> {
-    let string = match context.require_task(self.0.as_ref()) {
-      CommonOutput::StringConstant(s) => s,
-      CommonOutput::ReadStringFromFile(r) => r?,
-      CommonOutput::ToLowerCase(r) => r?,
-      _ => panic!(),
-    };
+    let string = context.require_task(self.0.as_ref()).into_string()?;
     let mut file = File::create(&self.1).map_err(|_| ())?;
     file.write_all(string.as_bytes()).map_err(|_| ())?;
     context.provide_file_with_stamper(&self.1, self.2).map_err(|_| ())?;
@@ -130,12 +126,20 @@ pub struct ToLowerCase(pub Box<CommonTask>);
 
 impl ToLowerCase {
   fn execute<C: Context<CommonTask>>(&self, context: &mut C) -> Result<String, ()> {
-    let string = match context.require_task(self.0.as_ref()) {
-      CommonOutput::StringConstant(s) => s,
-      CommonOutput::ReadStringFromFile(r) => r?,
-      _ => panic!(),
-    };
+    let string = context.require_task(self.0.as_ref()).into_string()?;
     Ok(string.to_lowercase())
+  }
+}
+
+// Make string uppercase
+
+#[derive(Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Serialize, Deserialize, Debug)]
+pub struct ToUpperCase(pub Box<CommonTask>);
+
+impl ToUpperCase {
+  fn execute<C: Context<CommonTask>>(&self, context: &mut C) -> Result<String, ()> {
+    let string = context.require_task(self.0.as_ref()).into_string()?;
+    Ok(string.to_uppercase())
   }
 }
 
@@ -149,6 +153,7 @@ pub enum CommonTask {
   WriteStringToFile(WriteStringToFile),
   ListDirectory(ListDirectory),
   ToLowerCase(ToLowerCase),
+  ToUpperCase(ToUpperCase),
   RequireSelf,
   RequireCycleA,
   RequireCycleB,
@@ -178,6 +183,9 @@ impl CommonTask {
   pub fn to_lower_case_constant(string: impl Into<String>) -> Self {
     Self::ToLowerCase(ToLowerCase(Box::new(Self::string_constant(string))))
   }
+  pub fn to_upper_case(string_provider: impl Into<Box<CommonTask>>) -> Self {
+    Self::ToUpperCase(ToUpperCase(string_provider.into()))
+  }
 
   pub fn require_self() -> Self {
     Self::RequireSelf
@@ -197,6 +205,7 @@ pub enum CommonOutput {
   WriteStringToFile(Result<(), ()>),
   ListDirectory(Result<String, ()>),
   ToLowerCase(Result<String, ()>),
+  ToUpperCase(Result<String, ()>),
 }
 
 #[allow(clippy::wrong_self_convention)]
@@ -211,6 +220,21 @@ impl CommonOutput {
   pub fn list_directory_ok(string: impl Into<String>) -> Self { Self::list_directory(Ok(string.into())) }
   pub fn to_lower_case(result: impl Into<Result<String, ()>>) -> Self { Self::ToLowerCase(result.into()) }
   pub fn to_lower_case_ok(string: impl Into<String>) -> Self { Self::ToLowerCase(Ok(string.into())) }
+  pub fn to_upper_case(result: impl Into<Result<String, ()>>) -> Self { Self::ToUpperCase(result.into()) }
+  pub fn to_upper_case_ok(string: impl Into<String>) -> Self { Self::ToUpperCase(Ok(string.into())) }
+  
+  pub fn into_string(self) -> Result<String, ()> {
+    use CommonOutput::*;
+    let string = match self {
+      StringConstant(s) => s,
+      ReadStringFromFile(r) => r?,
+      ListDirectory(r) => r?,
+      ToLowerCase(r) => r?,
+      ToUpperCase(r) => r?,
+      o => panic!("Output {:?} does not contain a string", o),
+    };
+    Ok(string)
+  }
 }
 
 impl Task for CommonTask {
@@ -223,6 +247,7 @@ impl Task for CommonTask {
       CommonTask::WriteStringToFile(task) => CommonOutput::WriteStringToFile(task.execute(context)),
       CommonTask::ListDirectory(task) => CommonOutput::ListDirectory(task.execute(context)),
       CommonTask::ToLowerCase(task) => CommonOutput::ToLowerCase(task.execute(context)),
+      CommonTask::ToUpperCase(task) => CommonOutput::ToUpperCase(task.execute(context)),
       CommonTask::RequireSelf => context.require_task(&CommonTask::RequireSelf),
       CommonTask::RequireCycleA => context.require_task(&CommonTask::RequireCycleB),
       CommonTask::RequireCycleB => context.require_task(&CommonTask::RequireCycleA),

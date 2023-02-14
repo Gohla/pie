@@ -4,7 +4,6 @@ use std::path::PathBuf;
 
 use crate::{Context, Session, Task};
 use crate::context::ContextShared;
-use crate::dependency::Dependency;
 use crate::stamp::{FileStamper, OutputStamper};
 use crate::store::TaskNodeId;
 use crate::tracker::Tracker;
@@ -38,33 +37,24 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> IncrementalTopDow
 impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> Context<T> for IncrementalTopDownContext<'p, 's, T, A, H> {
   fn require_task_with_stamper(&mut self, task: &T, stamper: OutputStamper) -> T::Output {
     self.shared.session.tracker.require_task(task);
-    let task_node = self.shared.session.store.get_or_create_node_by_task(task);
+    let task_node_id = self.shared.session.store.get_or_create_node_by_task(task);
 
-    if let Some(current_task_node) = self.shared.task_execution_stack.last() {
-      if let Err(pie_graph::Error::CycleDetected) = self.shared.session.store.add_to_dependencies_of_task(current_task_node, &task_node, None) {
-        let current_task = self.shared.session.store.task_by_node(current_task_node);
-        let task_stack: Vec<_> = self.shared.task_execution_stack.iter().map(|task_node| self.shared.session.store.task_by_node(task_node)).collect();
-        panic!("Cyclic task dependency; current task '{:?}' is requiring task '{:?}' which was already required. Task stack: {:?}", current_task, task, task_stack);
-      }
-    }
+    self.shared.add_task_require_dependency(task, &task_node_id);
 
-    let output = if !self.shared.session.visited.contains(&task_node) && self.should_execute_task(&task_node, task) { // Execute the task, cache and return up-to-date output.
-      self.shared.session.store.reset_task(&task_node);
-      self.shared.pre_execute(task, task_node);
+    let output = if !self.shared.session.visited.contains(&task_node_id) && self.should_execute_task(&task_node_id, task) { // Execute the task, cache and return up-to-date output.
+      self.shared.session.store.reset_task(&task_node_id);
+      self.shared.pre_execute(task, task_node_id);
       let output = task.execute(self);
-      self.shared.post_execute(task, task_node, &output);
+      self.shared.post_execute(task, task_node_id, &output);
       output
     } else { // Return already up-to-date output.
       // Unwrap OK: if we should not execute the task, it must have been executed before, and therefore it has an output.
-      let output = self.shared.session.store.get_task_output(&task_node).unwrap().clone();
+      let output = self.shared.session.store.get_task_output(&task_node_id).unwrap().clone();
       output
     };
 
-    if let Some(current_task_node) = self.shared.task_execution_stack.last() {
-      let dependency = Dependency::require_task(task.clone(), output.clone(), stamper);
-      self.shared.session.store.update_dependency_of_task(current_task_node, &task_node, Some(dependency));
-    }
-    self.shared.session.visited.insert(task_node);
+    self.shared.update_task_require_dependency(task.clone(), &task_node_id, output.clone(), stamper);
+    self.shared.session.visited.insert(task_node_id);
 
     output
   }

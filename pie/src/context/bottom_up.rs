@@ -28,6 +28,7 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> IncrementalBottom
     }
   }
 
+  /// Execute (i.e., make up-to-date or make consistent) all tasks affected by `changed_files`.
   #[inline]
   pub(crate) fn update_affected_by<'a, I: IntoIterator<Item=&'a PathBuf> + Clone>(&mut self, changed_files: I) {
     self.shared.session.tracker.update_affected_by_start(changed_files.clone());
@@ -55,6 +56,7 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> IncrementalBottom
     self.shared.session.tracker.update_affected_by_end();
   }
 
+  /// Schedule tasks affected by a change in the file at given `path`.
   fn schedule_affected_by_file(
     file_node_id: &FileNodeId,
     path: &PathBuf,
@@ -86,8 +88,8 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> IncrementalBottom
     tracker.schedule_affected_by_file_end(path);
   }
 
+  /// Execute the task identified by `task_node_id`, and then schedule new tasks based on the dependencies of the task.
   fn execute_and_schedule(&mut self, task_node_id: TaskNodeId) -> T::Output {
-    // Execute `task`
     let task = self.shared.session.store.task_by_node(&task_node_id).clone(); // TODO: get rid of clone?
     let output = self.execute(task_node_id, &task);
 
@@ -124,6 +126,8 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> IncrementalBottom
     output
   }
 
+  /// Execute given `task`.
+  #[inline]
   fn execute(&mut self, task_node_id: TaskNodeId, task: &T) -> T::Output {
     self.shared.session.store.reset_task(&task_node_id);
     self.shared.pre_execute(&task, task_node_id);
@@ -133,6 +137,10 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> IncrementalBottom
     output
   }
 
+  /// Execute scheduled tasks (and schedule new tasks) that depend (indirectly) on the task identified by `task_node_id`, 
+  /// and then execute that scheduled task. Returns `Some` output if the task was (eventually) scheduled and thus 
+  /// executed, or `None` if it was not executed and thus not (eventually) scheduled.
+  #[inline]
   fn require_scheduled_now(&mut self, task_node_id: &TaskNodeId) -> Option<T::Output> {
     while self.scheduled.is_not_empty() {
       if let Some(min_task_node_id) = self.scheduled.pop_least_task_with_dependency_to(task_node_id, &self.shared.session.store) {
@@ -144,15 +152,10 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> IncrementalBottom
     }
     None
   }
-}
 
-
-impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> Context<T> for IncrementalBottomUpContext<'p, 's, T, A, H> {
-  fn require_task_with_stamper(&mut self, task: &T, stamper: OutputStamper) -> T::Output {
-    self.shared.session.tracker.require_task(task);
-    
-    let task_node_id = self.shared.session.store.get_or_create_node_by_task(task);
-
+  /// Make given `task` consistent and return its output.
+  #[inline]
+  fn make_consistent(&mut self, task: &T, task_node_id: TaskNodeId) -> T::Output {
     if self.shared.session.visited.contains(&task_node_id) {
       // Unwrap OK: if we have already visited the task this session, it must have an output.
       let output = self.shared.session.store.get_task_output(&task_node_id).unwrap().clone();
@@ -165,7 +168,7 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> Context<T> for In
     }
 
     // Task has an output, thus it has been executed before, therefore it has been scheduled if affected, or not 
-    // scheduled if not affected. 
+    // scheduled if not affected.
 
     if let Some(output) = self.require_scheduled_now(&task_node_id) {
       // Task was scheduled. That is, it was either directly or indirectly affected. Therefore, it has been
@@ -173,16 +176,42 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> Context<T> for In
       output
     } else {
       // Task was not scheduled. That is, it was not directly affected by resource changes, and not indirectly
-      // affected by other tasks. Therefore, we did not execute it.
-      // TODO: can it be scheduled later, invalidating this claim? If not, explain why.
-
-      // Mark as visited
-      self.shared.session.visited.insert(task_node_id);
+      // affected by other tasks. Furthermore, the task cannot be affected during this build.
+      //
+      // Consider if the task would be affected, this can only occur in 3 different ways:
+      // 
+      // 1. the task is affected by a change in one of its require file dependencies. But this cannot occur because the
+      //    dependency is consistent right now, and cannot become inconsistent due to the absence of hidden dependencies.
+      // 2. the task is affected by a change in one of its provided file dependencies. But this cannot occur because the
+      //    dependency is consistent right now, and cannot become inconsistent due to the absence of hidden dependencies
+      //    and overlapping provided files.
+      // 3. the task is affected by a change in one of its require task dependencies. But this cannot occur because the
+      //    dependency is consistent right now, and cannot become inconsistent because `require_scheduled_now` has made
+      //    the task and all its transitive incoming dependencies consistent.
+      // 
+      // All case cannot occur, thus the task cannot be affected. Therefore, we don't have to execute the task.
 
       // Unwrap OK: we don't have to execute the task and an output exists.
       let output = self.shared.session.store.get_task_output(&task_node_id).unwrap().clone();
-      return output;
+      output
     }
+  }
+}
+
+
+impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> Context<T> for IncrementalBottomUpContext<'p, 's, T, A, H> {
+  fn require_task_with_stamper(&mut self, task: &T, stamper: OutputStamper) -> T::Output {
+    self.shared.session.tracker.require_task(task);
+    let task_node_id = self.shared.session.store.get_or_create_node_by_task(task);
+
+    self.shared.add_task_require_dependency(task, &task_node_id);
+
+    let output = self.make_consistent(task, task_node_id);
+
+    self.shared.update_task_require_dependency(task.clone(), &task_node_id, output.clone(), stamper);
+    self.shared.session.visited.insert(task_node_id);
+
+    output
   }
 
   #[inline]

@@ -64,6 +64,25 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> ContextShared<'p,
     Ok(())
   }
 
+  /// Add dependency edge to graph, but without dependency data, as we first need to execute the task to get an output 
+  /// to use as dependency data. This also detects cycles before we execute, preventing infinite recursion/loops.
+  fn add_task_require_dependency(&mut self, task: &T, task_node_id: &TaskNodeId) {
+    if let Some(current_task_node) = self.task_execution_stack.last() {
+      if let Err(pie_graph::Error::CycleDetected) = self.session.store.add_to_dependencies_of_task(current_task_node, task_node_id, None) {
+        let current_task = self.session.store.task_by_node(current_task_node);
+        let task_stack: Vec<_> = self.task_execution_stack.iter().map(|task_node| self.session.store.task_by_node(task_node)).collect();
+        panic!("Cyclic task dependency; current task '{:?}' is requiring task '{:?}' which was already required. Task stack: {:?}", current_task, task, task_stack);
+      }
+    }
+  }
+  
+  fn update_task_require_dependency(&mut self, task: T, task_node_id: &TaskNodeId, output: T::Output, stamper: OutputStamper) {
+    if let Some(current_task_node) = self.task_execution_stack.last() {
+      let dependency = Dependency::require_task(task, output, stamper);
+      self.session.store.update_dependency_of_task(current_task_node, task_node_id, Some(dependency));
+    }
+  }
+
   fn pre_execute(&mut self, task: &T, task_node_id: TaskNodeId) {
     self.task_execution_stack.push(task_node_id);
     self.session.tracker.execute_task_start(task);
