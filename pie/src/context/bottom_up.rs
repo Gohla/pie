@@ -272,8 +272,8 @@ impl<H: BuildHasher + Default> Queue<H> {
     }
   }
 
-  /// Return the index and id of the least task (task with the least amount of dependencies to other tasks in the queue) 
-  /// that has a (transitive) dependency from task `depender`.
+  /// Return the least task (task with the least amount of dependencies to other tasks in the queue) that has a 
+  /// (transitive) dependency from task `depender`.
   #[inline]
   fn pop_least_task_with_dependency_from<T: Task>(&mut self, depender: &TaskNodeId, store: &Store<T, H>) -> Option<TaskNodeId> {
     self.sort_by_dependencies(store);
@@ -285,7 +285,7 @@ impl<H: BuildHasher + Default> Queue<H> {
       }
     }
     if let Some((index, task_node_id)) = found {
-      self.vec.swap_remove(index);
+      self.vec.swap_remove(index); // Note: this prevents allocation but would require resorting as it changes ordering.
       self.set.remove(&task_node_id);
       return Some(task_node_id);
     }
