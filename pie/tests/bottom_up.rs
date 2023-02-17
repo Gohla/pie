@@ -183,3 +183,31 @@ fn test_indirectly_affected_multiple_tasks(mut pie: Pie<CommonTask>, temp_dir: T
     assert_eq!(fs::read_to_string(&write_upper_path).check(), "HELLO WORLD!!".to_string());
   });
 }
+
+#[rstest]
+fn test_require_now(mut pie: Pie<CommonTask>, temp_dir: TempDir) {
+  let marker_path = temp_dir.path().join("marker.txt");
+  let read_path = temp_dir.path().join("in.txt");
+  fs::write(&read_path, "hello world!").check();
+
+  let to_lower_task = CommonTask::to_lower_case(CommonTask::read_string_from_file(read_path.clone(), FileStamper::Modified));
+  let task = CommonTask::require_task_on_file_exists(to_lower_task.clone(), marker_path.clone());
+
+  pie.run_in_session(|mut session| {
+    session.require(&to_lower_task);
+    session.require(&task); // `task` does not require `to_lower_task` because `marker.txt` does not exist.
+  });
+
+  fs::write(&marker_path, "").check(); // Create the marker file, so `task` will require `to_lower_task`.
+  fs::write(&read_path, "hello world!!").check();
+  pie.run_in_session(|mut session| {
+    session.update_affected_by(&[read_path, marker_path]);
+    
+    let tracker = &mut session.tracker_mut().0;
+    let task_end = tracker.get_index_of_execute_end_of(&task);
+    assert_matches!(task_end, Some(_));
+    let to_lower_task_end = tracker.get_index_of_execute_end_of(&to_lower_task);
+    assert_matches!(to_lower_task_end, Some(_));
+    assert!(task_end > to_lower_task_end); // Ensure that `to_lower_task` finishes execution before `task`.
+  });
+}

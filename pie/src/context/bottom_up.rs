@@ -148,6 +148,8 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> IncrementalBottom
         if min_task_node_id == *task_node_id {
           return Some(output);
         }
+      } else {
+        break;
       }
     }
     None
@@ -176,9 +178,10 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> IncrementalBottom
       output
     } else {
       // Task was not scheduled. That is, it was not directly affected by resource changes, and not indirectly
-      // affected by other tasks. Furthermore, the task cannot be affected during this build.
+      // affected by other tasks. 
       //
-      // Consider if the task would be affected, this can only occur in 3 different ways:
+      // The task cannot be affected during this build. Consider if the task would be affected, this can only occur in 
+      // 3 different ways:
       // 
       // 1. the task is affected by a change in one of its require file dependencies. But this cannot occur because the
       //    dependency is consistent right now, and cannot become inconsistent due to the absence of hidden dependencies.
@@ -187,7 +190,7 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> IncrementalBottom
       //    and overlapping provided files.
       // 3. the task is affected by a change in one of its require task dependencies. But this cannot occur because the
       //    dependency is consistent right now, and cannot become inconsistent because `require_scheduled_now` has made
-      //    the task and all its transitive incoming dependencies consistent.
+      //    the task and all its (indirect) dependencies consistent.
       // 
       // All case cannot occur, thus the task cannot be affected. Therefore, we don't have to execute the task.
 
@@ -267,11 +270,11 @@ impl<H: BuildHasher + Default> Queue<H> {
   /// Remove the last task (task with the least amount of dependencies to other tasks in the queue) that has a
   /// (transitive) dependency to given task, and return it.
   #[inline]
-  fn pop_least_task_with_dependency_to<T: Task>(&mut self, dependee: &TaskNodeId, store: &Store<T, H>) -> Option<TaskNodeId> {
+  fn pop_least_task_with_dependency_to<T: Task>(&mut self, depender: &TaskNodeId, store: &Store<T, H>) -> Option<TaskNodeId> {
     self.sort_by_dependencies(store);
     let tasks: Vec<(usize, &TaskNodeId)> = self.vec.iter().enumerate().rev().collect(); // TODO: remove copy?
-    for (idx, depender) in tasks {
-      if store.contains_transitive_task_dependency(depender, dependee) {
+    for (idx, dependee) in tasks {
+      if depender == dependee || store.contains_transitive_task_dependency(depender, dependee) {
         return Some(self.vec.swap_remove(idx));
       }
     }
@@ -279,7 +282,7 @@ impl<H: BuildHasher + Default> Queue<H> {
   }
 
   #[inline]
-  fn sort_by_dependencies<T: Task>(&mut self, store: &Store<T, H>) {
+  fn sort_by_dependencies<T: Task>(&mut self, store: &Store<T, H>) { // TODO: use select_nth_unstable_by(0) to get the sorted top element for pop?
     self.vec.sort_unstable_by(|n1, n2| store.graph.topo_cmp(n1, n2));
   }
 } 

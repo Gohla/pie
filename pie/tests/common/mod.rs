@@ -87,6 +87,26 @@ impl ReadStringFromFile {
   }
 }
 
+// Read indirect string from file task
+
+#[derive(Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Serialize, Deserialize, Debug)]
+pub struct ReadIndirectStringFromFile(pub PathBuf, pub FileStamper);
+
+impl ReadIndirectStringFromFile {
+  fn execute<T: Task, C: Context<T>>(&self, context: &mut C) -> Result<String, ()> {
+    let mut string = String::new();
+    if let Some(mut file) = context.require_file_with_stamper(&self.0, self.1).map_err(|_| ())? {
+      let mut indirect_path = String::new();
+      file.read_to_string(&mut indirect_path).map_err(|_| ())?;
+      let indirect_path = PathBuf::from(indirect_path);
+      if let Some(mut file) = context.require_file_with_stamper(&indirect_path, self.1).map_err(|_| ())? {
+        file.read_to_string(&mut string).map_err(|_| ())?;
+      }
+    }
+    Ok(string)
+  }
+}
+
 // Write string to file task
 
 #[derive(Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Serialize, Deserialize, Debug)]
@@ -143,6 +163,34 @@ impl ToUpperCase {
   }
 }
 
+// Require a task when a file exists
+
+#[derive(Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Serialize, Deserialize, Debug)]
+pub struct RequireTaskOnFileExists(pub Box<CommonTask>, pub PathBuf);
+
+impl RequireTaskOnFileExists {
+  fn execute<C: Context<CommonTask>>(&self, context: &mut C) -> Result<(), ()> {
+    if let Some(_) = context.require_file_with_stamper(&self.1, FileStamper::Exists).map_err(|_| ())? {
+      context.require_task(&self.0).into_result()?;
+    }
+    Ok(())
+  }
+}
+
+// Sequence
+
+#[derive(Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Serialize, Deserialize, Debug)]
+pub struct Sequence(pub Vec<Box<CommonTask>>);
+
+impl Sequence {
+  fn execute<C: Context<CommonTask>>(&self, context: &mut C) -> Result<(), ()> {
+    for task in &self.0 {
+      context.require_task(task).into_result()?;
+    }
+    Ok(())
+  }
+}
+
 
 // Common task
 
@@ -150,10 +198,13 @@ impl ToUpperCase {
 pub enum CommonTask {
   StringConstant(String),
   ReadStringFromFile(ReadStringFromFile),
+  ReadIndirectStringFromFile(ReadIndirectStringFromFile),
   WriteStringToFile(WriteStringToFile),
   ListDirectory(ListDirectory),
   ToLowerCase(ToLowerCase),
   ToUpperCase(ToUpperCase),
+  RequireTaskOnFileExists(RequireTaskOnFileExists),
+  Sequence(Sequence),
   RequireSelf,
   RequireCycleA,
   RequireCycleB,
@@ -167,6 +218,9 @@ impl CommonTask {
   }
   pub fn read_string_from_file(path: impl Into<PathBuf>, stamper: FileStamper) -> Self {
     Self::ReadStringFromFile(ReadStringFromFile(path.into(), stamper))
+  }
+  pub fn read_indirect_string_from_file(path: impl Into<PathBuf>, stamper: FileStamper) -> Self {
+    Self::ReadIndirectStringFromFile(ReadIndirectStringFromFile(path.into(), stamper))
   }
   pub fn write_string_to_file(string_provider: impl Into<Box<CommonTask>>, path: impl Into<PathBuf>, stamper: FileStamper) -> Self {
     Self::WriteStringToFile(WriteStringToFile(string_provider.into(), path.into(), stamper))
@@ -185,6 +239,13 @@ impl CommonTask {
   }
   pub fn to_upper_case(string_provider: impl Into<Box<CommonTask>>) -> Self {
     Self::ToUpperCase(ToUpperCase(string_provider.into()))
+  }
+  pub fn require_task_on_file_exists(task: impl Into<Box<CommonTask>>, path: impl Into<PathBuf>) -> Self {
+    Self::RequireTaskOnFileExists(RequireTaskOnFileExists(task.into(), path.into()))
+  }
+  pub fn sequence(tasks: impl Into<Vec<CommonTask>>) -> Self {
+    let tasks: Vec<Box<CommonTask>> = tasks.into().into_iter().map(|t| Box::new(t)).collect();
+    Self::Sequence(Sequence(tasks))
   }
 
   pub fn require_self() -> Self {
@@ -206,6 +267,8 @@ pub enum CommonOutput {
   ListDirectory(Result<String, ()>),
   ToLowerCase(Result<String, ()>),
   ToUpperCase(Result<String, ()>),
+  RequireTaskOnFileExists(Result<(), ()>),
+  Sequence(Result<(), ()>),
 }
 
 #[allow(clippy::wrong_self_convention)]
@@ -222,7 +285,11 @@ impl CommonOutput {
   pub fn to_lower_case_ok(string: impl Into<String>) -> Self { Self::ToLowerCase(Ok(string.into())) }
   pub fn to_upper_case(result: impl Into<Result<String, ()>>) -> Self { Self::ToUpperCase(result.into()) }
   pub fn to_upper_case_ok(string: impl Into<String>) -> Self { Self::ToUpperCase(Ok(string.into())) }
-  
+  pub fn require_task_on_file_exists(result: Result<(), ()>) -> Self { Self::RequireTaskOnFileExists(result) }
+  pub fn require_task_on_file_exists_ok() -> Self { Self::RequireTaskOnFileExists(Ok(())) }
+  pub fn sequence(result: Result<(), ()>) -> Self { Self::Sequence(result) }
+  pub fn sequence_ok() -> Self { Self::Sequence(Ok(())) }
+
   pub fn into_string(self) -> Result<String, ()> {
     use CommonOutput::*;
     let string = match self {
@@ -235,6 +302,19 @@ impl CommonOutput {
     };
     Ok(string)
   }
+  pub fn into_result(self) -> Result<(), ()> {
+    use CommonOutput::*;
+    match self {
+      StringConstant(_) => Ok(()),
+      ReadStringFromFile(r) => r.map(|_| ()),
+      WriteStringToFile(r) => r,
+      ListDirectory(r) => r.map(|_| ()),
+      ToLowerCase(r) => r.map(|_| ()),
+      ToUpperCase(r) => r.map(|_| ()),
+      RequireTaskOnFileExists(r) => r,
+      Sequence(r) => r,
+    }
+  }
 }
 
 impl Task for CommonTask {
@@ -244,10 +324,13 @@ impl Task for CommonTask {
     match self {
       CommonTask::StringConstant(s) => CommonOutput::StringConstant(s.clone()),
       CommonTask::ReadStringFromFile(task) => CommonOutput::ReadStringFromFile(task.execute(context)),
+      CommonTask::ReadIndirectStringFromFile(task) => CommonOutput::ReadStringFromFile(task.execute(context)),
       CommonTask::WriteStringToFile(task) => CommonOutput::WriteStringToFile(task.execute(context)),
       CommonTask::ListDirectory(task) => CommonOutput::ListDirectory(task.execute(context)),
       CommonTask::ToLowerCase(task) => CommonOutput::ToLowerCase(task.execute(context)),
       CommonTask::ToUpperCase(task) => CommonOutput::ToUpperCase(task.execute(context)),
+      CommonTask::RequireTaskOnFileExists(task) => CommonOutput::RequireTaskOnFileExists(task.execute(context)),
+      CommonTask::Sequence(task) => CommonOutput::Sequence(task.execute(context)),
       CommonTask::RequireSelf => context.require_task(&CommonTask::RequireSelf),
       CommonTask::RequireCycleA => context.require_task(&CommonTask::RequireCycleB),
       CommonTask::RequireCycleB => context.require_task(&CommonTask::RequireCycleA),
