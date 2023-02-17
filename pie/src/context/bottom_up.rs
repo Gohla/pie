@@ -143,7 +143,7 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> IncrementalBottom
   #[inline]
   fn require_scheduled_now(&mut self, task_node_id: &TaskNodeId) -> Option<T::Output> {
     while self.scheduled.is_not_empty() {
-      if let Some(min_task_node_id) = self.scheduled.pop_least_task_with_dependency_to(task_node_id, &self.shared.session.store) {
+      if let Some(min_task_node_id) = self.scheduled.pop_least_task_with_dependency_from(task_node_id, &self.shared.session.store) {
         let output = self.execute_and_schedule(min_task_node_id);
         if min_task_node_id == *task_node_id {
           return Some(output);
@@ -264,25 +264,38 @@ impl<H: BuildHasher + Default> Queue<H> {
   #[inline]
   fn pop<T: Task>(&mut self, store: &Store<T, H>) -> Option<TaskNodeId> {
     self.sort_by_dependencies(store);
-    self.vec.pop()
+    if let r @ Some(task_node_id) = self.vec.pop() {
+      self.set.remove(&task_node_id);
+      r
+    } else {
+      None
+    }
   }
 
-  /// Remove the last task (task with the least amount of dependencies to other tasks in the queue) that has a
-  /// (transitive) dependency to given task, and return it.
+  /// Return the index and id of the least task (task with the least amount of dependencies to other tasks in the queue) 
+  /// that has a (transitive) dependency from task `depender`.
   #[inline]
-  fn pop_least_task_with_dependency_to<T: Task>(&mut self, depender: &TaskNodeId, store: &Store<T, H>) -> Option<TaskNodeId> {
+  fn pop_least_task_with_dependency_from<T: Task>(&mut self, depender: &TaskNodeId, store: &Store<T, H>) -> Option<TaskNodeId> {
     self.sort_by_dependencies(store);
-    let tasks: Vec<(usize, &TaskNodeId)> = self.vec.iter().enumerate().rev().collect(); // TODO: remove copy?
-    for (idx, dependee) in tasks {
+    let mut found = None;
+    for (idx, dependee) in self.vec.iter().enumerate().rev() {
       if depender == dependee || store.contains_transitive_task_dependency(depender, dependee) {
-        return Some(self.vec.swap_remove(idx));
+        found = Some((idx, *dependee));
+        break;
       }
+    }
+    if let Some((index, task_node_id)) = found {
+      self.vec.swap_remove(index);
+      self.set.remove(&task_node_id);
+      return Some(task_node_id);
     }
     None
   }
 
   #[inline]
-  fn sort_by_dependencies<T: Task>(&mut self, store: &Store<T, H>) { // TODO: use select_nth_unstable_by(0) to get the sorted top element for pop?
+  fn sort_by_dependencies<T: Task>(&mut self, store: &Store<T, H>) {
+    // TODO: only sort if needed? Removing elements should not require a resort?
+    // TODO: use select_nth_unstable_by(0) to get the sorted top element for pop?
     self.vec.sort_unstable_by(|n1, n2| store.graph.topo_cmp(n1, n2));
   }
 } 
