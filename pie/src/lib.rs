@@ -88,13 +88,7 @@ pub struct Pie<T: Task, A = NoopTracker<T>, H = RandomState> {
 
 impl<T: Task> Default for Pie<T> {
   #[inline]
-  fn default() -> Self { Self { store: Store::default(), tracker: NoopTracker::default() } }
-}
-
-impl<T: Task> Pie<T> {
-  /// Creates a new [`Pie`] instance.
-  #[inline]
-  pub fn new() -> Self { Self::default() }
+  fn default() -> Self { Self::new(NoopTracker::default()) }
 }
 
 impl<T: Task, A: Tracker<T> + Default> Pie<T, A> {
@@ -104,6 +98,10 @@ impl<T: Task, A: Tracker<T> + Default> Pie<T, A> {
 }
 
 impl<T: Task, A: Tracker<T> + Default, H: BuildHasher + Default> Pie<T, A, H> {
+  /// Creates a new [`Pie`] instance with given `tracker`.
+  #[inline]
+  pub fn new(tracker: A) -> Self { Self { store: Store::default(), tracker } }
+
   /// Creates a new build session. Only one session may be active at once, enforced via mutable (exclusive) borrow.
   #[inline]
   pub fn new_session(&mut self) -> Session<T, A, H> { Session::new(self) }

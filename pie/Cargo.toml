@@ -12,14 +12,21 @@ sha2 = { version = "0.10", optional = true }
 walkdir = { version = "2", optional = true }
 
 [dev-dependencies]
+dev_shared = { path = "../dev_shared" }
 serde = "1"
 rstest = "0.16"
 tempfile = "3"
 assert_matches = "1"
 ron = "0.8"
+criterion = "0.4"
+rustc-hash = "1"
 
 [features]
-default = ["recursive_stampers", "hash_stampers"]
+default = ["recursive_stampers", "hash_stampers", "serde"]
 serde = ["dep:serde"]
 recursive_stampers = ["dep:walkdir"]
 hash_stampers = ["dep:sha2"]
+
+[[bench]]
+name = "top_down"
+harness = false

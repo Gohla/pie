@@ -7,15 +7,13 @@ use tempfile::TempDir;
 use ::pie::stamp::FileStamper;
 use ::pie::tracker::event::Event::*;
 
-use crate::common::{CheckErrorExt, CommonOutput, CommonTask, Pie};
-
-mod common;
+use dev_shared::{CheckErrorExt, CommonOutput, CommonTask, Pie};
 
 #[fixture]
-fn pie() -> Pie<CommonTask> { common::create_pie() }
+fn pie() -> Pie<CommonTask> { dev_shared::create_pie() }
 
 #[fixture]
-fn temp_dir() -> TempDir { common::temp_dir() }
+fn temp_dir() -> TempDir { dev_shared::temp_dir() }
 
 
 #[rstest]

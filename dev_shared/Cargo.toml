@@ -1,0 +1,11 @@
+[package]
+name = "dev_shared"
+version = "0.1.0"
+authors = ["Gabriel Konat <gabrielkonat@gmail.com>"]
+edition = "2021"
+publish = false
+
+[dependencies]
+pie = { path = "../pie" }
+serde = "1"
+tempfile = "3"
