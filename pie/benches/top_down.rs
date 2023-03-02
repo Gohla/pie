@@ -9,9 +9,10 @@ use pie::stamp::FileStamper;
 use pie::tracker::NoopTracker;
 
 pub fn bench_task_with_dependencies(c: &mut Criterion) {
-  let mut g = c.benchmark_group("top-down check task with N*3 dependencies");
+  let mut g = c.benchmark_group("top-down check task with N dependencies");
   for (size, sample_size) in [(1000, 100), (10_000, 20), (100_000, 10)] {
-    g.throughput(Throughput::Elements(size as u64));
+    let num_dependencies = size * 3;
+    g.throughput(Throughput::Elements(num_dependencies as u64));
     g.sample_size(sample_size);
 
     // Create task that depends on N tasks that read files.
@@ -23,7 +24,7 @@ pub fn bench_task_with_dependencies(c: &mut Criterion) {
     }
     let task = CommonTask::sequence(tasks);
 
-    g.bench_function(BenchmarkId::from_parameter(size), |b| {
+    g.bench_function(BenchmarkId::from_parameter(num_dependencies), |b| {
       b.iter_batched(
         || {
           let mut pie = Pie::<_, _, BuildHasherDefault<FxHasher>>::new(NoopTracker::default());
