@@ -11,7 +11,6 @@ use crate::tracker::Tracker;
 pub(crate) mod bottom_up;
 pub(crate) mod top_down;
 
-#[derive(Debug)]
 struct ContextShared<'p, 's, T: Task, A, H> {
   pub(crate) session: &'s mut Session<'p, T, A, H>,
   pub(crate) task_execution_stack: Vec<TaskNodeId>,

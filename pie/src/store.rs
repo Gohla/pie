@@ -10,7 +10,6 @@ use crate::Task;
 pub type TaskNodeId = NodeId;
 pub type FileNodeId = NodeId;
 
-#[derive(Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub(crate) struct Store<T: Task, H> {
   #[cfg_attr(feature = "serde", serde(bound(
@@ -102,16 +101,8 @@ impl<T: Task, H: BuildHasher + Default> Store<T, H> {
   }
 
   #[inline]
-  pub fn remove_dependencies_of_task(&mut self, depender: &TaskNodeId) -> Option<Vec<(NodeId, Option<Dependency<T, T::Output>>)>> {
-    self.graph.remove_dependencies_of_node(depender)
-  }
-  #[inline]
-  pub fn set_dependencies_of_task(&mut self, depender: &TaskNodeId, new_dependencies: Vec<(NodeId, Option<Dependency<T, T::Output>>)>) -> Result<(), pie_graph::Error> {
-    self.graph.remove_dependencies_of_node(depender);
-    for (dependee, dependency) in new_dependencies {
-      self.graph.add_edge(depender, dependee, dependency)?;
-    }
-    Ok(())
+  pub fn get_dependencies_of_task<'a>(&'a self, depender: &'a TaskNodeId) -> impl Iterator<Item=NodeId> + 'a {
+    self.graph.get_outgoing_dependency_nodes(depender).copied()
   }
   #[inline]
   pub fn add_to_dependencies_of_task(&mut self, depender: &TaskNodeId, dependee: &NodeId, dependency: Option<Dependency<T, T::Output>>) -> Result<(), pie_graph::Error> {
@@ -176,8 +167,8 @@ impl<T: Task, H: BuildHasher + Default> Store<T, H> {
   pub fn contains_transitive_task_dependency(&self, depender: &TaskNodeId, dependee: &TaskNodeId) -> bool {
     self.graph.contains_transitive_dependency(depender, dependee)
   }
-
-
+  
+  
   /// Get all requirer task nodes and corresponding dependencies of tasks that require given `task_node`.
   #[inline]
   pub fn get_tasks_requiring_task<'a>(&'a self, task_node: &'a TaskNodeId) -> impl Iterator<Item=(&TaskNodeId, &TaskDependency<T, T::Output>)> + '_ {

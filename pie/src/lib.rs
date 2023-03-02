@@ -80,7 +80,6 @@ pub trait Context<T: Task> {
 
 
 /// Main entry point into the PIE build system.
-#[derive(Debug)]
 pub struct Pie<T: Task, A = NoopTracker<T>, H = RandomState> {
   store: Store<T, H>,
   tracker: A,
@@ -142,7 +141,6 @@ impl<T: Task, A: Tracker<T> + Default, H: BuildHasher + Default> Pie<T, A, H> {
 
 
 /// A session in which builds are executed. Every task is executed at most once each session.
-#[derive(Debug)]
 pub struct Session<'p, T: Task, A, H> {
   store: &'p mut Store<T, H>,
   tracker: &'p mut A,

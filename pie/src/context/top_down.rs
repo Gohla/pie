@@ -1,6 +1,9 @@
+use std::cell::Cell;
 use std::fs::File;
 use std::hash::BuildHasher;
 use std::path::PathBuf;
+
+use pie_graph::NodeId;
 
 use crate::{Context, Session, Task};
 use crate::context::ContextShared;
@@ -9,9 +12,9 @@ use crate::store::TaskNodeId;
 use crate::tracker::Tracker;
 
 /// Context that incrementally executes tasks and checks dependencies recursively in a top-down manner.
-#[derive(Debug)]
 pub(crate) struct IncrementalTopDownContext<'p, 's, T: Task, A, H> {
   shared: ContextShared<'p, 's, T, A, H>,
+  task_dependees_cache: Cell<Vec<NodeId>>,
 }
 
 impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> IncrementalTopDownContext<'p, 's, T, A, H> {
@@ -20,6 +23,7 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> IncrementalTopDow
   pub(crate) fn new(session: &'s mut Session<'p, T, A, H>) -> Self {
     Self {
       shared: ContextShared::new(session),
+      task_dependees_cache: Cell::default(),
     }
   }
 
@@ -79,43 +83,52 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> Context<T> for In
 impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> IncrementalTopDownContext<'p, 's, T, A, H> {
   fn should_execute_task(&mut self, task_node: &TaskNodeId, task: &T) -> bool {
     self.shared.session.tracker.check_top_down_start(task);
+    
+    let mut task_dependees = self.task_dependees_cache.take();
+    task_dependees.clear();
+    task_dependees.extend(self.shared.session.store.get_dependencies_of_task(task_node));
+    let mut has_dependencies = false;
 
-    // Remove task dependencies so that we get ownership over the list of dependencies. If the task does not need to be
-    // executed, we will restore the dependencies again.
-    let task_dependencies = self.shared.session.store.remove_dependencies_of_task(task_node);
-    let result = if let Some(task_dependencies) = task_dependencies {
+    for dependee in &task_dependees {
       // Task has been executed before, check whether all its dependencies are still consistent. If one or more are not,
       // we need to execute the task.
-      for (_, dependency) in &task_dependencies {
-        if let Some(dependency) = dependency {
-          self.shared.session.tracker.check_dependency_start(dependency);
-          let inconsistent = dependency.is_inconsistent(self);
-          self.shared.session.tracker.check_dependency_end(dependency, inconsistent.as_ref().map_err(|e| e.as_ref()).map(|o| o.as_ref()));
-          match inconsistent {
-            Ok(Some(_)) => { // Not consistent -> should execute task.
-              self.shared.session.tracker.check_top_down_end(task); // TODO: merge with second to last line in this function somehow
-              return true;
-            }
-            Err(e) => { // Error -> store error and assume not consistent -> should execute task.
-              self.shared.session.dependency_check_errors.push(e);
-              self.shared.session.tracker.check_top_down_end(task); // TODO: merge with second to last line in this function somehow
-              return true;
-            }
-            _ => {} // Continue to check other dependencies.
+      has_dependencies = true;
+      // Unwrap OK: first Option is only None if `task_node` or `dependee` does not exist, but they do exist.
+      let dependency = self.shared.session.store.graph.get_dependency_data(task_node, dependee).unwrap().clone();
+      if let Some(dependency) = dependency {
+        self.shared.session.tracker.check_dependency_start(&dependency);
+        let inconsistent = dependency.is_inconsistent(self);
+        self.shared.session.tracker.check_dependency_end(&dependency, inconsistent.as_ref().map_err(|e| e.as_ref()).map(|o| o.as_ref()));
+        match inconsistent {
+          Ok(Some(_)) => { // Not consistent -> should execute task.
+            self.task_dependees_cache.set(task_dependees); // TODO: merge with second to last line in this function somehow
+            self.shared.session.tracker.check_top_down_end(task);
+            return true;
           }
+          Err(e) => { // Error -> store error and assume not consistent -> should execute task.
+            self.shared.session.dependency_check_errors.push(e);
+            self.task_dependees_cache.set(task_dependees); // TODO: merge with second to last line in this function somehow
+            self.shared.session.tracker.check_top_down_end(task);
+            return true;
+          }
+          _ => {} // Continue to check other dependencies.
         }
       }
-      // Task is consistent and does not need to be executed. Restore the previous dependencies.
-      self.shared.session.store.set_dependencies_of_task(task_node, task_dependencies).ok(); // Ok: dependencies did not induce a cycle before, so we can ignore the error when setting the same dependencies again.
-      false
-    } else if self.shared.session.store.task_has_output(task_node) {
-      // Task has no dependencies; but has been executed before, so it never has to be executed again.
+    }
+
+    let result = if has_dependencies {
       false
     } else {
-      // Task has not been executed, so we need to execute it.
-      true
+      if self.shared.session.store.task_has_output(task_node) {
+        // Task has no dependencies; but has been executed before, so it never has to be executed again.
+        false
+      } else {
+        // Task has not been executed, so we need to execute it.
+        true
+      }
     };
 
+    self.task_dependees_cache.set(task_dependees);
     self.shared.session.tracker.check_top_down_end(task);
     result
   }

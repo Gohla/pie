@@ -1,4 +1,4 @@
-#![forbid(unsafe_code, missing_docs, missing_debug_implementations)]
+#![forbid(unsafe_code, missing_docs)]
 
 //! The purpose of this crate is to maintain an topological order in the face
 //! of single updates, like adding new nodes, adding new depedencies, deleting
@@ -91,6 +91,7 @@ use std::{
   fmt,
   iter::Iterator,
 };
+use std::cell::Cell;
 use std::collections::{HashMap, HashSet};
 use std::collections::hash_map::RandomState;
 use std::hash::BuildHasher;
@@ -106,7 +107,6 @@ type TopoOrder = u32;
 /// See the [module-level documentation] for more information.
 ///
 /// [module-level documentation]: index.html
-#[derive(Clone, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct DAG<N, E, H = RandomState> {
   #[cfg_attr(feature = "serde", serde(bound(
@@ -120,6 +120,9 @@ pub struct DAG<N, E, H = RandomState> {
   )))] // Set bounds such that `H` does not have to be (de)serializable
   edges: HashMap<(NodeId, NodeId), E, H>,
   last_topo_order: TopoOrder,
+
+  #[cfg_attr(feature = "serde", serde(skip))]
+  stack_visited_scratch_space: Cell<StackVisitedScratchSpace<NodeId, H>>,
 }
 
 
@@ -218,7 +221,14 @@ impl<N, E, H: BuildHasher + Default> DAG<N, E, H> {
   /// assert!(dag.is_empty());
   /// ```
   #[inline]
-  pub fn with_default_hasher() -> Self { Self { last_topo_order: 0, nodes: SlotMap::new(), edges: Default::default() } }
+  pub fn with_default_hasher() -> Self {
+    Self {
+      last_topo_order: 0,
+      nodes: SlotMap::new(),
+      edges: Default::default(),
+      stack_visited_scratch_space: Cell::default(),
+    }
+  }
 
   /// Add a new node with `data` to the graph and return a unique [`NodeId`] which identifies it.
   ///
@@ -511,29 +521,31 @@ impl<N, E, H: BuildHasher + Default> DAG<N, E, H> {
     // Else we have to search the graph. Using dfs in this case because it avoids
     // the overhead of the binary heap, and this task doesn't really need ordered
     // descendants.
-    let mut stack = Vec::new(); // OPTO: reuse allocation
-    let mut visited = HashSet::<_, H>::default(); // OPTO: reuse allocation
-
-    stack.push(pred);
+    let mut scratch = self.stack_visited_scratch_space.take();
+    scratch.clear();
+    scratch.stack.push(*pred);
 
     // For each node key popped off the stack, check that we haven't seen it
     // before, then check if its children contain the node we're searching for.
     // If they don't, continue the search by extending the stack with the children.
-    while let Some(key) = stack.pop() {
-      if visited.contains(&key) {
+    while let Some(key) = scratch.stack.pop() {
+      if scratch.visited.contains(&key) {
         continue;
       } else {
-        visited.insert(key);
+        scratch.visited.insert(key);
       }
 
       let children = &self.nodes.get(key.0).unwrap().children;
       if children.contains(succ) {
+        self.stack_visited_scratch_space.set(scratch);
         return true;
       } else {
-        stack.extend(children.iter());
+        scratch.stack.extend(children.iter());
         continue;
       }
     }
+
+    self.stack_visited_scratch_space.set(scratch);
 
     // If we exhaust the stack, then there is no transitive dependency.
     false
@@ -1035,7 +1047,6 @@ impl<N, E, H: BuildHasher + Default> DAG<N, E, H> {
 ///
 /// assert_eq!(pairs, expected_pairs);
 /// ```
-#[derive(Debug)]
 pub struct DescendantsUnsorted<'a, N, E, H> {
   dag: &'a DAG<N, E, H>,
   stack: Vec<NodeId>,
@@ -1084,7 +1095,6 @@ impl<'a, N, E, H: BuildHasher> Iterator for DescendantsUnsorted<'a, N, E, H> {
 ///
 /// assert_eq!(ordered_nodes, vec![dog, cat, mouse]);
 /// ```
-#[derive(Debug)]
 pub struct Descendants<'a, N, E, H> {
   dag: &'a DAG<N, E, H>,
   queue: BinaryHeap<(Reverse<TopoOrder>, NodeId)>,
@@ -1114,6 +1124,26 @@ impl<'a, N, E, H: BuildHasher + Default> Iterator for Descendants<'a, N, E, H> {
         None
       };
     }
+  }
+}
+
+
+#[derive(Debug)]
+struct StackVisitedScratchSpace<T, H> {
+  stack: Vec<T>,
+  visited: HashSet<T, H>,
+}
+
+impl<T, H: Default> Default for StackVisitedScratchSpace<T, H> {
+  fn default() -> Self {
+    Self { stack: Vec::new(), visited: HashSet::<_, H>::default() }
+  }
+}
+
+impl<T, H> StackVisitedScratchSpace<T, H> {
+  fn clear(&mut self) {
+    self.stack.clear();
+    self.visited.clear();
   }
 }
 

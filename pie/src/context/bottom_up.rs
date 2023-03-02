@@ -13,7 +13,6 @@ use crate::store::{FileNodeId, Store};
 use crate::tracker::Tracker;
 
 /// Context that incrementally executes tasks and checks dependencies in a bottom-up manner.
-#[derive(Debug)]
 pub(crate) struct IncrementalBottomUpContext<'p, 's, T: Task, A, H> {
   shared: ContextShared<'p, 's, T, A, H>,
   scheduled: Queue<H>,
