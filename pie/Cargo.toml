@@ -27,9 +27,5 @@ recursive_stampers = ["dep:walkdir"]
 hash_stampers = ["dep:sha2"]
 
 [[bench]]
-name = "top_down"
-harness = false
-
-[[bench]]
-name = "bottom_up"
+name = "scalability"
 harness = false
