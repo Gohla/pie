@@ -192,7 +192,8 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> IncrementalBottom
       //    the task and all its (indirect) dependencies consistent.
       // 
       // All case cannot occur, thus the task cannot be affected. Therefore, we don't have to execute the task.
-
+      self.shared.session.tracker.up_to_date(task);
+      
       // Unwrap OK: we don't have to execute the task and an output exists.
       let output = self.shared.session.store.get_task_output(&task_node_id).unwrap().clone();
       output

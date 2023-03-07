@@ -52,6 +52,7 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> Context<T> for In
       self.shared.post_execute(task, task_node_id, &output);
       output
     } else { // Return already up-to-date output.
+      self.shared.session.tracker.up_to_date(task);
       // Unwrap OK: if we should not execute the task, it must have been executed before, and therefore it has an output.
       let output = self.shared.session.store.get_task_output(&task_node_id).unwrap().clone();
       output

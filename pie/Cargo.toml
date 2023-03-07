@@ -19,7 +19,6 @@ tempfile = "3"
 assert_matches = "1"
 ron = "0.8"
 criterion = { version = "0.4", features = ["html_reports"] }
-rustc-hash = "1"
 
 [features]
 default = ["recursive_stampers", "hash_stampers", "serde"]
@@ -29,4 +28,8 @@ hash_stampers = ["dep:sha2"]
 
 [[bench]]
 name = "top_down"
+harness = false
+
+[[bench]]
+name = "bottom_up"
 harness = false

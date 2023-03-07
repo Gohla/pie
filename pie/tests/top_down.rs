@@ -6,14 +6,15 @@ use tempfile::TempDir;
 
 use ::pie::stamp::FileStamper;
 use ::pie::tracker::event::Event::*;
-
-use dev_shared::{CheckErrorExt, CommonOutput, CommonTask, Pie};
-
-#[fixture]
-fn pie() -> Pie<CommonTask> { dev_shared::create_pie() }
+use dev_shared::check::CheckErrorExt;
+use dev_shared::task::{CommonOutput, CommonTask};
+use dev_shared::test::Pie;
 
 #[fixture]
-fn temp_dir() -> TempDir { dev_shared::temp_dir() }
+fn pie() -> Pie<CommonTask> { dev_shared::test::create_pie() }
+
+#[fixture]
+fn temp_dir() -> TempDir { dev_shared::create_temp_dir() }
 
 
 #[rstest]
@@ -65,7 +66,6 @@ fn test_reuse(mut pie: Pie<CommonTask>) {
     assert!(tracker.contains_no_execute_start());
   });
 }
-
 
 #[rstest]
 fn test_require_task(mut pie: Pie<CommonTask>, temp_dir: TempDir) {

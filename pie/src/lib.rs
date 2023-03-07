@@ -117,6 +117,12 @@ impl<T: Task, A: Tracker<T> + Default, H: BuildHasher + Default> Pie<T, A, H> {
   /// Gets the mutable [`Tracker`] instance.
   #[inline]
   pub fn tracker_mut(&mut self) -> &mut A { &mut self.tracker }
+  /// Creates a new [`Pie`] instance with its tracker replaced with `tracker`.
+  #[inline]
+  pub fn replace_tracker<AA: Tracker<T>>(self, tracker: AA) -> Pie<T, AA, H> {
+    let store = self.store;
+    Pie { store, tracker }
+  }
 
   /// Serializes the state with the given `serializer`.
   #[cfg(feature = "serde")]

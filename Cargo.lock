@@ -230,6 +230,7 @@ name = "dev_shared"
 version = "0.1.0"
 dependencies = [
  "pie",
+ "rustc-hash",
  "serde",
  "tempfile",
 ]
@@ -542,7 +543,6 @@ dependencies = [
  "pie_graph",
  "ron",
  "rstest",
- "rustc-hash",
  "serde",
  "sha2",
  "tempfile",

@@ -2,13 +2,14 @@ use rstest::{fixture, rstest};
 use tempfile::TempDir;
 
 use ::pie::stamp::{FileStamp, FileStamper};
-use dev_shared::{CommonTask, Pie};
+use dev_shared::task::CommonTask;
+use dev_shared::test::Pie;
 
 #[fixture]
-fn pie() -> Pie<CommonTask> { dev_shared::create_pie() }
+fn pie() -> Pie<CommonTask> { dev_shared::test::create_pie() }
 
 #[fixture]
-fn temp_dir() -> TempDir { dev_shared::temp_dir() }
+fn temp_dir() -> TempDir { dev_shared::create_temp_dir() }
 
 
 #[rstest]

@@ -7,6 +7,7 @@ use crate::stamp::{FileStamp, OutputStamp};
 use crate::Task;
 
 pub mod writing;
+pub mod metrics;
 pub mod event;
 
 /// Trait for tracking build events. Can be used to implement logging, event tracing, and possibly progress tracking.

@@ -7,13 +7,15 @@ use std::path::PathBuf;
 use crate::dependency::{FileDependency, TaskDependency};
 use crate::stamp::{FileStamp, OutputStamp};
 use crate::Task;
+use crate::tracker::metrics::MetricsTracker;
 use crate::tracker::Tracker;
 
 /// A [`Tracker`] that writes events to a [`std::io::Write`] instance, for example [`std::io::Stdout`].
-#[derive(Debug, Clone)]
+#[derive(Clone, Debug)]
 pub struct WritingTracker<W, T> {
   writer: W,
   indentation: u32,
+  metrics_tracker: Option<MetricsTracker<T>>,
   _task_phantom: PhantomData<T>,
 }
 
@@ -29,7 +31,14 @@ impl<T> Default for WritingTracker<Stderr, T> {
 
 impl<W: io::Write, T> WritingTracker<W, T> {
   #[inline]
-  pub fn new(writer: W) -> Self { Self { writer, indentation: 0, _task_phantom: Default::default() } }
+  pub fn new(writer: W) -> Self {
+    Self {
+      writer,
+      indentation: 0,
+      metrics_tracker: Some(MetricsTracker::default()),
+      _task_phantom: Default::default(),
+    }
+  }
 }
 
 impl<T> WritingTracker<Stdout, T> {
@@ -44,14 +53,29 @@ impl<T> WritingTracker<Stderr, T> {
 
 impl<W: io::Write, T: Task> Tracker<T> for WritingTracker<W, T> {
   #[inline]
-  fn require_file(&mut self, _dependency: &FileDependency) {}
+  fn require_file(&mut self, dependency: &FileDependency) {
+    if let Some(metrics) = &mut self.metrics_tracker {
+      metrics.require_file(dependency);
+    }
+  }
   #[inline]
-  fn provide_file(&mut self, _dependency: &FileDependency) {}
+  fn provide_file(&mut self, dependency: &FileDependency) {
+    if let Some(metrics) = &mut self.metrics_tracker {
+      metrics.provide_file(dependency);
+    }
+  }
   #[inline]
-  fn require_task(&mut self, _task: &T) {}
+  fn require_task(&mut self, task: &T) {
+    if let Some(metrics) = &mut self.metrics_tracker {
+      metrics.require_task(task);
+    }
+  }
 
   #[inline]
   fn execute_task_start(&mut self, task: &T) {
+    if let Some(metrics) = &mut self.metrics_tracker {
+      metrics.execute_task_start(task);
+    }
     self.writeln(format_args!("→ {:?}", task));
     self.indent();
   }
@@ -62,18 +86,32 @@ impl<W: io::Write, T: Task> Tracker<T> for WritingTracker<W, T> {
   }
   #[inline]
   fn up_to_date(&mut self, task: &T) {
+    if let Some(metrics) = &mut self.metrics_tracker {
+      metrics.up_to_date(task);
+    }
     self.writeln(format_args!("✓ {:?}", task))
   }
 
   #[inline]
   fn require_top_down_initial_start(&mut self, task: &T) {
+    if let Some(metrics) = &mut self.metrics_tracker {
+      metrics.require_top_down_initial_start(task);
+    }
     self.writeln(format_args!("Top-down build start: {:?}", task));
     self.indent();
   }
   #[inline]
-  fn require_top_down_initial_end(&mut self, _task: &T, output: &T::Output) {
+  fn require_top_down_initial_end(&mut self, task: &T, output: &T::Output) {
+    let duration = self.metrics_tracker.as_mut().map(|metrics| {
+      metrics.require_top_down_initial_end(task, output);
+      metrics.report().build_duration
+    });
     self.unindent();
-    self.writeln(format_args!("Top-down build end: {:?}", output));
+    self.write(format_args!("Top-down build end: {:?}", output));
+    if let Some(duration) = duration {
+      self.write(format_args!(" [{:.3}ms]", duration.as_secs_f64() * 1000.0));
+    }
+    self.write_nl();
   }
   #[inline]
   fn check_top_down_start(&mut self, task: &T) {
@@ -105,6 +143,9 @@ impl<W: io::Write, T: Task> Tracker<T> for WritingTracker<W, T> {
 
   #[inline]
   fn update_affected_by_start<'a, I: IntoIterator<Item=&'a PathBuf> + Clone>(&mut self, changed_files: I) {
+    if let Some(metrics) = &mut self.metrics_tracker {
+      metrics.update_affected_by_start(changed_files.clone());
+    }
     self.write_indentation();
     self.write(format_args!("Bottom-up build start: "));
     let mut iter = changed_files.into_iter();
@@ -119,8 +160,16 @@ impl<W: io::Write, T: Task> Tracker<T> for WritingTracker<W, T> {
   }
   #[inline]
   fn update_affected_by_end(&mut self) {
+    let duration = self.metrics_tracker.as_mut().map(|metrics| {
+      metrics.update_affected_by_end();
+      metrics.report().build_duration
+    });
     self.unindent();
-    self.writeln(format_args!("Bottom-up build end"));
+    self.write(format_args!("Bottom-up build end"));
+    if let Some(duration) = duration {
+      self.write(format_args!(" [{:.3}ms]", duration.as_secs_f64() * 1000.0));
+    }
+    self.write_nl();
   }
   #[inline]
   fn check_affected_by_file_start(&mut self, _requiring_task: &T, _dependency: &FileDependency) {}
