@@ -7,6 +7,18 @@ use serde::{Deserialize, Serialize};
 use pie::{Context, Task};
 use pie::stamp::FileStamper;
 
+// File exists
+
+#[derive(Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Serialize, Deserialize, Debug)]
+pub struct FileExists(pub PathBuf);
+
+impl FileExists {
+  fn execute<T: Task, C: Context<T>>(&self, context: &mut C) -> Result<bool, ()> {
+    let result = context.require_file_with_stamper(&self.0, FileStamper::Exists).map_err(|_| ())?;
+    Ok(result.is_some())
+  }
+}
+
 // Read string from file task
 
 #[derive(Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Serialize, Deserialize, Debug)]
@@ -132,6 +144,7 @@ impl Sequence {
 #[derive(Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Serialize, Deserialize, Debug)]
 pub enum CommonTask {
   StringConstant(String),
+  FileExists(FileExists),
   ReadStringFromFile(ReadStringFromFile),
   ReadIndirectStringFromFile(ReadIndirectStringFromFile),
   WriteStringToFile(WriteStringToFile),
@@ -150,6 +163,9 @@ pub enum CommonTask {
 impl CommonTask {
   pub fn string_constant(string: impl Into<String>) -> Self {
     Self::StringConstant(string.into())
+  }
+  pub fn file_exists(path: impl Into<PathBuf>) -> Self {
+    Self::FileExists(FileExists(path.into()))
   }
   pub fn read_string_from_file(path: impl Into<PathBuf>, stamper: FileStamper) -> Self {
     Self::ReadStringFromFile(ReadStringFromFile(path.into(), stamper))
@@ -197,6 +213,7 @@ impl CommonTask {
 #[derive(Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Serialize, Deserialize, Debug)]
 pub enum CommonOutput {
   StringConstant(String),
+  FileExists(Result<bool, ()>),
   ReadStringFromFile(Result<String, ()>),
   WriteStringToFile(Result<(), ()>),
   ListDirectory(Result<String, ()>),
@@ -210,6 +227,8 @@ pub enum CommonOutput {
 #[allow(dead_code)]
 impl CommonOutput {
   pub fn string_constant(string: impl Into<String>) -> Self { Self::StringConstant(string.into()) }
+  pub fn file_exists(result: Result<bool, ()>) -> Self { Self::FileExists(result) }
+  pub fn file_exists_ok(result: bool) -> Self { Self::FileExists(Ok(result)) }
   pub fn read_string_from_file(result: Result<String, ()>) -> Self { Self::ReadStringFromFile(result) }
   pub fn read_string_from_file_ok(string: impl Into<String>) -> Self { Self::read_string_from_file(Ok(string.into())) }
   pub fn write_string_to_file(result: Result<(), ()>) -> Self { Self::WriteStringToFile(result) }
@@ -241,6 +260,7 @@ impl CommonOutput {
     use CommonOutput::*;
     match self {
       StringConstant(_) => Ok(()),
+      FileExists(r) => r.map(|_| ()),
       ReadStringFromFile(r) => r.map(|_| ()),
       WriteStringToFile(r) => r,
       ListDirectory(r) => r.map(|_| ()),
@@ -258,6 +278,7 @@ impl Task for CommonTask {
   fn execute<C: Context<Self>>(&self, context: &mut C) -> Self::Output {
     match self {
       CommonTask::StringConstant(s) => CommonOutput::StringConstant(s.clone()),
+      CommonTask::FileExists(task) => CommonOutput::FileExists(task.execute(context)),
       CommonTask::ReadStringFromFile(task) => CommonOutput::ReadStringFromFile(task.execute(context)),
       CommonTask::ReadIndirectStringFromFile(task) => CommonOutput::ReadStringFromFile(task.execute(context)),
       CommonTask::WriteStringToFile(task) => CommonOutput::WriteStringToFile(task.execute(context)),
