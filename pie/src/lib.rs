@@ -22,17 +22,10 @@ mod context;
 /// The unit of computation in a programmatic incremental build system.
 pub trait Task: Clone + Eq + Hash + Debug {
   /// The type of output this task produces when executed.
-  type Output: Output;
-  /// Execute the task, with `context` providing a means to specify dependencies, returning `Self::Output`.
+  type Output: Clone + Eq + Debug;
+  /// Execute the task, with `context` providing a means to specify dynamic dependencies, returning `Self::Output`.
   fn execute<C: Context<Self>>(&self, context: &mut C) -> Self::Output;
 }
-
-
-/// Trait alias for task outputs.
-pub trait Output: Clone + Eq + Debug {}
-
-impl<T: Clone + Eq + Debug> Output for T {}
-
 
 /// Incremental context, mediating between tasks and executors, enabling tasks to dynamically create dependencies that 
 /// executors use for incremental execution.

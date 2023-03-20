@@ -1,0 +1,10 @@
+[package]
+name = "stepper"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+tempfile = "3"
+
+[workspace]

@@ -8,6 +8,7 @@ use crate::stamp::{FileStamper, OutputStamper};
 use crate::store::TaskNodeId;
 use crate::tracker::Tracker;
 
+pub(crate) mod naive;
 pub(crate) mod bottom_up;
 pub(crate) mod top_down;
 

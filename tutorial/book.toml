@@ -1,0 +1,20 @@
+[book]
+authors = ["Gabriel Konat"]
+language = "en"
+multilingual = false
+src = "src"
+title = "Build your own Programmatic Incremental Build System"
+
+[preprocessor.external-links] # Enable external links preprocessor
+
+[preprocessor.admonish]
+command = "mdbook-admonish"
+assets_version = "2.0.0" # do not edit: managed by `mdbook-admonish install`
+
+[output.html]
+additional-js = ["src/diff.js"]
+additional-css = ["src/mdbook-admonish.css"]
+
+[output.html.playground]
+copy-js = false
+runnable = false
