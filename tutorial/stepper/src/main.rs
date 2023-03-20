@@ -10,7 +10,7 @@ fn main() {
     Addition::new("api/Cargo.toml", "Cargo.toml"),
     Addition::new("api/lib.rs", "src/lib.rs")
   ]);
-  stepper.step_addition(Addition::new("naive_context/lib.rs", "src/lib.rs"))
+  stepper.step_addition(Addition::new("api/non_incremental.rs", "src/lib.rs"))
 }
 
 struct Stepper {

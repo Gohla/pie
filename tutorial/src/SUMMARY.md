@@ -6,7 +6,6 @@
 
 - [Setup]()
 - [Programmable Build System API](./api/api.md)
-- [Naive Context](./naive_context/naive_context.md)
 
 # Incrementality
 

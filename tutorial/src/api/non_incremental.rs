@@ -1,6 +1,6 @@
-pub struct NaiveContext;
+pub struct NonIncrementalContext;
 
-impl<T: Task> Context<T> for NaiveContext {
+impl<T: Task> Context<T> for NonIncrementalContext {
   fn require_task(&mut self, task: &T) -> T::Output {
     task.execute(self)
   }
@@ -21,7 +21,7 @@ mod test {
       }
     }
 
-    let mut context = NaiveContext;
+    let mut context = NonIncrementalContext;
     assert_eq!("Hello World!", context.require_task(&ReturnHelloWorld));
   }
 
@@ -42,7 +42,7 @@ mod test {
       }
     }
 
-    let mut context = NaiveContext;
+    let mut context = NonIncrementalContext;
     assert_eq!("hello world!", context.require_task(&Test::ToLowerCase));
   }
 }
