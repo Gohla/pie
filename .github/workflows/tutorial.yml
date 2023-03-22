@@ -15,7 +15,7 @@ jobs:
         uses: peaceiris/actions-mdbook@v1
         with:
           mdbook-version: '0.4.28'
-      - id: cache
+      - id: cache-cargo-binaries
         uses: actions/cache@v3
         with:
           path: |
@@ -23,7 +23,9 @@ jobs:
             ~/.cargo/registry/index/
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+            ~/.cargo/.crates.toml
+            ~/.cargo/.crates2.json
+          key: ${{ runner.os }}-cargo-${{ hashFiles('~/.cargo/.crates.toml', '~/.cargo/.crates2.json') }}
           restore-keys: ${{ runner.os }}-cargo-
       - id: install-cargo-binstall
         uses: taiki-e/install-action@v2
