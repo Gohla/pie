@@ -19,7 +19,6 @@ jobs:
         run: |
           cp ~/.cargo/.crates.toml .crates.toml.hash
           cp ~/.cargo/.crates2.json .crates2.json.hash
-          mdbook build
       - id: cache-cargo-binaries
         uses: actions/cache@v3
         with:
