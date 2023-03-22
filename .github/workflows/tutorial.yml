@@ -15,6 +15,11 @@ jobs:
         uses: peaceiris/actions-mdbook@v1
         with:
           mdbook-version: '0.4.28'
+      - id: copy-files-for-hashing
+        run: |
+          cp ~/.cargo/.crates.toml .crates.toml.hash
+          cp ~/.cargo/.crates2.json .crates2.json.hash
+          mdbook build
       - id: cache-cargo-binaries
         uses: actions/cache@v3
         with:
@@ -25,7 +30,7 @@ jobs:
             ~/.cargo/git/db/
             ~/.cargo/.crates.toml
             ~/.cargo/.crates2.json
-          key: ${{ runner.os }}-cargo-${{ hashFiles('~/.cargo/.crates.toml', '~/.cargo/.crates2.json') }}
+          key: ${{ runner.os }}-cargo-${{ hashFiles('.crates.toml.hash', '.crates2.json.hash') }}
           restore-keys: ${{ runner.os }}-cargo-
       - id: install-cargo-binstall
         uses: taiki-e/install-action@v2
