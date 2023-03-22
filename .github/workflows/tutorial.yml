@@ -1,0 +1,33 @@
+name: Build and publish tutorial
+on:
+  push:
+    branches:
+      - master
+jobs:
+  deploy:
+    runs-on: ubuntu-20.04
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.ref }}
+    steps:
+      - id: checkout
+        uses: actions/checkout@v2
+      - id: setup-mdbook
+        uses: peaceiris/actions-mdbook@v1
+        with:
+          mdbook-version: '0.4.10'
+      - id: install-cargo-binstall
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-binstall
+      - id: install-mdbook-processors
+        run: cargo binstall --no-confirm --no-symlinks mdbook-admonish mdbook-external-links
+      - id: build
+        run: |
+          cd tutorial
+          mdbook build
+      - id: deploy
+        uses: peaceiris/actions-gh-pages@v3
+        if: ${{ github.ref == 'refs/heads/main' }}
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./tutorial/book
