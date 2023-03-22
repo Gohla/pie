@@ -96,3 +96,9 @@ However, incrementality is *hard*, so let's start with an extremely simple non-i
 ```rust
 {{#include non_incremental.rs}}
 ```
+
+```rust
+{{#include non_incremental_test_1.rs}}
+```
+
+TODO: include diff
