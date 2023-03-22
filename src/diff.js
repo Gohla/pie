@@ -9,7 +9,7 @@ document.addEventListener("DOMContentLoaded", (_) => {
           return line;
         } else {
           const removal = match.groups.diff === "-";
-          return `${match.groups.span ? `</span>` : ``}<span style="background-color: ${removal ? `#ffeef0` : `#f0fff4`};">${match.groups.rest}</span>`;
+          return `${match.groups.span ? `</span>` : ``}<span style="background-color: ${removal ? `#ffeef0` : `#f0fff4`}; display: inline-block; width: 100%;">${match.groups.rest}</span>`;
         }
       });
       el.innerHTML = lines.join("\n");
