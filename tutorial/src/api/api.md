@@ -101,4 +101,6 @@ However, incrementality is *hard*, so let's start with an extremely simple non-i
 {{#include non_incremental_test_1.rs}}
 ```
 
-TODO: include diff
+```rust,customdiff
+{{#include ../../stepper/out/non_incremental_test_2.rs.diff:4:}}
+```

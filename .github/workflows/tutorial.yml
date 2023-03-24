@@ -11,14 +11,16 @@ jobs:
     steps:
       - id: checkout
         uses: actions/checkout@v3
-      - id: setup-mdbook
-        uses: peaceiris/actions-mdbook@v1
+      - id: setup-rust
+        uses: ATiltedTree/setup-rust@v1
         with:
-          mdbook-version: '0.4.28'
+          rust-version: stable
+      # Copy files for hashing in the next step, as `hashFiles` only works inside the workspace, not the home directory.
       - id: copy-files-for-hashing
         run: |
           cp ~/.cargo/.crates.toml .crates.toml.hash
           cp ~/.cargo/.crates2.json .crates2.json.hash
+      # Caching for cargo binaries, mainly for speeding up `install-mdbook-processors`.
       - id: cache-cargo-binaries
         uses: actions/cache@v3
         with:
@@ -31,6 +33,21 @@ jobs:
             ~/.cargo/.crates2.json
           key: ${{ runner.os }}-cargo-${{ hashFiles('.crates.toml.hash', '.crates2.json.hash') }}
           restore-keys: ${{ runner.os }}-cargo-
+      # Caching for tutorial stepper application
+      - id: cache-stepper
+        uses: actions/cache@v3
+        with:
+          path: tutorial/stepper/target
+          key: ${{ runner.os }}-stepper-${{ hashFiles('tutorial/stepper/Cargo.lock') }}
+      # Run stepper to verify that tutorial code works, and to generate diffs.
+      - id: run-stepper
+        run: |
+          cd tutorial/stepper
+          cargo run
+      - id: setup-mdbook
+        uses: peaceiris/actions-mdbook@v1
+        with:
+          mdbook-version: '0.4.28'
       - id: install-cargo-binstall
         uses: taiki-e/install-action@v2
         with:

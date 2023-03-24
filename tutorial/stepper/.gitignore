@@ -2,3 +2,6 @@
 /target
 /target_wasm
 /**/wasm_out
+
+# Stepper output
+/out
