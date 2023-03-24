@@ -1,3 +1,5 @@
+use crate::{Context, Task};
+
 pub struct NonIncrementalContext;
 
 impl<T: Task> Context<T> for NonIncrementalContext {
