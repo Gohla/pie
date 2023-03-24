@@ -256,7 +256,31 @@ mod test {
     assert_eq!(&quot;Hello World!&quot;, context.require_task(&amp;ReturnHelloWorld));
   }
 }</code></pre>
-<p>TODO: include diff</p>
+<pre><code class="language-rust customdiff">     let mut context = NonIncrementalContext;
+     assert_eq!(&quot;Hello World!&quot;, context.require_task(&amp;ReturnHelloWorld));
+   }
++
++  #[test]
++  fn test_require_task() {
++    #[derive(Clone, PartialEq, Eq, Hash, Debug)]
++    enum Test {
++      ReturnHelloWorld,
++      ToLowerCase,
++    }
++    impl Task for Test {
++      type Output = String;
++      fn execute&lt;C: Context&lt;Self&gt;&gt;(&amp;self, context: &amp;mut C) -&gt; Self::Output {
++        match self {
++          Self::ReturnHelloWorld =&gt; &quot;Hello World!&quot;.to_string(),
++          Self::ToLowerCase =&gt; context.require_task(&amp;Self::ReturnHelloWorld).to_lowercase(),
++        }
++      }
++    }
++
++    let mut context = NonIncrementalContext;
++    assert_eq!(&quot;hello world!&quot;, context.require_task(&amp;Test::ToLowerCase));
++  }
+ }</code></pre>
 
                     </main>
 
