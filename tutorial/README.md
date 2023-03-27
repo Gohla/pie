@@ -5,12 +5,17 @@
 Install mdBook and several plugins:
 
 ```shell
-cargo install mdbook
-cargo install mdbook-admonish
-cargo install mdbook-external-links
+cargo install mdbook mdbook-admonish mdbook-external-links
 ```
 
 ## Building
+
+To test all the code fragments and generate diffs in `stepper/out` which the tutorial uses, run:
+
+```shell
+cd stepper
+cargo run
+```
 
 To build the tutorial once, run:
 
@@ -22,11 +27,4 @@ To interactively build, run:
 
 ```shell
 mdbook serve
-```
-
-To test all the code fragments, run:
-
-```shell
-cd stepper
-cargo run
 ```

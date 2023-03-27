@@ -58,7 +58,12 @@ Because of this, the context reference passed to `Task::execute` is also mutable
 This `Task` and `Context` API mirrors the mutually recursive definition of task and context we discussed earlier, and
 forms the basis for the entire build system.
 
-Build the project by running `cargo build`, there should be no build errors.
+Build the project by running `cargo build`. 
+The output should look something like:
+
+```shell,
+{{#include ../out/api/2.txt}}
+```
 
 [//]: # (Note that a `Context` is generic over `Task` `T`, meaning that a context can work with any task implementation.)
 
@@ -114,11 +119,12 @@ Since we will be implementing three different contexts in this tutorial, we will
 Create the `context` module by adding a module to `src/lib.rs`:
 
 ```rust,customdiff
-{{#include ../../stepper/out/1_context_module.rs.diff:4:}}
+{{#include ../diff/api/1_context_module.rs.diff:4:}}
 ```
 
 This is a diff over `src/lib.rs` where lines with a green background are additions, lines with a red background are
-removals, and lines with a grey background are context on where to add/remove lines, similar to diffs on source code hubs like GitHub.
+removals, and lines with a grey background are context on where to add/remove lines, similar to diffs on source code
+hubs like GitHub.
 
 Create the `src/context` directory, and in it, create the `src/context/mod.rs` file with the following contents:
 
@@ -154,13 +160,14 @@ Like traits, modules also have [visibility](https://doc.rust-lang.org/reference/
 
 ### Implementation
 
-Let's implement the non-incremental context in `src/context/non_incremental.rs` by adding:
+Implement the non-incremental context in `src/context/non_incremental.rs` by adding:
 
 ```rust,
 {{#include 3_non_incremental_context.rs}}
 ```
 
-This `NonIncrementalContext` is extremely simple: in `require_task` we unconditionally execute the task, and pass `self` along so the task we're calling can require additional tasks.
+This `NonIncrementalContext` is extremely simple: in `require_task` we unconditionally execute the task, and pass `self`
+along so the task we're calling can require additional tasks.
 Let's write some tests to see if this does what we expect.
 
 ```admonish info title="Rust Help" collapsible=true
@@ -178,16 +185,35 @@ The last expression of a function – in this case `task.execute(self)` in `requ
 We could also write that as `return task.execute(self);`, but that is more verbose.
 ```
 
-### Tests
+### Simple Test
 
-TODO: add simple test
+Add the following test to `src/context/non_incremental.rs`:
 
 ```rust,
 {{#include 4_test_1.rs}}
 ```
 
+In this test, we create a struct `ReturnHelloWorld` which is the "hello world" of the build system.
+We implement `Task`, set its `Output` associated type to be `String`, and implement the `execute` method to just return `"Hello World!"`.
+We derive the `Clone`, `Eq`, `Hash`, and `Debug` traits for `ReturnHelloWorld` as they are required for all `Task` implementations.
+
+We require the task with our context by creating a `NonIncrementalContext`, calling its `require_task` method, passing in a reference to the task.
+It returns the output of the task, which we test with `assert_eq!`.
+
+Run the test by running `cargo test`.
+The output should look something like:
+
+```shell,
+{{#include ../out/api/4.txt}}
+```
+
+Which indicates that the test indeed succeeds!
+You can experiment by returning a different string from `ReturnHelloWorld::execute` to see what a failed test looks like.
+
+### More Complicated Test
+
 TODO: add more complicated test
 
 ```rust,customdiff
-{{#include ../../stepper/out/5_test_2.rs.diff:4:}}
+{{#include ../diff/api/5_test_2.rs.diff:4:}}
 ```

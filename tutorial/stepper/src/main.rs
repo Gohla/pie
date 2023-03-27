@@ -1,45 +1,76 @@
 use std::error::Error;
+use std::ffi::{OsStr, OsString};
 use std::fs;
 use std::fs::{File, OpenOptions, read_to_string};
-use std::io::Write;
+use std::io::{BufReader, Read, Write};
 use std::path::{Path, PathBuf};
-use std::process::Command;
 
 use diffy::Patch;
 
 fn main() {
   let temp_directory = tempfile::tempdir().expect("failed to create temporary directory");
-  let stepper = Stepper::new("../src/", temp_directory.path(), "out");
-  stepper.apply_modifications([
-    AddToFile::new("api/0_Cargo.toml", "Cargo.toml"),
-    AddToFile::new("api/0_api.rs", "src/lib.rs"),
+  let mut stepper = Stepper::new(
+    "../src/",
+    temp_directory.path().join("src"),
+    "../src/diff",
+    "../src/out",
+    ["build"],
+  );
+  stepper.push_chapter("api");
+  stepper.apply("0.txt", [
+    AddToFile::new("0_Cargo.toml", "../Cargo.toml"),
+    AddToFile::new("0_api.rs", "lib.rs"),
   ]);
-  stepper.apply_modifications([
-    CreateDiffAndApply::new("api/0_api.rs", "api/1_context_module.rs", "src/lib.rs", "1_context_module.rs.diff"),
-    AddToFile::new("api/2_non_incremental_module.rs", "src/context/mod.rs"),
-    CreateFile::new("src/context/non_incremental.rs")
+  stepper.apply("2.txt", [
+    CreateDiffAndApply::new("0_api.rs", "1_context_module.rs", "lib.rs", "1_context_module.rs.diff"),
+    AddToFile::new("2_non_incremental_module.rs", "context/mod.rs"),
+    CreateFile::new("context/non_incremental.rs")
   ]);
-  stepper.apply_modification(AddToFile::new("api/3_non_incremental_context.rs", "src/context/non_incremental.rs"));
-  stepper.apply_modification(AddToFile::new("api/4_test_1.rs", "src/context/non_incremental.rs"));
-  stepper.apply_modification(CreateDiffAndApply::new("api/4_test_1.rs", "api/5_test_2.rs", "src/context/non_incremental.rs", "5_test_2.rs.diff"));
+  stepper.apply("3.txt", AddToFile::new("3_non_incremental_context.rs", "context/non_incremental.rs"));
+  stepper.set_cargo_args(["test"]);
+  stepper.apply("4.txt", AddToFile::new("4_test_1.rs", "context/non_incremental.rs"));
+  stepper.apply("5.txt", CreateDiffAndApply::new("4_test_1.rs", "5_test_2.rs", "context/non_incremental.rs", "5_test_2.rs.diff"));
+  stepper.pop_chapter();
 }
 
 struct Stepper {
   source_root_directory: PathBuf,
   destination_root_directory: PathBuf,
   diff_output_root_directory: PathBuf,
+  cargo_output_root_directory: PathBuf,
+  cargo_args: Vec<OsString>,
 }
 
 impl Stepper {
-  pub fn new(
+  pub fn new<CA: IntoIterator<Item=AO>, AO: AsRef<OsStr>>(
     source_root_directory: impl Into<PathBuf>,
     destination_root_directory: impl Into<PathBuf>,
     diff_output_root_directory: impl Into<PathBuf>,
+    cargo_output_root_directory: impl Into<PathBuf>,
+    cargo_args: CA,
   ) -> Self {
     let source_root_directory = source_root_directory.into();
     let destination_root_directory = destination_root_directory.into();
     let diff_output_root_directory = diff_output_root_directory.into();
-    Self { source_root_directory, destination_root_directory, diff_output_root_directory }
+    let cargo_output_root_directory = cargo_output_root_directory.into();
+    let cargo_args = cargo_args.into_iter().map(|ao| ao.as_ref().to_owned()).collect();
+    Self { source_root_directory, destination_root_directory, diff_output_root_directory, cargo_output_root_directory, cargo_args }
+  }
+
+  pub fn push_chapter(&mut self, path: impl AsRef<Path>) {
+    self.source_root_directory.push(&path);
+    self.diff_output_root_directory.push(&path);
+    self.cargo_output_root_directory.push(&path);
+  }
+
+  pub fn pop_chapter(&mut self) {
+    self.source_root_directory.pop();
+    self.diff_output_root_directory.pop();
+    self.cargo_output_root_directory.pop();
+  }
+
+  pub fn set_cargo_args<CA: IntoIterator<Item=AO>, AO: AsRef<OsStr>>(&mut self, cargo_args: CA) {
+    self.cargo_args = cargo_args.into_iter().map(|ao| ao.as_ref().to_owned()).collect();
   }
 }
 
@@ -52,33 +83,54 @@ enum Modification {
   CreateDiffAndApply(CreateDiffAndApply),
 }
 
+trait IntoModifications {
+  type Output: IntoIterator<Item=Modification>;
+  fn into(self) -> Self::Output;
+}
+
+impl<T: IntoIterator<Item=Modification>> IntoModifications for T {
+  type Output = T;
+  fn into(self) -> Self::Output { self }
+}
+
+impl IntoModifications for Modification {
+  type Output = [Modification; 1];
+  fn into(self) -> Self::Output { [self] }
+}
+
 impl Stepper {
-  pub fn apply_modifications(&self, modifications: impl IntoIterator<Item=Modification>) {
-    for modification in modifications {
+  pub fn apply(&self, cargo_output_file_path: impl AsRef<Path>, into_modifications: impl IntoModifications) {
+    for modification in into_modifications.into() {
       match modification {
         Modification::CreateFile(create_file) => self.create_file(create_file),
         Modification::AddToFile(add_to_file) => self.add_to_file(add_to_file),
         Modification::CreateDiffAndApply(create_diff_and_apply) => self.create_diff_and_apply(create_diff_and_apply),
       }
     }
-    self.cargo_test();
+    let cargo_output_file_path = self.cargo_output_root_directory.join(cargo_output_file_path);
+    self.run_cargo(cargo_output_file_path);
   }
 
-  pub fn apply_modification(&self, modification: Modification) {
-    self.apply_modifications([modification])
-  }
-
-  fn cargo_test(&self) {
-    let mut command = Command::new("cargo");
-    command
-      .args(["+stable", "test"])
-      .current_dir(&self.destination_root_directory);
-    println!("Running {:?}", command);
-    command
-      .spawn()
-      .expect("failed to start cargo test")
-      .wait()
-      .expect("cargo test failed");
+  fn run_cargo(&self, output_file_path: impl AsRef<Path>) {
+    let cmd = duct::cmd("cargo", &self.cargo_args)
+      .dir(&self.destination_root_directory);
+    let mut cmd_joined = vec!["cargo".to_string()];
+    cmd_joined.extend(self.cargo_args.iter().map(|oss|oss.clone().into_string().expect("failed to convert cmd to string")));
+    let cmd_joined = cmd_joined.join(" ");
+    println!("> {}", cmd_joined);
+    let reader = cmd.stderr_to_stdout().reader()
+      .expect("failed to create stdout/stderr reader");
+    let mut reader = BufReader::new(reader);
+    let mut output = String::new();
+    reader.read_to_string(&mut output)
+      .expect("failed to read stdout/stderr to string");
+    print!("{}", output);
+    let mut output_file = open_writable_file(output_file_path, false)
+      .expect("failed to open output file");
+    writeln!(output_file, "> {}", cmd_joined)
+      .expect("failed to write command to output file");
+    output_file.write_all(output.as_bytes())
+      .expect("failed to write stdout/stderr to output file");
   }
 }
 
@@ -209,6 +261,7 @@ fn open_writable_file(file_path: impl AsRef<Path>, append: bool) -> Result<File,
     .write(true)
     .create(true)
     .append(append)
+    .truncate(!append)
     .open(file_path)?;
   Ok(file)
 }
