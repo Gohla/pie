@@ -5,6 +5,7 @@ use std::path::PathBuf;
 
 use crate::{Context, Task};
 use crate::stamp::{FileStamp, FileStamper, OutputStamp, OutputStamper};
+use crate::util::open_if_file;
 
 #[derive(Clone, Eq, PartialEq, Hash, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -178,12 +179,7 @@ impl FileDependency {
   pub fn new_with_file(path: impl Into<PathBuf>, stamper: FileStamper) -> Result<(Self, Option<File>), std::io::Error> {
     let path = path.into();
     let stamp = stamper.stamp(&path)?;
-    let exists = path.try_exists()?;
-    let file = if exists {
-      Some(File::open(&path)?)
-    } else {
-      None
-    };
+    let file = open_if_file(&path)?;
     let dependency = FileDependency { path, stamper, stamp };
     Ok((dependency, file))
   }

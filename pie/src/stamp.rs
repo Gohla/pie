@@ -1,9 +1,12 @@
 use std::fmt::{Debug, Formatter};
-use std::fs::File;
-use std::path::PathBuf;
+use std::fs::{self, File};
+use std::io;
+use std::path::Path;
 use std::time::SystemTime;
 
 use serde::Serializer;
+
+use crate::util::{metadata, open_if_file};
 
 // File stampers
 
@@ -21,17 +24,16 @@ pub enum FileStamper {
 }
 
 impl FileStamper {
-  pub fn stamp(&self, path: &PathBuf) -> Result<FileStamp, std::io::Error> {
+  pub fn stamp(&self, path: impl AsRef<Path>) -> Result<FileStamp, io::Error> {
     match self {
       FileStamper::Exists => {
-        Ok(FileStamp::Exists(path.try_exists()?))
+        Ok(FileStamp::Exists(path.as_ref().try_exists()?))
       }
       FileStamper::Modified => {
-        let exists = path.try_exists()?;
-        if !exists {
+        let Some(metadata) = metadata(path)? else {
           return Ok(FileStamp::Modified(None));
-        }
-        Ok(FileStamp::Modified(Some(File::open(path)?.metadata()?.modified()?)))
+        };
+        Ok(FileStamp::Modified(Some(metadata.modified()?)))
       }
       #[cfg(feature = "recursive_stampers")]
       FileStamper::ModifiedRecursive => {
@@ -47,19 +49,19 @@ impl FileStamper {
       }
       #[cfg(feature = "hash_stampers")]
       FileStamper::Hash => {
-        let exists = path.try_exists()?;
-        if !exists {
+        let Some(metadata) = metadata(&path)? else {
           return Ok(FileStamp::Hash(None));
-        }
+        };
 
         use sha2::{Digest, Sha256};
-        let mut file = File::open(path)?;
         let mut hasher = Sha256::new();
-        if file.metadata()?.is_file() {
-          std::io::copy(&mut file, &mut hasher)?;
+        if metadata.is_file() {
+          let mut file = File::open(&path)?;
+          io::copy(&mut file, &mut hasher)?;
         } else {
-          drop(file); // Drop file because we have to re-open it with `std::fs::read_dir`.
-          Self::hash_directory(&mut hasher, path)?;
+          for entry in fs::read_dir(path)?.into_iter() {
+            hasher.update(entry?.file_name().to_string_lossy().as_bytes());
+          }
         }
         Ok(FileStamp::Hash(Some(hasher.finalize().into())))
       }
@@ -68,24 +70,14 @@ impl FileStamper {
         use sha2::{Digest, Sha256};
         use walkdir::WalkDir;
         let mut hasher = Sha256::new();
-        for entry in WalkDir::new(path).into_iter() {
-          let mut file = File::open(entry?.path())?;
-          // Skip hashing directories: added/removed files are already represented by hash changes.
-          if !file.metadata()?.is_file() { continue; }
-          std::io::copy(&mut file, &mut hasher)?;
+        for entry in WalkDir::new(&path).into_iter() {
+          if let Some(mut file) = open_if_file(entry?.path())? {
+            io::copy(&mut file, &mut hasher)?;
+          }
         }
         Ok(FileStamp::Hash(Some(hasher.finalize().into())))
       }
     }
-  }
-
-  #[cfg(feature = "hash_stampers")]
-  fn hash_directory(hasher: &mut sha2::Sha256, path: &PathBuf) -> Result<(), std::io::Error> {
-    use sha2::Digest;
-    for entry in std::fs::read_dir(path)?.into_iter() {
-      hasher.update(entry?.file_name().to_string_lossy().as_bytes());
-    }
-    Ok(())
   }
 }
 

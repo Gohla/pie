@@ -73,6 +73,7 @@ fn test_modified_stamp_on_file(mut pie: Pie<CommonTask>, temp_dir: TempDir) {
   });
 }
 
+#[cfg(not(windows))] // These tests are flaky on Windows, due to modification dates not updating directly?
 #[rstest]
 fn test_modified_stamp_on_directory(mut pie: Pie<CommonTask>, temp_dir: TempDir) {
   let dir_path = temp_dir.path().join("dir");

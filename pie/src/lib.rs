@@ -18,6 +18,7 @@ pub mod tracker;
 mod dependency;
 mod store;
 mod context;
+mod util;
 
 /// The unit of computation in a programmatic incremental build system.
 pub trait Task: Clone + Eq + Hash + Debug {
