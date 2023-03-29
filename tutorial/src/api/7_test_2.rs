@@ -19,26 +19,24 @@ mod test {
   }
 
   #[test]
-  fn test_require_task_problematic() {
+  fn test_require_task() {
     #[derive(Clone, PartialEq, Eq, Hash, Debug)]
-    struct ReturnHelloWorld;
-    impl Task for ReturnHelloWorld {
-      type Output = String;
-      fn execute<C: Context<Self>>(&self, _context: &mut C) -> Self::Output {
-        "Hello World!".to_string()
-      }
+    enum Test {
+      ReturnHelloWorld,
+      ToLowerCase,
     }
-
-    #[derive(Clone, PartialEq, Eq, Hash, Debug)]
-    struct ToLowerCase;
-    impl Task for ToLowerCase {
+    
+    impl Task for Test {
       type Output = String;
       fn execute<C: Context<Self>>(&self, context: &mut C) -> Self::Output {
-        context.require_task(&ReturnHelloWorld).to_lowercase()
+        match self {
+          Self::ReturnHelloWorld => "Hello World!".to_string(),
+          Self::ToLowerCase => context.require_task(&Self::ReturnHelloWorld).to_lowercase(),
+        }
       }
     }
 
     let mut context = NonIncrementalContext;
-    assert_eq!("hello world!", context.require_task(&ToLowerCase));
+    assert_eq!("hello world!", context.require_task(&Test::ToLowerCase));
   }
 }

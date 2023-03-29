@@ -33,7 +33,7 @@ mod test {
     struct ToLowerCase;
     impl Task for ToLowerCase {
       type Output = String;
-      fn execute<C: Context<Self>>(&self, context: &mut C) -> Self::Output {
+      fn execute<C: Context<ReturnHelloWorld>>(&self, context: &mut C) -> Self::Output {
         context.require_task(&ReturnHelloWorld).to_lowercase()
       }
     }

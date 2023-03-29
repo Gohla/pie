@@ -58,24 +58,12 @@ Because of this, the context reference passed to `Task::execute` is also mutable
 This `Task` and `Context` API mirrors the mutually recursive definition of task and context we discussed earlier, and
 forms the basis for the entire build system.
 
-Build the project by running `cargo build`. 
+Build the project by running `cargo build`.
 The output should look something like:
 
 ```shell,
-{{#include ../out/api/2.txt}}
+{{#include ../../gen/api/0_cargo.txt}}
 ```
-
-[//]: # (Note that a `Context` is generic over `Task` `T`, meaning that a context can work with any task implementation.)
-
-[//]: # (However, the `Task::execute` method is generic over any `Context` with `T` set to `Self`, so a task can only work with contexts that work with its own specific task type.)
-
-[//]: # (This limits us to only supporting one type of task, because)
-
-[//]: # ()
-
-[//]: # (Finally, it is important to note that `Context` is only generic over *one type of task*: you can't combine a `Context<CopyFile>` with `Context<WriteToFile>`.)
-
-[//]: # (While this is quite limiting, we do this to keep the tutorial simple, and we can work around it by defining )
 
 ```admonish info title="Rust Help" collapsible=true
 [The Rust Programming Language](https://doc.rust-lang.org/book/ch00-00-introduction.html) is an introductory book about Rust. I will try to provide links to the book where possible.
@@ -119,7 +107,7 @@ Since we will be implementing three different contexts in this tutorial, we will
 Create the `context` module by adding a module to `src/lib.rs`:
 
 ```rust,customdiff
-{{#include ../diff/api/1_context_module.rs.diff:4:}}
+{{#include ../../gen/api/1_context_module.rs.diff:4:}}
 ```
 
 This is a diff over `src/lib.rs` where lines with a green background are additions, lines with a red background are
@@ -136,15 +124,7 @@ Then, create the `src/context/non_incremental.rs` file, it will be empty for now
 Your project structure should now look like:
 
 ```
-pie
-├── src
-│   ├── lib.rs
-│   └── context
-│       ├── mod.rs
-│       └── non_incremental.rs
-├── Cargo.toml
-├── Cargo.lock
-└── target
+{{#include ../../gen/api/2_dir.txt}}
 ```
 
 Confirm your module structure is correct by building with `cargo build`.
@@ -177,7 +157,7 @@ We import the `Context` and `Task` traits from the root of your crate (i.e., the
 [Structs](https://doc.rust-lang.org/book/ch05-01-defining-structs.html) are concrete types that can contain data through fields and implement traits, similar to classes in class-oriented languages.
 Since we don't need any data in `NonIncrementalContext`, we define it as a [unit-like struct](https://doc.rust-lang.org/book/ch05-01-defining-structs.html#unit-like-structs-without-any-fields).
 
-[Traits are implemented for a type](https://doc.rust-lang.org/book/ch10-02-traits.html#implementing-a-trait-on-a-type) with `impl Context for NonIncrementalContext { ... }`, where we then have to implement all methods of the trait.
+[Traits are implemented for a type](https://doc.rust-lang.org/book/ch10-02-traits.html#implementing-a-trait-on-a-type) with `impl Context for NonIncrementalContext { ... }`, where we then have to implement all methods and associated types of the trait.
 
 The `Context` trait is generic over `Task`, so in the `impl` block we introduce a type parameter `T` with `impl<T>`, and use [trait bounds](https://doc.rust-lang.org/book/ch10-02-traits.html#using-trait-bounds-to-conditionally-implement-methods) as `impl<T: Task>` to declare that `T` must implement `Task`.
 
@@ -194,26 +174,113 @@ Add the following test to `src/context/non_incremental.rs`:
 ```
 
 In this test, we create a struct `ReturnHelloWorld` which is the "hello world" of the build system.
-We implement `Task`, set its `Output` associated type to be `String`, and implement the `execute` method to just return `"Hello World!"`.
-We derive the `Clone`, `Eq`, `Hash`, and `Debug` traits for `ReturnHelloWorld` as they are required for all `Task` implementations.
+We implement `Task`, set its `Output` associated type to be `String`, and implement the `execute` method to just
+return `"Hello World!"`.
+We derive the `Clone`, `Eq`, `Hash`, and `Debug` traits for `ReturnHelloWorld` as they are required for all `Task`
+implementations.
 
-We require the task with our context by creating a `NonIncrementalContext`, calling its `require_task` method, passing in a reference to the task.
+We require the task with our context by creating a `NonIncrementalContext`, calling its `require_task` method, passing
+in a reference to the task.
 It returns the output of the task, which we test with `assert_eq!`.
 
 Run the test by running `cargo test`.
 The output should look something like:
 
 ```shell,
-{{#include ../out/api/4.txt}}
+{{#include ../../gen/api/4_cargo.txt}}
 ```
 
 Which indicates that the test indeed succeeds!
-You can experiment by returning a different string from `ReturnHelloWorld::execute` to see what a failed test looks like.
+You can experiment by returning a different string from `ReturnHelloWorld::execute` to see what a failed test looks
+like.
 
-### More Complicated Test
+```admonish info title="Rust Help" collapsible=true
+[Unit tests](https://doc.rust-lang.org/book/ch11-03-test-organization.html#the-tests-module-and-cfgtest) for a module 
+are typically defined by creating a nested module named `test` with the `#[cfg(test)]` attribute applied to it. In that
+`test` module, you apply `#[test]` to testing functions, which then get executed when you run `cargo test`.
 
-TODO: add more complicated test
+The `#[cfg(...)]` attribute provides [conditional compilation](https://doc.rust-lang.org/reference/conditional-compilation.html) for the item it is applied to. In this case, `#[cfg(test)]` ensures that the module is only compiled when we run `cargo test`.
+
+We import all definitions from the parent module (i.e., the `non_incremental` module) into the `test` module with `use super::*;`.
+
+In Rust, [items](https://doc.rust-lang.org/reference/items.html) — that is, functions, structs, implementations, etc. — 
+can be nested inside functions. We use that in `test_require_task_direct` to scope `ReturnHelloWorld` and its implementation
+to the test function, so it can't clash with other test functions.
+
+In `execute`, we use `_context` as the parameter name for the context, as the parameter is unused.
+Unused parameters give a warning in Rust, unless it is prefixed by a `_`.
+
+[assert_eq!](https://doc.rust-lang.org/std/macro.assert_eq.html) is a [macro](https://doc.rust-lang.org/book/ch19-06-macros.html) that checks if its two expressions are equal. 
+If not, it [panics](https://doc.rust-lang.org/book/ch09-01-unrecoverable-errors-with-panic.html).
+This macro is typically [used in tests](https://doc.rust-lang.org/book/ch11-01-writing-tests.html) for assertions, as a panic marks a test as failed.
+```
+
+### Test with Multiple Tasks
+
+Our first test only tests a single task that does not use the context, so let's write a test with two tasks where one requires the other to increase our test coverage.
+Add the following test:
 
 ```rust,customdiff
-{{#include ../diff/api/5_test_2.rs.diff:4:}}
+{{#include ../../gen/api/5_test_2.rs.diff:4:}}
 ```
+
+We use the same `ReturnHelloWorld` task as before, but now also have a `ToLowerCase` task which requires `ReturnHelloWorld` and then turn its string lowercase.
+However, due to the way we've set up the types between `Task` and `Context`, we will run into a problem.
+Running `cargo test`, you should get these errors:
+
+```shell,
+{{#include ../../gen/api/5_cargo.txt}}
+```
+
+The problem is that `execute` of `ToLowerCase` takes a `Context<Self>`, so in this implementation it only works with `Context<ToLowerCase>`, while we're trying to require `ReturnHelloWorld` through the context.
+
+We could change `execute` of `ToLowerCase` to take `Context<ReturnHelloWorld>`:
+
+```rust,customdiff
+{{#include ../../gen/api/6_test_2.rs.diff:4:}}
+```
+
+But that is not allowed:
+
+```shell,
+{{#include ../../gen/api/6_cargo.txt}}
+```
+
+This is because the `Task` trait defines `execute` to take a `Context<Self>`, thus every implementation of `Task` must adhere to this, so we can't solve it this way.
+
+Effectively, due to the way we defined `Task` and `Context`, we can only use *a single task implementation*.
+However, there is a good reason for this which will become more apparent once we implement incrementality.
+
+```admonish info title="Why only a single Task type?" collapsible=true
+The gist of it is that an incremental context wants to build a dependency graph and cache task outputs, so that we can figure out from the dependency graph whether a task is affected by a change, and just return its output if it is not affected.
+For that, a context implementation will have a `Store<T>`.
+
+A `Context<ReturnHelloWorld>` and `Context<ToLowerCase>` would have to be implemented by different types, which would have different `Store`s, which would then have completely separate dependency graphs.
+That won't work, as we need a single (global) dependency graph over all tasks to figure out what is affected.
+```
+
+[//]: # (Using trait objects, but this introduces a whole slew of problems because many traits that we use are not trait-object safe. `Clone` is not compatible because it requires `Sized`. `Eq` is not compatible because it uses `Self`. Serializing trait-objects is problematic. There are workarounds for all these things, but it is not pretty and very complicated.)
+
+There is a much more complicated way to actually solve this problem, but it introduces too much complexity into the tutorial, so we will be going with a much simpler solution.
+In chapter *TODO*, we will describe this solution which does support multiple task types.
+
+For now, we will solve this by just using a single task type which is an enumeration of the different possible tasks.
+Replace the test with the following:
+
+```rust,customdiff
+{{#include 7_test_2.rs.diff:4:}}
+```
+
+Here, we instead define a single task `Test` which is an `enum` with two variants.
+In its `Task` implementation, we match ourselves and return `"Hello World!"` when the variant is `ReturnHelloWorld`.
+When the variant is `Self::ReturnHelloWorld`, we require `Self::ReturnHelloWorld` through the context and turn its string lowercase and return that.
+This is now valid due to only having a single task type.
+Run the test with `cargo test` to confirm it is working.
+
+```admonish info title="Rust Help" collapsible=true
+[Enums](https://doc.rust-lang.org/book/ch06-01-defining-an-enum.html) define a type by a set of variants, similar to enums in other languages, sometimes called tagged unions in other languages.
+The `match` expression matches the variant and dispatches based on that, similar to switch statements in other languages.
+```
+
+We have defined the API for the build system and implemented a non-incremental version of it.
+We're now ready to start implementing an incremental context in the next chapter.
