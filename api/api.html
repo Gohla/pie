@@ -211,8 +211,8 @@ forms the basis for the entire build system.</p>
 <p>Build the project by running <code>cargo build</code>.
 The output should look something like:</p>
 <pre><code class="language-shell ">$ cargo build
-   Compiling pie v0.1.0 (/tmp/.tmpf32zgy/pie)
-    Finished dev [unoptimized + debuginfo] target(s) in 0.24s
+   Compiling pie v0.1.0 (/tmp/.tmp85oTdf/pie)
+    Finished dev [unoptimized + debuginfo] target(s) in 0.26s
 </code></pre>
 <details id="admonition-rust-help" class="admonition info">
 <summary class="admonition-title">
@@ -351,9 +351,9 @@ It returns the output of the task, which we test with <code>assert_eq!</code>.</
 <p>Run the test by running <code>cargo test</code>.
 The output should look something like:</p>
 <pre><code class="language-shell ">$ cargo test
-   Compiling pie v0.1.0 (/tmp/.tmpf32zgy/pie)
-    Finished test [unoptimized + debuginfo] target(s) in 0.50s
-     Running unittests src/lib.rs (/tmp/.tmpf32zgy/pie/target/debug/deps/pie-1b523cd83cb66403)
+   Compiling pie v0.1.0 (/tmp/.tmp85oTdf/pie)
+    Finished test [unoptimized + debuginfo] target(s) in 0.65s
+     Running unittests src/lib.rs (/tmp/.tmp85oTdf/pie/target/debug/deps/pie-1b523cd83cb66403)
 
 running 1 test
 test context::non_incremental::test::test_require_task_direct ... ok
@@ -426,7 +426,7 @@ Add the following test:</p>
 However, due to the way we've set up the types between <code>Task</code> and <code>Context</code>, we will run into a problem.
 Running <code>cargo test</code>, you should get these errors:</p>
 <pre><code class="language-shell ">$ cargo test
-   Compiling pie v0.1.0 (/tmp/.tmpf32zgy/pie)
+   Compiling pie v0.1.0 (/tmp/.tmp85oTdf/pie)
 error[E0308]: mismatched types
   --&gt; src/context/non_incremental.rs:48:30
    |
@@ -458,7 +458,7 @@ error: could not compile `pie` due to previous error
      }</code></pre>
 <p>But that is not allowed:</p>
 <pre><code class="language-shell ">$ cargo test
-   Compiling pie v0.1.0 (/tmp/.tmpf32zgy/pie)
+   Compiling pie v0.1.0 (/tmp/.tmp85oTdf/pie)
 error[E0276]: impl has stricter requirements than trait
   --&gt; src/context/non_incremental.rs:47:21
    |
