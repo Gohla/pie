@@ -85,7 +85,7 @@
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div class="sidebar-scrollbox">
-                <ol class="chapter"><li class="chapter-item expanded affix "><div>Introduction</div></li><li class="chapter-item expanded affix "><li class="part-title">Programmability</li><li class="chapter-item expanded "><div><strong aria-hidden="true">1.</strong> Setup</div></li><li class="chapter-item expanded "><a href="../api/api.html" class="active"><strong aria-hidden="true">2.</strong> Programmable Build System API</a></li><li class="chapter-item expanded affix "><li class="part-title">Incrementality</li><li class="chapter-item expanded "><div><strong aria-hidden="true">3.</strong> Incremental Top-Down Context</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">4.</strong> Minimality</div></li><li class="chapter-item expanded affix "><li class="part-title">Soundness</li><li class="chapter-item expanded "><div><strong aria-hidden="true">5.</strong> Prevent Overlapping File Writes</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">6.</strong> Prevent Hidden Dependencies</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">7.</strong> Prevent Cycles</div></li><li class="chapter-item expanded affix "><li class="part-title">Improvements</li><li class="chapter-item expanded "><div><strong aria-hidden="true">8.</strong> Serialization</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">9.</strong> Stamps</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">10.</strong> Configurable Hashing</div></li><li class="chapter-item expanded affix "><li class="part-title">Efficiency</li><li class="chapter-item expanded "><div><strong aria-hidden="true">11.</strong> Incremental Bottom-Up Context</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">12.</strong> Observability</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">13.</strong> Deferred Tasks</div></li><li class="chapter-item expanded affix "><li class="part-title">Appendix</li><li class="chapter-item expanded "><div><strong aria-hidden="true">14.</strong> Multiple Task Types</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">15.</strong> On Static Dependencies</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">16.</strong> On Declarativity</div></li><li class="spacer"></li><li class="chapter-item expanded affix "><div>Related Work</div></li></ol>
+                <ol class="chapter"><li class="chapter-item expanded affix "><div>Introduction</div></li><li class="chapter-item expanded affix "><li class="part-title">Programmability</li><li class="chapter-item expanded "><div><strong aria-hidden="true">1.</strong> Setup</div></li><li class="chapter-item expanded "><a href="../api/index.html" class="active"><strong aria-hidden="true">2.</strong> Programmable Build System API</a></li><li class="chapter-item expanded affix "><li class="part-title">Incrementality</li><li class="chapter-item expanded "><a href="../top_down/index.html"><strong aria-hidden="true">3.</strong> Incremental Top-Down Context</a></li><li class="chapter-item expanded "><div><strong aria-hidden="true">4.</strong> Minimality</div></li><li class="chapter-item expanded affix "><li class="part-title">Soundness</li><li class="chapter-item expanded "><div><strong aria-hidden="true">5.</strong> Prevent Overlapping File Writes</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">6.</strong> Prevent Hidden Dependencies</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">7.</strong> Prevent Cycles</div></li><li class="chapter-item expanded affix "><li class="part-title">Improvements</li><li class="chapter-item expanded "><div><strong aria-hidden="true">8.</strong> Serialization</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">9.</strong> Stamps</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">10.</strong> Configurable Hashing</div></li><li class="chapter-item expanded affix "><li class="part-title">Efficiency</li><li class="chapter-item expanded "><div><strong aria-hidden="true">11.</strong> Incremental Bottom-Up Context</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">12.</strong> Observability</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">13.</strong> Deferred Tasks</div></li><li class="chapter-item expanded affix "><li class="part-title">Appendix</li><li class="chapter-item expanded "><div><strong aria-hidden="true">14.</strong> Multiple Task Types</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">15.</strong> On Static Dependencies</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">16.</strong> On Declarativity</div></li><li class="spacer"></li><li class="chapter-item expanded affix "><div>Related Work</div></li></ol>
             </div>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
         </nav>
@@ -147,18 +147,18 @@
                 <div id="content" class="content">
                     <main>
                         <h1 id="programmable-build-system-api"><a class="header" href="#programmable-build-system-api">Programmable Build System API</a></h1>
-<p>In this first chapter, we will program the core API of the programmatic incremental build system, and implement an
-extremely simple non-incremental version of the build system to get started.</p>
+<p>In this first chapter, we will program the core API of the programmatic incremental build system, and implement an extremely simple non-incremental version of the build system to get started.</p>
 <h2 id="task-and-context"><a class="header" href="#task-and-context">Task and Context</a></h2>
 <p>The unit of computation in a programmatic build system is a <em>task</em>.
 A task is kind of like a closure: a value that can be executed to produce their output.
 However, in an <em>incremental</em> programmatic build system, we also need to keep track of <em>dynamic dependencies</em> that are made while tasks are executing.
-Therefore, tasks are executed under a <em>context</em> which enable them to create these dependencies.
+Therefore, tasks are executed under a <em>build context</em> which enable them to create these dependencies.
 Tasks <em>require</em> other tasks through the context, creating a dynamic dependency and returning their up-to-date output.</p>
-<p>On the other hand, an incremental context wants to <em>selectively execute tasks</em> — only those that are affected by a change.
-To that end, a context will selectively execute tasks, tasks require other tasks through the context, the context selectively executes those, and so forth.
-Thus, tasks and contexts are mutually recursive.
-Let's make this more concrete by defining tasks and contexts in code.</p>
+<p>On the other hand, an incremental build context wants to <em>selectively execute tasks</em> — only those that are affected by a change.
+To that end, a build context will selectively execute tasks, tasks require other tasks through the build context, the build context selectively executes those, and so forth.
+Thus, tasks and build contexts are mutually recursive.</p>
+<p>In this tutorial, we will be using the words <em>context</em>, <em>build context</em>, and <em>build system</em> interchangeably, typically using just <em>context</em> as it is concise.</p>
+<p>Let's make tasks and contexts more concrete by defining them in code.</p>
 <h3 id="api-implementation"><a class="header" href="#api-implementation">API Implementation</a></h3>
 <p>Since we want users of the build system to implement their own tasks, we will define <code>Task</code> as a trait.
 Likewise, we will also be implementing multiple contexts in this tutorial, so we will also define <code>Context</code> as a trait.
@@ -203,8 +203,8 @@ Because of this, the context reference passed to <code>Task::execute</code> is a
 <p>Build the project by running <code>cargo build</code>.
 The output should look something like:</p>
 <pre><code class="language-shell ">$ cargo build
-   Compiling pie v0.1.0 (/tmp/.tmpItAofc/pie)
-    Finished dev [unoptimized + debuginfo] target(s) in 0.31s
+   Compiling pie v0.1.0 (/tmp/.tmpm6XR6p/pie)
+    Finished dev [unoptimized + debuginfo] target(s) in 0.27s
 </code></pre>
 <details id="admonition-rust-help" class="admonition info">
 <summary class="admonition-title">
@@ -247,7 +247,9 @@ Create the <code>context</code> module by adding a module to <code>src/lib.rs</c
 +
  pub trait Task: Clone + Eq + Hash + Debug {
    type Output: Clone + Eq + Debug;
-   fn execute&lt;C: Context&lt;Self&gt;&gt;(&amp;self, context: &amp;mut C) -&gt; Self::Output;</code></pre>
+   fn execute&lt;C: Context&lt;Self&gt;&gt;(&amp;self, context: &amp;mut C) -&gt; Self::Output;
+ }
+</code></pre>
 <p>This is a diff over <code>src/lib.rs</code> where lines with a green background are additions, lines with a red background are removals, and lines with a grey background are context on where to add/remove lines, similar to diffs on source code hubs like GitHub.</p>
 <p>Create the <code>src/context</code> directory, and in it, create the <code>src/context/mod.rs</code> file with the following contents:</p>
 <pre><code class="language-rust ">pub(crate) mod non_incremental;</code></pre>
@@ -338,9 +340,9 @@ It returns the output of the task, which we test with <code>assert_eq!</code>.</
 <p>Run the test by running <code>cargo test</code>.
 The output should look something like:</p>
 <pre><code class="language-shell ">$ cargo test
-   Compiling pie v0.1.0 (/tmp/.tmpItAofc/pie)
+   Compiling pie v0.1.0 (/tmp/.tmpm6XR6p/pie)
     Finished test [unoptimized + debuginfo] target(s) in 0.43s
-     Running unittests src/lib.rs (/tmp/.tmpItAofc/pie/target/debug/deps/pie-1b523cd83cb66403)
+     Running unittests src/lib.rs (/tmp/.tmpm6XR6p/pie/target/debug/deps/pie-1b523cd83cb66403)
 
 running 1 test
 test context::non_incremental::test::test_require_task_direct ... ok
@@ -380,7 +382,9 @@ This macro is typically <a href="https://doc.rust-lang.org/book/ch11-01-writing-
 <h3 id="test-with-multiple-tasks"><a class="header" href="#test-with-multiple-tasks">Test with Multiple Tasks</a></h3>
 <p>Our first test only tests a single task that does not use the context, so let's write a test with two tasks where one requires the other to increase our test coverage.
 Add the following test:</p>
-<pre><code class="language-rust customdiff">     let mut context = NonIncrementalContext;
+<pre><code class="language-rust customdiff">     }
+
+     let mut context = NonIncrementalContext;
      assert_eq!(&quot;Hello World!&quot;, context.require_task(&amp;ReturnHelloWorld));
    }
 +
@@ -412,7 +416,7 @@ Add the following test:</p>
 However, due to the way we've set up the types between <code>Task</code> and <code>Context</code>, we will run into a problem.
 Running <code>cargo test</code>, you should get these errors:</p>
 <pre><code class="language-shell ">$ cargo test
-   Compiling pie v0.1.0 (/tmp/.tmpItAofc/pie)
+   Compiling pie v0.1.0 (/tmp/.tmpm6XR6p/pie)
 error[E0308]: mismatched types
   --&gt; src/context/non_incremental.rs:48:30
    |
@@ -435,17 +439,21 @@ error: could not compile `pie` due to previous error
 <p>The problem is that <code>execute</code> of <code>ToLowerCase</code> takes a <code>Context&lt;Self&gt;</code>, so in <code>impl Task for ToLowerCase</code> it takes a <code>Context&lt;ToLowerCase&gt;</code>, while we're trying to require <code>&amp;ReturnHelloWorld</code> through the context.
 This doesn't work as <code>Context&lt;ToLowerCase&gt;::require_task</code> only takes a <code>&amp;ToLowerCase</code> as input.</p>
 <p>We could change <code>execute</code> of <code>ToLowerCase</code> to take <code>Context&lt;ReturnHelloWorld&gt;</code>:</p>
-<pre><code class="language-rust customdiff">     struct ToLowerCase;
+<pre><code class="language-rust customdiff">
+     #[derive(Clone, PartialEq, Eq, Hash, Debug)]
+     struct ToLowerCase;
      impl Task for ToLowerCase {
        type Output = String;
 -      fn execute&lt;C: Context&lt;Self&gt;&gt;(&amp;self, context: &amp;mut C) -&gt; Self::Output {
 +      fn execute&lt;C: Context&lt;ReturnHelloWorld&gt;&gt;(&amp;self, context: &amp;mut C) -&gt; Self::Output {
          context.require_task(&amp;ReturnHelloWorld).to_lowercase()
        }
-     }</code></pre>
+     }
+
+     let mut context = NonIncrementalContext;</code></pre>
 <p>But that is not allowed:</p>
 <pre><code class="language-shell ">$ cargo test
-   Compiling pie v0.1.0 (/tmp/.tmpItAofc/pie)
+   Compiling pie v0.1.0 (/tmp/.tmpm6XR6p/pie)
 error[E0276]: impl has stricter requirements than trait
   --&gt; src/context/non_incremental.rs:47:21
    |
@@ -513,7 +521,7 @@ Replace the test with the following:</p>
 +      ReturnHelloWorld,
 +      ToLowerCase,
 +    }
-+    
++
 +    impl Task for Test {
 +      type Output = String;
 +      fn execute&lt;C: Context&lt;Self&gt;&gt;(&amp;self, context: &amp;mut C) -&gt; Self::Output {
@@ -552,6 +560,9 @@ We're now ready to start implementing an incremental context in the next chapter
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
 
+                            <a rel="next" href="../top_down/index.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
 
                         <div style="clear: both"></div>
                     </nav>
@@ -560,6 +571,9 @@ We're now ready to start implementing an incremental context in the next chapter
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
 
+                    <a rel="next" href="../top_down/index.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
             </nav>
 
         </div>

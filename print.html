@@ -86,7 +86,7 @@
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div class="sidebar-scrollbox">
-                <ol class="chapter"><li class="chapter-item expanded affix "><div>Introduction</div></li><li class="chapter-item expanded affix "><li class="part-title">Programmability</li><li class="chapter-item expanded "><div><strong aria-hidden="true">1.</strong> Setup</div></li><li class="chapter-item expanded "><a href="api/api.html"><strong aria-hidden="true">2.</strong> Programmable Build System API</a></li><li class="chapter-item expanded affix "><li class="part-title">Incrementality</li><li class="chapter-item expanded "><div><strong aria-hidden="true">3.</strong> Incremental Top-Down Context</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">4.</strong> Minimality</div></li><li class="chapter-item expanded affix "><li class="part-title">Soundness</li><li class="chapter-item expanded "><div><strong aria-hidden="true">5.</strong> Prevent Overlapping File Writes</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">6.</strong> Prevent Hidden Dependencies</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">7.</strong> Prevent Cycles</div></li><li class="chapter-item expanded affix "><li class="part-title">Improvements</li><li class="chapter-item expanded "><div><strong aria-hidden="true">8.</strong> Serialization</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">9.</strong> Stamps</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">10.</strong> Configurable Hashing</div></li><li class="chapter-item expanded affix "><li class="part-title">Efficiency</li><li class="chapter-item expanded "><div><strong aria-hidden="true">11.</strong> Incremental Bottom-Up Context</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">12.</strong> Observability</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">13.</strong> Deferred Tasks</div></li><li class="chapter-item expanded affix "><li class="part-title">Appendix</li><li class="chapter-item expanded "><div><strong aria-hidden="true">14.</strong> Multiple Task Types</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">15.</strong> On Static Dependencies</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">16.</strong> On Declarativity</div></li><li class="spacer"></li><li class="chapter-item expanded affix "><div>Related Work</div></li></ol>
+                <ol class="chapter"><li class="chapter-item expanded affix "><div>Introduction</div></li><li class="chapter-item expanded affix "><li class="part-title">Programmability</li><li class="chapter-item expanded "><div><strong aria-hidden="true">1.</strong> Setup</div></li><li class="chapter-item expanded "><a href="api/index.html"><strong aria-hidden="true">2.</strong> Programmable Build System API</a></li><li class="chapter-item expanded affix "><li class="part-title">Incrementality</li><li class="chapter-item expanded "><a href="top_down/index.html"><strong aria-hidden="true">3.</strong> Incremental Top-Down Context</a></li><li class="chapter-item expanded "><div><strong aria-hidden="true">4.</strong> Minimality</div></li><li class="chapter-item expanded affix "><li class="part-title">Soundness</li><li class="chapter-item expanded "><div><strong aria-hidden="true">5.</strong> Prevent Overlapping File Writes</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">6.</strong> Prevent Hidden Dependencies</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">7.</strong> Prevent Cycles</div></li><li class="chapter-item expanded affix "><li class="part-title">Improvements</li><li class="chapter-item expanded "><div><strong aria-hidden="true">8.</strong> Serialization</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">9.</strong> Stamps</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">10.</strong> Configurable Hashing</div></li><li class="chapter-item expanded affix "><li class="part-title">Efficiency</li><li class="chapter-item expanded "><div><strong aria-hidden="true">11.</strong> Incremental Bottom-Up Context</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">12.</strong> Observability</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">13.</strong> Deferred Tasks</div></li><li class="chapter-item expanded affix "><li class="part-title">Appendix</li><li class="chapter-item expanded "><div><strong aria-hidden="true">14.</strong> Multiple Task Types</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">15.</strong> On Static Dependencies</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">16.</strong> On Declarativity</div></li><li class="spacer"></li><li class="chapter-item expanded affix "><div>Related Work</div></li></ol>
             </div>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
         </nav>
@@ -148,18 +148,18 @@
                 <div id="content" class="content">
                     <main>
                         <h1 id="programmable-build-system-api"><a class="header" href="#programmable-build-system-api">Programmable Build System API</a></h1>
-<p>In this first chapter, we will program the core API of the programmatic incremental build system, and implement an
-extremely simple non-incremental version of the build system to get started.</p>
+<p>In this first chapter, we will program the core API of the programmatic incremental build system, and implement an extremely simple non-incremental version of the build system to get started.</p>
 <h2 id="task-and-context"><a class="header" href="#task-and-context">Task and Context</a></h2>
 <p>The unit of computation in a programmatic build system is a <em>task</em>.
 A task is kind of like a closure: a value that can be executed to produce their output.
 However, in an <em>incremental</em> programmatic build system, we also need to keep track of <em>dynamic dependencies</em> that are made while tasks are executing.
-Therefore, tasks are executed under a <em>context</em> which enable them to create these dependencies.
+Therefore, tasks are executed under a <em>build context</em> which enable them to create these dependencies.
 Tasks <em>require</em> other tasks through the context, creating a dynamic dependency and returning their up-to-date output.</p>
-<p>On the other hand, an incremental context wants to <em>selectively execute tasks</em> — only those that are affected by a change.
-To that end, a context will selectively execute tasks, tasks require other tasks through the context, the context selectively executes those, and so forth.
-Thus, tasks and contexts are mutually recursive.
-Let's make this more concrete by defining tasks and contexts in code.</p>
+<p>On the other hand, an incremental build context wants to <em>selectively execute tasks</em> — only those that are affected by a change.
+To that end, a build context will selectively execute tasks, tasks require other tasks through the build context, the build context selectively executes those, and so forth.
+Thus, tasks and build contexts are mutually recursive.</p>
+<p>In this tutorial, we will be using the words <em>context</em>, <em>build context</em>, and <em>build system</em> interchangeably, typically using just <em>context</em> as it is concise.</p>
+<p>Let's make tasks and contexts more concrete by defining them in code.</p>
 <h3 id="api-implementation"><a class="header" href="#api-implementation">API Implementation</a></h3>
 <p>Since we want users of the build system to implement their own tasks, we will define <code>Task</code> as a trait.
 Likewise, we will also be implementing multiple contexts in this tutorial, so we will also define <code>Context</code> as a trait.
@@ -178,7 +178,7 @@ pub trait Context&lt;T: Task&gt; {
 <div id="admonition-note" class="admonition note">
 <div class="admonition-title">
 <p>Note</p>
-<p><a class="admonition-anchor-link" href="api/api.html#admonition-note"></a></p>
+<p><a class="admonition-anchor-link" href="api/index.html#admonition-note"></a></p>
 </div>
 <div>
 <p>If this seems overwhelming to you, don't worry. We will go through the API and explain things. But more importantly, the API should become more clear once we implement it in the next section and subsequent chapters.
@@ -204,13 +204,13 @@ Because of this, the context reference passed to <code>Task::execute</code> is a
 <p>Build the project by running <code>cargo build</code>.
 The output should look something like:</p>
 <pre><code class="language-shell ">$ cargo build
-   Compiling pie v0.1.0 (/tmp/.tmpItAofc/pie)
-    Finished dev [unoptimized + debuginfo] target(s) in 0.31s
+   Compiling pie v0.1.0 (/tmp/.tmpm6XR6p/pie)
+    Finished dev [unoptimized + debuginfo] target(s) in 0.27s
 </code></pre>
 <details id="admonition-rust-help" class="admonition info">
 <summary class="admonition-title">
 <p>Rust Help</p>
-<p><a class="admonition-anchor-link" href="api/api.html#admonition-rust-help"></a></p>
+<p><a class="admonition-anchor-link" href="api/index.html#admonition-rust-help"></a></p>
 </summary>
 <div>
 <p><a href="https://doc.rust-lang.org/book/ch00-00-introduction.html" title="" target="_blank">The Rust Programming Language</a> is an introductory book about Rust. I will try to provide links to the book where possible.</p>
@@ -248,7 +248,9 @@ Create the <code>context</code> module by adding a module to <code>src/lib.rs</c
 +
  pub trait Task: Clone + Eq + Hash + Debug {
    type Output: Clone + Eq + Debug;
-   fn execute&lt;C: Context&lt;Self&gt;&gt;(&amp;self, context: &amp;mut C) -&gt; Self::Output;</code></pre>
+   fn execute&lt;C: Context&lt;Self&gt;&gt;(&amp;self, context: &amp;mut C) -&gt; Self::Output;
+ }
+</code></pre>
 <p>This is a diff over <code>src/lib.rs</code> where lines with a green background are additions, lines with a red background are removals, and lines with a grey background are context on where to add/remove lines, similar to diffs on source code hubs like GitHub.</p>
 <p>Create the <code>src/context</code> directory, and in it, create the <code>src/context/mod.rs</code> file with the following contents:</p>
 <pre><code class="language-rust ">pub(crate) mod non_incremental;</code></pre>
@@ -268,7 +270,7 @@ Your project structure should now look like:</p>
 <details id="admonition-rust-help-1" class="admonition info">
 <summary class="admonition-title">
 <p>Rust Help</p>
-<p><a class="admonition-anchor-link" href="api/api.html#admonition-rust-help-1"></a></p>
+<p><a class="admonition-anchor-link" href="api/index.html#admonition-rust-help-1"></a></p>
 </summary>
 <div>
 <p>Modules are typically <a href="https://doc.rust-lang.org/book/ch07-05-separating-modules-into-different-files.html" title="" target="_blank">separated into different files</a>.
@@ -294,7 +296,7 @@ Let's write some tests to see if this does what we expect.</p>
 <details id="admonition-rust-help-2" class="admonition info">
 <summary class="admonition-title">
 <p>Rust Help</p>
-<p><a class="admonition-anchor-link" href="api/api.html#admonition-rust-help-2"></a></p>
+<p><a class="admonition-anchor-link" href="api/index.html#admonition-rust-help-2"></a></p>
 </summary>
 <div>
 <p>In Rust, libraries are called <a href="https://doc.rust-lang.org/book/ch07-01-packages-and-crates.html" title="" target="_blank">crates</a>.
@@ -339,9 +341,9 @@ It returns the output of the task, which we test with <code>assert_eq!</code>.</
 <p>Run the test by running <code>cargo test</code>.
 The output should look something like:</p>
 <pre><code class="language-shell ">$ cargo test
-   Compiling pie v0.1.0 (/tmp/.tmpItAofc/pie)
+   Compiling pie v0.1.0 (/tmp/.tmpm6XR6p/pie)
     Finished test [unoptimized + debuginfo] target(s) in 0.43s
-     Running unittests src/lib.rs (/tmp/.tmpItAofc/pie/target/debug/deps/pie-1b523cd83cb66403)
+     Running unittests src/lib.rs (/tmp/.tmpm6XR6p/pie/target/debug/deps/pie-1b523cd83cb66403)
 
 running 1 test
 test context::non_incremental::test::test_require_task_direct ... ok
@@ -360,7 +362,7 @@ You can experiment by returning a different string from <code>ReturnHelloWorld::
 <details id="admonition-rust-help-3" class="admonition info">
 <summary class="admonition-title">
 <p>Rust Help</p>
-<p><a class="admonition-anchor-link" href="api/api.html#admonition-rust-help-3"></a></p>
+<p><a class="admonition-anchor-link" href="api/index.html#admonition-rust-help-3"></a></p>
 </summary>
 <div>
 <p><a href="https://doc.rust-lang.org/book/ch11-03-test-organization.html#the-tests-module-and-cfgtest" title="" target="_blank">Unit tests</a> for a module 
@@ -381,7 +383,9 @@ This macro is typically <a href="https://doc.rust-lang.org/book/ch11-01-writing-
 <h3 id="test-with-multiple-tasks"><a class="header" href="#test-with-multiple-tasks">Test with Multiple Tasks</a></h3>
 <p>Our first test only tests a single task that does not use the context, so let's write a test with two tasks where one requires the other to increase our test coverage.
 Add the following test:</p>
-<pre><code class="language-rust customdiff">     let mut context = NonIncrementalContext;
+<pre><code class="language-rust customdiff">     }
+
+     let mut context = NonIncrementalContext;
      assert_eq!(&quot;Hello World!&quot;, context.require_task(&amp;ReturnHelloWorld));
    }
 +
@@ -413,7 +417,7 @@ Add the following test:</p>
 However, due to the way we've set up the types between <code>Task</code> and <code>Context</code>, we will run into a problem.
 Running <code>cargo test</code>, you should get these errors:</p>
 <pre><code class="language-shell ">$ cargo test
-   Compiling pie v0.1.0 (/tmp/.tmpItAofc/pie)
+   Compiling pie v0.1.0 (/tmp/.tmpm6XR6p/pie)
 error[E0308]: mismatched types
   --&gt; src/context/non_incremental.rs:48:30
    |
@@ -436,17 +440,21 @@ error: could not compile `pie` due to previous error
 <p>The problem is that <code>execute</code> of <code>ToLowerCase</code> takes a <code>Context&lt;Self&gt;</code>, so in <code>impl Task for ToLowerCase</code> it takes a <code>Context&lt;ToLowerCase&gt;</code>, while we're trying to require <code>&amp;ReturnHelloWorld</code> through the context.
 This doesn't work as <code>Context&lt;ToLowerCase&gt;::require_task</code> only takes a <code>&amp;ToLowerCase</code> as input.</p>
 <p>We could change <code>execute</code> of <code>ToLowerCase</code> to take <code>Context&lt;ReturnHelloWorld&gt;</code>:</p>
-<pre><code class="language-rust customdiff">     struct ToLowerCase;
+<pre><code class="language-rust customdiff">
+     #[derive(Clone, PartialEq, Eq, Hash, Debug)]
+     struct ToLowerCase;
      impl Task for ToLowerCase {
        type Output = String;
 -      fn execute&lt;C: Context&lt;Self&gt;&gt;(&amp;self, context: &amp;mut C) -&gt; Self::Output {
 +      fn execute&lt;C: Context&lt;ReturnHelloWorld&gt;&gt;(&amp;self, context: &amp;mut C) -&gt; Self::Output {
          context.require_task(&amp;ReturnHelloWorld).to_lowercase()
        }
-     }</code></pre>
+     }
+
+     let mut context = NonIncrementalContext;</code></pre>
 <p>But that is not allowed:</p>
 <pre><code class="language-shell ">$ cargo test
-   Compiling pie v0.1.0 (/tmp/.tmpItAofc/pie)
+   Compiling pie v0.1.0 (/tmp/.tmpm6XR6p/pie)
 error[E0276]: impl has stricter requirements than trait
   --&gt; src/context/non_incremental.rs:47:21
    |
@@ -467,7 +475,7 @@ However, there is a good reason for this which will become more apparent once we
 <details id="admonition-why-only-a-single-task-type" class="admonition info">
 <summary class="admonition-title">
 <p>Why only a single Task type?</p>
-<p><a class="admonition-anchor-link" href="api/api.html#admonition-why-only-a-single-task-type"></a></p>
+<p><a class="admonition-anchor-link" href="api/index.html#admonition-why-only-a-single-task-type"></a></p>
 </summary>
 <div>
 <p>The gist of it is that an incremental context wants to build a dependency graph and cache task outputs, so that we can figure out from the dependency graph whether a task is affected by a change, and just return its output if it is not affected.
@@ -514,7 +522,7 @@ Replace the test with the following:</p>
 +      ReturnHelloWorld,
 +      ToLowerCase,
 +    }
-+    
++
 +    impl Task for Test {
 +      type Output = String;
 +      fn execute&lt;C: Context&lt;Self&gt;&gt;(&amp;self, context: &amp;mut C) -&gt; Self::Output {
@@ -538,7 +546,7 @@ Run the test with <code>cargo test</code> to confirm it is working.</p>
 <details id="admonition-rust-help-4" class="admonition info">
 <summary class="admonition-title">
 <p>Rust Help</p>
-<p><a class="admonition-anchor-link" href="api/api.html#admonition-rust-help-4"></a></p>
+<p><a class="admonition-anchor-link" href="api/index.html#admonition-rust-help-4"></a></p>
 </summary>
 <div>
 <p><a href="https://doc.rust-lang.org/book/ch06-01-defining-an-enum.html" title="" target="_blank">Enums</a> define a type by a set of variants, similar to enums in other languages, sometimes called tagged unions in other languages.
@@ -547,6 +555,166 @@ The <code>match</code> expression matches the variant and dispatches based on th
 </details>
 <p>We have defined the API for the build system and implemented a non-incremental version of it.
 We're now ready to start implementing an incremental context in the next chapter.</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="incremental-top-down-context"><a class="header" href="#incremental-top-down-context">Incremental Top-Down Context</a></h1>
+<p>In this chapter, we will implement an <em>incremental</em> build context.
+An incremental context selectively executes tasks — only those that are affected by a change.
+In other words, an incremental context executes the <em>minimum number of tasks</em> required to make all tasks up-to-date.</p>
+<p>However, due to dynamic dependencies, this is not trivial.
+We cannot first gather all tasks into a dependency tree and then topologically sort that, as dependencies are added and removed <em>while tasks are executing</em>.
+To do incremental builds in the presence of dynamic dependencies, we need to check and execute affected tasks <em>one at a time</em>, updating the dependency graph, while tasks are executing.
+To achieve this, we will employ a technique called <em>top-down incremental building</em>, which starts checking if a top (root) task needs to be executed, and recursively checks whether dependent tasks should be executed until we reach the bottom (leaf) task(s), akin to a depth-first search.</p>
+<p>Build systems almost always interact with the file system in some way. 
+For example, tasks read configuration and source files, or write intermediate and binary files.
+Thus, a change in a file can affect a task that reads it, and executing a task can result in writing to new or existing files.
+Therefore, we will also keep track of <em>file dependencies</em>.
+Like task dependencies, file dependencies are also tracked dynamically while tasks are executing.</p>
+<p>Before we start coding, let's sketch the outline of the solution — we will:</p>
+<ul>
+<li>Extend <code>Context</code> with a way to for tasks to register file dependencies.
+<ul>
+<li>Implement file system utility functions in module <code>fs</code>.</li>
+<li>Make <code>NonIncrementalContext</code> compatible with the extension to <code>Context</code>.</li>
+</ul>
+</li>
+<li>Implement an <code>IncrementalTopDownContext</code> that does incremental building.
+<ul>
+<li>Implement <code>Dependency</code> to represent dependencies.</li>
+<li>Implement <code>Store</code> that keeps track of the dependency graph.</li>
+</ul>
+</li>
+<li>Write tests for <code>IncrementalTopDownContext</code> to confirm that it is sound and incremental.
+<ul>
+<li>Implement a <code>Tracker</code> that can track build events, so we can assert whether a task has executed or not to test incrementality.</li>
+</ul>
+</li>
+</ul>
+<h2 id="adding-file-dependencies"><a class="header" href="#adding-file-dependencies">Adding File Dependencies</a></h2>
+<p>To support file dependencies, add a method to the <code>Context</code> trait in <code>src/lib.rs</code>:</p>
+<pre><code class="language-rust customdiff"> use std::fmt::Debug;
++use std::fs::File;
+ use std::hash::Hash;
++use std::io;
++use std::path::Path;
+
+ mod context;
+
+ pub trait Task: Clone + Eq + Hash + Debug {
+   type Output: Clone + Eq + Debug;
+@@ -8,6 +11,7 @@
+   fn execute&lt;C: Context&lt;Self&gt;&gt;(&amp;self, context: &amp;mut C) -&gt; Self::Output;
+ }
+
+ pub trait Context&lt;T: Task&gt; {
+   fn require_task(&amp;mut self, task: &amp;T) -&gt; T::Output;
++  fn require_file&lt;P: AsRef&lt;Path&gt;&gt;(&amp;mut self, path: P) -&gt; Result&lt;Option&lt;File&gt;, io::Error&gt;;
+ }</code></pre>
+<p><code>require_file</code> is similar to requiring a task, but instead takes a <code>path</code> to a file or directory on the filesystem as input.
+We use <code>AsRef&lt;Path&gt;</code> as the type for the path, so that we can pass anything in that can dereference to a path.
+For example, <code>str</code> has an <code>AsRef&lt;Path&gt;</code> implementation, so we can just use <code>&quot;test.txt&quot;</code> as a path.</p>
+<p>As an output, we return <code>Result&lt;Option&lt;File&gt;, io::Error&gt;</code>, with <code>File</code> being a handle to an open file.
+The reason for this complicated type is:</p>
+<ul>
+<li>An incremental context will want to read the metadata (such as the last modified date) of the file, or create a hash over the file, to be able to detect changes. Because getting metadata or reading the file can fail, and we want to propagate this error, we return a <code>Result</code> with <code>io::Error</code> as the error type.</li>
+<li>Tasks can create a dependency to a file that does not exist, and the existence of that file affects the task. For example, a task that prints true or false based on if a file exists. If the file does not exist (or it is a directory), we cannot open it, so we cannot return a <code>File</code>, hence we use <code>Option&lt;File&gt;</code> to return <code>None</code>.</li>
+<li>Otherwise, we return <code>Ok(Some(file))</code> so that the task can read the opened file.</li>
+</ul>
+<details id="admonition-rust-help" class="admonition info">
+<summary class="admonition-title">
+<p>Rust Help</p>
+<p><a class="admonition-anchor-link" href="top_down/index.html#admonition-rust-help"></a></p>
+</summary>
+<div>
+<p><a href="https://doc.rust-lang.org/book/ch09-02-recoverable-errors-with-result.html" title="" target="_blank">Recoverable error handling</a> in Rust is done with the <code>Result&lt;T, E&gt;</code> type, which can either be <code>Ok(t)</code> or <code>Err(e)</code>.
+In contrast to many languages which use exceptions, throwing, and exception handling; Rust treats recoverable errors just as regular values.</p>
+<p>Similarly, <a href="https://doc.rust-lang.org/std/option/" title="" target="_blank">optional values</a> in Rust are defined using the <code>Option&lt;T&gt;</code> type, which can either be <code>Some(t)</code> or <code>None</code>.</p>
+<p>Rust has many traits for converting values or references into others, which provides a lot of convenience in what would otherwise require a lot of explicit conversions.
+<a href="https://doc.rust-lang.org/std/convert/trait.AsRef.html" title="" target="_blank">
+<code>AsRef&lt;T&gt;</code></a> is such a conversion trait, that can convert itself into <code>&amp;T</code>. 
+Here, we use <code>AsRef&lt;Path&gt;</code> as a generic with a trait bound to support many different kinds of values to the <code>path</code> argument in <code>require_file</code>.
+For example, we can call <code>context.require_file(&quot;test.txt&quot;)</code> because <code>str</code>, which is the type of string constants, <a href="https://doc.rust-lang.org/src/std/path.rs.html#3136-3141" title="" target="_blank">implements <code>AsRef&lt;Path&gt;</code></a>.
+You can also see this as a kind of method overloading, without having to provide concrete overloads for all supported types.</p>
+</div>
+</details>
+<p>Now we need to implement this method for <code>NonIncrementalContext</code>.
+However, because we will be performing similar file system operations in the incremental context as well, we will create some utility functions for this first.
+Add module <code>fs</code>:</p>
+<pre><code class="language-rust customdiff"> use std::hash::Hash;
+ use std::io;
+ use std::path::Path;
+
+ mod context;
++mod fs;
+
+ pub trait Task: Clone + Eq + Hash + Debug {
+   type Output: Clone + Eq + Debug;
+   fn execute&lt;C: Context&lt;Self&gt;&gt;(&amp;self, context: &amp;mut C) -&gt; Self::Output;
+ }</code></pre>
+<p>Create file <code>src/fs.rs</code> with:</p>
+<pre><code class="language-rust ">use std::{fs, io};
+use std::fs::{File, Metadata};
+use std::path::Path;
+
+/// Gets the metadata for given `path`, or `Err(e)` if there was an error getting the metadata, or `Ok(None)` if no file
+/// or directory exists at given `path`.
+pub fn metadata(path: impl AsRef&lt;Path&gt;) -&gt; Result&lt;Option&lt;Metadata&gt;, io::Error&gt; {
+  match fs::metadata(path) {
+    Err(e) if e.kind() == io::ErrorKind::NotFound =&gt; Ok(None),
+    Err(e) =&gt; Err(e),
+    Ok(m) =&gt; Ok(Some(m))
+  }
+}
+
+/// Open file at given `path` if it exists and is a file. This is necessary because on Windows, opening a directory
+/// returns an error.
+pub fn open_if_file(path: impl AsRef&lt;Path&gt;) -&gt; Result&lt;Option&lt;File&gt;, io::Error&gt; {
+  let file = match metadata(&amp;path)? {
+    Some(metadata) if metadata.is_file() =&gt; Some(File::open(&amp;path)?),
+    _ =&gt; None,
+  };
+  Ok(file)
+}</code></pre>
+<p>The comments explain the behaviour.
+Make the non-incremental context compatible by changing <code>src/context/non_incremental.rs</code>:</p>
+<pre><code class="language-rust customdiff">+use std::fs::File;
++use std::io;
++use std::path::Path;
++
+ use crate::{Context, Task};
++use crate::fs::open_if_file;
+
+ pub struct NonIncrementalContext;
+
+ impl&lt;T: Task&gt; Context&lt;T&gt; for NonIncrementalContext {
+   fn require_task(&amp;mut self, task: &amp;T) -&gt; T::Output {
+     task.execute(self)
+   }
++  fn require_file&lt;P: AsRef&lt;Path&gt;&gt;(&amp;mut self, path: P) -&gt; Result&lt;Option&lt;File&gt;, io::Error&gt; {
++    let file = open_if_file(&amp;path)?;
++    Ok(file)
++  }
+ }</code></pre>
+<p>Since the non-incremental context does not track anything, we simply try to open the file and return it.
+This implements the description we made earlier:</p>
+<ul>
+<li>If opening the file results in an error, the <code>?</code> operator returns <code>Err(...)</code> immediately.</li>
+<li>If the file does not exist or is a directory, <code>open_if_file</code> returns <code>None</code> and <code>file</code> is <code>None</code>.</li>
+<li>Otherwise, <code>file</code> is <code>Some(file)</code>.</li>
+</ul>
+<p>Confirm everything is still working with <code>cargo test</code>.</p>
+<details id="admonition-rust-help-1" class="admonition info">
+<summary class="admonition-title">
+<p>Rust Help</p>
+<p><a class="admonition-anchor-link" href="top_down/index.html#admonition-rust-help-1"></a></p>
+</summary>
+<div>
+<p>The <code>?</code> operator makes it easy to <a href="https://doc.rust-lang.org/book/ch09-02-recoverable-errors-with-result.html#a-shortcut-for-propagating-errors-the--operator" title="" target="_blank">propgate errors</a>.
+Because errors are just values in Rust, to propgate an error, you'd normally have to match each result and manually propagate the error.
+The <code>r?</code> operator applied to a <code>Result</code> <code>r</code> does this for you, it basically desugars to something like <code>match r { Err(e) =&gt; return Err(e), _ =&gt; {} }</code>.</p>
+<p>Comments with three forward slashes <code>///</code> are <a href="https://doc.rust-lang.org/book/ch14-02-publishing-to-crates-io.html#making-useful-documentation-comments" title="" target="_blank">documentation comments</a> that document the function/struct/enum/trait/etc. they are applied to.</p>
+</div>
+</details>
+<h2 id="implementing-the-incremental-context"><a class="header" href="#implementing-the-incremental-context">Implementing the Incremental Context</a></h2>
+<p>Now we get to the fun part!</p>
 
                     </main>
 
