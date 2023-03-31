@@ -7,15 +7,12 @@ extremely simple non-incremental version of the build system to get started.
 
 The unit of computation in a programmatic build system is a *task*.
 A task is kind of like a closure: a value that can be executed to produce their output.
-However, in an *incremental* programmatic build system, we also need to keep track of *dynamic dependencies* that are
-made while tasks are executing.
+However, in an *incremental* programmatic build system, we also need to keep track of *dynamic dependencies* that are made while tasks are executing.
 Therefore, tasks are executed under a *context* which enable them to create these dependencies.
 Tasks *require* other tasks through the context, creating a dynamic dependency and returning their up-to-date output.
 
-On the other hand, an incremental context wants to *selectively execute tasks* — only those that are affected by a
-change.
-To that end, a context will selectively execute tasks, tasks require other tasks through the context, the context
-selectively executes those, and so forth.
+On the other hand, an incremental context wants to *selectively execute tasks* — only those that are affected by a change.
+To that end, a context will selectively execute tasks, tasks require other tasks through the context, the context selectively executes those, and so forth.
 Thus, tasks and contexts are mutually recursive.
 Let's make this more concrete by defining tasks and contexts in code.
 
@@ -41,22 +38,17 @@ The `Task` trait has several supertraits that we will need later in the tutorial
 * `Clone`: to create a clone of the task so that we can store it in the `HashMap` without having ownership of it.
 * `Debug`: to format the task for debugging purposes.
 
-A `Task` has a single method `execute`, which takes a reference to itself (`&self`), and a mutable reference to a
-context (`context: &mut C`), and produces a value of type `Self::Output`.
-Because `Context` is a trait, we use generics (`<C: Context<Self>>`) to have `execute` work for any `Context`
-implementation (ignoring the `Self` part for now).
-The `execute` method takes self by reference such that a task can access its data, but not mutate it, as that could
-throw off incrementality by changing the hash/equality of the task.
-Finally, the type of output of a task is defined by the `Output` associated type, and this type must
-implement `Clone`, `Eq`, and `Debug` for the same reason as `Task`.
+A `Task` has a single method `execute`, which takes a reference to itself (`&self`), and a mutable reference to a context (`context: &mut C`), and produces a value of type `Self::Output`.
+Because `Context` is a trait, we use generics (`<C: Context<Self>>`) to have `execute` work for any `Context` implementation (ignoring the `Self` part for now).
+The `execute` method takes self by reference such that a task can access its data, but not mutate it, as that could throw off incrementality by changing the hash/equality of the task.
+Finally, the type of output of a task is defined by the `Output` associated type, and this type must implement `Clone`, `Eq`, and `Debug` for the same reason as `Task`.
 
 The `Context` trait is generic over `Task`, allowing it to work with any task implementation.
 It has a single method `require_task` for creating a dependency to a task and returning its up-to-date result.
 It takes a mutable reference to itself, enabling dependency tracking and caching, which require mutation.
 Because of this, the context reference passed to `Task::execute` is also mutable.
 
-This `Task` and `Context` API mirrors the mutually recursive definition of task and context we discussed earlier, and
-forms the basis for the entire build system.
+This `Task` and `Context` API mirrors the mutually recursive definition of task and context we discussed earlier, and forms the basis for the entire build system.
 
 Build the project by running `cargo build`.
 The output should look something like:
@@ -98,8 +90,7 @@ The `Task` trait is defined with `pub` (public) [visibility](https://doc.rust-la
 ## Non-Incremental Context
 
 We set up the `Task` and `Context` API in such a way that we can implement incrementality.
-However, incrementality is *hard*, so let's start with an extremely simple non-incremental `Context` implementation to
-get a feeling for the API.
+However, incrementality is *hard*, so let's start with an extremely simple non-incremental `Context` implementation to get a feeling for the API.
 
 ### Context module
 
@@ -110,9 +101,7 @@ Create the `context` module by adding a module to `src/lib.rs`:
 {{#include ../../gen/api/1_context_module.rs.diff:4:}}
 ```
 
-This is a diff over `src/lib.rs` where lines with a green background are additions, lines with a red background are
-removals, and lines with a grey background are context on where to add/remove lines, similar to diffs on source code
-hubs like GitHub.
+This is a diff over `src/lib.rs` where lines with a green background are additions, lines with a red background are removals, and lines with a grey background are context on where to add/remove lines, similar to diffs on source code hubs like GitHub.
 
 Create the `src/context` directory, and in it, create the `src/context/mod.rs` file with the following contents:
 
@@ -146,8 +135,7 @@ Implement the non-incremental context in `src/context/non_incremental.rs` by add
 {{#include 3_non_incremental_context.rs}}
 ```
 
-This `NonIncrementalContext` is extremely simple: in `require_task` we unconditionally execute the task, and pass `self`
-along so the task we're calling can require additional tasks.
+This `NonIncrementalContext` is extremely simple: in `require_task` we unconditionally execute the task, and pass `self` along so the task we're calling can require additional tasks.
 Let's write some tests to see if this does what we expect.
 
 ```admonish info title="Rust Help" collapsible=true
@@ -174,8 +162,7 @@ Add the following test to `src/context/non_incremental.rs`:
 ```
 
 In this test, we create a struct `ReturnHelloWorld` which is the "hello world" of the build system.
-We implement `Task`, set its `Output` associated type to be `String`, and implement the `execute` method to just
-return `"Hello World!"`.
+We implement `Task` for it, set its `Output` associated type to be `String`, and implement the `execute` method to just return `"Hello World!"`.
 We derive the `Clone`, `Eq`, `Hash`, and `Debug` traits for `ReturnHelloWorld` as they are required for all `Task`
 implementations.
 
@@ -191,8 +178,7 @@ The output should look something like:
 ```
 
 Which indicates that the test indeed succeeds!
-You can experiment by returning a different string from `ReturnHelloWorld::execute` to see what a failed test looks
-like.
+You can experiment by returning a different string from `ReturnHelloWorld::execute` to see what a failed test looks like.
 
 ```admonish info title="Rust Help" collapsible=true
 [Unit tests](https://doc.rust-lang.org/book/ch11-03-test-organization.html#the-tests-module-and-cfgtest) for a module 
@@ -232,7 +218,8 @@ Running `cargo test`, you should get these errors:
 {{#include ../../gen/api/5_cargo.txt}}
 ```
 
-The problem is that `execute` of `ToLowerCase` takes a `Context<Self>`, so in this implementation it only works with `Context<ToLowerCase>`, while we're trying to require `ReturnHelloWorld` through the context.
+The problem is that `execute` of `ToLowerCase` takes a `Context<Self>`, so in `impl Task for ToLowerCase` it takes a `Context<ToLowerCase>`, while we're trying to require `&ReturnHelloWorld` through the context.
+This doesn't work as `Context<ToLowerCase>::require_task` only takes a `&ToLowerCase` as input.
 
 We could change `execute` of `ToLowerCase` to take `Context<ReturnHelloWorld>`:
 
@@ -273,8 +260,8 @@ Replace the test with the following:
 
 Here, we instead define a single task `Test` which is an `enum` with two variants.
 In its `Task` implementation, we match ourselves and return `"Hello World!"` when the variant is `ReturnHelloWorld`.
-When the variant is `Self::ReturnHelloWorld`, we require `Self::ReturnHelloWorld` through the context and turn its string lowercase and return that.
-This is now valid due to only having a single task type.
+When the variant is `ReturnHelloWorld`, we require `&Self::ReturnHelloWorld` through the context, which is now valid because it is an instance of `Test`, and turn its string lowercase and return that.
+This now works due to only having a single task type.
 Run the test with `cargo test` to confirm it is working.
 
 ```admonish info title="Rust Help" collapsible=true
