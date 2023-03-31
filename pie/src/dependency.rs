@@ -5,7 +5,7 @@ use std::path::PathBuf;
 
 use crate::{Context, Task};
 use crate::stamp::{FileStamp, FileStamper, OutputStamp, OutputStamper};
-use crate::util::open_if_file;
+use crate::fs::open_if_file;
 
 #[derive(Clone, Eq, PartialEq, Hash, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]

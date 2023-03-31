@@ -1,20 +1,22 @@
 # Programmable Build System API
 
-In this first chapter, we will program the core API of the programmatic incremental build system, and implement an
-extremely simple non-incremental version of the build system to get started.
+In this first chapter, we will program the core API of the programmatic incremental build system, and implement an extremely simple non-incremental version of the build system to get started.
 
 ## Task and Context
 
 The unit of computation in a programmatic build system is a *task*.
 A task is kind of like a closure: a value that can be executed to produce their output.
 However, in an *incremental* programmatic build system, we also need to keep track of *dynamic dependencies* that are made while tasks are executing.
-Therefore, tasks are executed under a *context* which enable them to create these dependencies.
+Therefore, tasks are executed under a *build context* which enable them to create these dependencies.
 Tasks *require* other tasks through the context, creating a dynamic dependency and returning their up-to-date output.
 
-On the other hand, an incremental context wants to *selectively execute tasks* — only those that are affected by a change.
-To that end, a context will selectively execute tasks, tasks require other tasks through the context, the context selectively executes those, and so forth.
-Thus, tasks and contexts are mutually recursive.
-Let's make this more concrete by defining tasks and contexts in code.
+On the other hand, an incremental build context wants to *selectively execute tasks* — only those that are affected by a change.
+To that end, a build context will selectively execute tasks, tasks require other tasks through the build context, the build context selectively executes those, and so forth.
+Thus, tasks and build contexts are mutually recursive.
+
+In this tutorial, we will be using the words *context*, *build context*, and *build system* interchangeably, typically using just *context* as it is concise.
+
+Let's make tasks and contexts more concrete by defining them in code.
 
 ### API Implementation
 

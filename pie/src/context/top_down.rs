@@ -1,7 +1,7 @@
 use std::cell::Cell;
 use std::fs::File;
 use std::hash::BuildHasher;
-use std::path::PathBuf;
+use std::path::Path;
 
 use pie_graph::NodeId;
 
@@ -65,11 +65,11 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> Context<T> for In
   }
 
   #[inline]
-  fn require_file_with_stamper(&mut self, path: &PathBuf, stamper: FileStamper) -> Result<Option<File>, std::io::Error> {
+  fn require_file_with_stamper<P: AsRef<Path>>(&mut self, path: P, stamper: FileStamper) -> Result<Option<File>, std::io::Error> {
     self.shared.require_file_with_stamper(path, stamper)
   }
   #[inline]
-  fn provide_file_with_stamper(&mut self, path: &PathBuf, stamper: FileStamper) -> Result<(), std::io::Error> {
+  fn provide_file_with_stamper<P: AsRef<Path>>(&mut self, path: P, stamper: FileStamper) -> Result<(), std::io::Error> {
     self.shared.provide_file_with_stamper(path, stamper)
   }
 

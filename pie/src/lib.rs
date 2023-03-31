@@ -4,7 +4,8 @@ use std::error::Error;
 use std::fmt::Debug;
 use std::fs::File;
 use std::hash::{BuildHasher, Hash};
-use std::path::PathBuf;
+use std::io;
+use std::path::{Path, PathBuf};
 
 use stamp::{FileStamper, OutputStamper};
 
@@ -18,7 +19,7 @@ pub mod tracker;
 mod dependency;
 mod store;
 mod context;
-mod util;
+mod fs;
 
 /// The unit of computation in a programmatic incremental build system.
 pub trait Task: Clone + Eq + Hash + Debug {
@@ -44,25 +45,25 @@ pub trait Context<T: Task> {
   /// stamper. Returns the opened file (in read-only mode). Call this method *just before reading from the file*, so 
   /// that the stamp corresponds to the data that you are reading.
   #[inline]
-  fn require_file(&mut self, path: &PathBuf) -> Result<Option<File>, std::io::Error> {
+  fn require_file(&mut self, path: impl AsRef<Path>) -> Result<Option<File>, io::Error> {
     self.require_file_with_stamper(path, self.default_require_file_stamper())
   }
   /// Requires file at given `path`, creating a read-dependency to it by creating a stamp with given `stamper`. 
   /// Returns the opened file (in read-only mode) if the file exists, `None` otherwise. Call this method *just before 
   /// reading from the file*, so that the stamp corresponds to the data that you are reading.
-  fn require_file_with_stamper(&mut self, path: &PathBuf, stamper: FileStamper) -> Result<Option<File>, std::io::Error>;
+  fn require_file_with_stamper<P: AsRef<Path>>(&mut self, path: P, stamper: FileStamper) -> Result<Option<File>, io::Error>;
 
   /// Provides file at given `path`, creating a write-dependency to it by creating a stamp with the default provide file
   /// stamper. Call this method *after writing to the file*, so that the stamp corresponds to the data that you've
   /// written to the file. This method does not return the opened file, as it must be called *after writing to the file*.
   #[inline]
-  fn provide_file(&mut self, path: &PathBuf) -> Result<(), std::io::Error> {
+  fn provide_file(&mut self, path: impl AsRef<Path>) -> Result<(), io::Error> {
     self.provide_file_with_stamper(path, self.default_provide_file_stamper())
   }
   /// Provides file at given `path`, creating a write-dependency to it by creating a stamp with given `stamper`.
   /// Call this method *after writing to the file*, so that the stamp corresponds to the data that you've written to the
   /// file. This method does not return the opened file, as it must be called *after writing to the file*.
-  fn provide_file_with_stamper(&mut self, path: &PathBuf, stamper: FileStamper) -> Result<(), std::io::Error>;
+  fn provide_file_with_stamper<P: AsRef<Path>>(&mut self, path: P, stamper: FileStamper) -> Result<(), io::Error>;
 
   /// Returns the default output stamper.
   fn default_output_stamper(&self) -> OutputStamper;

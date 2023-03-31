@@ -1,13 +1,14 @@
 use std::fs::File;
 use std::io::Error;
-use std::path::PathBuf;
+use std::path::Path;
 
 use crate::{Context, Task};
 use crate::stamp::{FileStamper, OutputStamper};
+use crate::fs::open_if_file;
 
-pub struct NaiveContext {}
+pub struct NonIncrementalContext {}
 
-impl<T: Task> Context<T> for NaiveContext {
+impl<T: Task> Context<T> for NonIncrementalContext {
   #[inline]
   fn require_task(&mut self, task: &T) -> T::Output {
     task.execute(self)
@@ -18,17 +19,12 @@ impl<T: Task> Context<T> for NaiveContext {
   }
 
   #[inline]
-  fn require_file_with_stamper(&mut self, path: &PathBuf, _stamper: FileStamper) -> Result<Option<File>, Error> {
-    let exists = path.try_exists()?;
-    let file = if exists {
-      Some(File::open(&path)?)
-    } else {
-      None
-    };
+  fn require_file_with_stamper<P: AsRef<Path>>(&mut self, path: P, _stamper: FileStamper) -> Result<Option<File>, Error> {
+    let file = open_if_file(&path)?;
     Ok(file)
   }
   #[inline]
-  fn provide_file_with_stamper(&mut self, _path: &PathBuf, _stamper: FileStamper) -> Result<(), Error> { Ok(()) }
+  fn provide_file_with_stamper<P: AsRef<Path>>(&mut self, _path: P, _stamper: FileStamper) -> Result<(), Error> { Ok(()) }
 
   #[inline]
   fn default_output_stamper(&self) -> OutputStamper { OutputStamper::Equals }

@@ -5,11 +5,11 @@
 # Programmability
 
 - [Setup]()
-- [Programmable Build System API](./api/api.md)
+- [Programmable Build System API](./api/index.md)
 
 # Incrementality
 
-- [Incremental Top-Down Context]()
+- [Incremental Top-Down Context](./top_down/index.md)
 - [Minimality]()
 
 # Soundness

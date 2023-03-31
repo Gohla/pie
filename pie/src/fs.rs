@@ -2,6 +2,8 @@ use std::{fs, io};
 use std::fs::{File, Metadata};
 use std::path::Path;
 
+/// Gets the metadata for given `path`, or `Err(e)` if there was an error getting the metadata, or `Ok(None)` if no file
+/// or directory exists at given `path`.
 pub fn metadata(path: impl AsRef<Path>) -> Result<Option<Metadata>, io::Error> {
   match fs::metadata(path) {
     Err(e) if e.kind() == io::ErrorKind::NotFound => Ok(None),
@@ -10,7 +12,7 @@ pub fn metadata(path: impl AsRef<Path>) -> Result<Option<Metadata>, io::Error> {
   }
 }
 
-/// Open file at given path if it exists and is a file. This is necessary because on Windows, opening a directory
+/// Open file at given `path` if it exists and is a file. This is necessary because on Windows, opening a directory
 /// returns an error.
 pub fn open_if_file(path: impl AsRef<Path>) -> Result<Option<File>, io::Error> {
   let file = match metadata(&path)? {

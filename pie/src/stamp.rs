@@ -6,7 +6,7 @@ use std::time::SystemTime;
 
 use serde::Serializer;
 
-use crate::util::{metadata, open_if_file};
+use crate::fs::{metadata, open_if_file};
 
 // File stampers
 

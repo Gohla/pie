@@ -2,7 +2,7 @@ use std::fs::read_to_string;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
-use diffy::Patch;
+use diffy::{DiffOptions, Patch};
 
 use crate::stepper::Stepper;
 
@@ -115,7 +115,9 @@ impl CreateDiffAndApply {
       .expect("failed to read original file text");
     let modified_text = read_to_string(modified_file_path)
       .expect("failed to read modified file text");
-    let patch = diffy::create_patch(&original_text, &modified_text);
+    let mut diff_options = DiffOptions::default();
+    diff_options.set_context_len(5);
+    let patch = diff_options.create_patch(&original_text, &modified_text);
     crate::util::write_to_file(&patch.to_bytes(), diff_output_file_path, false)
       .expect("failed to write to diff output file");
 

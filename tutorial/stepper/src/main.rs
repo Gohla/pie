@@ -28,7 +28,7 @@ fn main() {
     .apply([
       CreateDiffAndApply::new("0_api.rs", "1_context_module.rs", "lib.rs", "1_context_module.rs.diff"),
       AddToFile::new("2_non_incremental_module.rs", "context/mod.rs"),
-      CreateFile::new("context/non_incremental.rs")
+      CreateFile::new("context/non_incremental.rs"),
     ])
     .output(DirectoryStructure::new("../", "2_dir.txt"));
   stepper.apply(AddToFile::new("3_non_incremental_context.rs", "context/non_incremental.rs"));
@@ -43,5 +43,14 @@ fn main() {
     .apply_failure(CreateDiffAndApply::new("5_test_2.rs", "6_test_2.rs", "context/non_incremental.rs", "6_test_2.rs.diff"))
     .output(CargoOutput::new("6_cargo.txt"));
   stepper.apply(ApplyDiff::new("7_test_2.rs.diff", "context/non_incremental.rs"));
+  stepper.pop_chapter();
+
+  stepper.push_chapter("top_down");
+  stepper.apply([
+    CreateDiffAndApply::new("0_lib_a.rs", "0_lib_b.rs", "lib.rs", "0_lib_b.rs.diff"),
+    CreateDiffAndApply::new("0_lib_b.rs", "0_lib_c.rs", "lib.rs", "0_lib_c.rs.diff"),
+    AddToFile::new("0_fs.rs", "fs.rs"),
+    CreateDiffAndApply::new("0_non_incremental_context_a.rs", "0_non_incremental_context_b.rs", "context/non_incremental.rs", "0_non_incremental_context.rs.diff"),
+  ]);
   stepper.pop_chapter();
 }

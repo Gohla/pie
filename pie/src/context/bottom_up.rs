@@ -4,7 +4,7 @@ use std::collections::HashSet;
 use std::error::Error;
 use std::fs::File;
 use std::hash::BuildHasher;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use crate::{Context, Session, Task, TaskNodeId};
 use crate::context::ContextShared;
@@ -193,7 +193,7 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> IncrementalBottom
       // 
       // All case cannot occur, thus the task cannot be affected. Therefore, we don't have to execute the task.
       self.shared.session.tracker.up_to_date(task);
-      
+
       // Unwrap OK: we don't have to execute the task and an output exists.
       let output = self.shared.session.store.get_task_output(&task_node_id).unwrap().clone();
       output
@@ -218,11 +218,11 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> Context<T> for In
   }
 
   #[inline]
-  fn require_file_with_stamper(&mut self, path: &PathBuf, stamper: FileStamper) -> Result<Option<File>, std::io::Error> {
+  fn require_file_with_stamper<P: AsRef<Path>>(&mut self, path: P, stamper: FileStamper) -> Result<Option<File>, std::io::Error> {
     self.shared.require_file_with_stamper(path, stamper)
   }
   #[inline]
-  fn provide_file_with_stamper(&mut self, path: &PathBuf, stamper: FileStamper) -> Result<(), std::io::Error> {
+  fn provide_file_with_stamper<P: AsRef<Path>>(&mut self, path: P, stamper: FileStamper) -> Result<(), std::io::Error> {
     self.shared.provide_file_with_stamper(path, stamper)
   }
 

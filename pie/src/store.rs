@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use std::hash::BuildHasher;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use pie_graph::{DAG, NodeId};
 
@@ -78,13 +78,13 @@ impl<T: Task, H: BuildHasher + Default> Store<T, H> {
 
 
   #[inline]
-  pub fn get_or_create_file_node(&mut self, path: &PathBuf) -> FileNodeId {
-    // TODO: normalize path?
+  pub fn get_or_create_file_node(&mut self, path: impl AsRef<Path>) -> FileNodeId {
+    let path = path.as_ref();
     if let Some(file_node) = self.file_to_node.get(path) {
       *file_node
     } else {
-      let node = self.graph.add_node(NodeData::File(path.clone()));
-      self.file_to_node.insert(path.clone(), node);
+      let node = self.graph.add_node(NodeData::File(path.to_path_buf()));
+      self.file_to_node.insert(path.to_path_buf(), node);
       node
     }
   }
@@ -167,8 +167,8 @@ impl<T: Task, H: BuildHasher + Default> Store<T, H> {
   pub fn contains_transitive_task_dependency(&self, depender: &TaskNodeId, dependee: &TaskNodeId) -> bool {
     self.graph.contains_transitive_dependency(depender, dependee)
   }
-  
-  
+
+
   /// Get all requirer task nodes and corresponding dependencies of tasks that require given `task_node`.
   #[inline]
   pub fn get_tasks_requiring_task<'a>(&'a self, task_node: &'a TaskNodeId) -> impl Iterator<Item=(&TaskNodeId, &TaskDependency<T, T::Output>)> + '_ {

@@ -1,6 +1,6 @@
 use std::fs::File;
 use std::hash::BuildHasher;
-use std::path::PathBuf;
+use std::path::Path;
 
 use crate::{Session, Task};
 use crate::dependency::{Dependency, FileDependency};
@@ -8,7 +8,7 @@ use crate::stamp::{FileStamper, OutputStamper};
 use crate::store::TaskNodeId;
 use crate::tracker::Tracker;
 
-pub(crate) mod naive;
+pub(crate) mod non_incremental;
 pub(crate) mod bottom_up;
 pub(crate) mod top_down;
 
@@ -25,7 +25,8 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> ContextShared<'p,
     }
   }
 
-  fn require_file_with_stamper(&mut self, path: &PathBuf, stamper: FileStamper) -> Result<Option<File>, std::io::Error> {
+  fn require_file_with_stamper(&mut self, path: impl AsRef<Path>, stamper: FileStamper) -> Result<Option<File>, std::io::Error> {
+    let path = path.as_ref();
     let (dependency, file) = FileDependency::new_with_file(path, stamper)?;
     self.session.tracker.require_file(&dependency);
     let file_node = self.session.store.get_or_create_file_node(path);
@@ -42,7 +43,8 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> ContextShared<'p,
     Ok(file)
   }
 
-  fn provide_file_with_stamper(&mut self, path: &PathBuf, stamper: FileStamper) -> Result<(), std::io::Error> {
+  fn provide_file_with_stamper(&mut self, path: impl AsRef<Path>, stamper: FileStamper) -> Result<(), std::io::Error> {
+    let path = path.as_ref();
     let dependency = FileDependency::new(path, stamper).map_err(|e| e.kind())?;
     self.session.tracker.provide_file(&dependency);
     let file_node = self.session.store.get_or_create_file_node(path);
@@ -75,7 +77,7 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> ContextShared<'p,
       }
     }
   }
-  
+
   fn update_task_require_dependency(&mut self, task: T, task_node_id: &TaskNodeId, output: T::Output, stamper: OutputStamper) {
     if let Some(current_task_node) = self.task_execution_stack.last() {
       let dependency = Dependency::require_task(task, output, stamper);
