@@ -204,8 +204,8 @@ Because of this, the context reference passed to <code>Task::execute</code> is a
 <p>Build the project by running <code>cargo build</code>.
 The output should look something like:</p>
 <pre><code class="language-shell ">$ cargo build
-   Compiling pie v0.1.0 (/tmp/.tmpm6XR6p/pie)
-    Finished dev [unoptimized + debuginfo] target(s) in 0.27s
+   Compiling pie v0.1.0 (/tmp/.tmpk54lGv/pie)
+    Finished dev [unoptimized + debuginfo] target(s) in 0.25s
 </code></pre>
 <details id="admonition-rust-help" class="admonition info">
 <summary class="admonition-title">
@@ -257,14 +257,14 @@ Create the <code>context</code> module by adding a module to <code>src/lib.rs</c
 <p>Then, create the <code>src/context/non_incremental.rs</code> file, it will be empty for now.
 Your project structure should now look like:</p>
 <pre><code>pie
-├── target
 ├── Cargo.toml
 ├── src
 │   ├── context
-│   │   ├── mod.rs
-│   │   └── non_incremental.rs
+│   │   ├── non_incremental.rs
+│   │   └── mod.rs
 │   └── lib.rs
-└── Cargo.lock
+├── Cargo.lock
+└── target
 </code></pre>
 <p>Confirm your module structure is correct by building with <code>cargo build</code>.</p>
 <details id="admonition-rust-help-1" class="admonition info">
@@ -341,9 +341,9 @@ It returns the output of the task, which we test with <code>assert_eq!</code>.</
 <p>Run the test by running <code>cargo test</code>.
 The output should look something like:</p>
 <pre><code class="language-shell ">$ cargo test
-   Compiling pie v0.1.0 (/tmp/.tmpm6XR6p/pie)
-    Finished test [unoptimized + debuginfo] target(s) in 0.43s
-     Running unittests src/lib.rs (/tmp/.tmpm6XR6p/pie/target/debug/deps/pie-1b523cd83cb66403)
+   Compiling pie v0.1.0 (/tmp/.tmpk54lGv/pie)
+    Finished test [unoptimized + debuginfo] target(s) in 0.56s
+     Running unittests src/lib.rs (/tmp/.tmpk54lGv/pie/target/debug/deps/pie-3cecfba008cc42eb)
 
 running 1 test
 test context::non_incremental::test::test_require_task_direct ... ok
@@ -417,18 +417,18 @@ Add the following test:</p>
 However, due to the way we've set up the types between <code>Task</code> and <code>Context</code>, we will run into a problem.
 Running <code>cargo test</code>, you should get these errors:</p>
 <pre><code class="language-shell ">$ cargo test
-   Compiling pie v0.1.0 (/tmp/.tmpm6XR6p/pie)
+   Compiling pie v0.1.0 (/tmp/.tmpk54lGv/pie)
 error[E0308]: mismatched types
   --&gt; src/context/non_incremental.rs:48:30
    |
 48 |         context.require_task(&amp;ReturnHelloWorld).to_lowercase()
-   |                 ------------ ^^^^^^^^^^^^^^^^^ expected struct `ToLowerCase`, found struct `ReturnHelloWorld`
+   |                 ------------ ^^^^^^^^^^^^^^^^^ expected `&amp;ToLowerCase`, found `&amp;ReturnHelloWorld`
    |                 |
    |                 arguments to this method are incorrect
    |
    = note: expected reference `&amp;ToLowerCase`
               found reference `&amp;non_incremental::test::test_require_task_problematic::ReturnHelloWorld`
-note: associated function defined here
+note: method defined here
   --&gt; src/lib.rs:12:6
    |
 12 |   fn require_task(&amp;mut self, task: &amp;T) -&gt; T::Output;
@@ -454,7 +454,7 @@ This doesn't work as <code>Context&lt;ToLowerCase&gt;::require_task</code> only 
      let mut context = NonIncrementalContext;</code></pre>
 <p>But that is not allowed:</p>
 <pre><code class="language-shell ">$ cargo test
-   Compiling pie v0.1.0 (/tmp/.tmpm6XR6p/pie)
+   Compiling pie v0.1.0 (/tmp/.tmpk54lGv/pie)
 error[E0276]: impl has stricter requirements than trait
   --&gt; src/context/non_incremental.rs:47:21
    |
@@ -563,7 +563,7 @@ In other words, an incremental context executes the <em>minimum number of tasks<
 We cannot first gather all tasks into a dependency tree and then topologically sort that, as dependencies are added and removed <em>while tasks are executing</em>.
 To do incremental builds in the presence of dynamic dependencies, we need to check and execute affected tasks <em>one at a time</em>, updating the dependency graph, while tasks are executing.
 To achieve this, we will employ a technique called <em>top-down incremental building</em>, which starts checking if a top (root) task needs to be executed, and recursively checks whether dependent tasks should be executed until we reach the bottom (leaf) task(s), akin to a depth-first search.</p>
-<p>Build systems almost always interact with the file system in some way. 
+<p>Furthermore, build systems almost always interact with the file system in some way. 
 For example, tasks read configuration and source files, or write intermediate and binary files.
 Thus, a change in a file can affect a task that reads it, and executing a task can result in writing to new or existing files.
 Therefore, we will also keep track of <em>file dependencies</em>.
@@ -576,13 +576,13 @@ Like task dependencies, file dependencies are also tracked dynamically while tas
 <li>Make <code>NonIncrementalContext</code> compatible with the extension to <code>Context</code>.</li>
 </ul>
 </li>
-<li>Implement an <code>IncrementalTopDownContext</code> that does incremental building.
+<li>Implement an <code>TopDownContext</code> that does incremental building.
 <ul>
 <li>Implement <code>Dependency</code> to represent dependencies.</li>
 <li>Implement <code>Store</code> that keeps track of the dependency graph.</li>
 </ul>
 </li>
-<li>Write tests for <code>IncrementalTopDownContext</code> to confirm that it is sound and incremental.
+<li>Write tests for <code>TopDownContext</code> to confirm that it is sound and incremental.
 <ul>
 <li>Implement a <code>Tracker</code> that can track build events, so we can assert whether a task has executed or not to test incrementality.</li>
 </ul>
@@ -636,8 +636,8 @@ You can also see this as a kind of method overloading, without having to provide
 </div>
 </details>
 <p>Now we need to implement this method for <code>NonIncrementalContext</code>.
-However, because we will be performing similar file system operations in the incremental context as well, we will create some utility functions for this first.
-Add module <code>fs</code>:</p>
+However, because we will be performing similar file system operations in the incremental context as well, we will create some utility functions for this first.</p>
+<p>Add the <code>fs</code> module to <code>src/lib.rs</code>:</p>
 <pre><code class="language-rust customdiff"> use std::hash::Hash;
  use std::io;
  use std::path::Path;
@@ -673,7 +673,83 @@ pub fn open_if_file(path: impl AsRef&lt;Path&gt;) -&gt; Result&lt;Option&lt;File
   };
   Ok(file)
 }</code></pre>
-<p>The comments explain the behaviour.
+<p>The comments explain the behaviour.</p>
+<p>We will write some tests to confirm the behaviour, but for that we need a utility to create temporary files and directories.
+Instead of implementing that ourselves, we will use an existing crate.
+Add the <code>tempfile</code> dependency to <code>Cargo.toml</code>:</p>
+<pre><code class="language-toml customdiff"> [package]
+ name = &quot;pie&quot;
+ version = &quot;0.1.0&quot;
+ edition = &quot;2021&quot;
++
++[dev-dependencies]
++tempfile = &quot;3&quot;
+</code></pre>
+<p>Note that this is dependency is added under <code>dev-dependencies</code>, indicating that this dependency is only available when running tests, benchmarks, and examples.
+Therefore, users of our library will not depend on this library, which is good because temporary file creation is not necessary to users of our library.</p>
+<p>Now, add the following tests to <code>src/fs.rs</code>:</p>
+<pre><code class="language-rust ">#[cfg(test)]
+mod test {
+  use tempfile::{NamedTempFile, TempDir};
+
+  use super::*;
+
+  #[test]
+  fn test_metadata_ok() {
+    let file = create_temp_file();
+    let metadata = metadata(file.path());
+    assert!(metadata.is_ok());
+    let metadata = metadata.unwrap();
+    assert!(metadata.is_some());
+    let metadata = metadata.unwrap();
+    assert!(metadata.is_file());
+  }
+
+  #[test]
+  fn test_metadata_none() {
+    let file = create_temp_file();
+    let path = file.into_temp_path();
+    std::fs::remove_file(&amp;path).expect(&quot;failed to delete temporary file&quot;);
+    let metadata = metadata(&amp;path);
+    assert!(metadata.is_ok());
+    let metadata = metadata.unwrap();
+    assert!(metadata.is_none());
+  }
+
+  #[test]
+  fn test_open_if_file() {
+    let path = create_temp_file().into_temp_path();
+    let file = open_if_file(&amp;path);
+    assert!(file.is_ok());
+    let file = file.unwrap();
+    assert!(file.is_some());
+  }
+
+  #[test]
+  fn test_open_if_file_non_existent() {
+    let path = create_temp_file().into_temp_path();
+    std::fs::remove_file(&amp;path).expect(&quot;failed to delete temporary file&quot;);
+    let file = open_if_file(&amp;path);
+    assert!(file.is_ok());
+    let file = file.unwrap();
+    assert!(file.is_none());
+  }
+
+  #[test]
+  fn test_open_if_file_on_directory() {
+    let dir = TempDir::new().expect(&quot;failed to create temporary directory&quot;);
+    let file = open_if_file(dir.path());
+    assert!(file.is_ok());
+    let file = file.unwrap();
+    assert!(file.is_none());
+  }
+
+  fn create_temp_file() -&gt; NamedTempFile {
+    NamedTempFile::new().expect(&quot;failed to create temporary file&quot;)
+  }
+}</code></pre>
+<p>Unfortunately, we can't easily test when <code>metadata</code> and <code>open_if_file</code> should return an error, because we cannot disable read permissions on files via the Rust standard library.</p>
+<p>Now we are done with our filesystem utility excursion.
 Make the non-incremental context compatible by changing <code>src/context/non_incremental.rs</code>:</p>
 <pre><code class="language-rust customdiff">+use std::fs::File;
 +use std::io;
@@ -700,7 +776,7 @@ This implements the description we made earlier:</p>
 <li>If the file does not exist or is a directory, <code>open_if_file</code> returns <code>None</code> and <code>file</code> is <code>None</code>.</li>
 <li>Otherwise, <code>file</code> is <code>Some(file)</code>.</li>
 </ul>
-<p>Confirm everything is still working with <code>cargo test</code>.</p>
+<p>Confirm everything works with <code>cargo test</code>.</p>
 <details id="admonition-rust-help-1" class="admonition info">
 <summary class="admonition-title">
 <p>Rust Help</p>
@@ -714,7 +790,181 @@ The <code>r?</code> operator applied to a <code>Result</code> <code>r</code> doe
 </div>
 </details>
 <h2 id="implementing-the-incremental-context"><a class="header" href="#implementing-the-incremental-context">Implementing the Incremental Context</a></h2>
-<p>Now we get to the fun part!</p>
+<p>Now we get to the fun part, incrementality!</p>
+<p>To check whether we need to execute a task, we need to check the dependencies of that task to see if any of them are not consistent.
+If they are all consistent, we just return the cached output of the task.
+If not, we just execute the task.</p>
+<p>To implement this, we will need 3 components:</p>
+<ul>
+<li>A <code>Dependency</code> type which holds dependency data with methods for checking consistency.</li>
+<li>A <code>Store</code> type which holds the dependency graph with methods for interacting with the graph.</li>
+<li>A <code>TopDownContext</code> type that implements <code>Context</code> and owns a <code>Store</code>.</li>
+</ul>
+<p>We will start with implementing <code>Dependency</code>, as it can be implemented as a stand-alone part.</p>
+<h3 id="dependency-implementation"><a class="header" href="#dependency-implementation">Dependency implementation</a></h3>
+<p>Add the <code>dependency</code> module to <code>src/lib.rs</code>:</p>
+<pre><code class="language-rust customdiff"> use std::io;
+ use std::path::Path;
+
+ mod context;
+ mod fs;
++mod dependency;
+
+ pub trait Task: Clone + Eq + Hash + Debug {
+   type Output: Clone + Eq + Debug;
+   fn execute&lt;C: Context&lt;Self&gt;&gt;(&amp;self, context: &amp;mut C) -&gt; Self::Output;
+ }</code></pre>
+<p>Then create the <code>src/dependency.rs</code> file and add:</p>
+<pre><code class="language-rust ">use std::fmt::Debug;
+use std::fs::File;
+use std::io;
+use std::path::Path;
+use std::path::PathBuf;
+use std::time::SystemTime;
+
+use crate::{Context, Task};
+use crate::fs::{metadata, open_if_file};
+
+#[derive(Clone, Eq, PartialEq, Hash, Debug)]
+pub struct TaskDependency&lt;T, O&gt; {
+  pub task: T,
+  pub output: O,
+}
+
+impl&lt;T: Task&gt; TaskDependency&lt;T, T::Output&gt; {
+  pub fn new(task: T, output: T::Output) -&gt; Self {
+    Self { task, output }
+  }
+
+  pub fn is_inconsistent&lt;C: Context&lt;T&gt;&gt;(&amp;self, context: &amp;mut C) -&gt; bool {
+    let output = context.require_task(&amp;self.task);
+    output != self.output
+  }
+}
+
+
+#[derive(Clone, Eq, PartialEq, Hash, Debug)]
+pub struct FileDependency {
+  pub path: PathBuf,
+  pub modified_date: Option&lt;SystemTime&gt;,
+}
+
+impl FileDependency {
+  pub fn new(path: impl Into&lt;PathBuf&gt;) -&gt; Result&lt;(Self, Option&lt;File&gt;), io::Error&gt; {
+    let path = path.into();
+    let modified_date = Self::modified_date(&amp;path)?;
+    let file = open_if_file(&amp;path)?;
+    let dependency = Self { path, modified_date };
+    Ok((dependency, file))
+  }
+
+  pub fn is_inconsistent(&amp;self) -&gt; Result&lt;bool, io::Error&gt; {
+    let modified_date = Self::modified_date(&amp;self.path)?;
+    Ok(modified_date != self.modified_date)
+  }
+
+  fn modified_date(path: impl AsRef&lt;Path&gt;) -&gt; Result&lt;Option&lt;SystemTime&gt;, io::Error&gt; {
+    let modified_date = if let Some(metadata) = metadata(path)? {
+      Some(metadata.modified()?)
+    } else {
+      None // File does not exist -&gt; no modified date.
+    };
+    Ok(modified_date)
+  }
+}
+
+
+#[derive(Clone, Eq, PartialEq, Hash, Debug)]
+pub enum Dependency&lt;T, O&gt; {
+  RequireTask(TaskDependency&lt;T, O&gt;),
+  RequireFile(FileDependency),
+}
+
+impl&lt;T: Task&gt; Dependency&lt;T, T::Output&gt; {
+  pub fn is_inconsistent&lt;C: Context&lt;T&gt;&gt;(&amp;self, context: &amp;mut C) -&gt; Result&lt;bool, io::Error&gt; {
+    match self {
+      Dependency::RequireTask(d) =&gt; Ok(d.is_inconsistent(context)),
+      Dependency::RequireFile(d) =&gt; d.is_inconsistent(),
+    }
+  }
+}</code></pre>
+<p>We implement the <code>TaskDependency</code> and <code>FileDependency</code> types to handle task and file dependencies respectively.
+We merge those two kinds of dependencies into the <code>Dependency</code> enum.
+This split is made so that users of this module can accept only task or file dependencies, or any dependency in general, which we will need in the future.</p>
+<p>A task dependency is inconsistent if, after recursively checking it, its output has changed.
+The <code>TaskDependency::is_inconsistent</code> does exactly that, by requiring the task with a context, and then checking if the output has changed.
+We implement a <code>is_inconsistent</code> method here instead of an <code>is_consistent</code> method, because we will change it in the future to return the changed output for logging purposes, and in that case we want to see the changed output if it is not consistent.</p>
+<p>A file dependency is inconsistent if its last modification date has changed, or if the file did not exist before but does now (and vice versa), implemented in <code>FileDependency::is_inconsistent</code>.
+If a file does not exist, we use <code>None</code> as the modification date, which does not equal <code>Some(modified_date)</code>.
+We deal with errors (<code>io::Error</code>) by propagating them.</p>
+<p>The <code>FileDependency::new</code> function also returns the opened file if it exists, so that users of this function can read from the file without having to open it again.</p>
+<p>Finally, <code>Dependency</code> just merges the two kinds of dependencies and provides an <code>is_inconsistent</code> method that calls the corresponding method.</p>
+<p>As usual, we write some tests to confirm the behaviour. Add tests to <code>src/dependency.rs</code>:</p>
+<pre><code class="language-rust ">#[cfg(test)]
+mod test {
+  use std::fs;
+  use std::io::Read;
+
+  use tempfile::{NamedTempFile, TempPath};
+
+  use crate::context::non_incremental::NonIncrementalContext;
+
+  use super::*;
+
+  #[derive(Clone, PartialEq, Eq, Hash, Debug)]
+  struct ReadStringFromFile(PathBuf);
+
+  impl Task for ReadStringFromFile {
+    type Output = String;
+    fn execute&lt;C: Context&lt;Self&gt;&gt;(&amp;self, context: &amp;mut C) -&gt; Self::Output {
+      let mut string = String::new();
+      if let Some(mut file) = context.require_file(&amp;self.0).expect(&quot;failed to require file&quot;) {
+        file.read_to_string(&amp;mut string).expect(&quot;failed to read from file&quot;);
+      };
+      string
+    }
+  }
+
+  #[test]
+  fn test_task_dependency_consistency() {
+    let mut context = NonIncrementalContext;
+
+    let path = create_temp_path();
+    fs::write(&amp;path, &quot;test1&quot;).expect(&quot;failed to write to file&quot;);
+    let task = ReadStringFromFile(path.to_path_buf());
+    let output = context.require_task(&amp;task);
+
+    let task_dependency = TaskDependency::new(task.clone(), output);
+    let dependency = Dependency::RequireTask(task_dependency.clone());
+    assert!(!task_dependency.is_inconsistent(&amp;mut context));
+    assert!(!dependency.is_inconsistent(&amp;mut context).expect(&quot;failed to check for inconsistency&quot;));
+
+    fs::write(&amp;path, &quot;test2&quot;).expect(&quot;failed to write to file&quot;);
+    assert!(task_dependency.is_inconsistent(&amp;mut context));
+    assert!(dependency.is_inconsistent(&amp;mut context).expect(&quot;failed to check for inconsistency&quot;));
+  }
+
+  #[test]
+  fn test_file_dependency_consistency() {
+    let mut context = NonIncrementalContext;
+
+    let path = create_temp_path();
+    fs::write(&amp;path, &quot;test1&quot;).expect(&quot;failed to write to file&quot;);
+
+    let (file_dependency, _) = FileDependency::new(&amp;path).expect(&quot;failed to create file dependency&quot;);
+    let dependency: Dependency&lt;ReadStringFromFile, String&gt; = Dependency::RequireFile(file_dependency.clone());
+    assert!(!file_dependency.is_inconsistent().expect(&quot;failed to check for inconsistency&quot;));
+    assert!(!dependency.is_inconsistent(&amp;mut context).expect(&quot;failed to check for inconsistency&quot;));
+
+    fs::write(&amp;path, &quot;test2&quot;).expect(&quot;failed to write to file&quot;);
+    assert!(file_dependency.is_inconsistent().expect(&quot;failed to check for inconsistency&quot;));
+    assert!(dependency.is_inconsistent(&amp;mut context).expect(&quot;failed to check for inconsistency&quot;));
+  }
+
+  fn create_temp_path() -&gt; TempPath {
+    NamedTempFile::new().expect(&quot;failed to create temporary file&quot;).into_temp_path()
+  }
+}</code></pre>
 
                     </main>
 
