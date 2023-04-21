@@ -1,11 +1,10 @@
-use std::error::Error;
 use std::fmt::Debug;
 use std::fs::File;
 use std::path::PathBuf;
 
 use crate::{Context, Task};
-use crate::stamp::{FileStamp, FileStamper, OutputStamp, OutputStamper};
 use crate::fs::open_if_file;
+use crate::stamp::{FileStamp, FileStamper, OutputStamp, OutputStamper};
 
 #[derive(Clone, Eq, PartialEq, Hash, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -119,7 +118,7 @@ impl<T: Task> Dependency<T, T::Output> {
   /// - `Ok(None)` if the dependency is consistent,
   /// - `Err(e)` if there was an error checking the dependency for consistency.
   #[inline]
-  pub fn is_inconsistent<C: Context<T>>(&self, context: &mut C) -> Result<Option<InconsistentDependency<T::Output>>, Box<dyn Error>> {
+  pub fn is_inconsistent<C: Context<T>>(&self, context: &mut C) -> Result<Option<InconsistentDependency<T::Output>>, std::io::Error> {
     match self {
       Dependency::RequireFile(d) => {
         d.is_inconsistent()
@@ -189,7 +188,7 @@ impl FileDependency {
   /// - `Ok(None)` if this dependency is consistent,
   /// - `Err(e)` if there was an error checking this dependency for consistency.
   #[inline]
-  pub fn is_inconsistent(&self) -> Result<Option<FileStamp>, Box<dyn Error>> {
+  pub fn is_inconsistent(&self) -> Result<Option<FileStamp>, std::io::Error> {
     let new_stamp = self.stamper.stamp(&self.path)?;
     let consistent = new_stamp == self.stamp;
     if consistent {

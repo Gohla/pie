@@ -1,4 +1,4 @@
-use std::error::Error;
+use std::io;
 use std::path::PathBuf;
 
 use crate::dependency::{FileDependency, TaskDependency};
@@ -303,11 +303,11 @@ impl<T: Task> Tracker<T> for EventTracker<T> {
   #[inline]
   fn check_require_file_start(&mut self, _dependency: &FileDependency) {}
   #[inline]
-  fn check_require_file_end(&mut self, _dependency: &FileDependency, _inconsistent: Result<Option<&FileStamp>, &dyn Error>) {}
+  fn check_require_file_end(&mut self, _dependency: &FileDependency, _inconsistent: Result<Option<&FileStamp>, &io::Error>) {}
   #[inline]
   fn check_provide_file_start(&mut self, _dependency: &FileDependency) {}
   #[inline]
-  fn check_provide_file_end(&mut self, _dependency: &FileDependency, _inconsistent: Result<Option<&FileStamp>, &dyn Error>) {}
+  fn check_provide_file_end(&mut self, _dependency: &FileDependency, _inconsistent: Result<Option<&FileStamp>, &io::Error>) {}
   #[inline]
   fn check_require_task_start(&mut self, _dependency: &TaskDependency<T, T::Output>) {}
   #[inline]
@@ -328,7 +328,7 @@ impl<T: Task> Tracker<T> for EventTracker<T> {
   #[inline]
   fn schedule_affected_by_file_start(&mut self, _file: &PathBuf) {}
   #[inline]
-  fn check_affected_by_file_end(&mut self, _requiring_task: &T, _dependency: &FileDependency, _inconsistent: Result<Option<&FileStamp>, &dyn Error>) {}
+  fn check_affected_by_file_end(&mut self, _requiring_task: &T, _dependency: &FileDependency, _inconsistent: Result<Option<&FileStamp>, &io::Error>) {}
   #[inline]
   fn check_affected_by_file_start(&mut self, _requiring_task: &T, _dependency: &FileDependency) {}
   #[inline]

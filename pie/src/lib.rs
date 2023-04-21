@@ -1,6 +1,5 @@
 use std::collections::hash_map::RandomState;
 use std::collections::HashSet;
-use std::error::Error;
 use std::fmt::Debug;
 use std::fs::File;
 use std::hash::{BuildHasher, Hash};
@@ -146,7 +145,7 @@ pub struct Session<'p, T: Task, A, H> {
   store: &'p mut Store<T, H>,
   tracker: &'p mut A,
   visited: HashSet<TaskNodeId, H>,
-  dependency_check_errors: Vec<Box<dyn Error>>,
+  dependency_check_errors: Vec<io::Error>,
 }
 
 impl<'p, T: Task, A: Tracker<T> + Default, H: BuildHasher + Default> Session<'p, T, A, H> {
@@ -182,5 +181,5 @@ impl<'p, T: Task, A: Tracker<T> + Default, H: BuildHasher + Default> Session<'p,
   pub fn tracker_mut(&mut self) -> &mut A { &mut self.tracker }
   /// Gets a slice over all errors produced during dependency checks.
   #[inline]
-  pub fn dependency_check_errors(&self) -> &[Box<dyn Error>] { &self.dependency_check_errors }
+  pub fn dependency_check_errors(&self) -> &[io::Error] { &self.dependency_check_errors }
 }

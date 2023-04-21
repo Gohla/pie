@@ -9,7 +9,7 @@ We cannot first gather all tasks into a dependency tree and then topologically s
 To do incremental builds in the presence of dynamic dependencies, we need to check and execute affected tasks *one at a time*, updating the dependency graph, while tasks are executing.
 To achieve this, we will employ a technique called *top-down incremental building*, which starts checking if a top (root) task needs to be executed, and recursively checks whether dependent tasks should be executed until we reach the bottom (leaf) task(s), akin to a depth-first search.
 
-Build systems almost always interact with the file system in some way. 
+Furthermore, build systems almost always interact with the file system in some way. 
 For example, tasks read configuration and source files, or write intermediate and binary files.
 Thus, a change in a file can affect a task that reads it, and executing a task can result in writing to new or existing files.
 Therefore, we will also keep track of *file dependencies*.
@@ -20,10 +20,10 @@ Before we start coding, let's sketch the outline of the solution — we will:
 * Extend `Context` with a way to for tasks to register file dependencies.
   * Implement file system utility functions in module `fs`.
   * Make `NonIncrementalContext` compatible with the extension to `Context`.
-* Implement an `IncrementalTopDownContext` that does incremental building.
+* Implement an `TopDownContext` that does incremental building.
   * Implement `Dependency` to represent dependencies.
   * Implement `Store` that keeps track of the dependency graph.
-* Write tests for `IncrementalTopDownContext` to confirm that it is sound and incremental.
+* Write tests for `TopDownContext` to confirm that it is sound and incremental.
   * Implement a `Tracker` that can track build events, so we can assert whether a task has executed or not to test incrementality.
 
 ## Adding File Dependencies
@@ -60,7 +60,10 @@ You can also see this as a kind of method overloading, without having to provide
 
 Now we need to implement this method for `NonIncrementalContext`.
 However, because we will be performing similar file system operations in the incremental context as well, we will create some utility functions for this first.
-Add module `fs`:
+
+
+
+Add the `fs` module to `src/lib.rs`:
 
 ```rust,customdiff
 {{#include ../../gen/top_down/0_lib_c.rs.diff:4:}}
@@ -73,6 +76,27 @@ Create file `src/fs.rs` with:
 ```
 
 The comments explain the behaviour.
+
+We will write some tests to confirm the behaviour, but for that we need a utility to create temporary files and directories.
+Instead of implementing that ourselves, we will use an existing crate.
+Add the `tempfile` dependency to `Cargo.toml`:
+
+```toml,customdiff
+{{#include ../../gen/top_down/0_Cargo.toml.diff:4:}}
+```
+
+Note that this is dependency is added under `dev-dependencies`, indicating that this dependency is only available when running tests, benchmarks, and examples.
+Therefore, users of our library will not depend on this library, which is good because temporary file creation is not necessary to users of our library.
+
+Now, add the following tests to `src/fs.rs`:
+
+```rust,
+{{#include 0_fs_test.rs}}
+```
+
+Unfortunately, we can't easily test when `metadata` and `open_if_file` should return an error, because we cannot disable read permissions on files via the Rust standard library.
+
+Now we are done with our filesystem utility excursion.
 Make the non-incremental context compatible by changing `src/context/non_incremental.rs`:
 
 ```rust,customdiff
@@ -86,7 +110,7 @@ This implements the description we made earlier:
 * If the file does not exist or is a directory, `open_if_file` returns `None` and `file` is `None`.
 * Otherwise, `file` is `Some(file)`.
 
-Confirm everything is still working with `cargo test`.
+Confirm everything works with `cargo test`.
 
 ```admonish info title="Rust Help" collapsible=true
 
@@ -99,4 +123,51 @@ Comments with three forward slashes `///` are [documentation comments](https://d
 
 ## Implementing the Incremental Context
 
-Now we get to the fun part!
+Now we get to the fun part, incrementality!
+
+To check whether we need to execute a task, we need to check the dependencies of that task to see if any of them are not consistent.
+If they are all consistent, we just return the cached output of the task.
+If not, we just execute the task.
+
+To implement this, we will need 3 components:
+- A `Dependency` type which holds dependency data with methods for checking consistency.
+- A `Store` type which holds the dependency graph with methods for interacting with the graph.
+- A `TopDownContext` type that implements `Context` and owns a `Store`.
+
+We will start with implementing `Dependency`, as it can be implemented as a stand-alone part.
+
+### Dependency implementation
+
+Add the `dependency` module to `src/lib.rs`:
+
+```rust,customdiff
+{{#include ../../gen/top_down/1_dependency_module.rs.diff:4:}}
+```
+
+Then create the `src/dependency.rs` file and add:
+
+```rust,
+{{#include 1_dependency.rs}}
+```
+
+We implement the `TaskDependency` and `FileDependency` types to handle task and file dependencies respectively.
+We merge those two kinds of dependencies into the `Dependency` enum.
+This split is made so that users of this module can accept only task or file dependencies, or any dependency in general, which we will need in the future.
+
+A task dependency is inconsistent if, after recursively checking it, its output has changed.
+The `TaskDependency::is_inconsistent` does exactly that, by requiring the task with a context, and then checking if the output has changed.
+We implement a `is_inconsistent` method here instead of an `is_consistent` method, because we will change it in the future to return the changed output for logging purposes, and in that case we want to see the changed output if it is not consistent.
+
+A file dependency is inconsistent if its last modification date has changed, or if the file did not exist before but does now (and vice versa), implemented in `FileDependency::is_inconsistent`.
+If a file does not exist, we use `None` as the modification date, which does not equal `Some(modified_date)`.
+We deal with errors (`io::Error`) by propagating them.
+
+The `FileDependency::new` function also returns the opened file if it exists, so that users of this function can read from the file without having to open it again.
+
+Finally, `Dependency` just merges the two kinds of dependencies and provides an `is_inconsistent` method that calls the corresponding method.
+
+As usual, we write some tests to confirm the behaviour. Add tests to `src/dependency.rs`:
+
+```rust,
+{{#include 1_dependency_test.rs}}
+```

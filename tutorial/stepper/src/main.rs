@@ -50,7 +50,14 @@ fn main() {
     CreateDiffAndApply::new("0_lib_a.rs", "0_lib_b.rs", "lib.rs", "0_lib_b.rs.diff"),
     CreateDiffAndApply::new("0_lib_b.rs", "0_lib_c.rs", "lib.rs", "0_lib_c.rs.diff"),
     AddToFile::new("0_fs.rs", "fs.rs"),
+    CreateDiffAndApply::new("../api/0_Cargo.toml", "0_Cargo.toml", "../Cargo.toml", "0_Cargo.toml.diff"),
+    AddToFile::new("0_fs_test.rs", "fs.rs"),
     CreateDiffAndApply::new("0_non_incremental_context_a.rs", "0_non_incremental_context_b.rs", "context/non_incremental.rs", "0_non_incremental_context.rs.diff"),
+  ]);
+  stepper.apply([
+    CreateDiffAndApply::new("0_lib_c.rs", "1_dependency_module.rs", "lib.rs", "1_dependency_module.rs.diff"),
+    AddToFile::new("1_dependency.rs", "dependency.rs"),
+    AddToFile::new("1_dependency_test.rs", "dependency.rs"),
   ]);
   stepper.pop_chapter();
 }

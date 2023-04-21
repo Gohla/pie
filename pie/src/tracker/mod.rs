@@ -1,4 +1,4 @@
-use std::error::Error;
+use std::io;
 use std::marker::PhantomData;
 use std::path::PathBuf;
 
@@ -29,7 +29,7 @@ pub trait Tracker<T: Task> {
       Dependency::RequireTask(d) => self.check_require_task_start(d),
     }
   }
-  fn check_dependency_end(&mut self, dependency: &Dependency<T, T::Output>, inconsistent: Result<Option<&InconsistentDependency<T::Output>>, &dyn Error>) {
+  fn check_dependency_end(&mut self, dependency: &Dependency<T, T::Output>, inconsistent: Result<Option<&InconsistentDependency<T::Output>>, &io::Error>) {
     use Dependency::*;
     match dependency {
       RequireFile(d) => {
@@ -47,9 +47,9 @@ pub trait Tracker<T: Task> {
     }
   }
   fn check_require_file_start(&mut self, dependency: &FileDependency);
-  fn check_require_file_end(&mut self, dependency: &FileDependency, inconsistent: Result<Option<&FileStamp>, &dyn Error>);
+  fn check_require_file_end(&mut self, dependency: &FileDependency, inconsistent: Result<Option<&FileStamp>, &io::Error>);
   fn check_provide_file_start(&mut self, dependency: &FileDependency);
-  fn check_provide_file_end(&mut self, dependency: &FileDependency, inconsistent: Result<Option<&FileStamp>, &dyn Error>);
+  fn check_provide_file_end(&mut self, dependency: &FileDependency, inconsistent: Result<Option<&FileStamp>, &io::Error>);
   fn check_require_task_start(&mut self, dependency: &TaskDependency<T, T::Output>);
   fn check_require_task_end(&mut self, dependency: &TaskDependency<T, T::Output>, inconsistent: Option<&OutputStamp<T::Output>>);
   fn check_top_down_end(&mut self, task: &T);
@@ -58,7 +58,7 @@ pub trait Tracker<T: Task> {
   fn update_affected_by_start<'a, I: IntoIterator<Item=&'a PathBuf> + Clone>(&mut self, changed_files: I);
   fn schedule_affected_by_file_start(&mut self, path: &PathBuf);
   fn check_affected_by_file_start(&mut self, requiring_task: &T, dependency: &FileDependency);
-  fn check_affected_by_file_end(&mut self, requiring_task: &T, dependency: &FileDependency, inconsistent: Result<Option<&FileStamp>, &dyn Error>);
+  fn check_affected_by_file_end(&mut self, requiring_task: &T, dependency: &FileDependency, inconsistent: Result<Option<&FileStamp>, &io::Error>);
   fn schedule_affected_by_file_end(&mut self, path: &PathBuf);
   fn schedule_affected_by_task_start(&mut self, task: &T);
   fn check_affected_by_required_task_start(&mut self, requiring_task: &T, dependency: &TaskDependency<T, T::Output>);
@@ -100,11 +100,11 @@ impl<T: Task> Tracker<T> for NoopTracker<T> {
   #[inline]
   fn check_require_file_start(&mut self, _dependency: &FileDependency) {}
   #[inline]
-  fn check_require_file_end(&mut self, _dependency: &FileDependency, _inconsistent: Result<Option<&FileStamp>, &dyn Error>) {}
+  fn check_require_file_end(&mut self, _dependency: &FileDependency, _inconsistent: Result<Option<&FileStamp>, &io::Error>) {}
   #[inline]
   fn check_provide_file_start(&mut self, _dependency: &FileDependency) {}
   #[inline]
-  fn check_provide_file_end(&mut self, _dependency: &FileDependency, _inconsistent: Result<Option<&FileStamp>, &dyn Error>) {}
+  fn check_provide_file_end(&mut self, _dependency: &FileDependency, _inconsistent: Result<Option<&FileStamp>, &io::Error>) {}
   #[inline]
   fn check_require_task_start(&mut self, _dependency: &TaskDependency<T, T::Output>) {}
   #[inline]
@@ -121,7 +121,7 @@ impl<T: Task> Tracker<T> for NoopTracker<T> {
   #[inline]
   fn check_affected_by_file_start(&mut self, _requiring_task: &T, _dependency: &FileDependency) {}
   #[inline]
-  fn check_affected_by_file_end(&mut self, _requiring_task: &T, _dependency: &FileDependency, _inconsistent: Result<Option<&FileStamp>, &dyn Error>) {}
+  fn check_affected_by_file_end(&mut self, _requiring_task: &T, _dependency: &FileDependency, _inconsistent: Result<Option<&FileStamp>, &io::Error>) {}
   #[inline]
   fn schedule_affected_by_file_end(&mut self, _file: &PathBuf) {}
   #[inline]
@@ -192,7 +192,7 @@ impl<T: Task, T1: Tracker<T>, T2: Tracker<T>> Tracker<T> for CompositeTracker<T1
     self.1.check_require_file_start(dependency);
   }
   #[inline]
-  fn check_require_file_end(&mut self, dependency: &FileDependency, inconsistent: Result<Option<&FileStamp>, &dyn Error>) {
+  fn check_require_file_end(&mut self, dependency: &FileDependency, inconsistent: Result<Option<&FileStamp>, &io::Error>) {
     self.0.check_require_file_end(dependency, inconsistent);
     self.1.check_require_file_end(dependency, inconsistent);
   }
@@ -202,7 +202,7 @@ impl<T: Task, T1: Tracker<T>, T2: Tracker<T>> Tracker<T> for CompositeTracker<T1
     self.1.check_provide_file_start(dependency);
   }
   #[inline]
-  fn check_provide_file_end(&mut self, dependency: &FileDependency, inconsistent: Result<Option<&FileStamp>, &dyn Error>) {
+  fn check_provide_file_end(&mut self, dependency: &FileDependency, inconsistent: Result<Option<&FileStamp>, &io::Error>) {
     self.0.check_provide_file_end(dependency, inconsistent);
     self.1.check_provide_file_end(dependency, inconsistent);
   }
@@ -243,7 +243,7 @@ impl<T: Task, T1: Tracker<T>, T2: Tracker<T>> Tracker<T> for CompositeTracker<T1
     self.1.check_affected_by_file_start(requiring_task, dependency);
   }
   #[inline]
-  fn check_affected_by_file_end(&mut self, requiring_task: &T, dependency: &FileDependency, inconsistent: Result<Option<&FileStamp>, &dyn Error>) {
+  fn check_affected_by_file_end(&mut self, requiring_task: &T, dependency: &FileDependency, inconsistent: Result<Option<&FileStamp>, &io::Error>) {
     self.0.check_affected_by_file_end(requiring_task, dependency, inconsistent);
     self.1.check_affected_by_file_end(requiring_task, dependency, inconsistent);
   }

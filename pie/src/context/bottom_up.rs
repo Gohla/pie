@@ -1,9 +1,9 @@
 #![allow(unused_variables, dead_code)]
 
 use std::collections::HashSet;
-use std::error::Error;
 use std::fs::File;
 use std::hash::BuildHasher;
+use std::io;
 use std::path::{Path, PathBuf};
 
 use crate::{Context, Session, Task, TaskNodeId};
@@ -62,7 +62,7 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> IncrementalBottom
     providing: bool,
     store: &Store<T, H>, // Passing in borrows explicitly instead of mutibly borrowing `self` to make borrows work.
     tracker: &mut A,
-    dependency_check_errors: &mut Vec<Box<dyn Error>>,
+    dependency_check_errors: &mut Vec<io::Error>,
     scheduled: &mut Queue<H>,
   ) {
     tracker.schedule_affected_by_file_start(path);
@@ -70,7 +70,7 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> IncrementalBottom
       let requiring_task = store.task_by_node(requiring_task_node);
       tracker.check_affected_by_file_start(requiring_task, dependency);
       let inconsistent = dependency.is_inconsistent();
-      tracker.check_affected_by_file_end(requiring_task, dependency, inconsistent.as_ref().map_err(|e| e.as_ref()).map(|o| o.as_ref()));
+      tracker.check_affected_by_file_end(requiring_task, dependency, inconsistent.as_ref().map(|o| o.as_ref()));
       match inconsistent {
         Err(e) => {
           dependency_check_errors.push(e);
