@@ -9,24 +9,6 @@ use crate::{Context, Task};
 use crate::fs::{metadata, open_if_file};
 
 #[derive(Clone, Eq, PartialEq, Hash, Debug)]
-pub struct TaskDependency<T, O> {
-  pub task: T,
-  pub output: O,
-}
-
-impl<T: Task> TaskDependency<T, T::Output> {
-  pub fn new(task: T, output: T::Output) -> Self {
-    Self { task, output }
-  }
-
-  pub fn is_inconsistent<C: Context<T>>(&self, context: &mut C) -> bool {
-    let output = context.require_task(&self.task);
-    output != self.output
-  }
-}
-
-
-#[derive(Clone, Eq, PartialEq, Hash, Debug)]
 pub struct FileDependency {
   pub path: PathBuf,
   pub modified_date: Option<SystemTime>,
@@ -53,21 +35,5 @@ impl FileDependency {
       None // File does not exist -> no modified date.
     };
     Ok(modified_date)
-  }
-}
-
-
-#[derive(Clone, Eq, PartialEq, Hash, Debug)]
-pub enum Dependency<T, O> {
-  RequireTask(TaskDependency<T, O>),
-  RequireFile(FileDependency),
-}
-
-impl<T: Task> Dependency<T, T::Output> {
-  pub fn is_inconsistent<C: Context<T>>(&self, context: &mut C) -> Result<bool, io::Error> {
-    match self {
-      Dependency::RequireTask(d) => Ok(d.is_inconsistent(context)),
-      Dependency::RequireFile(d) => d.is_inconsistent(),
-    }
   }
 }

@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::ffi::{OsStr, OsString};
 use std::path::{Path, PathBuf};
 
@@ -8,6 +9,7 @@ pub struct Stepper {
   pub source_root_directory: PathBuf,
   pub destination_root_directory: PathBuf,
   pub generated_root_directory: PathBuf,
+  pub last_original_file: HashMap<PathBuf, PathBuf>,
   cargo_args: Vec<OsString>,
 }
 
@@ -21,18 +23,26 @@ impl Stepper {
     let source_root_directory = source_root_directory.into();
     let destination_root_directory = destination_root_directory.into();
     let generated_root_directory = generated_root_directory.into();
+    let last_original_file = HashMap::new();
     let cargo_args = cargo_args.into_iter().map(|ao| ao.as_ref().to_owned()).collect();
-    Self { source_root_directory, destination_root_directory, generated_root_directory, cargo_args }
+    Self { source_root_directory, destination_root_directory, generated_root_directory, last_original_file, cargo_args }
   }
 
-  pub fn push_chapter(&mut self, path: impl AsRef<Path>) {
+  pub fn push_path(&mut self, path: impl AsRef<Path>) {
     self.source_root_directory.push(&path);
     self.generated_root_directory.push(&path);
   }
 
-  pub fn pop_chapter(&mut self) {
+  pub fn pop_path(&mut self) {
     self.source_root_directory.pop();
     self.generated_root_directory.pop();
+  }
+
+  pub fn with_path<R>(&mut self, path: impl AsRef<Path>, func: impl FnOnce(&mut Self) -> R) -> R {
+    self.push_path(path);
+    let result = func(self);
+    self.pop_path();
+    result
   }
 
   pub fn set_cargo_args<CA: IntoIterator<Item=AO>, AO: AsRef<OsStr>>(&mut self, cargo_args: CA) {
@@ -63,15 +73,15 @@ pub struct Applied<'a> {
 }
 
 impl Stepper {
-  pub fn apply(&self, into_modifications: impl IntoModifications) -> Applied {
+  pub fn apply(&mut self, into_modifications: impl IntoModifications) -> Applied {
     self.apply_expect(into_modifications, true)
   }
 
-  pub fn apply_failure(&self, into_modifications: impl IntoModifications) -> Applied {
+  pub fn apply_failure(&mut self, into_modifications: impl IntoModifications) -> Applied {
     self.apply_expect(into_modifications, false)
   }
 
-  fn apply_expect(&self, into_modifications: impl IntoModifications, expect_success: bool) -> Applied {
+  fn apply_expect(&mut self, into_modifications: impl IntoModifications, expect_success: bool) -> Applied {
     for modification in into_modifications.into() {
       modification.apply(self);
     }

@@ -6,7 +6,7 @@ use std::path::Path;
 
 mod context;
 mod fs;
-mod dependency;
+pub mod stamp;
 
 pub trait Task: Clone + Eq + Hash + Debug {
   type Output: Clone + Eq + Debug;

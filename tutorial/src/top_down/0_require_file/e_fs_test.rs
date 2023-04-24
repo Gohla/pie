@@ -1,13 +1,15 @@
 #[cfg(test)]
 mod test {
-  use tempfile::{NamedTempFile, TempDir};
+  use std::fs::remove_file;
+
+  use tempfile::{NamedTempFile, TempDir, TempPath};
 
   use super::*;
 
   #[test]
   fn test_metadata_ok() {
-    let file = create_temp_file();
-    let metadata = metadata(file.path());
+    let path = create_temp_path();
+    let metadata = metadata(path);
     assert!(metadata.is_ok());
     let metadata = metadata.unwrap();
     assert!(metadata.is_some());
@@ -17,9 +19,8 @@ mod test {
 
   #[test]
   fn test_metadata_none() {
-    let file = create_temp_file();
-    let path = file.into_temp_path();
-    std::fs::remove_file(&path).expect("failed to delete temporary file");
+    let path = create_temp_path();
+    remove_file(&path).expect("failed to delete temporary file");
     let metadata = metadata(&path);
     assert!(metadata.is_ok());
     let metadata = metadata.unwrap();
@@ -28,7 +29,7 @@ mod test {
 
   #[test]
   fn test_open_if_file() {
-    let path = create_temp_file().into_temp_path();
+    let path = create_temp_path();
     let file = open_if_file(&path);
     assert!(file.is_ok());
     let file = file.unwrap();
@@ -37,8 +38,8 @@ mod test {
 
   #[test]
   fn test_open_if_file_non_existent() {
-    let path = create_temp_file().into_temp_path();
-    std::fs::remove_file(&path).expect("failed to delete temporary file");
+    let path = create_temp_path();
+    remove_file(&path).expect("failed to delete temporary file");
     let file = open_if_file(&path);
     assert!(file.is_ok());
     let file = file.unwrap();
@@ -54,7 +55,7 @@ mod test {
     assert!(file.is_none());
   }
 
-  fn create_temp_file() -> NamedTempFile {
-    NamedTempFile::new().expect("failed to create temporary file")
+  fn create_temp_path() -> TempPath {
+    NamedTempFile::new().expect("failed to create temporary file").into_temp_path()
   }
 }

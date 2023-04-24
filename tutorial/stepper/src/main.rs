@@ -1,6 +1,7 @@
-use modification::{AddToFile, ApplyDiff, CreateDiffAndApply, CreateFile};
 use output::{CargoOutput, DirectoryStructure};
 use stepper::Stepper;
+
+use crate::modification::{add, apply_diff, create, create_diff, create_diff_builder};
 
 mod modification;
 mod output;
@@ -17,47 +18,69 @@ fn main() {
     ["build"],
   );
 
-  stepper.push_chapter("api");
+  stepper.push_path("api");
   stepper
     .apply([
-      AddToFile::new("0_Cargo.toml", "../Cargo.toml"),
-      AddToFile::new("0_api.rs", "lib.rs"),
+      add("0_Cargo.toml", "../Cargo.toml"),
+      add("0_api.rs", "lib.rs"),
     ])
     .output(CargoOutput::new("0_cargo.txt"));
   stepper
     .apply([
-      CreateDiffAndApply::new("0_api.rs", "1_context_module.rs", "lib.rs", "1_context_module.rs.diff"),
-      AddToFile::new("2_non_incremental_module.rs", "context/mod.rs"),
-      CreateFile::new("context/non_incremental.rs"),
+      create_diff("1_context_module.rs", "lib.rs"),
+      add("2_non_incremental_module.rs", "context/mod.rs"),
+      create("context/non_incremental.rs"),
     ])
     .output(DirectoryStructure::new("../", "2_dir.txt"));
-  stepper.apply(AddToFile::new("3_non_incremental_context.rs", "context/non_incremental.rs"));
+  stepper.apply(add("3_non_incremental_context.rs", "context/non_incremental.rs"));
   stepper.set_cargo_args(["test"]);
   stepper
-    .apply(AddToFile::new("4_test_1.rs", "context/non_incremental.rs"))
+    .apply(add("4_test_1.rs", "context/non_incremental.rs"))
     .output(CargoOutput::new("4_cargo.txt"));
   stepper
-    .apply_failure(CreateDiffAndApply::new("4_test_1.rs", "5_test_2.rs", "context/non_incremental.rs", "5_test_2.rs.diff"))
+    .apply_failure(create_diff("5_test_2.rs", "context/non_incremental.rs"))
     .output(CargoOutput::new("5_cargo.txt"));
   stepper
-    .apply_failure(CreateDiffAndApply::new("5_test_2.rs", "6_test_2.rs", "context/non_incremental.rs", "6_test_2.rs.diff"))
+    .apply_failure(create_diff("6_test_2.rs", "context/non_incremental.rs"))
     .output(CargoOutput::new("6_cargo.txt"));
-  stepper.apply(ApplyDiff::new("7_test_2.rs.diff", "context/non_incremental.rs"));
-  stepper.pop_chapter();
+  stepper.apply(apply_diff("7_test_2.rs.diff", "context/non_incremental.rs"));
+  stepper.pop_path();
 
-  stepper.push_chapter("top_down");
-  stepper.apply([
-    CreateDiffAndApply::new("0_lib_a.rs", "0_lib_b.rs", "lib.rs", "0_lib_b.rs.diff"),
-    CreateDiffAndApply::new("0_lib_b.rs", "0_lib_c.rs", "lib.rs", "0_lib_c.rs.diff"),
-    AddToFile::new("0_fs.rs", "fs.rs"),
-    CreateDiffAndApply::new("../api/0_Cargo.toml", "0_Cargo.toml", "../Cargo.toml", "0_Cargo.toml.diff"),
-    AddToFile::new("0_fs_test.rs", "fs.rs"),
-    CreateDiffAndApply::new("0_non_incremental_context_a.rs", "0_non_incremental_context_b.rs", "context/non_incremental.rs", "0_non_incremental_context.rs.diff"),
-  ]);
-  stepper.apply([
-    CreateDiffAndApply::new("0_lib_c.rs", "1_dependency_module.rs", "lib.rs", "1_dependency_module.rs.diff"),
-    AddToFile::new("1_dependency.rs", "dependency.rs"),
-    AddToFile::new("1_dependency_test.rs", "dependency.rs"),
-  ]);
-  stepper.pop_chapter();
+  stepper.with_path("top_down", |stepper| {
+    stepper.with_path("0_require_file", |stepper| {
+      stepper.apply([
+        create_diff("a_context.rs", "lib.rs"),
+        create_diff("b_fs_module.rs", "lib.rs"),
+        add("c_fs.rs", "fs.rs"),
+        create_diff("d_Cargo.toml", "../Cargo.toml"),
+        add("e_fs_test.rs", "fs.rs"),
+        create_diff_builder("f_non_incremental_context.rs", "context/non_incremental.rs")
+          .original("../../api/3_non_incremental_context.rs") // HACK: Explicitly set original file to the one without tests
+          .build(),
+      ]);
+    });
+    stepper.with_path("1_stamp", |stepper| {
+      stepper.apply([
+        create_diff("a_module.rs", "lib.rs"),
+        add("b_file.rs", "stamp.rs"),
+        add("c_output.rs", "stamp.rs"),
+        add("d_test.rs", "stamp.rs"),
+      ]);
+    });
+    stepper.with_path("2_stamp_context", |stepper| {
+      stepper.apply([
+        create_diff("a_context.rs", "lib.rs"),
+        create_diff("b_non_incremental_context.rs", "context/non_incremental.rs"),
+      ]);
+    });
+    stepper.with_path("3_dependency", |stepper| {
+      stepper.apply([
+        create_diff("a_module.rs", "lib.rs"),
+        add("b_file.rs", "dependency.rs"),
+        add("c_task.rs", "dependency.rs"),
+        add("d_dependency.rs", "dependency.rs"),
+        add("e_test.rs", "dependency.rs"),
+      ]);
+    });
+  });
 }
