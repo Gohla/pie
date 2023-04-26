@@ -1,10 +1,9 @@
-use std::error::Error;
 use std::fs::{File, OpenOptions};
 use std::fs;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
-pub fn open_writable_file(file_path: impl AsRef<Path>, append: bool) -> Result<File, Box<dyn Error>> {
+pub fn open_writable_file(file_path: impl AsRef<Path>, append: bool) -> anyhow::Result<File> {
   let file_path = file_path.as_ref();
   fs::create_dir_all(file_path.parent().unwrap())?;
   let file = OpenOptions::new()
@@ -16,7 +15,7 @@ pub fn open_writable_file(file_path: impl AsRef<Path>, append: bool) -> Result<F
   Ok(file)
 }
 
-pub fn write_to_file(buf: &[u8], file_path: impl AsRef<Path>, append: bool) -> Result<(), Box<dyn Error>> {
+pub fn write_to_file(buf: &[u8], file_path: impl AsRef<Path>, append: bool) -> anyhow::Result<()> {
   let mut file = open_writable_file(file_path, append)?;
   file.write_all(buf)?;
   Ok(())

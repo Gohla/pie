@@ -5,7 +5,7 @@ use std::time::SystemTime;
 
 use crate::fs::metadata;
 
-#[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Debug)]
+#[derive(Clone, Eq, PartialEq, Debug)]
 pub enum FileStamper {
   Exists,
   Modified,
@@ -27,7 +27,7 @@ impl FileStamper {
   }
 }
 
-#[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Debug)]
+#[derive(Clone, Eq, PartialEq, Debug)]
 pub enum FileStamp {
   Exists(bool),
   Modified(Option<SystemTime>),

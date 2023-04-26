@@ -112,7 +112,7 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> IncrementalBottom
       let requiring_task = self.shared.session.store.task_by_node(requiring_task_node);
       self.shared.session.tracker.check_affected_by_required_task_start(requiring_task, dependency);
       let inconsistent = dependency.is_inconsistent_with(&output);
-      self.shared.session.tracker.check_affected_by_required_task_end(requiring_task, dependency, inconsistent);
+      self.shared.session.tracker.check_affected_by_required_task_end(requiring_task, dependency, inconsistent.clone());
       if let Some(_) = inconsistent {
         // Schedule task; can't extract method due to self borrow above.
         let task = self.shared.session.store.task_by_node(requiring_task_node);

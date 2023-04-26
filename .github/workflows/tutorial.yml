@@ -43,7 +43,7 @@ jobs:
       - id: run-stepper
         run: |
           cd tutorial/stepper
-          cargo run
+          cargo run -- --debug
       - id: setup-mdbook
         uses: peaceiris/actions-mdbook@v1
         with:

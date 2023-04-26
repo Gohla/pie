@@ -264,7 +264,7 @@ impl<T: Task, T1: Tracker<T>, T2: Tracker<T>> Tracker<T> for CompositeTracker<T1
   }
   #[inline]
   fn check_affected_by_required_task_end(&mut self, requiring_task: &T, dependency: &TaskDependency<T, T::Output>, inconsistent: Option<OutputStamp<&T::Output>>) {
-    self.0.check_affected_by_required_task_end(requiring_task, dependency, inconsistent);
+    self.0.check_affected_by_required_task_end(requiring_task, dependency, inconsistent.clone());
     self.1.check_affected_by_required_task_end(requiring_task, dependency, inconsistent);
   }
   #[inline]

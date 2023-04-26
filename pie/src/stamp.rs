@@ -141,7 +141,7 @@ impl OutputStamper {
   }
 }
 
-#[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Debug)]
+#[derive(Clone, Eq, PartialEq, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum OutputStamp<O> {
   Inconsequential,
@@ -184,7 +184,7 @@ mod test {
     let stamp = stamper.stamp(&path).expect("failed to stamp");
     assert_eq!(stamp, stamper.stamp(&path).expect("failed to stamp"));
 
-    fs::write(&path, "test").expect("failed to write to temporary file");
+    fs::write(&path, format!("{:?}", stamp)).expect("failed to write to temporary file");
     assert_ne!(stamp, stamper.stamp(&path).expect("failed to stamp"));
 
     fs::remove_file(&path).expect("failed to delete temporary file");
@@ -208,7 +208,7 @@ mod test {
     assert_ne!(stamp, stamper.stamp(&2));
   }
 
-  
+
   fn create_temp_path() -> TempPath {
     NamedTempFile::new().expect("failed to create temporary file").into_temp_path()
   }

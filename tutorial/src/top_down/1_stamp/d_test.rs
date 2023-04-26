@@ -24,11 +24,11 @@ mod test {
     let stamp = stamper.stamp(&path).expect("failed to stamp");
     assert_eq!(stamp, stamper.stamp(&path).expect("failed to stamp"));
 
-    fs::write(&path, "test").expect("failed to write to temporary file");
-    assert_ne!(stamp, stamper.stamp(&path).expect("failed to stamp"), "stamp is equal after modifying file");
+    fs::write(&path, format!("{:?}", stamp)).expect("failed to write to temporary file");
+    assert_ne!(stamp, stamper.stamp(&path).expect("failed to stamp"), "modified stamp is equal after modifying file");
 
     fs::remove_file(&path).expect("failed to delete temporary file");
-    assert_ne!(stamp, stamper.stamp(&path).expect("failed to stamp"), "stamp is equal after removing file");
+    assert_ne!(stamp, stamper.stamp(&path).expect("failed to stamp"), "modified stamp is equal after removing file");
   }
 
   #[test]

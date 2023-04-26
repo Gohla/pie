@@ -6,7 +6,7 @@ use crate::{Context, Task};
 use crate::fs::open_if_file;
 use crate::stamp::{FileStamp, FileStamper, OutputStamp, OutputStamper};
 
-#[derive(Clone, Eq, PartialEq, Hash, Debug)]
+#[derive(Clone, Eq, PartialEq, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum Dependency<T, O> {
   RequireFile(FileDependency),
@@ -14,7 +14,7 @@ pub enum Dependency<T, O> {
   RequireTask(TaskDependency<T, O>),
 }
 
-#[derive(Clone, Eq, PartialEq, Hash, Debug)]
+#[derive(Clone, Eq, PartialEq, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct FileDependency {
   pub path: PathBuf,
@@ -22,7 +22,7 @@ pub struct FileDependency {
   pub stamp: FileStamp,
 }
 
-#[derive(Clone, Eq, PartialEq, Hash, Debug)]
+#[derive(Clone, Eq, PartialEq, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct TaskDependency<T, O> {
   pub task: T,
@@ -119,20 +119,21 @@ impl<T: Task> Dependency<T, T::Output> {
   /// - `Err(e)` if there was an error checking the dependency for consistency.
   #[inline]
   pub fn is_inconsistent<C: Context<T>>(&self, context: &mut C) -> Result<Option<InconsistentDependency<T::Output>>, std::io::Error> {
-    match self {
+    let option = match self {
       Dependency::RequireFile(d) => {
-        d.is_inconsistent()
-          .map(|s| s.map(|s| InconsistentDependency::File(s)))
+        d.is_inconsistent()?
+          .map(|s| InconsistentDependency::File(s))
       }
       Dependency::ProvideFile(d) => {
-        d.is_inconsistent()
-          .map(|s| s.map(|s| InconsistentDependency::File(s)))
+        d.is_inconsistent()?
+          .map(|s| InconsistentDependency::File(s))
       }
       Dependency::RequireTask(d) => {
-        Ok(d.is_inconsistent(context)
-          .map(|s| InconsistentDependency::Task(s)))
+        d.is_inconsistent(context)
+          .map(|s| InconsistentDependency::Task(s))
       }
-    }
+    };
+    Ok(option)
   }
 }
 
@@ -199,7 +200,7 @@ impl FileDependency {
   }
 }
 
-#[derive(Clone, Eq, PartialEq, Hash, Debug)]
+#[derive(Clone, Eq, PartialEq, Debug)]
 pub enum InconsistentDependency<O> {
   File(FileStamp),
   Task(OutputStamp<O>),

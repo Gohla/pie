@@ -4,6 +4,7 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
+use anyhow::Context;
 use termtree::Tree;
 
 use crate::stepper::Applied;
@@ -14,7 +15,7 @@ pub enum Output {
 }
 
 impl Output {
-  pub fn apply(&self, applied: &Applied) {
+  pub fn apply(&self, applied: &Applied) -> anyhow::Result<()> {
     match self {
       Output::CargoOutput(o) => o.apply(applied),
       Output::DirectoryStructure(o) => o.apply(applied),
@@ -37,10 +38,11 @@ impl CargoOutput {
 }
 
 impl CargoOutput {
-  fn apply(&self, applied: &Applied) {
+  fn apply(&self, applied: &Applied) -> anyhow::Result<()> {
     let file_path = applied.stepper.generated_root_directory.join(&self.output_file_path);
     crate::util::write_to_file(applied.cargo_output.as_bytes(), file_path, false)
-      .expect("failed to write cargo output to file");
+      .context("failed to write cargo output to file")?;
+    Ok(())
   }
 }
 
@@ -61,16 +63,17 @@ impl DirectoryStructure {
 }
 
 impl DirectoryStructure {
-  fn apply(&self, applied: &Applied) {
+  fn apply(&self, applied: &Applied) -> anyhow::Result<()> {
     let destination_directory_path = applied.stepper.destination_root_directory.join(&self.destination_directory_path);
     let tree = Self::directory_tree(&destination_directory_path)
-      .expect("failed to create directory structure");
+      .context("failed to create directory structure")?;
 
     let output_file_path = applied.stepper.generated_root_directory.join(&self.output_file_path);
     let mut file = crate::util::open_writable_file(&output_file_path, false)
-      .expect("failed to open writable file");
+      .context("failed to open writable file")?;
     write!(file, "{}", tree)
-      .expect("failed to write directory structure to file");
+      .context("failed to write directory structure to file")?;
+    Ok(())
   }
 
   fn directory_tree(path: impl AsRef<Path>) -> Result<Tree<String>, std::io::Error> {

@@ -169,7 +169,6 @@ Create the `src/stamp.rs` file and add:
 ```
 
 We're implementing `FileStamper` as an enum for simplicity.
-`FileStamper` could also be a trait which would allow users of the library to implement their own stamps, but we will leave this as an exercise in the appendix.
 
 A `FileStamper` has a single method `stamp` which takes something that can be dereferenced to a path, and produces a `FileStamp` or an error if creating the stamp failed.
 For now, we implement only two kinds of file stampers: `Exists` and `Modified`.
@@ -194,6 +193,21 @@ The `Inconsequential` stamper simply ignores the output and always returns the s
 It can be used to create a task dependency where we are interested in some side effect of a task, but don't care about its output.
 The `Equals` stamper simply wraps the output of a task, so the stamp is equal when the output is equal.
 
+Output stamps are generic over the task output type `O`.
+
+```admonish info title="Trait bounds and derive macros" collapsible=true
+Because `O` is used in the enum, the `derive` attributes on `OutputStamp` create bounds over `O`.
+Thus, `OutputStamp` is only `Clone` when `O` is `Clone`, `OutputStamp` is only `Clone` when `O` is `Clone`, and so forth.
+Because we declared `Task::Output` with bound `Clone + Eq + Debug`, we can be sure that `OutputStamp` is always `Clone`, `Eq`, and `Debug`.
+```
+
+```admonish info title="User definable stamps" collapsible=true
+`FileStamper` and `OutputStamper` could also be a trait which would allow users of the library to implement their own stampers.
+For simplicity, we do not explore that option in this tutorial.
+If you feel adventurous, you could try to implement this after you've finished the tutorial.
+Do note that this introduces a lot of extra generics and trait bounds everywhere, which can be a bit cumbersome.
+```
+
 #### Tests
 
 Finally, we write some tests.
@@ -202,6 +216,9 @@ Add to `src/stamp.rs`:
 ```rust,
 {{#include 1_stamp/d_test.rs}}
 ```
+
+We test file stamps by creating a stamp, changing the file, creating a new stamp, and then compare the stamps.
+We test task output stamps by just passing a different output value to the `stamp` function, and then compare the stamps.
 
 Run `cargo test` to confirm the stamp implementation.
 
@@ -227,6 +244,8 @@ Update `NonIncrementalContext` in `src/context/non_incremental.rs` to implement 
 {{#include ../../gen/top_down/2_stamp_context/b_non_incremental_context.rs.diff:4:}}
 ```
 
+We just ignore the stampers in `NonIncrementalContext`, as they are only needed for incrementality.
+
 Run `cargo test` to confirm everything still works.
 
 ### Dependency implementation
@@ -236,6 +255,9 @@ Add the `dependency` module to `src/lib.rs`:
 ```rust,customdiff
 {{#include ../../gen/top_down/3_dependency/a_module.rs.diff:4:}}
 ```
+
+This module is not public, as users of the library should not construct dependencies.
+They should only create stampers, which are passed to dependencies via the `Context`.
 
 #### File dependencies
 
@@ -249,12 +271,11 @@ A `FileDependency` stores the `path` the dependency is about, the `stamper` used
 The `FileDependency::new` function also returns the opened file if it exists, so that users of this function can read from the file without having to open it again.
 
 A file dependency is inconsistent when the stored stamp is not equal to a stamp that we create at the time of checking, implemented in `FileDependency::is_inconsistent`.
-For example, if we created a file dependency (with modified stamper) for a file that was modified yesterday, then modify the file, and then call `is_inconsistent` on the file dependency, it would return true indicating that the dependency is inconsistent.
-TODO: return `Some(changed_stamp)`.
-
-Checking a file dependency can fail due to file operations failing (for example, cannot access the file), so we propagate those errors.
+For example, if we created a file dependency (with modified stamper) for a file that was modified yesterday, then modify the file, and then call `is_inconsistent` on the file dependency, it would return `Some(new_stamp)` indicating that the dependency is inconsistent.
 
 We implement an `is_inconsistent` method here instead of an `is_consistent` method, so that we can return the changed stamp when the dependency is inconsistent, which we will use for debug logging purposes later.
+
+Creating and checking a file dependency can fail due to file operations failing (for example, cannot access the file), so we propagate those errors.
 
 #### Task dependencies
 
@@ -265,9 +286,24 @@ Add to `src/dependency.rs`:
 {{#include 3_dependency/c_task.rs}}
 ```
 
+A `TaskDependency` stores the `task` the dependency is about, along with its `stamper` and `stamp` that is created when the dependency is created.
+Task dependencies are generic over the type of tasks `T`, and their type of outputs `O`.
+
+```admonish info title="Trait bounds on structs" collapsible=true
+We chose not to put a `Task` trait bound on `TaskDependency`, and instead put the bound on the impl.
+There are several up and downsides to that should be considered when making such a decision.
+
+The main upside for putting the `Task` bound on the `TaskDependency` struct, is that we can leave out `O` and use `OutputStamp<T::Output>` as the type of the `stamp` field.
+This cuts down a generic parameter, which reduces boilerplate.
+The downside is that we need to then put the `Task` bound on every struct that uses `TaskDependency`, which increases boilerplate.
+
+Furthermore, some `derive` macros may behave differently or fail to work with trait bounds on tasks.
+For example, the derive macros from `serde` which we will use for serialization later do not seem to work well with trait bounds on structs (or I did not figure out how to make them work).
+Therefore, it is better to not put `Task` bounds on structs in this library.
+```
+
 A task dependency is inconsistent if, after recursively checking it, its stamp has changed, implemented in `TaskDependency::is_inconsistent`.
 Usually, this will be using the `Equals` task output stamper, so a task dependency is usually inconsistent when the output of the task changes.
-TODO: use stamps
 
 Because we need to recursively check the task, `TaskDependency::is_inconsistent` requires a context to be passed in.
 
@@ -282,7 +318,19 @@ Add to `src/dependency.rs`:
 
 `Dependency` just merges the two kinds of dependencies and provides an `is_inconsistent` method that calls the corresponding method.
 This will make it easier to write a dependency graph implementation later.
-TODO: use stamps
+
+We return the changed stamp here as well for debug logging later.
+We wrap the changed stamp in an `InconsistentDependency` enum, and map to the correct variant if there is an inconsistency.
+
+Because `Dependency` can store a `TaskDependency`, we need to propagate the `T` and `O` generics.
+Likewise, `InconsistentDependency` propagates the `O` generic for `OutputStamp`.
+
+```admonish info title="User definable dependencies" collapsible=true
+Like with stampers, `Dependency` could also be a trait to allow users of the library to define their own dependencies.
+However, as we will see later, these dynamic dependencies also require validation, and I am unsure how such a `Dependency` trait should look.
+Therefore, we don't have an appendix on how to implement this.
+But, if you have an idea on how to this nicely (after you've completed this tutorial), please get in touch! 
+```
 
 #### Tests
 
@@ -293,4 +341,23 @@ Add tests to `src/dependency.rs`:
 {{#include 3_dependency/e_test.rs}}
 ```
 
+We test a file dependency by asserting that `is_inconsistent` returns `Some` after changing the file.
+
+Testing task dependencies requires a bit more work.
+We create task `ReadStringFromFile` that reads a string from a file, and then returns that string as output.
+We require the task to get its output (`"test1"`), and create a task dependency with it.
+Then, we change the file and check consistency of the task dependency.
+That recursively requires the task, the context will execute the task, and the task now returns (`"test2"`).
+Since we use the `Equals` output stamper, and `"test1"` does not equal `"test2"`, the dependency is inconsistent and returns a stamp containing `"test2"`.
+
+Note that we are both testing the specific dependencies (`FileDependency` and `TaskDependency`), and the general `Dependency`.
+
+```admonish
+Normally, a task such as `ReadStringFromFile` shound return a `Result<String, io::Error>`, but for testing purposes we are just using panics with `expect`.
+
+In the file dependency case, using `Dependency` requires an explicit type annotation because there is no task to infer the type from.
+We just use `Dependency<ReadStringFromFile, String>` as the type, and this is fine even though we don't use `ReadStringFromFile` in that test, because the `Dependency::RequireFile` variant does not use those types. 
+```
+
 Run `cargo test` to confirm everything still works.
+You will get some warnings about unused things, but that is ok as we will use them in the next section.

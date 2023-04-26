@@ -1,39 +1,38 @@
 use std::fmt::Debug;
 use std::fs::File;
 use std::io;
-use std::path::Path;
 use std::path::PathBuf;
-use std::time::SystemTime;
 
 use crate::{Context, Task};
 use crate::fs::{metadata, open_if_file};
+use crate::stamp::{FileStamp, FileStamper, OutputStamp, OutputStamper};
 
-#[derive(Clone, Eq, PartialEq, Hash, Debug)]
+#[derive(Clone, Eq, PartialEq, Debug)]
 pub struct FileDependency {
   pub path: PathBuf,
-  pub modified_date: Option<SystemTime>,
+  pub stamper: FileStamper,
+  pub stamp: FileStamp,
 }
 
 impl FileDependency {
-  pub fn new(path: impl Into<PathBuf>) -> Result<(Self, Option<File>), io::Error> {
+  pub fn new(path: impl Into<PathBuf>, stamper: FileStamper) -> Result<(Self, Option<File>), io::Error> {
     let path = path.into();
-    let modified_date = Self::modified_date(&path)?;
+    let stamp = stamper.stamp(&path)?;
     let file = open_if_file(&path)?;
-    let dependency = Self { path, modified_date };
+    let dependency = FileDependency { path, stamper, stamp };
     Ok((dependency, file))
   }
 
-  pub fn is_inconsistent(&self) -> Result<bool, io::Error> {
-    let modified_date = Self::modified_date(&self.path)?;
-    Ok(modified_date != self.modified_date)
-  }
-
-  fn modified_date(path: impl AsRef<Path>) -> Result<Option<SystemTime>, io::Error> {
-    let modified_date = if let Some(metadata) = metadata(path)? {
-      Some(metadata.modified()?)
+  /// Checks whether this file dependency is inconsistent, returning:
+  /// - `Ok(Some(stamp))` if this dependency is inconsistent (with `stamp` being the new stamp of the dependency),
+  /// - `Ok(None)` if this dependency is consistent,
+  /// - `Err(e)` if there was an error checking this dependency for consistency.
+  pub fn is_inconsistent(&self) -> Result<Option<FileStamp>, io::Error> {
+    let new_stamp = self.stamper.stamp(&self.path)?;
+    if new_stamp == self.stamp {
+      Ok(None)
     } else {
-      None // File does not exist -> no modified date.
-    };
-    Ok(modified_date)
+      Ok(Some(new_stamp))
+    }
   }
 }

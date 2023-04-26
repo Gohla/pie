@@ -2,6 +2,9 @@ use std::collections::HashMap;
 use std::ffi::{OsStr, OsString};
 use std::path::{Path, PathBuf};
 
+use tracing::{debug, error, info};
+
+use crate::cargo::RunCargo;
 use crate::modification::Modification;
 use crate::output::Output;
 
@@ -10,7 +13,7 @@ pub struct Stepper {
   pub destination_root_directory: PathBuf,
   pub generated_root_directory: PathBuf,
   pub last_original_file: HashMap<PathBuf, PathBuf>,
-  cargo_args: Vec<OsString>,
+  pub cargo_args: Vec<OsString>,
 }
 
 impl Stepper {
@@ -83,41 +86,37 @@ impl Stepper {
 
   fn apply_expect(&mut self, into_modifications: impl IntoModifications, expect_success: bool) -> Applied {
     for modification in into_modifications.into() {
-      modification.apply(self);
+      debug!("Resolve: {}", modification);
+      let resolved = modification.clone().resolve(&self);
+      if let Err(e) = resolved {
+        error!("Failed to resolve modification:\n  {}\nError:\n  {}", modification, e);
+        panic!("Failed to resolve modification; stopping");
+      }
+      let resolved = resolved.unwrap();
+
+      info!("Apply: {}", resolved);
+      if let Err(e) = resolved.apply(self) {
+        error!("Failed to apply modification:\n  {}\nError:\n  {}", modification, e);
+        panic!("Failed to apply modification; stopping");
+      }
     }
-    let cargo_output = self.run_cargo(expect_success);
+
+    let run_cargo = RunCargo::new(&self)
+      .expect("failed to create run cargo command");
+    info!("{}", run_cargo);
+
+    let (cargo_output, valid) = run_cargo.run(expect_success)
+      .expect("failed to run cargo command or failed to get its output");
+    if !valid {
+      error!("Cargo run did not result in expected outcome. Command:\n{}\nOutput:\n{}", run_cargo, cargo_output);
+      panic!("Cargo run did not result in expected outcome; stopping");
+    } else {
+      info!("{}", cargo_output);
+    }
     Applied { stepper: self, cargo_output }
   }
-
-  fn run_cargo(&self, expect_success: bool) -> String {
-    let cmd = duct::cmd("cargo", &self.cargo_args)
-      .dir(&self.destination_root_directory)
-      .unchecked()
-      .stderr_to_stdout()
-      .stdout_capture();
-
-    let mut cmd_joined = vec!["cargo".to_string()];
-    cmd_joined.extend(self.cargo_args.iter().map(|oss| oss.clone().into_string().expect("failed to convert cmd to string")));
-    let cmd_joined = cmd_joined.join(" ");
-    println!("$ {}", cmd_joined);
-
-    let cmd_output = cmd.run()
-      .expect("failed to run cargo");
-    let output = String::from_utf8(cmd_output.stdout)
-      .expect("failed to convert stdout to utf8");
-    print!("{}", output);
-
-    let success = cmd_output.status.success();
-    if expect_success && !success {
-      panic!("cargo failed while it should have succeed");
-    }
-    if !expect_success && success {
-      panic!("cargo succeeded while it should have failed");
-    }
-
-    format!("$ {}\n{}", cmd_joined, output)
-  }
 }
+
 
 // Create outputs
 
@@ -139,7 +138,8 @@ impl IntoOutputs for Output {
 impl<'a> Applied<'a> {
   pub fn output(&self, into_outputs: impl IntoOutputs) {
     for output in into_outputs.into() {
-      output.apply(self);
+      output.apply(self)
+        .expect("failed to apply output");
     }
   }
 }
