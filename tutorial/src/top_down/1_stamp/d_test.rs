@@ -1,7 +1,6 @@
 #[cfg(test)]
 mod test {
   use std::fs;
-  use std::io::Write;
 
   use tempfile::{NamedTempFile, TempPath};
 
@@ -25,14 +24,11 @@ mod test {
     let stamp = stamper.stamp(&path).expect("failed to stamp");
     assert_eq!(stamp, stamper.stamp(&path).expect("failed to stamp"));
 
-    let mut file = fs::File::create(&path).expect("failed to open temporary file");
-    file.write_all("test".as_bytes()).expect("failed to write to file");
-    file.sync_all().expect("failed to sync file");
-    drop(file);
-    assert_ne!(stamp, stamper.stamp(&path).expect("failed to stamp"));
+    fs::write(&path, "test").expect("failed to write to temporary file");
+    assert_ne!(stamp, stamper.stamp(&path).expect("failed to stamp"), "stamp is equal after modifying file");
 
     fs::remove_file(&path).expect("failed to delete temporary file");
-    assert_ne!(stamp, stamper.stamp(&path).expect("failed to stamp"));
+    assert_ne!(stamp, stamper.stamp(&path).expect("failed to stamp"), "stamp is equal after removing file");
   }
 
   #[test]
