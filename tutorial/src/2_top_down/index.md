@@ -40,7 +40,7 @@ Before we start coding, let's sketch the outline of the solution — we will:
 To support file dependencies, add a method to the `Context` trait in `src/lib.rs`:
 
 ```rust,customdiff
-{{#include ../../gen/top_down/0_require_file/a_context.rs.diff:4:}}
+{{#include ../../gen/2_top_down/0_require_file/a_context.rs.diff:4:}}
 ```
 
 `require_file` is similar to requiring a task, but instead takes a `path` to a file or directory on the filesystem as input.
@@ -73,7 +73,7 @@ However, because we will be performing similar file system operations in the inc
 Add the `fs` module to `src/lib.rs`:
 
 ```rust,customdiff
-{{#include ../../gen/top_down/0_require_file/b_fs_module.rs.diff:4:}}
+{{#include ../../gen/2_top_down/0_require_file/b_fs_module.rs.diff:4:}}
 ```
 
 Create file `src/fs.rs` with:
@@ -89,7 +89,7 @@ Instead of implementing that ourselves, we will use an existing crate.
 Add the `tempfile` dependency to `Cargo.toml`:
 
 ```toml,customdiff
-{{#include ../../gen/top_down/0_require_file/d_Cargo.toml.diff:4:}}
+{{#include ../../gen/2_top_down/0_require_file/d_Cargo.toml.diff:4:}}
 ```
 
 Note that this is dependency is added under `dev-dependencies`, indicating that this dependency is only available when running tests, benchmarks, and examples.
@@ -108,7 +108,7 @@ Now we are done with our filesystem utility excursion.
 Make the non-incremental context compatible by changing `src/context/non_incremental.rs`:
 
 ```rust,customdiff
-{{#include ../../gen/top_down/0_require_file/f_non_incremental_context.rs.diff:4:}}
+{{#include ../../gen/2_top_down/0_require_file/f_non_incremental_context.rs.diff:4:}}
 ```
 
 Since the non-incremental context does not track anything, we simply try to open the file and return it.
@@ -155,7 +155,7 @@ We will start with implementing stamps and dependencies, as that can be implemen
 Add the `stamp` module to `src/lib.rs`:
 
 ```rust,customdiff
-{{#include ../../gen/top_down/1_stamp/a_module.rs.diff:4:}}
+{{#include ../../gen/2_top_down/1_stamp/a_module.rs.diff:4:}}
 ```
 
 Note that this module is declared `pub`, as users of the library should be able to construct stampers.
@@ -231,7 +231,7 @@ Therefore, we need to update the `Context` trait to allow passing in these stamp
 Change `Context` in `src/lib.rs`:
 
 ```rust,customdiff
-{{#include ../../gen/top_down/2_stamp_context/a_context.rs.diff:4:}}
+{{#include ../../gen/2_top_down/2_stamp_context/a_context.rs.diff:4:}}
 ```
 
 We add the `require_task_with_stamper` and `require_file_with_stamper` methods which allow passing in a stamper.
@@ -241,7 +241,7 @@ The defaults are provided by `default_output_stamper` and `default_file_stamper`
 Update `NonIncrementalContext` in `src/context/non_incremental.rs` to implement the new methods:
 
 ```rust,customdiff
-{{#include ../../gen/top_down/2_stamp_context/b_non_incremental_context.rs.diff:4:}}
+{{#include ../../gen/2_top_down/2_stamp_context/b_non_incremental_context.rs.diff:4:}}
 ```
 
 We just ignore the stampers in `NonIncrementalContext`, as they are only needed for incrementality.
@@ -253,7 +253,7 @@ Run `cargo test` to confirm everything still works.
 Add the `dependency` module to `src/lib.rs`:
 
 ```rust,customdiff
-{{#include ../../gen/top_down/3_dependency/a_module.rs.diff:4:}}
+{{#include ../../gen/2_top_down/3_dependency/a_module.rs.diff:4:}}
 ```
 
 This module is not public, as users of the library should not construct dependencies.

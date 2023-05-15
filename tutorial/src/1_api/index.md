@@ -25,7 +25,7 @@ Likewise, we will also be implementing multiple contexts in this tutorial, so we
 Add the following code to your `src/lib.rs` file:
 
 ```rust,
-{{#include 0_api.rs}}
+{{#include 0_api/a_api.rs}}
 ```
 
 ```admonish
@@ -56,7 +56,7 @@ Build the project by running `cargo build`.
 The output should look something like:
 
 ```shell,
-{{#include ../../gen/api/0_cargo.txt}}
+{{#include ../../gen/1_api/0_api/a_cargo.txt}}
 ```
 
 ```admonish info title="Rust Help" collapsible=true
@@ -100,7 +100,7 @@ Since we will be implementing three different contexts in this tutorial, we will
 Create the `context` module by adding a module to `src/lib.rs`:
 
 ```rust,customdiff
-{{#include ../../gen/api/1_context_module.rs.diff:4:}}
+{{#include ../../gen/1_api/1_non_incremental/a_context_module.rs.diff:4:}}
 ```
 
 This is a diff over `src/lib.rs` where lines with a green background are additions, lines with a red background are removals, and lines with a grey background are context on where to add/remove lines, similar to diffs on source code hubs like GitHub.
@@ -108,14 +108,14 @@ This is a diff over `src/lib.rs` where lines with a green background are additio
 Create the `src/context` directory, and in it, create the `src/context/mod.rs` file with the following contents:
 
 ```rust,
-{{#include 2_non_incremental_module.rs}}
+{{#include 1_non_incremental/b_non_incremental_module.rs}}
 ```
 
 Then, create the `src/context/non_incremental.rs` file, it will be empty for now.
 Your project structure should now look like:
 
 ```
-{{#include ../../gen/api/2_dir.txt}}
+{{#include ../../gen/1_api/1_non_incremental/b_dir.txt}}
 ```
 
 Confirm your module structure is correct by building with `cargo build`.
@@ -134,7 +134,7 @@ Like traits, modules also have [visibility](https://doc.rust-lang.org/reference/
 Implement the non-incremental context in `src/context/non_incremental.rs` by adding:
 
 ```rust,
-{{#include 3_non_incremental_context.rs}}
+{{#include 1_non_incremental/c_non_incremental_context.rs}}
 ```
 
 This `NonIncrementalContext` is extremely simple: in `require_task` we unconditionally execute the task, and pass `self` along so the task we're calling can require additional tasks.
@@ -160,7 +160,7 @@ We could also write that as `return task.execute(self);`, but that is more verbo
 Add the following test to `src/context/non_incremental.rs`:
 
 ```rust,
-{{#include 4_test_1.rs}}
+{{#include 1_non_incremental/d_test.rs}}
 ```
 
 In this test, we create a struct `ReturnHelloWorld` which is the "hello world" of the build system.
@@ -176,7 +176,7 @@ Run the test by running `cargo test`.
 The output should look something like:
 
 ```shell,
-{{#include ../../gen/api/4_cargo.txt}}
+{{#include ../../gen/1_api/1_non_incremental/d_cargo.txt}}
 ```
 
 Which indicates that the test indeed succeeds!
@@ -209,7 +209,7 @@ Our first test only tests a single task that does not use the context, so let's 
 Add the following test:
 
 ```rust,customdiff
-{{#include ../../gen/api/5_test_2.rs.diff:4:}}
+{{#include ../../gen/1_api/1_non_incremental/e_test_problematic.rs.diff:4:}}
 ```
 
 We use the same `ReturnHelloWorld` task as before, but now also have a `ToLowerCase` task which requires `ReturnHelloWorld` and then turn its string lowercase.
@@ -217,7 +217,7 @@ However, due to the way we've set up the types between `Task` and `Context`, we 
 Running `cargo test`, you should get these errors:
 
 ```shell,
-{{#include ../../gen/api/5_cargo.txt}}
+{{#include ../../gen/1_api/1_non_incremental/e_cargo.txt}}
 ```
 
 The problem is that `execute` of `ToLowerCase` takes a `Context<Self>`, so in `impl Task for ToLowerCase` it takes a `Context<ToLowerCase>`, while we're trying to require `&ReturnHelloWorld` through the context.
@@ -226,13 +226,13 @@ This doesn't work as `Context<ToLowerCase>::require_task` only takes a `&ToLower
 We could change `execute` of `ToLowerCase` to take `Context<ReturnHelloWorld>`:
 
 ```rust,customdiff
-{{#include ../../gen/api/6_test_2.rs.diff:4:}}
+{{#include ../../gen/1_api/1_non_incremental/f_test_incompatible.rs.diff:4:}}
 ```
 
 But that is not allowed:
 
 ```shell,
-{{#include ../../gen/api/6_cargo.txt}}
+{{#include ../../gen/1_api/1_non_incremental/f_cargo.txt}}
 ```
 
 This is because the `Task` trait defines `execute` to take a `Context<Self>`, thus every implementation of `Task` must adhere to this, so we can't solve it this way.
@@ -257,7 +257,7 @@ For now, we will solve this by just using a single task type which is an enumera
 Replace the test with the following:
 
 ```rust,customdiff
-{{#include 7_test_2.rs.diff:4:}}
+{{#include 1_non_incremental/g_test_correct.rs.diff:4:}}
 ```
 
 Here, we instead define a single task `Test` which is an `enum` with two variants.
