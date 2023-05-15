@@ -159,6 +159,11 @@ For example, tasks read configuration and source files, or write intermediate an
 Thus, a change in a file can affect a task that reads it, and executing a task can result in writing to new or existing files.
 Therefore, we will also keep track of <em>file dependencies</em>.
 Like task dependencies, file dependencies are also tracked dynamically while tasks are executing.</p>
+<p>There are several ways to check if a file dependency is consistent (i.e., has not changed), such as checking the last modification date, or comparing a hash.
+To make this configurable on a per-dependency basis, we will implement <em>stamps</em>.
+A file stamp is just a value that is produced from a file, such as the modification date or hash, that is stored with the file dependency.
+To check if a file dependency is consistent, we just stamp the file again and compare it with the stored stamp.</p>
+<p>Similarly, we can employ stamps for task dependencies as well by stamping the output of a task.</p>
 <p>Before we start coding, let's sketch the outline of the solution — we will:</p>
 <ul>
 <li>Extend <code>Context</code> with a way to for tasks to register file dependencies.
@@ -167,9 +172,11 @@ Like task dependencies, file dependencies are also tracked dynamically while tas
 <li>Make <code>NonIncrementalContext</code> compatible with the extension to <code>Context</code>.</li>
 </ul>
 </li>
-<li>Implement an <code>TopDownContext</code> that does incremental building.
+<li>Implement a <code>TopDownContext</code> that does incremental building.
 <ul>
-<li>Implement <code>Dependency</code> to represent dependencies.</li>
+<li>Implement file and task output stamps.</li>
+<li>Extend <code>Context</code> to support stampers when creating dependencies.</li>
+<li>Implement file and task dependencies.</li>
 <li>Implement <code>Store</code> that keeps track of the dependency graph.</li>
 </ul>
 </li>
@@ -181,24 +188,7 @@ Like task dependencies, file dependencies are also tracked dynamically while tas
 </ul>
 <h2 id="adding-file-dependencies"><a class="header" href="#adding-file-dependencies">Adding File Dependencies</a></h2>
 <p>To support file dependencies, add a method to the <code>Context</code> trait in <code>src/lib.rs</code>:</p>
-<pre><code class="language-rust customdiff"> use std::fmt::Debug;
-+use std::fs::File;
- use std::hash::Hash;
-+use std::io;
-+use std::path::Path;
-
- mod context;
-
- pub trait Task: Clone + Eq + Hash + Debug {
-   type Output: Clone + Eq + Debug;
-@@ -8,6 +11,7 @@
-   fn execute&lt;C: Context&lt;Self&gt;&gt;(&amp;self, context: &amp;mut C) -&gt; Self::Output;
- }
-
- pub trait Context&lt;T: Task&gt; {
-   fn require_task(&amp;mut self, task: &amp;T) -&gt; T::Output;
-+  fn require_file&lt;P: AsRef&lt;Path&gt;&gt;(&amp;mut self, path: P) -&gt; Result&lt;Option&lt;File&gt;, io::Error&gt;;
- }</code></pre>
+<pre><code class="language-rust customdiff">{{#include ../../gen/top_down/0_require_file/a_context.rs.diff:4:}}</code></pre>
 <p><code>require_file</code> is similar to requiring a task, but instead takes a <code>path</code> to a file or directory on the filesystem as input.
 We use <code>AsRef&lt;Path&gt;</code> as the type for the path, so that we can pass anything in that can dereference to a path.
 For example, <code>str</code> has an <code>AsRef&lt;Path&gt;</code> implementation, so we can just use <code>&quot;test.txt&quot;</code> as a path.</p>
@@ -229,17 +219,7 @@ You can also see this as a kind of method overloading, without having to provide
 <p>Now we need to implement this method for <code>NonIncrementalContext</code>.
 However, because we will be performing similar file system operations in the incremental context as well, we will create some utility functions for this first.</p>
 <p>Add the <code>fs</code> module to <code>src/lib.rs</code>:</p>
-<pre><code class="language-rust customdiff"> use std::hash::Hash;
- use std::io;
- use std::path::Path;
-
- mod context;
-+mod fs;
-
- pub trait Task: Clone + Eq + Hash + Debug {
-   type Output: Clone + Eq + Debug;
-   fn execute&lt;C: Context&lt;Self&gt;&gt;(&amp;self, context: &amp;mut C) -&gt; Self::Output;
- }</code></pre>
+<pre><code class="language-rust customdiff">{{#include ../../gen/top_down/0_require_file/b_fs_module.rs.diff:4:}}</code></pre>
 <p>Create file <code>src/fs.rs</code> with:</p>
 <pre><code class="language-rust ">use std::{fs, io};
 use std::fs::{File, Metadata};
@@ -268,27 +248,23 @@ pub fn open_if_file(path: impl AsRef&lt;Path&gt;) -&gt; Result&lt;Option&lt;File
 <p>We will write some tests to confirm the behaviour, but for that we need a utility to create temporary files and directories.
 Instead of implementing that ourselves, we will use an existing crate.
 Add the <code>tempfile</code> dependency to <code>Cargo.toml</code>:</p>
-<pre><code class="language-toml customdiff"> [package]
- name = &quot;pie&quot;
- version = &quot;0.1.0&quot;
- edition = &quot;2021&quot;
-+
-+[dev-dependencies]
-+tempfile = &quot;3&quot;
+<pre><code class="language-toml customdiff">{{#include ../../gen/top_down/0_require_file/d_Cargo.toml.diff:4:}}
 </code></pre>
 <p>Note that this is dependency is added under <code>dev-dependencies</code>, indicating that this dependency is only available when running tests, benchmarks, and examples.
 Therefore, users of our library will not depend on this library, which is good because temporary file creation is not necessary to users of our library.</p>
 <p>Now, add the following tests to <code>src/fs.rs</code>:</p>
 <pre><code class="language-rust ">#[cfg(test)]
 mod test {
-  use tempfile::{NamedTempFile, TempDir};
+  use std::fs::remove_file;
+
+  use tempfile::{NamedTempFile, TempDir, TempPath};
 
   use super::*;
 
   #[test]
   fn test_metadata_ok() {
-    let file = create_temp_file();
-    let metadata = metadata(file.path());
+    let path = create_temp_path();
+    let metadata = metadata(path);
     assert!(metadata.is_ok());
     let metadata = metadata.unwrap();
     assert!(metadata.is_some());
@@ -298,9 +274,8 @@ mod test {
 
   #[test]
   fn test_metadata_none() {
-    let file = create_temp_file();
-    let path = file.into_temp_path();
-    std::fs::remove_file(&amp;path).expect(&quot;failed to delete temporary file&quot;);
+    let path = create_temp_path();
+    remove_file(&amp;path).expect(&quot;failed to delete temporary file&quot;);
     let metadata = metadata(&amp;path);
     assert!(metadata.is_ok());
     let metadata = metadata.unwrap();
@@ -309,7 +284,7 @@ mod test {
 
   #[test]
   fn test_open_if_file() {
-    let path = create_temp_file().into_temp_path();
+    let path = create_temp_path();
     let file = open_if_file(&amp;path);
     assert!(file.is_ok());
     let file = file.unwrap();
@@ -318,8 +293,8 @@ mod test {
 
   #[test]
   fn test_open_if_file_non_existent() {
-    let path = create_temp_file().into_temp_path();
-    std::fs::remove_file(&amp;path).expect(&quot;failed to delete temporary file&quot;);
+    let path = create_temp_path();
+    remove_file(&amp;path).expect(&quot;failed to delete temporary file&quot;);
     let file = open_if_file(&amp;path);
     assert!(file.is_ok());
     let file = file.unwrap();
@@ -335,31 +310,15 @@ mod test {
     assert!(file.is_none());
   }
 
-  fn create_temp_file() -&gt; NamedTempFile {
-    NamedTempFile::new().expect(&quot;failed to create temporary file&quot;)
+  fn create_temp_path() -&gt; TempPath {
+    NamedTempFile::new().expect(&quot;failed to create temporary file&quot;).into_temp_path()
   }
 }</code></pre>
-<p>Unfortunately, we can't easily test when <code>metadata</code> and <code>open_if_file</code> should return an error, because we cannot disable read permissions on files via the Rust standard library.</p>
+<p>The <code>tempfile</code> library takes care of deleting temporary files when they go out of scope (at the end of the test).
+Unfortunately, we can't easily test when <code>metadata</code> and <code>open_if_file</code> should return an error, because we cannot disable read permissions on files via the Rust standard library.</p>
 <p>Now we are done with our filesystem utility excursion.
 Make the non-incremental context compatible by changing <code>src/context/non_incremental.rs</code>:</p>
-<pre><code class="language-rust customdiff">+use std::fs::File;
-+use std::io;
-+use std::path::Path;
-+
- use crate::{Context, Task};
-+use crate::fs::open_if_file;
-
- pub struct NonIncrementalContext;
-
- impl&lt;T: Task&gt; Context&lt;T&gt; for NonIncrementalContext {
-   fn require_task(&amp;mut self, task: &amp;T) -&gt; T::Output {
-     task.execute(self)
-   }
-+  fn require_file&lt;P: AsRef&lt;Path&gt;&gt;(&amp;mut self, path: P) -&gt; Result&lt;Option&lt;File&gt;, io::Error&gt; {
-+    let file = open_if_file(&amp;path)?;
-+    Ok(file)
-+  }
- }</code></pre>
+<pre><code class="language-rust customdiff">{{#include ../../gen/top_down/0_require_file/f_non_incremental_context.rs.diff:4:}}</code></pre>
 <p>Since the non-incremental context does not track anything, we simply try to open the file and return it.
 This implements the description we made earlier:</p>
 <ul>
@@ -383,114 +342,353 @@ The <code>r?</code> operator applied to a <code>Result</code> <code>r</code> doe
 <h2 id="implementing-the-incremental-context"><a class="header" href="#implementing-the-incremental-context">Implementing the Incremental Context</a></h2>
 <p>Now we get to the fun part, incrementality!</p>
 <p>To check whether we need to execute a task, we need to check the dependencies of that task to see if any of them are not consistent.
-If they are all consistent, we just return the cached output of the task.
-If not, we just execute the task.</p>
-<p>To implement this, we will need 3 components:</p>
+A dependency is consistent if after stamping, the new stamp equals the stored stamp.
+If all dependencies of the task are consistent, we return the cached output of the task.
+If not, we execute the task.</p>
+<p>To implement this, we will need several components:</p>
 <ul>
-<li>A <code>Dependency</code> type which holds dependency data with methods for checking consistency.</li>
+<li><code>FileStamper</code> and <code>FileStamp</code> types for stamping files.</li>
+<li><code>OutputStamper</code> and <code>OutputStamp</code> types for stamping task outputs.</li>
+<li>Extension to <code>Context</code> to support passing <code>FileStamper</code> and <code>OutputStamper</code> when requiring files and tasks.</li>
+<li>A <code>FileDependency</code> type that holds a <code>FileStamper</code> and <code>FileStamp</code> to check whether a file is consistent.</li>
+<li>A <code>TaskDependency</code> type that holds an <code>OutputStamper</code> and <code>OutputStamp</code> to check whether a task is consistent.</li>
+<li>A <code>Dependency</code> type that merges <code>FileDependency</code> and <code>TaskDependency</code> so we can check whether a dependency is consistent without having to know what kind of dependency it is.</li>
 <li>A <code>Store</code> type which holds the dependency graph with methods for interacting with the graph.</li>
-<li>A <code>TopDownContext</code> type that implements <code>Context</code> and owns a <code>Store</code>.</li>
+<li>A <code>TopDownContext</code> type that implements <code>Context</code> in an incremental way, using <code>Store</code>.</li>
 </ul>
-<p>We will start with implementing <code>Dependency</code>, as it can be implemented as a stand-alone part.</p>
-<h3 id="dependency-implementation"><a class="header" href="#dependency-implementation">Dependency implementation</a></h3>
-<p>Add the <code>dependency</code> module to <code>src/lib.rs</code>:</p>
-<pre><code class="language-rust customdiff"> use std::io;
- use std::path::Path;
-
- mod context;
- mod fs;
-+mod dependency;
-
- pub trait Task: Clone + Eq + Hash + Debug {
-   type Output: Clone + Eq + Debug;
-   fn execute&lt;C: Context&lt;Self&gt;&gt;(&amp;self, context: &amp;mut C) -&gt; Self::Output;
- }</code></pre>
-<p>Then create the <code>src/dependency.rs</code> file and add:</p>
+<p>We will start with implementing stamps and dependencies, as that can be implemented as a stand-alone part.</p>
+<h3 id="stamp-implementation"><a class="header" href="#stamp-implementation">Stamp implementation</a></h3>
+<p>Add the <code>stamp</code> module to <code>src/lib.rs</code>:</p>
+<pre><code class="language-rust customdiff">{{#include ../../gen/top_down/1_stamp/a_module.rs.diff:4:}}</code></pre>
+<p>Note that this module is declared <code>pub</code>, as users of the library should be able to construct stampers.</p>
+<h4 id="file-stamps"><a class="header" href="#file-stamps">File stamps</a></h4>
+<p>Create the <code>src/stamp.rs</code> file and add:</p>
 <pre><code class="language-rust ">use std::fmt::Debug;
-use std::fs::File;
 use std::io;
 use std::path::Path;
-use std::path::PathBuf;
 use std::time::SystemTime;
 
-use crate::{Context, Task};
-use crate::fs::{metadata, open_if_file};
+use crate::fs::metadata;
 
-#[derive(Clone, Eq, PartialEq, Hash, Debug)]
-pub struct TaskDependency&lt;T, O&gt; {
-  pub task: T,
-  pub output: O,
+#[derive(Clone, Eq, PartialEq, Debug)]
+pub enum FileStamper {
+  Exists,
+  Modified,
 }
 
-impl&lt;T: Task&gt; TaskDependency&lt;T, T::Output&gt; {
-  pub fn new(task: T, output: T::Output) -&gt; Self {
-    Self { task, output }
-  }
-
-  pub fn is_inconsistent&lt;C: Context&lt;T&gt;&gt;(&amp;self, context: &amp;mut C) -&gt; bool {
-    let output = context.require_task(&amp;self.task);
-    output != self.output
-  }
-}
-
-
-#[derive(Clone, Eq, PartialEq, Hash, Debug)]
-pub struct FileDependency {
-  pub path: PathBuf,
-  pub modified_date: Option&lt;SystemTime&gt;,
-}
-
-impl FileDependency {
-  pub fn new(path: impl Into&lt;PathBuf&gt;) -&gt; Result&lt;(Self, Option&lt;File&gt;), io::Error&gt; {
-    let path = path.into();
-    let modified_date = Self::modified_date(&amp;path)?;
-    let file = open_if_file(&amp;path)?;
-    let dependency = Self { path, modified_date };
-    Ok((dependency, file))
-  }
-
-  pub fn is_inconsistent(&amp;self) -&gt; Result&lt;bool, io::Error&gt; {
-    let modified_date = Self::modified_date(&amp;self.path)?;
-    Ok(modified_date != self.modified_date)
-  }
-
-  fn modified_date(path: impl AsRef&lt;Path&gt;) -&gt; Result&lt;Option&lt;SystemTime&gt;, io::Error&gt; {
-    let modified_date = if let Some(metadata) = metadata(path)? {
-      Some(metadata.modified()?)
-    } else {
-      None // File does not exist -&gt; no modified date.
-    };
-    Ok(modified_date)
-  }
-}
-
-
-#[derive(Clone, Eq, PartialEq, Hash, Debug)]
-pub enum Dependency&lt;T, O&gt; {
-  RequireTask(TaskDependency&lt;T, O&gt;),
-  RequireFile(FileDependency),
-}
-
-impl&lt;T: Task&gt; Dependency&lt;T, T::Output&gt; {
-  pub fn is_inconsistent&lt;C: Context&lt;T&gt;&gt;(&amp;self, context: &amp;mut C) -&gt; Result&lt;bool, io::Error&gt; {
+impl FileStamper {
+  pub fn stamp(&amp;self, path: impl AsRef&lt;Path&gt;) -&gt; Result&lt;FileStamp, io::Error&gt; {
     match self {
-      Dependency::RequireTask(d) =&gt; Ok(d.is_inconsistent(context)),
-      Dependency::RequireFile(d) =&gt; d.is_inconsistent(),
+      FileStamper::Exists =&gt; {
+        Ok(FileStamp::Exists(path.as_ref().try_exists()?))
+      }
+      FileStamper::Modified =&gt; {
+        let Some(metadata) = metadata(path)? else {
+          return Ok(FileStamp::Modified(None));
+        };
+        Ok(FileStamp::Modified(Some(metadata.modified()?)))
+      }
+    }
+  }
+}
+
+#[derive(Clone, Eq, PartialEq, Debug)]
+pub enum FileStamp {
+  Exists(bool),
+  Modified(Option&lt;SystemTime&gt;),
+}</code></pre>
+<p>We're implementing <code>FileStamper</code> as an enum for simplicity.</p>
+<p>A <code>FileStamper</code> has a single method <code>stamp</code> which takes something that can be dereferenced to a path, and produces a <code>FileStamp</code> or an error if creating the stamp failed.
+For now, we implement only two kinds of file stampers: <code>Exists</code> and <code>Modified</code>.
+The <code>Exists</code> stamper just returns a boolean indicating whether a file exists.
+It can be used to create a file dependency where a task behaves differently based on whether a file exists or not.
+The <code>Modified</code> stamper returns the last modification date if the file exists, or <code>None</code> if the file does not exist.</p>
+<p>We derive <code>Eq</code> for stamps so that we can compare them.
+Equal stamps indicate a consistent dependency, unequal indicates inconsistent.
+We also derive <code>Eq</code> for stampers, because the stamper of a dependency could change, making the dependency inconsistent.</p>
+<h4 id="task-output-stamps"><a class="header" href="#task-output-stamps">Task output stamps</a></h4>
+<p>We implement task output stampers in a similar way.
+Add to <code>src/stamp.rs</code>:</p>
+<pre><code class="language-rust ">#[derive(Clone, Eq, PartialEq, Debug)]
+pub enum OutputStamper {
+  Inconsequential,
+  Equals,
+}
+
+impl OutputStamper {
+  pub fn stamp&lt;O&gt;(&amp;self, output: O) -&gt; OutputStamp&lt;O&gt; {
+    match self {
+      OutputStamper::Inconsequential =&gt; OutputStamp::Inconsequential,
+      OutputStamper::Equals =&gt; OutputStamp::Equals(output),
+    }
+  }
+}
+
+#[derive(Clone, Eq, PartialEq, Debug)]
+pub enum OutputStamp&lt;O&gt; {
+  Inconsequential,
+  Equals(O),
+}
+
+impl&lt;O&gt; OutputStamp&lt;O&gt; {
+  pub fn as_ref(&amp;self) -&gt; OutputStamp&lt;&amp;O&gt; {
+    match self {
+      OutputStamp::Inconsequential =&gt; OutputStamp::Inconsequential,
+      OutputStamp::Equals(o) =&gt; OutputStamp::Equals(o),
     }
   }
 }</code></pre>
-<p>We implement the <code>TaskDependency</code> and <code>FileDependency</code> types to handle task and file dependencies respectively.
-We merge those two kinds of dependencies into the <code>Dependency</code> enum.
-This split is made so that users of this module can accept only task or file dependencies, or any dependency in general, which we will need in the future.</p>
-<p>A task dependency is inconsistent if, after recursively checking it, its output has changed.
-The <code>TaskDependency::is_inconsistent</code> does exactly that, by requiring the task with a context, and then checking if the output has changed.
-We implement a <code>is_inconsistent</code> method here instead of an <code>is_consistent</code> method, because we will change it in the future to return the changed output for logging purposes, and in that case we want to see the changed output if it is not consistent.</p>
-<p>A file dependency is inconsistent if its last modification date has changed, or if the file did not exist before but does now (and vice versa), implemented in <code>FileDependency::is_inconsistent</code>.
-If a file does not exist, we use <code>None</code> as the modification date, which does not equal <code>Some(modified_date)</code>.
-We deal with errors (<code>io::Error</code>) by propagating them.</p>
-<p>The <code>FileDependency::new</code> function also returns the opened file if it exists, so that users of this function can read from the file without having to open it again.</p>
-<p>Finally, <code>Dependency</code> just merges the two kinds of dependencies and provides an <code>is_inconsistent</code> method that calls the corresponding method.</p>
-<p>As usual, we write some tests to confirm the behaviour. Add tests to <code>src/dependency.rs</code>:</p>
+<p>The <code>Inconsequential</code> stamper simply ignores the output and always returns the same stamp (thus is always equal).
+It can be used to create a task dependency where we are interested in some side effect of a task, but don't care about its output.
+The <code>Equals</code> stamper simply wraps the output of a task, so the stamp is equal when the output is equal.</p>
+<p>Output stamps are generic over the task output type <code>O</code>.</p>
+<details id="admonition-trait-bounds-and-derive-macros" class="admonition info">
+<summary class="admonition-title">
+<p>Trait bounds and derive macros</p>
+<p><a class="admonition-anchor-link" href="#admonition-trait-bounds-and-derive-macros"></a></p>
+</summary>
+<div>
+<p>Because <code>O</code> is used in the enum, the <code>derive</code> attributes on <code>OutputStamp</code> create bounds over <code>O</code>.
+Thus, <code>OutputStamp</code> is only <code>Clone</code> when <code>O</code> is <code>Clone</code>, <code>OutputStamp</code> is only <code>Clone</code> when <code>O</code> is <code>Clone</code>, and so forth.
+Because we declared <code>Task::Output</code> with bound <code>Clone + Eq + Debug</code>, we can be sure that <code>OutputStamp</code> is always <code>Clone</code>, <code>Eq</code>, and <code>Debug</code>.</p>
+</div>
+</details>
+<details id="admonition-user-definable-stamps" class="admonition info">
+<summary class="admonition-title">
+<p>User definable stamps</p>
+<p><a class="admonition-anchor-link" href="#admonition-user-definable-stamps"></a></p>
+</summary>
+<div>
+<p><code>FileStamper</code> and <code>OutputStamper</code> could also be a trait which would allow users of the library to implement their own stampers.
+For simplicity, we do not explore that option in this tutorial.
+If you feel adventurous, you could try to implement this after you've finished the tutorial.
+Do note that this introduces a lot of extra generics and trait bounds everywhere, which can be a bit cumbersome.</p>
+</div>
+</details>
+<h4 id="tests"><a class="header" href="#tests">Tests</a></h4>
+<p>Finally, we write some tests.
+Add to <code>src/stamp.rs</code>:</p>
+<pre><code class="language-rust ">#[cfg(test)]
+mod test {
+  use std::fs;
+
+  use tempfile::{NamedTempFile, TempPath};
+
+  use super::*;
+
+  #[test]
+  fn test_exists_file_stamper() {
+    let stamper = FileStamper::Exists;
+    let path = create_temp_path();
+    let stamp = stamper.stamp(&amp;path).expect(&quot;failed to stamp&quot;);
+    assert_eq!(stamp, stamper.stamp(&amp;path).expect(&quot;failed to stamp&quot;));
+
+    fs::remove_file(&amp;path).expect(&quot;failed to delete temporary file&quot;);
+    assert_ne!(stamp, stamper.stamp(&amp;path).expect(&quot;failed to stamp&quot;));
+  }
+
+  #[test]
+  fn test_modified_file_stamper() {
+    let stamper = FileStamper::Modified;
+    let path = create_temp_path();
+    let stamp = stamper.stamp(&amp;path).expect(&quot;failed to stamp&quot;);
+    assert_eq!(stamp, stamper.stamp(&amp;path).expect(&quot;failed to stamp&quot;));
+
+    fs::write(&amp;path, format!(&quot;{:?}&quot;, stamp)).expect(&quot;failed to write to temporary file&quot;);
+    assert_ne!(stamp, stamper.stamp(&amp;path).expect(&quot;failed to stamp&quot;), &quot;modified stamp is equal after modifying file&quot;);
+
+    fs::remove_file(&amp;path).expect(&quot;failed to delete temporary file&quot;);
+    assert_ne!(stamp, stamper.stamp(&amp;path).expect(&quot;failed to stamp&quot;), &quot;modified stamp is equal after removing file&quot;);
+  }
+
+  #[test]
+  fn test_inconsequential_output_stamper() {
+    let stamper = OutputStamper::Inconsequential;
+    let stamp = stamper.stamp(&amp;1);
+    assert_eq!(stamp, stamper.stamp(&amp;1));
+    assert_eq!(stamp, stamper.stamp(&amp;2));
+  }
+
+  #[test]
+  fn test_equals_output_stamper() {
+    let stamper = OutputStamper::Equals;
+    let stamp = stamper.stamp(&amp;1);
+    assert_eq!(stamp, stamper.stamp(&amp;1));
+    assert_ne!(stamp, stamper.stamp(&amp;2));
+  }
+
+  fn create_temp_path() -&gt; TempPath {
+    NamedTempFile::new().expect(&quot;failed to create temporary file&quot;).into_temp_path()
+  }
+}</code></pre>
+<p>We test file stamps by creating a stamp, changing the file, creating a new stamp, and then compare the stamps.
+We test task output stamps by just passing a different output value to the <code>stamp</code> function, and then compare the stamps.</p>
+<p>Run <code>cargo test</code> to confirm the stamp implementation.</p>
+<h3 id="stamps-in-context"><a class="header" href="#stamps-in-context">Stamps in Context</a></h3>
+<p>We now have a module dedicated to stamps.
+However, stampers are constructed by users of the library that author tasks, and they need to pass in these stampers when creating dependencies.
+Therefore, we need to update the <code>Context</code> trait to allow passing in these stampers.</p>
+<p>Change <code>Context</code> in <code>src/lib.rs</code>:</p>
+<pre><code class="language-rust customdiff">{{#include ../../gen/top_down/2_stamp_context/a_context.rs.diff:4:}}</code></pre>
+<p>We add the <code>require_task_with_stamper</code> and <code>require_file_with_stamper</code> methods which allow passing in a stamper.
+We add default implementations for the <code>require_task</code> and <code>require_file</code> methods which pass in a default stamper.
+The defaults are provided by <code>default_output_stamper</code> and <code>default_file_stamper</code> which can be overridden by the context implementation.</p>
+<p>Update <code>NonIncrementalContext</code> in <code>src/context/non_incremental.rs</code> to implement the new methods:</p>
+<pre><code class="language-rust customdiff">{{#include ../../gen/top_down/2_stamp_context/b_non_incremental_context.rs.diff:4:}}</code></pre>
+<p>We just ignore the stampers in <code>NonIncrementalContext</code>, as they are only needed for incrementality.</p>
+<p>Run <code>cargo test</code> to confirm everything still works.</p>
+<h3 id="dependency-implementation"><a class="header" href="#dependency-implementation">Dependency implementation</a></h3>
+<p>Add the <code>dependency</code> module to <code>src/lib.rs</code>:</p>
+<pre><code class="language-rust customdiff">{{#include ../../gen/top_down/3_dependency/a_module.rs.diff:4:}}</code></pre>
+<p>This module is not public, as users of the library should not construct dependencies.
+They should only create stampers, which are passed to dependencies via the <code>Context</code>.</p>
+<h4 id="file-dependencies"><a class="header" href="#file-dependencies">File dependencies</a></h4>
+<p>Create the <code>src/dependency.rs</code> file and add:</p>
+<pre><code class="language-rust ">use std::fmt::Debug;
+use std::fs::File;
+use std::io;
+use std::path::PathBuf;
+
+use crate::{Context, Task};
+use crate::fs::{metadata, open_if_file};
+use crate::stamp::{FileStamp, FileStamper, OutputStamp, OutputStamper};
+
+#[derive(Clone, Eq, PartialEq, Debug)]
+pub struct FileDependency {
+  pub path: PathBuf,
+  pub stamper: FileStamper,
+  pub stamp: FileStamp,
+}
+
+impl FileDependency {
+  pub fn new(path: impl Into&lt;PathBuf&gt;, stamper: FileStamper) -&gt; Result&lt;(Self, Option&lt;File&gt;), io::Error&gt; {
+    let path = path.into();
+    let stamp = stamper.stamp(&amp;path)?;
+    let file = open_if_file(&amp;path)?;
+    let dependency = FileDependency { path, stamper, stamp };
+    Ok((dependency, file))
+  }
+
+  /// Checks whether this file dependency is inconsistent, returning:
+  /// - `Ok(Some(stamp))` if this dependency is inconsistent (with `stamp` being the new stamp of the dependency),
+  /// - `Ok(None)` if this dependency is consistent,
+  /// - `Err(e)` if there was an error checking this dependency for consistency.
+  pub fn is_inconsistent(&amp;self) -&gt; Result&lt;Option&lt;FileStamp&gt;, io::Error&gt; {
+    let new_stamp = self.stamper.stamp(&amp;self.path)?;
+    if new_stamp == self.stamp {
+      Ok(None)
+    } else {
+      Ok(Some(new_stamp))
+    }
+  }
+}</code></pre>
+<p>A <code>FileDependency</code> stores the <code>path</code> the dependency is about, the <code>stamper</code> used to create a stamp for this dependency, and the <code>stamp</code> that was created at the time the file dependency was made.
+The <code>FileDependency::new</code> function also returns the opened file if it exists, so that users of this function can read from the file without having to open it again.</p>
+<p>A file dependency is inconsistent when the stored stamp is not equal to a stamp that we create at the time of checking, implemented in <code>FileDependency::is_inconsistent</code>.
+For example, if we created a file dependency (with modified stamper) for a file that was modified yesterday, then modify the file, and then call <code>is_inconsistent</code> on the file dependency, it would return <code>Some(new_stamp)</code> indicating that the dependency is inconsistent.</p>
+<p>We implement an <code>is_inconsistent</code> method here instead of an <code>is_consistent</code> method, so that we can return the changed stamp when the dependency is inconsistent, which we will use for debug logging purposes later.</p>
+<p>Creating and checking a file dependency can fail due to file operations failing (for example, cannot access the file), so we propagate those errors.</p>
+<h4 id="task-dependencies"><a class="header" href="#task-dependencies">Task dependencies</a></h4>
+<p>Task dependencies are implemented in a similar way.
+Add to <code>src/dependency.rs</code>:</p>
+<pre><code class="language-rust ">#[derive(Clone, Eq, PartialEq, Debug)]
+pub struct TaskDependency&lt;T, O&gt; {
+  pub task: T,
+  pub stamper: OutputStamper,
+  pub stamp: OutputStamp&lt;O&gt;,
+}
+
+impl&lt;T: Task&gt; TaskDependency&lt;T, T::Output&gt; {
+  pub fn new(task: T, stamper: OutputStamper, output: T::Output) -&gt; Self {
+    let stamp = stamper.stamp(output);
+    Self { task, stamper, stamp }
+  }
+
+  /// Checks whether this task dependency is inconsistent, returning:
+  /// - `Some(stamp)` if this dependency is inconsistent (with `stamp` being the new stamp of the dependency),
+  /// - `None` if this dependency is consistent.
+  pub fn is_inconsistent&lt;C: Context&lt;T&gt;&gt;(&amp;self, context: &amp;mut C) -&gt; Option&lt;OutputStamp&lt;T::Output&gt;&gt; {
+    let output = context.require_task(&amp;self.task);
+    let new_stamp = self.stamper.stamp(output);
+    if new_stamp == self.stamp {
+      None
+    } else {
+      Some(new_stamp)
+    }
+  }
+}</code></pre>
+<p>A <code>TaskDependency</code> stores the <code>task</code> the dependency is about, along with its <code>stamper</code> and <code>stamp</code> that is created when the dependency is created.
+Task dependencies are generic over the type of tasks <code>T</code>, and their type of outputs <code>O</code>.</p>
+<details id="admonition-trait-bounds-on-structs" class="admonition info">
+<summary class="admonition-title">
+<p>Trait bounds on structs</p>
+<p><a class="admonition-anchor-link" href="#admonition-trait-bounds-on-structs"></a></p>
+</summary>
+<div>
+<p>We chose not to put a <code>Task</code> trait bound on <code>TaskDependency</code>, and instead put the bound on the impl.
+There are several up and downsides to that should be considered when making such a decision.</p>
+<p>The main upside for putting the <code>Task</code> bound on the <code>TaskDependency</code> struct, is that we can leave out <code>O</code> and use <code>OutputStamp&lt;T::Output&gt;</code> as the type of the <code>stamp</code> field.
+This cuts down a generic parameter, which reduces boilerplate.
+The downside is that we need to then put the <code>Task</code> bound on every struct that uses <code>TaskDependency</code>, which increases boilerplate.</p>
+<p>Furthermore, some <code>derive</code> macros may behave differently or fail to work with trait bounds on tasks.
+For example, the derive macros from <code>serde</code> which we will use for serialization later do not seem to work well with trait bounds on structs (or I did not figure out how to make them work).
+Therefore, it is better to not put <code>Task</code> bounds on structs in this library.</p>
+</div>
+</details>
+<p>A task dependency is inconsistent if, after recursively checking it, its stamp has changed, implemented in <code>TaskDependency::is_inconsistent</code>.
+Usually, this will be using the <code>Equals</code> task output stamper, so a task dependency is usually inconsistent when the output of the task changes.</p>
+<p>Because we need to recursively check the task, <code>TaskDependency::is_inconsistent</code> requires a context to be passed in.</p>
+<h4 id="dependency-enum"><a class="header" href="#dependency-enum">Dependency enum</a></h4>
+<p>Finally, we create a <code>Dependency</code> enum that abstracts over these two kinds of dependencies.
+Add to <code>src/dependency.rs</code>:</p>
+<pre><code class="language-rust ">#[derive(Clone, Eq, PartialEq, Debug)]
+pub enum Dependency&lt;T, O&gt; {
+  RequireFile(FileDependency),
+  RequireTask(TaskDependency&lt;T, O&gt;),
+}
+
+#[derive(Clone, Eq, PartialEq, Debug)]
+pub enum InconsistentDependency&lt;O&gt; {
+  File(FileStamp),
+  Task(OutputStamp&lt;O&gt;),
+}
+
+impl&lt;T: Task&gt; Dependency&lt;T, T::Output&gt; {
+  /// Checks whether this dependency is inconsistent, returning:
+  /// - `Ok(Some(stamp))` if the dependency is inconsistent (with `stamp` being the new stamp of the dependency),
+  /// - `Ok(None)` if the dependency is consistent,
+  /// - `Err(e)` if there was an error checking the dependency for consistency.
+  pub fn is_inconsistent&lt;C: Context&lt;T&gt;&gt;(&amp;self, context: &amp;mut C) -&gt; Result&lt;Option&lt;InconsistentDependency&lt;T::Output&gt;&gt;, io::Error&gt; {
+    let option = match self {
+      Dependency::RequireFile(d) =&gt; d.is_inconsistent()?
+        .map(|s| InconsistentDependency::File(s)),
+      Dependency::RequireTask(d) =&gt; d.is_inconsistent(context)
+        .map(|s| InconsistentDependency::Task(s)),
+    };
+    Ok(option)
+  }
+}</code></pre>
+<p><code>Dependency</code> just merges the two kinds of dependencies and provides an <code>is_inconsistent</code> method that calls the corresponding method.
+This will make it easier to write a dependency graph implementation later.</p>
+<p>We return the changed stamp here as well for debug logging later.
+We wrap the changed stamp in an <code>InconsistentDependency</code> enum, and map to the correct variant if there is an inconsistency.</p>
+<p>Because <code>Dependency</code> can store a <code>TaskDependency</code>, we need to propagate the <code>T</code> and <code>O</code> generics.
+Likewise, <code>InconsistentDependency</code> propagates the <code>O</code> generic for <code>OutputStamp</code>.</p>
+<details id="admonition-user-definable-dependencies" class="admonition info">
+<summary class="admonition-title">
+<p>User definable dependencies</p>
+<p><a class="admonition-anchor-link" href="#admonition-user-definable-dependencies"></a></p>
+</summary>
+<div>
+<p>Like with stampers, <code>Dependency</code> could also be a trait to allow users of the library to define their own dependencies.
+However, as we will see later, these dynamic dependencies also require validation, and I am unsure how such a <code>Dependency</code> trait should look.
+Therefore, we don't have an appendix on how to implement this.
+But, if you have an idea on how to this nicely (after you've completed this tutorial), please get in touch!</p>
+</div>
+</details>
+<h4 id="tests-1"><a class="header" href="#tests-1">Tests</a></h4>
+<p>As usual, we write some tests to confirm the behaviour.
+Add tests to <code>src/dependency.rs</code>:</p>
 <pre><code class="language-rust ">#[cfg(test)]
 mod test {
   use std::fs;
@@ -509,30 +707,14 @@ mod test {
     type Output = String;
     fn execute&lt;C: Context&lt;Self&gt;&gt;(&amp;self, context: &amp;mut C) -&gt; Self::Output {
       let mut string = String::new();
-      if let Some(mut file) = context.require_file(&amp;self.0).expect(&quot;failed to require file&quot;) {
-        file.read_to_string(&amp;mut string).expect(&quot;failed to read from file&quot;);
+      let file = context.require_file(&amp;self.0)
+        .expect(&quot;failed to require file&quot;);
+      if let Some(mut file) = file {
+        file.read_to_string(&amp;mut string)
+          .expect(&quot;failed to read from file&quot;);
       };
       string
     }
-  }
-
-  #[test]
-  fn test_task_dependency_consistency() {
-    let mut context = NonIncrementalContext;
-
-    let path = create_temp_path();
-    fs::write(&amp;path, &quot;test1&quot;).expect(&quot;failed to write to file&quot;);
-    let task = ReadStringFromFile(path.to_path_buf());
-    let output = context.require_task(&amp;task);
-
-    let task_dependency = TaskDependency::new(task.clone(), output);
-    let dependency = Dependency::RequireTask(task_dependency.clone());
-    assert!(!task_dependency.is_inconsistent(&amp;mut context));
-    assert!(!dependency.is_inconsistent(&amp;mut context).expect(&quot;failed to check for inconsistency&quot;));
-
-    fs::write(&amp;path, &quot;test2&quot;).expect(&quot;failed to write to file&quot;);
-    assert!(task_dependency.is_inconsistent(&amp;mut context));
-    assert!(dependency.is_inconsistent(&amp;mut context).expect(&quot;failed to check for inconsistency&quot;));
   }
 
   #[test]
@@ -540,22 +722,67 @@ mod test {
     let mut context = NonIncrementalContext;
 
     let path = create_temp_path();
-    fs::write(&amp;path, &quot;test1&quot;).expect(&quot;failed to write to file&quot;);
+    fs::write(&amp;path, &quot;test1&quot;)
+      .expect(&quot;failed to write to file&quot;);
 
-    let (file_dependency, _) = FileDependency::new(&amp;path).expect(&quot;failed to create file dependency&quot;);
+    let (file_dependency, _) = FileDependency::new(&amp;path, FileStamper::Modified)
+      .expect(&quot;failed to create file dependency&quot;);
     let dependency: Dependency&lt;ReadStringFromFile, String&gt; = Dependency::RequireFile(file_dependency.clone());
-    assert!(!file_dependency.is_inconsistent().expect(&quot;failed to check for inconsistency&quot;));
-    assert!(!dependency.is_inconsistent(&amp;mut context).expect(&quot;failed to check for inconsistency&quot;));
+    assert!(file_dependency.is_inconsistent().expect(&quot;failed to check for inconsistency&quot;).is_none());
+    assert!(dependency.is_inconsistent(&amp;mut context).expect(&quot;failed to check for inconsistency&quot;).is_none());
 
-    fs::write(&amp;path, &quot;test2&quot;).expect(&quot;failed to write to file&quot;);
-    assert!(file_dependency.is_inconsistent().expect(&quot;failed to check for inconsistency&quot;));
-    assert!(dependency.is_inconsistent(&amp;mut context).expect(&quot;failed to check for inconsistency&quot;));
+    fs::write(&amp;path, &quot;test2&quot;)
+      .expect(&quot;failed to write to file&quot;);
+    assert!(file_dependency.is_inconsistent().expect(&quot;failed to check for inconsistency&quot;).is_some());
+    assert!(dependency.is_inconsistent(&amp;mut context).expect(&quot;failed to check for inconsistency&quot;).is_some());
+  }
+
+  #[test]
+  fn test_task_dependency_consistency() {
+    let mut context = NonIncrementalContext;
+
+    let path = create_temp_path();
+    fs::write(&amp;path, &quot;test1&quot;)
+      .expect(&quot;failed to write to file&quot;);
+    let task = ReadStringFromFile(path.to_path_buf());
+    let output = context.require_task(&amp;task);
+
+    let task_dependency = TaskDependency::new(task.clone(), OutputStamper::Equals, output);
+    let dependency = Dependency::RequireTask(task_dependency.clone());
+    assert!(task_dependency.is_inconsistent(&amp;mut context).is_none());
+    assert!(dependency.is_inconsistent(&amp;mut context).expect(&quot;failed to check for inconsistency&quot;).is_none());
+
+    fs::write(&amp;path, &quot;test2&quot;)
+      .expect(&quot;failed to write to file&quot;);
+    assert!(task_dependency.is_inconsistent(&amp;mut context).is_some());
+    assert!(dependency.is_inconsistent(&amp;mut context).expect(&quot;failed to check for inconsistency&quot;).is_some());
   }
 
   fn create_temp_path() -&gt; TempPath {
     NamedTempFile::new().expect(&quot;failed to create temporary file&quot;).into_temp_path()
   }
 }</code></pre>
+<p>We test a file dependency by asserting that <code>is_inconsistent</code> returns <code>Some</code> after changing the file.</p>
+<p>Testing task dependencies requires a bit more work.
+We create task <code>ReadStringFromFile</code> that reads a string from a file, and then returns that string as output.
+We require the task to get its output (<code>&quot;test1&quot;</code>), and create a task dependency with it.
+Then, we change the file and check consistency of the task dependency.
+That recursively requires the task, the context will execute the task, and the task now returns (<code>&quot;test2&quot;</code>).
+Since we use the <code>Equals</code> output stamper, and <code>&quot;test1&quot;</code> does not equal <code>&quot;test2&quot;</code>, the dependency is inconsistent and returns a stamp containing <code>&quot;test2&quot;</code>.</p>
+<p>Note that we are both testing the specific dependencies (<code>FileDependency</code> and <code>TaskDependency</code>), and the general <code>Dependency</code>.</p>
+<div id="admonition-note" class="admonition note">
+<div class="admonition-title">
+<p>Note</p>
+<p><a class="admonition-anchor-link" href="#admonition-note"></a></p>
+</div>
+<div>
+<p>Normally, a task such as <code>ReadStringFromFile</code> shound return a <code>Result&lt;String, io::Error&gt;</code>, but for testing purposes we are just using panics with <code>expect</code>.</p>
+<p>In the file dependency case, using <code>Dependency</code> requires an explicit type annotation because there is no task to infer the type from.
+We just use <code>Dependency&lt;ReadStringFromFile, String&gt;</code> as the type, and this is fine even though we don't use <code>ReadStringFromFile</code> in that test, because the <code>Dependency::RequireFile</code> variant does not use those types.</p>
+</div>
+</div>
+<p>Run <code>cargo test</code> to confirm everything still works.
+You will get some warnings about unused things, but that is ok as we will use them in the next section.</p>
 
                     </main>
 
