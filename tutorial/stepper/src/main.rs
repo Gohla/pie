@@ -1,4 +1,6 @@
-use clap::Parser;
+use std::path::PathBuf;
+
+use clap::{Parser, Subcommand};
 use tracing_subscriber::{EnvFilter, fmt};
 use tracing_subscriber::filter::LevelFilter;
 use tracing_subscriber::prelude::*;
@@ -10,13 +12,33 @@ mod cargo;
 mod stepper;
 mod util;
 
-#[derive(Parser, Debug)]
+#[derive(Debug, Parser)]
 #[command()]
 struct Args {
+  /// Print info trace messages to stdout
   #[arg(short, long)]
   info: bool,
+  /// Print debug trace messages to stdout.
   #[arg(short, long)]
   debug: bool,
+
+  /// Command to run. Defaults to step-all.
+  #[command(subcommand)]
+  command: Option<Command>,
+}
+
+#[derive(Debug, Subcommand)]
+enum Command {
+  /// Go through all steps to verify them and generate outputs, only stopping if a step fails.
+  StepAll {
+    /// Destination root directory where all source files are created and modified during stepping. Defaults to a temporary directory.
+    #[arg(short, long)]
+    destination_root_directory: Option<PathBuf>
+  }
+}
+
+impl Default for Command {
+  fn default() -> Self { Command::StepAll { destination_root_directory: None } }
 }
 
 fn main() {
@@ -55,5 +77,13 @@ fn main() {
     )
     .init();
 
-  app::run();
+  // let temp_directory = tempfile::tempdir()
+  //   .expect("failed to create temporary directory");
+  let command = args.command.unwrap_or_default();
+  match command {
+    Command::StepAll { destination_root_directory } => {
+      let destination_root_directory = destination_root_directory.unwrap_or_else(|| tempfile::tempdir().expect("failed to create temporary directory").into_path());
+      app::step_all(destination_root_directory);
+    }
+  }
 }

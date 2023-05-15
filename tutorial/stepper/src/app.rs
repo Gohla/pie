@@ -1,13 +1,15 @@
+use std::path::Path;
+
 use crate::modification::{add, apply_diff, create, create_diff, create_diff_builder};
 use crate::output::{CargoOutput, DirectoryStructure};
 use crate::stepper::Stepper;
 
-pub fn run() {
-  let temp_directory = tempfile::tempdir()
-    .expect("failed to create temporary directory");
+pub fn step_all(
+  destination_root_directory: impl AsRef<Path>,
+) {
   let mut stepper = Stepper::new(
     "../src/",
-    temp_directory.path().join("pie").join("src"),
+    destination_root_directory.as_ref().join("pie").join("src"),
     "../gen/",
     ["build"],
   );

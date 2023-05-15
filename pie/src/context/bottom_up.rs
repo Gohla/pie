@@ -13,12 +13,12 @@ use crate::store::{FileNodeId, Store};
 use crate::tracker::Tracker;
 
 /// Context that incrementally executes tasks and checks dependencies in a bottom-up manner.
-pub(crate) struct IncrementalBottomUpContext<'p, 's, T: Task, A, H> {
+pub(crate) struct BottomUpContext<'p, 's, T: Task, A, H> {
   shared: ContextShared<'p, 's, T, A, H>,
   scheduled: Queue<H>,
 }
 
-impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> IncrementalBottomUpContext<'p, 's, T, A, H> {
+impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> BottomUpContext<'p, 's, T, A, H> {
   #[inline]
   pub(crate) fn new(session: &'s mut Session<'p, T, A, H>) -> Self {
     Self {
@@ -202,7 +202,7 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> IncrementalBottom
 }
 
 
-impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> Context<T> for IncrementalBottomUpContext<'p, 's, T, A, H> {
+impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> Context<T> for BottomUpContext<'p, 's, T, A, H> {
   fn require_task_with_stamper(&mut self, task: &T, stamper: OutputStamper) -> T::Output {
     self.shared.session.tracker.require_task(task);
     let task_node_id = self.shared.session.store.get_or_create_node_by_task(task);

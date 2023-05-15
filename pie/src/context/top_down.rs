@@ -12,12 +12,12 @@ use crate::store::TaskNodeId;
 use crate::tracker::Tracker;
 
 /// Context that incrementally executes tasks and checks dependencies recursively in a top-down manner.
-pub(crate) struct IncrementalTopDownContext<'p, 's, T: Task, A, H> {
+pub(crate) struct TopDownContext<'p, 's, T: Task, A, H> {
   shared: ContextShared<'p, 's, T, A, H>,
   task_dependees_cache: Cell<Vec<NodeId>>,
 }
 
-impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> IncrementalTopDownContext<'p, 's, T, A, H> {
+impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> TopDownContext<'p, 's, T, A, H> {
   /// Creates a new [`TopDownRunner`] with given [`Tracker`].
   #[inline]
   pub(crate) fn new(session: &'s mut Session<'p, T, A, H>) -> Self {
@@ -38,7 +38,7 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> IncrementalTopDow
   }
 }
 
-impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> Context<T> for IncrementalTopDownContext<'p, 's, T, A, H> {
+impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> Context<T> for TopDownContext<'p, 's, T, A, H> {
   fn require_task_with_stamper(&mut self, task: &T, stamper: OutputStamper) -> T::Output {
     self.shared.session.tracker.require_task(task);
     let task_node_id = self.shared.session.store.get_or_create_node_by_task(task);
@@ -81,7 +81,7 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> Context<T> for In
   fn default_provide_file_stamper(&self) -> FileStamper { self.shared.default_provide_file_stamper() }
 }
 
-impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> IncrementalTopDownContext<'p, 's, T, A, H> {
+impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> TopDownContext<'p, 's, T, A, H> {
   fn should_execute_task(&mut self, task_node: &TaskNodeId, task: &T) -> bool {
     self.shared.session.tracker.check_top_down_start(task);
 
