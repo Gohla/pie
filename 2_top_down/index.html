@@ -275,10 +275,11 @@ pub fn open_if_file(path: impl AsRef&lt;Path&gt;) -&gt; Result&lt;Option&lt;File
 <p>We will write some tests to confirm the behaviour, but for that we need a utility to create temporary files and directories.
 Instead of implementing that ourselves, we will use an existing crate.
 Add the <code>tempfile</code> dependency to <code>Cargo.toml</code>:</p>
-<pre><code class="language-toml customdiff"> [package]
- name = &quot;pie&quot;
+<pre><code class="language-toml customdiff"> name = &quot;pie&quot;
  version = &quot;0.1.0&quot;
  edition = &quot;2021&quot;
+
+ [workspace]
 +
 +[dev-dependencies]
 +tempfile = &quot;3&quot;
