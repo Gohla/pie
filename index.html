@@ -85,7 +85,7 @@
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div class="sidebar-scrollbox">
-                <ol class="chapter"><li class="chapter-item expanded affix "><div>Introduction</div></li><li class="chapter-item expanded affix "><li class="part-title">Programmability</li><li class="chapter-item expanded "><div><strong aria-hidden="true">1.</strong> Setup</div></li><li class="chapter-item expanded "><a href="api/index.html" class="active"><strong aria-hidden="true">2.</strong> Programmable Build System API</a></li><li class="chapter-item expanded affix "><li class="part-title">Incrementality</li><li class="chapter-item expanded "><a href="top_down/index.html"><strong aria-hidden="true">3.</strong> Incremental Top-Down Context</a></li><li class="chapter-item expanded "><div><strong aria-hidden="true">4.</strong> Minimality</div></li><li class="chapter-item expanded affix "><li class="part-title">Soundness</li><li class="chapter-item expanded "><div><strong aria-hidden="true">5.</strong> Prevent Overlapping File Writes</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">6.</strong> Prevent Hidden Dependencies</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">7.</strong> Prevent Cycles</div></li><li class="chapter-item expanded affix "><li class="part-title">Improvements</li><li class="chapter-item expanded "><div><strong aria-hidden="true">8.</strong> Serialization</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">9.</strong> Stamps</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">10.</strong> Configurable Hashing</div></li><li class="chapter-item expanded affix "><li class="part-title">Efficiency</li><li class="chapter-item expanded "><div><strong aria-hidden="true">11.</strong> Incremental Bottom-Up Context</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">12.</strong> Observability</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">13.</strong> Deferred Tasks</div></li><li class="chapter-item expanded affix "><li class="part-title">Appendix</li><li class="chapter-item expanded "><div><strong aria-hidden="true">14.</strong> Multiple Task Types</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">15.</strong> On Static Dependencies</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">16.</strong> On Declarativity</div></li><li class="spacer"></li><li class="chapter-item expanded affix "><div>Related Work</div></li></ol>
+                <ol class="chapter"><li class="chapter-item expanded affix "><div>Introduction</div></li><li class="chapter-item expanded affix "><li class="part-title">Programmability</li><li class="chapter-item expanded "><div><strong aria-hidden="true">1.</strong> Setup</div></li><li class="chapter-item expanded "><a href="1_api/index.html" class="active"><strong aria-hidden="true">2.</strong> Programmable Build System API</a></li><li class="chapter-item expanded affix "><li class="part-title">Incrementality</li><li class="chapter-item expanded "><a href="2_top_down/index.html"><strong aria-hidden="true">3.</strong> Incremental Top-Down Context</a></li><li class="chapter-item expanded "><div><strong aria-hidden="true">4.</strong> Minimality</div></li><li class="chapter-item expanded affix "><li class="part-title">Soundness</li><li class="chapter-item expanded "><div><strong aria-hidden="true">5.</strong> Prevent Overlapping File Writes</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">6.</strong> Prevent Hidden Dependencies</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">7.</strong> Prevent Cycles</div></li><li class="chapter-item expanded affix "><li class="part-title">Improvements</li><li class="chapter-item expanded "><div><strong aria-hidden="true">8.</strong> Serialization</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">9.</strong> Stamps</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">10.</strong> Configurable Hashing</div></li><li class="chapter-item expanded affix "><li class="part-title">Efficiency</li><li class="chapter-item expanded "><div><strong aria-hidden="true">11.</strong> Incremental Bottom-Up Context</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">12.</strong> Observability</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">13.</strong> Deferred Tasks</div></li><li class="chapter-item expanded affix "><li class="part-title">Appendix</li><li class="chapter-item expanded "><div><strong aria-hidden="true">14.</strong> Multiple Task Types</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">15.</strong> On Static Dependencies</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">16.</strong> On Declarativity</div></li><li class="spacer"></li><li class="chapter-item expanded affix "><div>Related Work</div></li></ol>
             </div>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
         </nav>
@@ -202,8 +202,8 @@ Because of this, the context reference passed to <code>Task::execute</code> is a
 <p>This <code>Task</code> and <code>Context</code> API mirrors the mutually recursive definition of task and context we discussed earlier, and forms the basis for the entire build system.</p>
 <p>Build the project by running <code>cargo build</code>.
 The output should look something like:</p>
-<pre><code class="language-shell ">   Compiling pie v0.1.0 (/private/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmpyz2fFA/pie)
-    Finished dev [unoptimized + debuginfo] target(s) in 0.45s
+<pre><code class="language-shell ">   Compiling pie v0.1.0 (/private/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmpipWAKa/pie)
+    Finished dev [unoptimized + debuginfo] target(s) in 0.16s
 </code></pre>
 <details id="admonition-rust-help" class="admonition info">
 <summary class="admonition-title">
@@ -338,9 +338,9 @@ in a reference to the task.
 It returns the output of the task, which we test with <code>assert_eq!</code>.</p>
 <p>Run the test by running <code>cargo test</code>.
 The output should look something like:</p>
-<pre><code class="language-shell ">   Compiling pie v0.1.0 (/private/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmpyz2fFA/pie)
-    Finished test [unoptimized + debuginfo] target(s) in 0.40s
-     Running unittests src/lib.rs (/private/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmpyz2fFA/pie/target/debug/deps/pie-df5bfba2a552abda)
+<pre><code class="language-shell ">   Compiling pie v0.1.0 (/private/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmpipWAKa/pie)
+    Finished test [unoptimized + debuginfo] target(s) in 0.54s
+     Running unittests src/lib.rs (/private/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmpipWAKa/pie/target/debug/deps/pie-df5bfba2a552abda)
 
 running 1 test
 test context::non_incremental::test::test_require_task_direct ... ok
@@ -413,7 +413,7 @@ Add the following test:</p>
 <p>We use the same <code>ReturnHelloWorld</code> task as before, but now also have a <code>ToLowerCase</code> task which requires <code>ReturnHelloWorld</code> and then turn its string lowercase.
 However, due to the way we've set up the types between <code>Task</code> and <code>Context</code>, we will run into a problem.
 Running <code>cargo test</code>, you should get these errors:</p>
-<pre><code class="language-shell ">   Compiling pie v0.1.0 (/private/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmpyz2fFA/pie)
+<pre><code class="language-shell ">   Compiling pie v0.1.0 (/private/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmpipWAKa/pie)
 error[E0308]: mismatched types
   --&gt; src/context/non_incremental.rs:48:30
    |
@@ -449,7 +449,7 @@ This doesn't work as <code>Context&lt;ToLowerCase&gt;::require_task</code> only 
 
      let mut context = NonIncrementalContext;</code></pre>
 <p>But that is not allowed:</p>
-<pre><code class="language-shell ">   Compiling pie v0.1.0 (/private/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmpyz2fFA/pie)
+<pre><code class="language-shell ">   Compiling pie v0.1.0 (/private/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmpipWAKa/pie)
 error[E0276]: impl has stricter requirements than trait
   --&gt; src/context/non_incremental.rs:47:21
    |
@@ -556,7 +556,7 @@ We're now ready to start implementing an incremental context in the next chapter
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
 
-                            <a rel="next" href="top_down/index.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next" href="2_top_down/index.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <i class="fa fa-angle-right"></i>
                             </a>
 
@@ -567,7 +567,7 @@ We're now ready to start implementing an incremental context in the next chapter
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
 
-                    <a rel="next" href="top_down/index.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next" href="2_top_down/index.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <i class="fa fa-angle-right"></i>
                     </a>
             </nav>
