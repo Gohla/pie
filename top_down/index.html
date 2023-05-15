@@ -188,7 +188,24 @@ To check if a file dependency is consistent, we just stamp the file again and co
 </ul>
 <h2 id="adding-file-dependencies"><a class="header" href="#adding-file-dependencies">Adding File Dependencies</a></h2>
 <p>To support file dependencies, add a method to the <code>Context</code> trait in <code>src/lib.rs</code>:</p>
-<pre><code class="language-rust customdiff">{{#include ../../gen/top_down/0_require_file/a_context.rs.diff:4:}}</code></pre>
+<pre><code class="language-rust customdiff"> use std::fmt::Debug;
++use std::fs::File;
+ use std::hash::Hash;
++use std::io;
++use std::path::Path;
+
+ mod context;
+
+ pub trait Task: Clone + Eq + Hash + Debug {
+   type Output: Clone + Eq + Debug;
+@@ -8,6 +11,7 @@
+   fn execute&lt;C: Context&lt;Self&gt;&gt;(&amp;self, context: &amp;mut C) -&gt; Self::Output;
+ }
+
+ pub trait Context&lt;T: Task&gt; {
+   fn require_task(&amp;mut self, task: &amp;T) -&gt; T::Output;
++  fn require_file&lt;P: AsRef&lt;Path&gt;&gt;(&amp;mut self, path: P) -&gt; Result&lt;Option&lt;File&gt;, io::Error&gt;;
+ }</code></pre>
 <p><code>require_file</code> is similar to requiring a task, but instead takes a <code>path</code> to a file or directory on the filesystem as input.
 We use <code>AsRef&lt;Path&gt;</code> as the type for the path, so that we can pass anything in that can dereference to a path.
 For example, <code>str</code> has an <code>AsRef&lt;Path&gt;</code> implementation, so we can just use <code>&quot;test.txt&quot;</code> as a path.</p>
@@ -219,7 +236,17 @@ You can also see this as a kind of method overloading, without having to provide
 <p>Now we need to implement this method for <code>NonIncrementalContext</code>.
 However, because we will be performing similar file system operations in the incremental context as well, we will create some utility functions for this first.</p>
 <p>Add the <code>fs</code> module to <code>src/lib.rs</code>:</p>
-<pre><code class="language-rust customdiff">{{#include ../../gen/top_down/0_require_file/b_fs_module.rs.diff:4:}}</code></pre>
+<pre><code class="language-rust customdiff"> use std::hash::Hash;
+ use std::io;
+ use std::path::Path;
+
+ mod context;
++mod fs;
+
+ pub trait Task: Clone + Eq + Hash + Debug {
+   type Output: Clone + Eq + Debug;
+   fn execute&lt;C: Context&lt;Self&gt;&gt;(&amp;self, context: &amp;mut C) -&gt; Self::Output;
+ }</code></pre>
 <p>Create file <code>src/fs.rs</code> with:</p>
 <pre><code class="language-rust ">use std::{fs, io};
 use std::fs::{File, Metadata};
@@ -248,7 +275,13 @@ pub fn open_if_file(path: impl AsRef&lt;Path&gt;) -&gt; Result&lt;Option&lt;File
 <p>We will write some tests to confirm the behaviour, but for that we need a utility to create temporary files and directories.
 Instead of implementing that ourselves, we will use an existing crate.
 Add the <code>tempfile</code> dependency to <code>Cargo.toml</code>:</p>
-<pre><code class="language-toml customdiff">{{#include ../../gen/top_down/0_require_file/d_Cargo.toml.diff:4:}}
+<pre><code class="language-toml customdiff"> [package]
+ name = &quot;pie&quot;
+ version = &quot;0.1.0&quot;
+ edition = &quot;2021&quot;
++
++[dev-dependencies]
++tempfile = &quot;3&quot;
 </code></pre>
 <p>Note that this is dependency is added under <code>dev-dependencies</code>, indicating that this dependency is only available when running tests, benchmarks, and examples.
 Therefore, users of our library will not depend on this library, which is good because temporary file creation is not necessary to users of our library.</p>
@@ -318,7 +351,24 @@ mod test {
 Unfortunately, we can't easily test when <code>metadata</code> and <code>open_if_file</code> should return an error, because we cannot disable read permissions on files via the Rust standard library.</p>
 <p>Now we are done with our filesystem utility excursion.
 Make the non-incremental context compatible by changing <code>src/context/non_incremental.rs</code>:</p>
-<pre><code class="language-rust customdiff">{{#include ../../gen/top_down/0_require_file/f_non_incremental_context.rs.diff:4:}}</code></pre>
+<pre><code class="language-rust customdiff">+use std::fs::File;
++use std::io;
++use std::path::Path;
++
+ use crate::{Context, Task};
++use crate::fs::open_if_file;
+
+ pub struct NonIncrementalContext;
+
+ impl&lt;T: Task&gt; Context&lt;T&gt; for NonIncrementalContext {
+   fn require_task(&amp;mut self, task: &amp;T) -&gt; T::Output {
+     task.execute(self)
+   }
++  fn require_file&lt;P: AsRef&lt;Path&gt;&gt;(&amp;mut self, path: P) -&gt; Result&lt;Option&lt;File&gt;, io::Error&gt; {
++    let file = open_if_file(&amp;path)?;
++    Ok(file)
++  }
+ }</code></pre>
 <p>Since the non-incremental context does not track anything, we simply try to open the file and return it.
 This implements the description we made earlier:</p>
 <ul>
@@ -359,7 +409,17 @@ If not, we execute the task.</p>
 <p>We will start with implementing stamps and dependencies, as that can be implemented as a stand-alone part.</p>
 <h3 id="stamp-implementation"><a class="header" href="#stamp-implementation">Stamp implementation</a></h3>
 <p>Add the <code>stamp</code> module to <code>src/lib.rs</code>:</p>
-<pre><code class="language-rust customdiff">{{#include ../../gen/top_down/1_stamp/a_module.rs.diff:4:}}</code></pre>
+<pre><code class="language-rust customdiff"> use std::io;
+ use std::path::Path;
+
+ mod context;
+ mod fs;
++pub mod stamp;
+
+ pub trait Task: Clone + Eq + Hash + Debug {
+   type Output: Clone + Eq + Debug;
+   fn execute&lt;C: Context&lt;Self&gt;&gt;(&amp;self, context: &amp;mut C) -&gt; Self::Output;
+ }</code></pre>
 <p>Note that this module is declared <code>pub</code>, as users of the library should be able to construct stampers.</p>
 <h4 id="file-stamps"><a class="header" href="#file-stamps">File stamps</a></h4>
 <p>Create the <code>src/stamp.rs</code> file and add:</p>
@@ -529,17 +589,78 @@ We test task output stamps by just passing a different output value to the <code
 However, stampers are constructed by users of the library that author tasks, and they need to pass in these stampers when creating dependencies.
 Therefore, we need to update the <code>Context</code> trait to allow passing in these stampers.</p>
 <p>Change <code>Context</code> in <code>src/lib.rs</code>:</p>
-<pre><code class="language-rust customdiff">{{#include ../../gen/top_down/2_stamp_context/a_context.rs.diff:4:}}</code></pre>
+<pre><code class="language-rust customdiff"> use std::fs::File;
+ use std::hash::Hash;
+ use std::io;
+ use std::path::Path;
+
++use stamp::{FileStamper, OutputStamper};
++
+ mod context;
+ mod fs;
+ pub mod stamp;
+
+ pub trait Task: Clone + Eq + Hash + Debug {
+@@ -12,8 +14,18 @@
+   type Output: Clone + Eq + Debug;
+   fn execute&lt;C: Context&lt;Self&gt;&gt;(&amp;self, context: &amp;mut C) -&gt; Self::Output;
+ }
+
+ pub trait Context&lt;T: Task&gt; {
+-  fn require_task(&amp;mut self, task: &amp;T) -&gt; T::Output;
+-  fn require_file&lt;P: AsRef&lt;Path&gt;&gt;(&amp;mut self, path: P) -&gt; Result&lt;Option&lt;File&gt;, io::Error&gt;;
++  fn require_task(&amp;mut self, task: &amp;T) -&gt; T::Output {
++    self.require_task_with_stamper(task, self.default_output_stamper())
++  }
++  fn require_file&lt;P: AsRef&lt;Path&gt;&gt;(&amp;mut self, path: P) -&gt; Result&lt;Option&lt;File&gt;, io::Error&gt; {
++    self.require_file_with_stamper(path, self.default_file_stamper())
++  }
++
++  fn require_task_with_stamper(&amp;mut self, task: &amp;T, stamper: OutputStamper) -&gt; T::Output;
++  fn require_file_with_stamper&lt;P: AsRef&lt;Path&gt;&gt;(&amp;mut self, path: P, stamper: FileStamper) -&gt; Result&lt;Option&lt;File&gt;, io::Error&gt;;
++
++  fn default_output_stamper(&amp;self) -&gt; OutputStamper { OutputStamper::Equals }
++  fn default_file_stamper(&amp;self) -&gt; FileStamper { FileStamper::Modified }
+ }</code></pre>
 <p>We add the <code>require_task_with_stamper</code> and <code>require_file_with_stamper</code> methods which allow passing in a stamper.
 We add default implementations for the <code>require_task</code> and <code>require_file</code> methods which pass in a default stamper.
 The defaults are provided by <code>default_output_stamper</code> and <code>default_file_stamper</code> which can be overridden by the context implementation.</p>
 <p>Update <code>NonIncrementalContext</code> in <code>src/context/non_incremental.rs</code> to implement the new methods:</p>
-<pre><code class="language-rust customdiff">{{#include ../../gen/top_down/2_stamp_context/b_non_incremental_context.rs.diff:4:}}</code></pre>
+<pre><code class="language-rust customdiff"> use std::io;
+ use std::path::Path;
+
+ use crate::{Context, Task};
+ use crate::fs::open_if_file;
++use crate::stamp::{FileStamper, OutputStamper};
+
+ pub struct NonIncrementalContext;
+
+ impl&lt;T: Task&gt; Context&lt;T&gt; for NonIncrementalContext {
+-  fn require_task(&amp;mut self, task: &amp;T) -&gt; T::Output {
++  fn require_task_with_stamper(&amp;mut self, task: &amp;T, _stamper: OutputStamper) -&gt; T::Output {
+     task.execute(self)
+   }
+-  fn require_file&lt;P: AsRef&lt;Path&gt;&gt;(&amp;mut self, path: P) -&gt; Result&lt;Option&lt;File&gt;, io::Error&gt; {
++  fn require_file_with_stamper&lt;P: AsRef&lt;Path&gt;&gt;(&amp;mut self, path: P, _stamper: FileStamper) -&gt; Result&lt;Option&lt;File&gt;, io::Error&gt; {
+     let file = open_if_file(&amp;path)?;
+     Ok(file)
+   }
+ }</code></pre>
 <p>We just ignore the stampers in <code>NonIncrementalContext</code>, as they are only needed for incrementality.</p>
 <p>Run <code>cargo test</code> to confirm everything still works.</p>
 <h3 id="dependency-implementation"><a class="header" href="#dependency-implementation">Dependency implementation</a></h3>
 <p>Add the <code>dependency</code> module to <code>src/lib.rs</code>:</p>
-<pre><code class="language-rust customdiff">{{#include ../../gen/top_down/3_dependency/a_module.rs.diff:4:}}</code></pre>
+<pre><code class="language-rust customdiff"> use stamp::{FileStamper, OutputStamper};
+
+ mod context;
+ mod fs;
+ pub mod stamp;
++mod dependency;
+
+ pub trait Task: Clone + Eq + Hash + Debug {
+   type Output: Clone + Eq + Debug;
+   fn execute&lt;C: Context&lt;Self&gt;&gt;(&amp;self, context: &amp;mut C) -&gt; Self::Output;
+ }</code></pre>
 <p>This module is not public, as users of the library should not construct dependencies.
 They should only create stampers, which are passed to dependencies via the <code>Context</code>.</p>
 <h4 id="file-dependencies"><a class="header" href="#file-dependencies">File dependencies</a></h4>

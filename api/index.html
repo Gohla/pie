@@ -202,8 +202,8 @@ Because of this, the context reference passed to <code>Task::execute</code> is a
 <p>This <code>Task</code> and <code>Context</code> API mirrors the mutually recursive definition of task and context we discussed earlier, and forms the basis for the entire build system.</p>
 <p>Build the project by running <code>cargo build</code>.
 The output should look something like:</p>
-<pre><code class="language-shell ">   Compiling pie v0.1.0 (/private/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmpDxthmZ/pie)
-    Finished dev [unoptimized + debuginfo] target(s) in 0.42s
+<pre><code class="language-shell ">   Compiling pie v0.1.0 (/private/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmpyz2fFA/pie)
+    Finished dev [unoptimized + debuginfo] target(s) in 0.45s
 </code></pre>
 <details id="admonition-rust-help" class="admonition info">
 <summary class="admonition-title">
@@ -239,7 +239,16 @@ However, incrementality is <em>hard</em>, so let's start with an extremely simpl
 <h3 id="context-module"><a class="header" href="#context-module">Context module</a></h3>
 <p>Since we will be implementing three different contexts in this tutorial, we will separate them in different modules.
 Create the <code>context</code> module by adding a module to <code>src/lib.rs</code>:</p>
-<pre><code class="language-rust customdiff">{{#include ../../gen/api/1_context_module.rs.diff:4:}}</code></pre>
+<pre><code class="language-rust customdiff"> use std::fmt::Debug;
+ use std::hash::Hash;
+
++mod context;
++
+ pub trait Task: Clone + Eq + Hash + Debug {
+   type Output: Clone + Eq + Debug;
+   fn execute&lt;C: Context&lt;Self&gt;&gt;(&amp;self, context: &amp;mut C) -&gt; Self::Output;
+ }
+</code></pre>
 <p>This is a diff over <code>src/lib.rs</code> where lines with a green background are additions, lines with a red background are removals, and lines with a grey background are context on where to add/remove lines, similar to diffs on source code hubs like GitHub.</p>
 <p>Create the <code>src/context</code> directory, and in it, create the <code>src/context/mod.rs</code> file with the following contents:</p>
 <pre><code class="language-rust ">pub(crate) mod non_incremental;</code></pre>
@@ -329,9 +338,9 @@ in a reference to the task.
 It returns the output of the task, which we test with <code>assert_eq!</code>.</p>
 <p>Run the test by running <code>cargo test</code>.
 The output should look something like:</p>
-<pre><code class="language-shell ">   Compiling pie v0.1.0 (/private/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmpDxthmZ/pie)
-    Finished test [unoptimized + debuginfo] target(s) in 0.37s
-     Running unittests src/lib.rs (/private/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmpDxthmZ/pie/target/debug/deps/pie-df5bfba2a552abda)
+<pre><code class="language-shell ">   Compiling pie v0.1.0 (/private/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmpyz2fFA/pie)
+    Finished test [unoptimized + debuginfo] target(s) in 0.40s
+     Running unittests src/lib.rs (/private/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmpyz2fFA/pie/target/debug/deps/pie-df5bfba2a552abda)
 
 running 1 test
 test context::non_incremental::test::test_require_task_direct ... ok
@@ -371,11 +380,40 @@ This macro is typically <a href="https://doc.rust-lang.org/book/ch11-01-writing-
 <h3 id="test-with-multiple-tasks"><a class="header" href="#test-with-multiple-tasks">Test with Multiple Tasks</a></h3>
 <p>Our first test only tests a single task that does not use the context, so let's write a test with two tasks where one requires the other to increase our test coverage.
 Add the following test:</p>
-<pre><code class="language-rust customdiff">{{#include ../../gen/api/5_test_2.rs.diff:4:}}</code></pre>
+<pre><code class="language-rust customdiff">     }
+
+     let mut context = NonIncrementalContext;
+     assert_eq!(&quot;Hello World!&quot;, context.require_task(&amp;ReturnHelloWorld));
+   }
++
++  #[test]
++  fn test_require_task_problematic() {
++    #[derive(Clone, PartialEq, Eq, Hash, Debug)]
++    struct ReturnHelloWorld;
++    impl Task for ReturnHelloWorld {
++      type Output = String;
++      fn execute&lt;C: Context&lt;Self&gt;&gt;(&amp;self, _context: &amp;mut C) -&gt; Self::Output {
++        &quot;Hello World!&quot;.to_string()
++      }
++    }
++
++    #[derive(Clone, PartialEq, Eq, Hash, Debug)]
++    struct ToLowerCase;
++    impl Task for ToLowerCase {
++      type Output = String;
++      fn execute&lt;C: Context&lt;Self&gt;&gt;(&amp;self, context: &amp;mut C) -&gt; Self::Output {
++        context.require_task(&amp;ReturnHelloWorld).to_lowercase()
++      }
++    }
++
++    let mut context = NonIncrementalContext;
++    assert_eq!(&quot;hello world!&quot;, context.require_task(&amp;ToLowerCase));
++  }
+ }</code></pre>
 <p>We use the same <code>ReturnHelloWorld</code> task as before, but now also have a <code>ToLowerCase</code> task which requires <code>ReturnHelloWorld</code> and then turn its string lowercase.
 However, due to the way we've set up the types between <code>Task</code> and <code>Context</code>, we will run into a problem.
 Running <code>cargo test</code>, you should get these errors:</p>
-<pre><code class="language-shell ">   Compiling pie v0.1.0 (/private/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmpDxthmZ/pie)
+<pre><code class="language-shell ">   Compiling pie v0.1.0 (/private/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmpyz2fFA/pie)
 error[E0308]: mismatched types
   --&gt; src/context/non_incremental.rs:48:30
    |
@@ -398,9 +436,20 @@ error: could not compile `pie` due to previous error
 <p>The problem is that <code>execute</code> of <code>ToLowerCase</code> takes a <code>Context&lt;Self&gt;</code>, so in <code>impl Task for ToLowerCase</code> it takes a <code>Context&lt;ToLowerCase&gt;</code>, while we're trying to require <code>&amp;ReturnHelloWorld</code> through the context.
 This doesn't work as <code>Context&lt;ToLowerCase&gt;::require_task</code> only takes a <code>&amp;ToLowerCase</code> as input.</p>
 <p>We could change <code>execute</code> of <code>ToLowerCase</code> to take <code>Context&lt;ReturnHelloWorld&gt;</code>:</p>
-<pre><code class="language-rust customdiff">{{#include ../../gen/api/6_test_2.rs.diff:4:}}</code></pre>
+<pre><code class="language-rust customdiff">
+     #[derive(Clone, PartialEq, Eq, Hash, Debug)]
+     struct ToLowerCase;
+     impl Task for ToLowerCase {
+       type Output = String;
+-      fn execute&lt;C: Context&lt;Self&gt;&gt;(&amp;self, context: &amp;mut C) -&gt; Self::Output {
++      fn execute&lt;C: Context&lt;ReturnHelloWorld&gt;&gt;(&amp;self, context: &amp;mut C) -&gt; Self::Output {
+         context.require_task(&amp;ReturnHelloWorld).to_lowercase()
+       }
+     }
+
+     let mut context = NonIncrementalContext;</code></pre>
 <p>But that is not allowed:</p>
-<pre><code class="language-shell ">   Compiling pie v0.1.0 (/private/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmpDxthmZ/pie)
+<pre><code class="language-shell ">   Compiling pie v0.1.0 (/private/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmpyz2fFA/pie)
 error[E0276]: impl has stricter requirements than trait
   --&gt; src/context/non_incremental.rs:47:21
    |
