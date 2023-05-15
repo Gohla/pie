@@ -188,16 +188,16 @@ impl CreateDiffAndApply {
   }
 
   pub fn resolve(self, stepper: &Stepper) -> anyhow::Result<CreateDiffAndApplyResolved> {
-    let modified_file_path = self.modified_file_path
+    let relative_modified_file_path = self.modified_file_path
       .context("did not set modified file path")?;
-    let modified_file_path = stepper.source_root_directory.join(&modified_file_path);
+    let modified_file_path = stepper.source_root_directory.join(&relative_modified_file_path);
     let destination_file_path = self.destination_file_path
       .context("did not set destination file path")?;
     let destination_file_path = stepper.destination_root_directory.join(&destination_file_path);
     let diff_output_file_path = if let Some(diff_output_file_path) = self.diff_output_file_path {
       diff_output_file_path
     } else {
-      let mut diff_output_file_path = modified_file_path.clone();
+      let mut diff_output_file_path = relative_modified_file_path.clone();
       add_extension(&mut diff_output_file_path, "diff");
       diff_output_file_path
     };
