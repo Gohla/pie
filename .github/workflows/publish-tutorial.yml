@@ -1,4 +1,4 @@
-name: Build and publish tutorial
+name: Publish tutorial
 on:
   push:
     branches:
@@ -10,18 +10,22 @@ jobs:
       group: ${{ github.workflow }}-${{ github.ref }}
     steps:
       - id: checkout
+        name: Checkout
         uses: actions/checkout@v3
       - id: setup-rust
+        name: Setup Rust
         uses: ATiltedTree/setup-rust@v1
         with:
           rust-version: stable
       # Copy files for hashing in the next step, as `hashFiles` only works inside the workspace, not the home directory.
       - id: copy-files-for-hashing
+        name: Copy files for hashing into workspace
         run: |
           cp ~/.cargo/.crates.toml .crates.toml.hash
           cp ~/.cargo/.crates2.json .crates2.json.hash
       # Caching for cargo binaries, mainly for speeding up `install-mdbook-processors`.
       - id: cache-cargo-binaries
+        name: Cache Cargo binaries
         uses: actions/cache@v3
         with:
           path: |
@@ -35,30 +39,37 @@ jobs:
           restore-keys: ${{ runner.os }}-cargo-
       # Caching for tutorial stepper application
       - id: cache-stepper
+        name: Cache stepper
         uses: actions/cache@v3
         with:
           path: tutorial/stepper/target
           key: ${{ runner.os }}-stepper-${{ hashFiles('tutorial/stepper/Cargo.lock') }}
       # Run stepper to verify that tutorial code works, and to generate diffs.
       - id: run-stepper
+        name: Run stepper
         run: |
           cd tutorial/stepper
           cargo run -- --debug
       - id: setup-mdbook
+        name: Setup mdBook
         uses: peaceiris/actions-mdbook@v1
         with:
           mdbook-version: '0.4.28'
       - id: install-cargo-binstall
+        name: Install cargo-binstall
         uses: taiki-e/install-action@v2
         with:
           tool: cargo-binstall
       - id: install-mdbook-processors
+        name: Install mdBook processors
         run: cargo binstall --no-confirm --no-symlinks mdbook-admonish mdbook-external-links
       - id: build
+        name: Build tutorial mdBook
         run: |
           cd tutorial
           mdbook build
       - id: deploy
+        name: Deploy to GitHub pages
         uses: peaceiris/actions-gh-pages@v3
         if: ${{ github.ref == 'refs/heads/master' }}
         with:
