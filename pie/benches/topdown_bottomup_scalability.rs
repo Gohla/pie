@@ -7,7 +7,6 @@ use tempfile::TempDir;
 use dev_shared::bench::create_pie;
 use dev_shared::create_temp_dir;
 use dev_shared::task::CommonTask;
-use pie::stamp::FileStamper;
 
 /// Show that bottom-up builds scale better than top-down builds due to bottom-up builds only checking the affected
 /// region of the dependency graph.
@@ -133,68 +132,5 @@ pub fn top_down_vs_bottom_up_scalability(c: &mut Criterion) {
   g.finish();
 }
 
-/// Show that file dependencies are slower than task dependencies (if task outputs are simple), due to system calls 
-/// being more expensive than equality checks on task outputs.
-pub fn file_dep_scaling(c: &mut Criterion) {
-  fn create_task_with_file_deps(size: usize, temp_dir: &TempDir) -> CommonTask {
-    let mut tasks = Vec::with_capacity(size);
-    for i in 0..size {
-      let path = temp_dir.path().join(format!("in{}.txt", i));
-      tasks.push(CommonTask::to_lower_case(CommonTask::read_string_from_file(path.clone(), FileStamper::Modified)));
-    }
-    CommonTask::sequence(tasks)
-  }
-
-  fn create_task_without_file_deps(size: usize) -> CommonTask {
-    let mut tasks = Vec::with_capacity(size);
-    for i in 0..size {
-      tasks.push(CommonTask::to_lower_case(CommonTask::string_constant(format!("constant{}", i))));
-    }
-    CommonTask::sequence(tasks)
-  }
-
-  let mut g = c.benchmark_group("task dependencies vs file dependencies");
-
-  let size = 100_000;
-  let num_dependencies = size * 3;
-  g.throughput(Throughput::Elements(num_dependencies as u64));
-  g.sample_size(10);
-
-  // Create task with N dependencies.
-  let temp_dir = create_temp_dir();
-  let task_with_file_deps = create_task_with_file_deps(size, &temp_dir);
-  let task_without_file_deps = create_task_without_file_deps(size);
-
-  g.bench_function(BenchmarkId::new("without file dependencies", num_dependencies), |b| {
-    // Require the task once, so all tasks are executed and cached.
-    let mut pie = create_pie();
-    pie.run_in_session(|mut session| {
-      session.require(&task_without_file_deps)
-    });
-
-    b.iter(|| {
-      pie.run_in_session(|mut session| {
-        black_box(session.require(&task_without_file_deps));
-      });
-    });
-  });
-
-  g.bench_function(BenchmarkId::new("with file dependencies", num_dependencies), |b| {
-    // Require the task once, so all tasks are executed and cached.
-    let mut pie = create_pie();
-    pie.run_in_session(|mut session| {
-      session.require(&task_with_file_deps)
-    });
-
-    b.iter(|| {
-      pie.run_in_session(|mut session| {
-        black_box(session.require(&task_with_file_deps));
-      });
-    });
-  });
-
-  g.finish();
-}
-
-criterion_group!(benches, top_down_vs_bottom_up_scalability, file_dep_scaling);
+criterion_group!(benches, top_down_vs_bottom_up_scalability);
 criterion_main!(benches);
