@@ -752,9 +752,7 @@ There are several up and downsides to that should be considered when making such
 <p>The main upside for putting the <code>Task</code> bound on the <code>TaskDependency</code> struct, is that we can leave out <code>O</code> and use <code>OutputStamp&lt;T::Output&gt;</code> as the type of the <code>stamp</code> field.
 This cuts down a generic parameter, which reduces boilerplate.
 The downside is that we need to then put the <code>Task</code> bound on every struct that uses <code>TaskDependency</code>, which increases boilerplate.</p>
-<p>Furthermore, some <code>derive</code> macros may behave differently or fail to work with trait bounds on tasks.
-For example, the derive macros from <code>serde</code> which we will use for serialization later do not seem to work well with trait bounds on structs (or I did not figure out how to make them work).
-Therefore, it is better to not put <code>Task</code> bounds on structs in this library.</p>
+<p>In this case, we chose not to put the trait bound on the struct to prevent that trait bound from bubbling up into other structs that use <code>TaskDependency</code>, as it would need to appear in almost every struct in the library.</p>
 </div>
 </details>
 <p>A task dependency is inconsistent if, after recursively checking it, its stamp has changed, implemented in <code>TaskDependency::is_inconsistent</code>.
@@ -905,6 +903,233 @@ We just use <code>Dependency&lt;ReadStringFromFile, String&gt;</code> as the typ
 </div>
 <p>Run <code>cargo test</code> to confirm everything still works.
 You will get some warnings about unused things, but that is ok as we will use them in the next section.</p>
+<h3 id="store-and-top-down-context-implementation"><a class="header" href="#store-and-top-down-context-implementation">Store and top-down context implementation</a></h3>
+<p>Now we will implement <code>Store</code> to keep track of the dependency graph, and <code>TopDownContext</code> for top-down incremental building.
+We will start with parts of <code>Store</code>, then parts of <code>TopDownContext</code>, and will go back and forth between them to implement the necessary parts.</p>
+<p>To do incremental building, we need to keep track of all files, tasks, their dependencies, and task outputs.
+This will be the responsibility of <code>Store</code>.
+The <code>TopDownContext</code> and future context implementations will use methods on <code>Store</code> to request and update this data.
+In other words, <code>Store</code> encapsulates this data.</p>
+<p>Writing a dependency graph data structure is outside of the scope of this tutorial, so we will be using the <code>pie_graph</code> library which we prepared exactly for this use case.
+The graph from this library is a directed acyclic graph (DAG), meaning that edges are directed and there may be no cycles in edges, as that would prohibit topological orderings.</p>
+<details id="admonition-graph-library" class="admonition info">
+<summary class="admonition-title">
+<p>Graph library</p>
+<p><a class="admonition-anchor-link" href="#admonition-graph-library"></a></p>
+</summary>
+<div>
+<p>The <code>pie_graph</code> library is a modified version of the great <a href="https://github.com/declanvk/incremental-topo/" title="" target="_blank">
+<code>incremental-topo</code></a> library which implements incremental topological ordering: it keeps the topological ordering up-to-date incrementally while nodes and edges are added and removed.
+That is exactly what we need, as dynamic dependencies prevents us from calculating the topological ordering in one go, and calculating the topological ordering after every task execution is prohibitively expensive.
+The implementation in the <code>incremental-topo</code> library is based on a <a href="http://www.doc.ic.ac.uk/~phjk/Publications/DynamicTopoSortAlg-JEA-07.pdf" title="" target="_blank">paper by D. J. Pearce and P. H. J. Kelly</a> that describes several dynamic topological sort algorithms for directed acyclic graphs.</p>
+</div>
+</details>
+<p>Add the <code>pie_graph</code> dependency to <code>Cargo.toml</code>:</p>
+<pre><code class="language-rust customdiff"></code></pre>
+<h4 id="store-basics"><a class="header" href="#store-basics">Store basics</a></h4>
+<p>Add the <code>store</code> module to <code>src/lib.rs</code>:</p>
+<pre><code class="language-rust customdiff"></code></pre>
+<p>This module is not public, as users of the library should not interact with the store.</p>
+<p>Create the <code>src/store.rs</code> file and add the following to get started:</p>
+<pre><code class="language-rust ">use std::collections::HashMap;
+use std::hash::BuildHasher;
+use std::path::{Path, PathBuf};
+
+use pie_graph::{DAG, Node};
+
+use crate::dependency::Dependency;
+use crate::Task;
+
+pub type TaskNode = Node;
+pub type FileNode = Node;
+
+pub struct Store&lt;T, O&gt; {
+  graph: DAG&lt;NodeData&lt;T, O&gt;, Option&lt;Dependency&lt;T, O&gt;&gt;&gt;,
+  task_to_node: HashMap&lt;T, TaskNode&gt;,
+  file_to_node: HashMap&lt;PathBuf, FileNode&gt;,
+}
+
+#[derive(Debug)]
+pub enum NodeData&lt;T, O&gt; {
+  Task {
+    task: T,
+    output: Option&lt;O&gt;,
+  },
+  File(PathBuf),
+}
+
+impl&lt;T: Task&gt; Default for Store&lt;T, T::Output&gt; {
+  fn default() -&gt; Self {
+    Self {
+      graph: DAG::with_default_hasher(),
+      task_to_node: HashMap::default(),
+      file_to_node: HashMap::default(),
+    }
+  }
+}
+
+impl&lt;T: Task&gt; Store&lt;T, T::Output&gt; {
+  /// Gets the node for `task`, or creates a node by adding it to the dependency graph.
+  pub fn get_or_create_task_node(&amp;mut self, task: &amp;T) -&gt; TaskNode {
+    if let Some(node) = self.task_to_node.get(task) {
+      *node
+    } else {
+      let node = self.graph.add_node(NodeData::Task {
+        task: task.clone(),
+        output: None,
+      });
+      self.task_to_node.insert(task.clone(), node);
+      node
+    }
+  }
+  /// Gets the task for `node`, panicking if `node` was not found in the dependency graph or if `node` is a file.
+  pub fn get_task(&amp;self, node: &amp;TaskNode) -&gt; &amp;T {
+    let data = self.graph.get_node_data(node)
+      .expect(&quot;node should exist in dependency graph&quot;);
+    match data {
+      NodeData::Task { task, .. } =&gt; task,
+      _ =&gt; panic!(&quot;node should be a task node&quot;)
+    }
+  }
+
+
+  /// Gets the file node for `path`, or creates a node by adding it to the dependency graph.
+  pub fn get_or_create_file_node(&amp;mut self, path: impl AsRef&lt;Path&gt;) -&gt; FileNode {
+    let path = path.as_ref();
+    if let Some(file_node) = self.file_to_node.get(path) {
+      *file_node
+    } else {
+      let node = self.graph.add_node(NodeData::File(path.to_path_buf()));
+      self.file_to_node.insert(path.to_path_buf(), node);
+      node
+    }
+  }
+  /// Gets the path for `node`, panicking if `node` was not found in the dependency graph or if `node` is a task.
+  #[inline]
+  pub fn get_file_path(&amp;self, node: &amp;FileNode) -&gt; &amp;PathBuf {
+    let data = self.graph.get_node_data(node)
+      .expect(&quot;node should exist in dependency graph&quot;);
+    match data {
+      NodeData::File(path) =&gt; path,
+      _ =&gt; panic!(&quot;node should be a file node&quot;)
+    }
+  }
+
+
+  /// Checks whether task `node` has an output. Returns `false` if `node` does not have an output , if `node` does not
+  /// exist in the dependency graph, or if `node` is a file.
+  #[inline]
+  pub fn task_has_output(&amp;self, node: &amp;TaskNode) -&gt; bool {
+    if let Some(NodeData::Task { output: Some(_), .. }) = self.graph.get_node_data(node) {
+      true
+    } else {
+      false
+    }
+  }
+  /// Gets the output for task `node`, panicking if `node` was not found in the dependency graph, if `node` is a file,
+  /// or if the task has no output.
+  #[inline]
+  pub fn get_task_output(&amp;self, node: &amp;TaskNode) -&gt; &amp;T::Output {
+    let data = self.graph.get_node_data(node)
+      .expect(&quot;node should exist in dependency graph&quot;);
+    match data {
+      NodeData::Task { output, .. } =&gt; output.as_ref().expect(&quot;task should have an output&quot;),
+      _ =&gt; panic!(&quot;node should be a task node&quot;)
+    }
+  }
+  /// Sets the output for task `node` to `new_output`. Does nothing if task `node` does not exist in the dependency 
+  /// graph.
+  #[inline]
+  pub fn set_task_output(&amp;mut self, node: &amp;TaskNode, new_output: T::Output) {
+    if let Some(NodeData::Task { output, .. }) = self.graph.get_node_data_mut(node) {
+      output.replace(new_output);
+    }
+  }
+}</code></pre>
+<p>The <code>Store</code> is generic over tasks <code>T</code> and their outputs <code>O</code>, like we have done before with <code>Dependency</code>.</p>
+<p>The <code>DAG</code> type from <code>pie_graph</code> represents a DAG with nodes and edges, and data attached to those nodes and edges.
+The first generic argument to <code>DAG</code> is the type of data to attach to nodes, which is <code>NodeData&lt;T, O&gt;</code> in our case.
+The second argument is the type of data to attach to edges, which is <code>Option&lt;Dependency&lt;T, O&gt;&gt;</code>, using the <code>Dependency</code> enum we defined earlier.
+We will dive deeper into why the <code>Option</code> is needed here later.</p>
+<p>A node in <code>DAG</code> is represented by a <code>Node</code>, which is a transparent identifier (sometimes called a <a href="https://en.wikipedia.org/wiki/Handle_(computing)" title="" target="_blank">handle</a>) that points to the node and its data.</p>
+<p>The nodes in our graph are either tasks or files.
+To make our code a bit more explicit about when we expect a task node or a file node, we create the <code>TaskNode</code> and <code>FileNode</code> type aliases.
+Note that these are just aliases, they are not strongly typed, meaning that we can pass a <code>Node</code> (which could be a file node) where we expect a <code>TaskNode</code>, so this is just for readability.</p>
+<p>Because <code>DAG</code> works with these transparent <code>Node</code> identifiers, but we work with tasks of type <code>T</code> and file paths represented by <code>PathBuf</code>, we need to map between these things.
+The <code>get_or_create_task_node</code> and <code>get_task_by_node</code> methods show how we do this mapping for tasks.
+When we want to go from a task <code>T</code> to a <code>TaskNode</code>, either we have already added this task to the graph and want to get the <code>TaskNode</code> for it, or we have not yet added it to the graph yet and should add it.
+The former is handled by the if branch in <code>get_or_create_task_node</code>, where we just retrieve the <code>TaskNode</code> from the <code>task_to_node</code> hash map.
+The latter is handled by the else branch where we add the node to the graph with <code>graph.add_node</code> which attaches the <code>NodeData::Task</code> data to the node, and then returns a <code>TaskNode</code> which we insert into the <code>task_to_node</code> map.
+The <code>TaskNode</code> can then be used to query the attached data, to add or remove dependency edges, or to remove the node from the graph.</p>
+<p>To go from a <code>TaskNode</code> to a task <code>T</code>, we ask the graph for the attached data of the node and retrieve the task from it in <code>get_task</code>.
+We use <code>expect</code> and <code>panic!</code> here because all callers of this function will know that the task exists and will have <code>NodeData::Task</code> attached to it.
+If that was not the case, we would return <code>Option&lt;&amp;T&gt;</code> instead.</p>
+<p>Similarly, <code>get_or_create_file_node</code> and <code>get_file_path</code> do the same for files.</p>
+<p>Finally, <code>task_has_output</code>, <code>get_task_output</code>, and <code>set_task_output</code> manipulate the task outputs in <code>NodeData::Task</code>.
+We store the task output so we can retrieve it when we do not need to execute the task.
+When a task is added to the dependency graph, it does not have an output yet, so use <code>Option&lt;O&gt;</code> to store the output and pass in <code>None</code>.</p>
+<p>Now we have enough scaffolding in <code>Store</code> to start scaffolding <code>TopDownContext</code>.
+We have not done anything with edges yet, but will get back to that later.</p>
+<h4 id="top-down-context-basics"><a class="header" href="#top-down-context-basics">Top-down context basics</a></h4>
+<p>Add the <code>top_down</code> module to <code>src/context/mod.rs</code>:</p>
+<pre><code class="language-rust customdiff"></code></pre>
+<p>Create the <code>src/context/top_down.rs</code> file and add the following to get started:</p>
+<pre><code class="language-rust ">use std::fs::File;
+use std::io;
+use std::path::Path;
+
+use crate::{Context, Task};
+use crate::dependency::FileDependency;
+use crate::stamp::{FileStamper, OutputStamper};
+use crate::store::{Store, TaskNode};
+
+pub struct TopDownContext&lt;T, O&gt; {
+  store: Store&lt;T, O&gt;,
+}
+
+impl&lt;T: Task&gt; TopDownContext&lt;T, T::Output&gt; {
+  pub fn new(store: Store&lt;T, T::Output&gt;) -&gt; Self {
+    Self { store }
+  }
+
+  pub fn require(&amp;mut self, task: &amp;T) -&gt; T::Output {
+    let output = self.require_task(task);
+    output
+  }
+}
+
+impl&lt;T: Task&gt; Context&lt;T&gt; for TopDownContext&lt;T, T::Output&gt; {
+  fn require_task_with_stamper(&amp;mut self, task: &amp;T, stamper: OutputStamper) -&gt; T::Output {
+    let node = self.store.get_or_create_task_node(task);
+
+    todo!(&quot;figure out what the currently executing task is&quot;);
+    todo!(&quot;add task dependency to store&quot;);
+
+    let output = if self.should_execute_task(&amp;node, task) {
+      let output = task.execute(self);
+      self.store.set_task_output(&amp;node, output);
+    } else {
+      self.store.get_task_output(&amp;node).clone()
+    };
+
+    output
+  }
+
+  fn require_file_with_stamper&lt;P: AsRef&lt;Path&gt;&gt;(&amp;mut self, path: P, stamper: FileStamper) -&gt; Result&lt;Option&lt;File&gt;, io::Error&gt; {
+    let path = path.as_ref();
+    let (dependency, file) = FileDependency::new(path, stamper)?;
+    let node = self.session.store.get_or_create_file_node(path);
+    todo!(&quot;figure out what the currently executing task is&quot;);
+    todo!(&quot;add file dependency to store&quot;);
+    Ok(file)
+  }
+}
+
+impl&lt;T: Task&gt; TopDownContext&lt;T, T::Output&gt; {
+  fn should_execute_task(&amp;mut self, node: &amp;TaskNode, task: &amp;T) -&gt; bool {
+    todo!(&quot;figure out if we should execute the task&quot;);
+  }
+}</code></pre>
 
                     </main>
 
