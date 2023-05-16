@@ -69,8 +69,8 @@
 //!
 //! assert_eq!(pairs, expected_pairs);
 //!
-//! assert!(dag.contains_transitive_dependency(&lion, &grass));
-//! assert!(!dag.contains_transitive_dependency(&human, &gazelle));
+//! assert!(dag.contains_transitive_edge(&lion, &grass));
+//! assert!(!dag.contains_transitive_edge(&human, &gazelle));
 //!
 //! assert_eq!(dag.topo_cmp(&cat, &dog), Greater);
 //! assert_eq!(dag.topo_cmp(&lion, &human), Less);
@@ -110,59 +110,59 @@ type TopoOrder = u32;
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct DAG<N, E, H = RandomState> {
   #[cfg_attr(feature = "serde", serde(bound(
-  serialize = "N: serde::Serialize, H: BuildHasher + Default, SlotMap<DefaultKey, Node<N, H>>: serde::Serialize",
-  deserialize = "N: serde::Deserialize<'de>, SlotMap<DefaultKey, Node<N, H>>: serde::Deserialize<'de>"
+  serialize = "N: serde::Serialize, H: BuildHasher + Default, SlotMap<DefaultKey, NodeInfo<N, H>>: serde::Serialize",
+  deserialize = "N: serde::Deserialize<'de>, SlotMap<DefaultKey, NodeInfo<N, H>>: serde::Deserialize<'de>"
   )))] // Set bounds such that `H` does not have to be (de)serializable
-  nodes: SlotMap<DefaultKey, Node<N, H>>,
+  node_info: SlotMap<DefaultKey, NodeInfo<N, H>>,
   #[cfg_attr(feature = "serde", serde(bound(
-  serialize = "E: serde::Serialize, H: BuildHasher + Default, HashMap<(NodeId, NodeId), E, H>: serde::Serialize",
-  deserialize = "E: serde::Deserialize<'de>, HashMap<(NodeId, NodeId), E, H>: serde::Deserialize<'de>"
+  serialize = "E: serde::Serialize, H: BuildHasher + Default, HashMap<(Node, Node), E, H>: serde::Serialize",
+  deserialize = "E: serde::Deserialize<'de>, HashMap<(Node, Node), E, H>: serde::Deserialize<'de>"
   )))] // Set bounds such that `H` does not have to be (de)serializable
-  edges: HashMap<(NodeId, NodeId), E, H>,
+  edge_data: HashMap<(Node, Node), E, H>,
   last_topo_order: TopoOrder,
 
   #[cfg_attr(feature = "serde", serde(skip))]
-  stack_visited_scratch_space: Cell<StackVisitedScratchSpace<NodeId, H>>,
+  stack_visited_scratch_space: Cell<StackVisitedScratchSpace<Node, H>>,
 }
 
 
-/// An identifier of a node in the [`DAG`].
+/// A node (identifier) in the [`DAG`].
 ///
 /// This identifier contains metadata so that a node which has been passed to [`DAG::delete_node`] 
 /// will not be confused with a node created later.
 #[repr(transparent)]
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-pub struct NodeId(DefaultKey);
+pub struct Node(DefaultKey);
 
-impl From<DefaultKey> for NodeId {
+impl From<DefaultKey> for Node {
   #[inline]
   fn from(src: DefaultKey) -> Self { Self(src) }
 }
 
 
-/// A node with all information about it ordering, which nodes it points to, and which nodes point to it.
+/// Information about a node: its ordering, which nodes it points to, and which nodes point to it.
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-struct Node<N, H> {
+struct NodeInfo<N, H> {
   topo_order: TopoOrder,
   data: N,
   #[cfg_attr(feature = "serde", serde(bound(
-  serialize = "H: BuildHasher + Default, HashSet<NodeId, H>: serde::Serialize",
-  deserialize = "H: BuildHasher + Default, HashSet<NodeId, H>: serde::Deserialize<'de>"
+  serialize = "H: BuildHasher + Default, HashSet<Node, H>: serde::Serialize",
+  deserialize = "H: BuildHasher + Default, HashSet<Node, H>: serde::Deserialize<'de>"
   )))] // Set bounds such that `H` does not have to be (de)serializable
-  parents: HashSet<NodeId, H>,
+  parents: HashSet<Node, H>,
   #[cfg_attr(feature = "serde", serde(bound(
-  serialize = "H: BuildHasher + Default, HashSet<NodeId, H>: serde::Serialize",
-  deserialize = "H: BuildHasher + Default, HashSet<NodeId, H>: serde::Deserialize<'de>"
+  serialize = "H: BuildHasher + Default, HashSet<Node, H>: serde::Serialize",
+  deserialize = "H: BuildHasher + Default, HashSet<Node, H>: serde::Deserialize<'de>"
   )))] // Set bounds such that `H` does not have to be (de)serializable
-  children: HashSet<NodeId, H>,
+  children: HashSet<Node, H>,
 }
 
-impl<N, H: BuildHasher + Default> Node<N, H> {
+impl<N, H: BuildHasher + Default> NodeInfo<N, H> {
   /// Create a new node entry with the specified topological order.
   fn new(topo_order: TopoOrder, data: N) -> Self {
-    Node {
+    NodeInfo {
       topo_order,
       data,
       parents: Default::default(),
@@ -224,13 +224,13 @@ impl<N, E, H: BuildHasher + Default> DAG<N, E, H> {
   pub fn with_default_hasher() -> Self {
     Self {
       last_topo_order: 0,
-      nodes: SlotMap::new(),
-      edges: Default::default(),
+      node_info: SlotMap::new(),
+      edge_data: Default::default(),
       stack_visited_scratch_space: Cell::default(),
     }
   }
 
-  /// Add a new node with `data` to the graph and return a unique [`NodeId`] which identifies it.
+  /// Add a new node with `data` to the graph and return a unique [`Node`] which identifies it.
   ///
   /// Initially this node will not have any order relative to the nodes that are already in the graph. Only when 
   /// relations are added with [`add_dependency`] will the order begin to matter.
@@ -260,11 +260,11 @@ impl<N, E, H: BuildHasher + Default> DAG<N, E, H> {
   ///
   /// [`add_dependency`]: struct.IncrementalTopo.html#method.add_dependency
   #[inline]
-  pub fn add_node(&mut self, data: N) -> NodeId {
+  pub fn add_node(&mut self, data: N) -> Node {
     let next_topo_order = self.last_topo_order + 1;
     self.last_topo_order = next_topo_order;
-    let node_data = Node::new(next_topo_order, data);
-    NodeId(self.nodes.insert(node_data))
+    let node_info = NodeInfo::new(next_topo_order, data);
+    Node(self.node_info.insert(node_info))
   }
 
   /// Returns true if the graph contains the specified `node.`
@@ -281,23 +281,23 @@ impl<N, E, H: BuildHasher + Default> DAG<N, E, H> {
   /// assert!(dag.contains_node(dog));
   /// ```
   #[inline]
-  pub fn contains_node(&self, node: impl Borrow<NodeId>) -> bool {
+  pub fn contains_node(&self, node: impl Borrow<Node>) -> bool {
     let node = node.borrow();
-    self.nodes.contains_key(node.0)
+    self.node_info.contains_key(node.0)
   }
 
   /// Gets data for given `node`.
   #[inline]
-  pub fn get_node_data(&self, node: impl Borrow<NodeId>) -> Option<&N> {
+  pub fn get_node_data(&self, node: impl Borrow<Node>) -> Option<&N> {
     let node = node.borrow();
-    self.nodes.get(node.0).map(|d| &d.data)
+    self.node_info.get(node.0).map(|d| &d.data)
   }
 
   /// Gets mutable data for given `node`.
   #[inline]
-  pub fn get_node_data_mut(&mut self, node: impl Borrow<NodeId>) -> Option<&mut N> {
+  pub fn get_node_data_mut(&mut self, node: impl Borrow<Node>) -> Option<&mut N> {
     let node = node.borrow();
-    self.nodes.get_mut(node.0).map(|d| &mut d.data)
+    self.node_info.get_mut(node.0).map(|d| &mut d.data)
   }
 
   /// Attempt to remove `node` from graph, returning true if the node was contained and removed.
@@ -316,30 +316,30 @@ impl<N, E, H: BuildHasher + Default> DAG<N, E, H> {
   /// assert!(!dag.remove_node(cat));
   /// assert!(!dag.remove_node(dog));
   /// ```
-  pub fn remove_node(&mut self, node_id: NodeId) -> bool {
-    if !self.nodes.contains_key(node_id.0) {
+  pub fn remove_node(&mut self, node: Node) -> bool {
+    if !self.node_info.contains_key(node.0) {
       return false;
     }
 
     // Remove node
-    let node = self.nodes.remove(node_id.0).unwrap();
+    let node_info = self.node_info.remove(node.0).unwrap();
     // Delete forward edges
-    for child in &node.children {
-      if let Some(child_node) = self.nodes.get_mut(child.0) {
-        child_node.parents.remove(&node_id.into());
+    for child in &node_info.children {
+      if let Some(child_node) = self.node_info.get_mut(child.0) {
+        child_node.parents.remove(&node.into());
       }
-      self.edges.remove(&(node_id, *child));
+      self.edge_data.remove(&(node, *child));
     }
     // Delete backward edges
-    for parent in &node.parents {
-      if let Some(parent_node) = self.nodes.get_mut(parent.0) {
-        parent_node.children.remove(&node_id.into());
+    for parent in &node_info.parents {
+      if let Some(parent_node) = self.node_info.get_mut(parent.0) {
+        parent_node.children.remove(&node.into());
       }
-      self.edges.remove(&(*parent, node_id));
+      self.edge_data.remove(&(*parent, node));
     }
     // OPTO: inefficient compaction step
-    for (_, other_node) in self.nodes.iter_mut() {
-      if other_node.topo_order > node.topo_order {
+    for (_, other_node) in self.node_info.iter_mut() {
+      if other_node.topo_order > node_info.topo_order {
         other_node.topo_order -= 1;
       }
     }
@@ -349,17 +349,16 @@ impl<N, E, H: BuildHasher + Default> DAG<N, E, H> {
     true
   }
 
-  /// Add a directed edge from `pred` to `succ`, with `parent_data` being attached to the incoming dependencies of 
-  /// `succ`, and `child_data` being attached to the outgoing dependencies of `pred`.
+  /// Add a directed edge from `src` to `dst` with edge `data`.
   ///
-  /// This edge indicates an ordering constraint on the two nodes, now `pred` must always come before `succ` in the 
+  /// This edge indicates an ordering constraint on the two nodes, now `src` must always come before `dst` in the 
   /// ordering.
   ///
-  /// Returns `Ok(true)` if the graph did not previously contain this dependency. Returns `Ok(false)` if the graph did 
-  /// have a previous dependency between these two nodes.
+  /// Returns `Ok(true)` if the graph did not previously contain this edge. Returns `Ok(false)` if the graph did 
+  /// have a previous edge between these two nodes.
   ///
   /// # Errors
-  /// This function will return an `Err` if the dependency introduces a cycle into the graph or if either of the nodes
+  /// This function will return an `Err` if the edge introduces a cycle into the graph or if either of the nodes
   /// passed is not found in the graph.
   ///
   /// # Examples
@@ -399,27 +398,27 @@ impl<N, E, H: BuildHasher + Default> DAG<N, E, H> {
   /// ```
   pub fn add_edge(
     &mut self,
-    pred: impl Borrow<NodeId>,
-    succ: impl Borrow<NodeId>,
+    src: impl Borrow<Node>,
+    dst: impl Borrow<Node>,
     data: E,
   ) -> Result<bool, Error> {
-    let pred = pred.borrow();
-    let succ = succ.borrow();
+    let src = src.borrow();
+    let dst = dst.borrow();
 
-    if pred == succ { // No loops to self
+    if src == dst { // No loops to self
       return Err(Error::CycleDetected);
     }
 
     // Insert forward edge
-    let mut no_prev_edge = self.nodes[pred.0].children.insert(*succ);
-    let upper_bound = self.nodes[pred.0].topo_order;
+    let mut no_prev_edge = self.node_info[src.0].children.insert(*dst);
+    let upper_bound = self.node_info[src.0].topo_order;
     // Insert backward edge
-    no_prev_edge = no_prev_edge && self.nodes[succ.0].parents.insert(*pred);
-    let lower_bound = self.nodes[succ.0].topo_order;
+    no_prev_edge = no_prev_edge && self.node_info[dst.0].parents.insert(*src);
+    let lower_bound = self.node_info[dst.0].topo_order;
     if !no_prev_edge { // If edge already exists short circuit
       return Ok(false);
     }
-    self.edges.insert((*pred, *succ), data);
+    self.edge_data.insert((*src, *dst), data);
 
     // If the affected region of the graph has non-zero size (i.e. the upper and
     // lower bound are equal) then perform an update to the topological ordering of
@@ -427,24 +426,24 @@ impl<N, E, H: BuildHasher + Default> DAG<N, E, H> {
     if lower_bound < upper_bound {
       let mut visited = HashSet::<_, H>::default(); // OPTO: reuse allocation.
       // Walk changes forward from the succ, checking for any cycles that would be introduced
-      let change_forward = match self.dfs_forward(*succ, &mut visited, upper_bound) {
+      let change_forward = match self.dfs_forward(*dst, &mut visited, upper_bound) {
         Ok(change_set) => change_set,
         Err(err) => { // Need to remove parent + child + edge info that was previously added
-          self.nodes[pred.0].children.remove(succ);
-          self.nodes[succ.0].parents.remove(pred);
-          self.edges.remove(&(*pred, *succ));
+          self.node_info[src.0].children.remove(dst);
+          self.node_info[dst.0].parents.remove(src);
+          self.edge_data.remove(&(*src, *dst));
           return Err(err);
         }
       };
       // Walk backwards from the pred
-      let change_backward = self.dfs_backward(*pred, &mut visited, lower_bound);
+      let change_backward = self.dfs_backward(*src, &mut visited, lower_bound);
       self.reorder_nodes(change_forward, change_backward);
     }
 
     Ok(true)
   }
 
-  /// Returns true if the graph contains a direct dependency from `pred` to `succ`.
+  /// Returns true if the graph contains an edge from `src` to `dst`.
   ///
   /// Returns false if either node is not found, or if there is no dependency.
   ///
@@ -461,22 +460,22 @@ impl<N, E, H: BuildHasher + Default> DAG<N, E, H> {
   /// assert!(dag.add_edge(&human, &cat, ()).unwrap());
   /// assert!(dag.add_edge(&cat, &mouse, ()).unwrap());
   ///
-  /// assert!(dag.contains_dependency(&cat, &mouse));
-  /// assert!(!dag.contains_dependency(&human, &mouse));
-  /// assert!(!dag.contains_dependency(&cat, &horse));
+  /// assert!(dag.contains_edge(&cat, &mouse));
+  /// assert!(!dag.contains_edge(&human, &mouse));
+  /// assert!(!dag.contains_edge(&cat, &horse));
   /// ```
   #[inline]
-  pub fn contains_dependency(&self, pred: impl Borrow<NodeId>, succ: impl Borrow<NodeId>) -> bool {
-    let pred = pred.borrow();
-    let succ = succ.borrow();
+  pub fn contains_edge(&self, src: impl Borrow<Node>, dst: impl Borrow<Node>) -> bool {
+    let src = src.borrow();
+    let dst = dst.borrow();
 
-    if !self.nodes.contains_key(pred.0) || !self.nodes.contains_key(succ.0) {
+    if !self.node_info.contains_key(src.0) || !self.node_info.contains_key(dst.0) {
       return false;
     }
-    self.edges.contains_key(&(*pred, *succ))
+    self.edge_data.contains_key(&(*src, *dst))
   }
 
-  /// Returns true if the graph contains a transitive dependency from `pred` to `succ`.
+  /// Returns true if the graph contains a transitive edge from `src` to `dst`.
   ///
   /// In this context a transitive dependency means that `succ` exists as a descendant of `pred`, with some chain of 
   /// other nodes in between.
@@ -497,24 +496,24 @@ impl<N, E, H: BuildHasher + Default> DAG<N, E, H> {
   /// assert!(dag.add_edge(&human, &dog, ()).unwrap());
   /// assert!(dag.add_edge(&cat, &mouse, ()).unwrap());
   ///
-  /// assert!(dag.contains_transitive_dependency(&human, &mouse));
-  /// assert!(!dag.contains_transitive_dependency(&dog, &mouse));
+  /// assert!(dag.contains_transitive_edge(&human, &mouse));
+  /// assert!(!dag.contains_transitive_edge(&dog, &mouse));
   /// ```
-  pub fn contains_transitive_dependency(
+  pub fn contains_transitive_edge(
     &self,
-    pred: impl Borrow<NodeId>,
-    succ: impl Borrow<NodeId>,
+    src: impl Borrow<Node>,
+    dst: impl Borrow<Node>,
   ) -> bool {
-    let pred = pred.borrow();
-    let succ = succ.borrow();
+    let src = src.borrow();
+    let dst = dst.borrow();
 
     // If either node is missing, return quick
-    if !self.nodes.contains_key(pred.0) || !self.nodes.contains_key(succ.0) {
+    if !self.node_info.contains_key(src.0) || !self.node_info.contains_key(dst.0) {
       return false;
     }
 
     // A node cannot depend on itself
-    if pred.0 == succ.0 {
+    if src.0 == dst.0 {
       return false;
     }
 
@@ -523,7 +522,7 @@ impl<N, E, H: BuildHasher + Default> DAG<N, E, H> {
     // descendants.
     let mut scratch = self.stack_visited_scratch_space.take();
     scratch.clear();
-    scratch.stack.push(*pred);
+    scratch.stack.push(*src);
 
     // For each node key popped off the stack, check that we haven't seen it
     // before, then check if its children contain the node we're searching for.
@@ -535,8 +534,8 @@ impl<N, E, H: BuildHasher + Default> DAG<N, E, H> {
         scratch.visited.insert(key);
       }
 
-      let children = &self.nodes.get(key.0).unwrap().children;
-      if children.contains(succ) {
+      let children = &self.node_info.get(key.0).unwrap().children;
+      if children.contains(dst) {
         self.stack_visited_scratch_space.set(scratch);
         return true;
       } else {
@@ -552,91 +551,91 @@ impl<N, E, H: BuildHasher + Default> DAG<N, E, H> {
   }
 
 
-  /// Gets data for given `node`.
+  /// Gets data for the edge from `src` to `dst`.
   #[inline]
-  pub fn get_dependency_data(&self, pred: impl Borrow<NodeId>, succ: impl Borrow<NodeId>) -> Option<&E> {
-    let pred = pred.borrow();
-    let succ = succ.borrow();
-    self.edges.get(&(*pred, *succ))
+  pub fn get_edge_data(&self, src: impl Borrow<Node>, dst: impl Borrow<Node>) -> Option<&E> {
+    let src = src.borrow();
+    let dst = dst.borrow();
+    self.edge_data.get(&(*src, *dst))
   }
 
-  /// Gets mutable data for given `node`.
+  /// Gets mutable data for the edge from `src` to `dst`.
   #[inline]
-  pub fn get_dependency_data_mut(&mut self, pred: impl Borrow<NodeId>, succ: impl Borrow<NodeId>) -> Option<&mut E> {
-    let pred = pred.borrow();
-    let succ = succ.borrow();
-    self.edges.get_mut(&(*pred, *succ))
+  pub fn get_edge_data_mut(&mut self, src: impl Borrow<Node>, dst: impl Borrow<Node>) -> Option<&mut E> {
+    let src = src.borrow();
+    let dst = dst.borrow();
+    self.edge_data.get_mut(&(*src, *dst))
   }
 
 
-  /// Gets the outgoing dependencies of given `node`.
+  /// Gets the destination node and edge data for all outgoing edges of `src`.
   #[inline]
-  pub fn get_outgoing_dependencies(&self, node_id: impl Borrow<NodeId>) -> impl Iterator<Item=(&NodeId, &E)> + '_ {
-    let node_id = *node_id.borrow();
-    self.nodes.get(node_id.0)
+  pub fn get_outgoing_edges(&self, src: impl Borrow<Node>) -> impl Iterator<Item=(&Node, &E)> + '_ {
+    let src = *src.borrow();
+    self.node_info.get(src.0)
       .into_iter()
-      .flat_map(|node| node.children.iter())
-      .map(move |child_node_id| (child_node_id, self.edges.get(&(node_id, *child_node_id)).unwrap()))
+      .flat_map(|node_info| node_info.children.iter())
+      .map(move |child_node| (child_node, self.edge_data.get(&(src, *child_node)).unwrap()))
   }
 
-  /// Gets the outgoing dependency nodes of given `node`.
+  /// Gets the destination node all outgoing edges of `src`.
   #[inline]
-  pub fn get_outgoing_dependency_nodes(&self, node_id: impl Borrow<NodeId>) -> impl Iterator<Item=&NodeId> + '_ {
-    let node = node_id.borrow();
-    self.nodes.get(node.0)
+  pub fn get_outgoing_edge_nodes(&self, src: impl Borrow<Node>) -> impl Iterator<Item=&Node> + '_ {
+    let src = src.borrow();
+    self.node_info.get(src.0)
       .into_iter()
-      .flat_map(|d| d.children.iter())
+      .flat_map(|node_info| node_info.children.iter())
   }
 
-  /// Gets the outgoing dependency data of given `node`.
+  /// Gets the destination node data for all outgoing edges of `src`.
   #[inline]
-  pub fn get_outgoing_dependency_data(&self, node_id: impl Borrow<NodeId>) -> impl Iterator<Item=&N> + '_ {
-    let node_id = node_id.borrow();
-    self.nodes.get(node_id.0)
+  pub fn get_outgoing_edge_data(&self, src: impl Borrow<Node>) -> impl Iterator<Item=&N> + '_ {
+    let src = src.borrow();
+    self.node_info.get(src.0)
       .into_iter()
-      .flat_map(|d| d.children.iter())
-      .flat_map(|c| self.nodes.get(c.0).into_iter())
-      .map(|nr| &nr.data)
+      .flat_map(|node_info| node_info.children.iter())
+      .flat_map(|child_node| self.node_info.get(child_node.0).into_iter())
+      .map(|node_info| &node_info.data)
   }
 
 
-  /// Gets the incoming dependencies of given `node`.
+  /// Gets the source node and edge data for all incoming edges of `dst`.
   #[inline]
-  pub fn get_incoming_dependencies(&self, node_id: impl Borrow<NodeId>) -> impl Iterator<Item=(&NodeId, &E)> + '_ {
-    let node_id = *node_id.borrow();
-    self.nodes.get(node_id.0)
+  pub fn get_incoming_edges(&self, dst: impl Borrow<Node>) -> impl Iterator<Item=(&Node, &E)> + '_ {
+    let dst = *dst.borrow();
+    self.node_info.get(dst.0)
       .into_iter()
-      .flat_map(|node| node.parents.iter())
-      .map(move |parent_node_id| (parent_node_id, self.edges.get(&(*parent_node_id, node_id)).unwrap()))
+      .flat_map(|node_info| node_info.parents.iter())
+      .map(move |parent_node| (parent_node, self.edge_data.get(&(*parent_node, dst)).unwrap()))
   }
 
-  /// Gets the incoming dependency nodes of given `node`.
+  /// Gets the source node for all incoming edges of `dst`.
   #[inline]
-  pub fn get_incoming_dependency_nodes(&self, node_id: impl Borrow<NodeId>) -> impl Iterator<Item=&NodeId> + '_ {
-    let node_id = *node_id.borrow();
-    self.nodes.get(node_id.0)
+  pub fn get_incoming_edge_nodes(&self, dst: impl Borrow<Node>) -> impl Iterator<Item=&Node> + '_ {
+    let dst = *dst.borrow();
+    self.node_info.get(dst.0)
       .into_iter()
-      .flat_map(|d| d.parents.iter())
+      .flat_map(|node_info| node_info.parents.iter())
   }
 
-  /// Gets the incoming dependency data of given `node`.
+  /// Gets the source node data for all incoming edges of `dst`.
   #[inline]
-  pub fn get_incoming_dependency_data(&self, node_id: impl Borrow<NodeId>) -> impl Iterator<Item=&N> + '_ {
-    let node_id = node_id.borrow();
-    self.nodes.get(node_id.0)
+  pub fn get_incoming_edge_data(&self, dst: impl Borrow<Node>) -> impl Iterator<Item=&N> + '_ {
+    let dst = dst.borrow();
+    self.node_info.get(dst.0)
       .into_iter()
-      .flat_map(|d| d.parents.iter())
-      .flat_map(|c| self.nodes.get(c.0).into_iter())
-      .map(|nr| &nr.data)
+      .flat_map(|node_info| node_info.parents.iter())
+      .flat_map(|parent_node| self.node_info.get(parent_node.0).into_iter())
+      .map(|node_info| &node_info.data)
   }
 
 
-  /// Attempt to remove the dependency from `pred` to `succ` from the graph, returning 
-  /// `Some(edge_data)` if the dependency was removed, or `None` otherwise.
+  /// Attempt to remove the edge from `src` to `dst` from the graph, returning `Some(edge_data)` if the edge was 
+  /// removed, or `None` otherwise.
   ///
   /// Returns `false` is either node is not found in the graph.
   ///
-  /// Removing a dependency from the graph is an extremely simple operation, which requires no recalculation of the
+  /// Removing an edge from the graph is an extremely simple operation, which requires no recalculation of the
   /// topological order. The ordering before and after a removal is exactly the same.
   ///
   /// # Examples
@@ -653,46 +652,45 @@ impl<N, E, H: BuildHasher + Default> DAG<N, E, H> {
   /// assert!(dag.add_edge(&human, &dog, ()).unwrap());
   /// assert!(dag.add_edge(&cat, &mouse, ()).unwrap());
   ///
-  /// assert!(dag.remove_dependency(&cat, mouse).is_some());
-  /// assert!(dag.remove_dependency(&human, dog).is_some());
-  /// assert!(dag.remove_dependency(&human, mouse).is_none());
+  /// assert!(dag.remove_edge(&cat, mouse).is_some());
+  /// assert!(dag.remove_edge(&human, dog).is_some());
+  /// assert!(dag.remove_edge(&human, mouse).is_none());
   /// ```
-  pub fn remove_dependency(&mut self, pred: impl Borrow<NodeId>, succ: impl Borrow<NodeId>) -> Option<E> {
-    let pred = pred.borrow();
-    let succ = succ.borrow();
+  pub fn remove_edge(&mut self, src: impl Borrow<Node>, dst: impl Borrow<Node>) -> Option<E> {
+    let src = src.borrow();
+    let dst = dst.borrow();
 
-    if !self.nodes.contains_key(pred.0) || !self.nodes.contains_key(succ.0) {
+    if !self.node_info.contains_key(src.0) || !self.node_info.contains_key(dst.0) {
       return None;
     }
-    let pred_children = &mut self.nodes[pred.0].children;
-    if !pred_children.contains(&succ) {
+    let src_children = &mut self.node_info[src.0].children;
+    if !src_children.contains(&dst) {
       return None;
     }
-    pred_children.remove(&succ);
-    self.nodes[succ.0].parents.remove(&pred);
-    self.edges.remove(&(*pred, *succ))
+    src_children.remove(&dst);
+    self.node_info[dst.0].parents.remove(&src);
+    self.edge_data.remove(&(*src, *dst))
   }
 
-  /// Attempt to remove all outgoing dependencies of `pred_id` from the graph, returning
-  /// `Some(edge_data)` if any dependencies were removed, or `None` if the node does not exist or 
-  /// does not have any dependencies.
-  pub fn remove_dependencies_of_node(&mut self, pred_id: impl Borrow<NodeId>) -> Option<Vec<(NodeId, E)>> { // TODO: test!
-    let pred_id = pred_id.borrow();
-    if !self.nodes.contains_key(pred_id.0) {
+  /// Attempt to remove all outgoing edges of `src` from the graph, returning `Some(edge_data)` if any edges were 
+  /// removed, or `None` if the node does not exist or does not have any edges.
+  pub fn remove_edges_of_node(&mut self, src: impl Borrow<Node>) -> Option<Vec<(Node, E)>> { // TODO: test!
+    let pred_id = src.borrow();
+    if !self.node_info.contains_key(pred_id.0) {
       return None;
     }
 
-    let children: Vec<_> = self.nodes[pred_id.0].children.drain().collect(); // OPTO: reuse allocation
+    let children: Vec<_> = self.node_info[pred_id.0].children.drain().collect(); // OPTO: reuse allocation
     if children.is_empty() {
       return None;
     }
 
     let mut edge_data = Vec::new();
     for succ_id in children {
-      if let Some(succ) = self.nodes.get_mut(succ_id.0) {
+      if let Some(succ) = self.node_info.get_mut(succ_id.0) {
         succ.parents.remove(&pred_id);
       }
-      if let Some(data) = self.edges.remove(&(*pred_id, succ_id)) {
+      if let Some(data) = self.edge_data.remove(&(*pred_id, succ_id)) {
         edge_data.push((succ_id, data));
       }
     }
@@ -715,7 +713,7 @@ impl<N, E, H: BuildHasher + Default> DAG<N, E, H> {
   /// ```
   #[inline]
   pub fn len(&self) -> usize {
-    self.nodes.len()
+    self.node_info.len()
   }
 
   /// Return `true` if there are no nodes in the graph.
@@ -764,8 +762,8 @@ impl<N, E, H: BuildHasher + Default> DAG<N, E, H> {
   /// assert_eq!(pairs, expected_pairs);
   /// ```
   #[inline]
-  pub fn iter_unsorted(&self) -> impl Iterator<Item=(TopoOrder, NodeId)> + '_ {
-    self.nodes
+  pub fn iter_unsorted(&self) -> impl Iterator<Item=(TopoOrder, Node)> + '_ {
+    self.node_info
       .iter()
       .map(|(index, node)| (node.topo_order, index.into()))
   }
@@ -807,16 +805,16 @@ impl<N, E, H: BuildHasher + Default> DAG<N, E, H> {
   /// ```
   pub fn descendants_unsorted(
     &self,
-    node: impl Borrow<NodeId>,
+    node: impl Borrow<Node>,
   ) -> Result<DescendantsUnsorted<N, E, H>, Error> {
     let node = node.borrow();
-    if !self.nodes.contains_key(node.0) {
+    if !self.node_info.contains_key(node.0) {
       return Err(Error::NodeMissing);
     }
 
     let mut stack = Vec::new(); // OPTO: reuse allocation
     // Add all children of selected node
-    stack.extend(self.nodes[node.0].children.iter());
+    stack.extend(self.node_info[node.0].children.iter());
     let visited = HashSet::<_, H>::default(); // OPTO: reuse allocation
 
     Ok(DescendantsUnsorted {
@@ -854,22 +852,22 @@ impl<N, E, H: BuildHasher + Default> DAG<N, E, H> {
   ///
   /// assert_eq!(ordered_nodes, vec![dog, cat, mouse]);
   /// ```
-  pub fn descendants(&self, node: impl Borrow<NodeId>) -> Result<Descendants<N, E, H>, Error> {
+  pub fn descendants(&self, node: impl Borrow<Node>) -> Result<Descendants<N, E, H>, Error> {
     let node = node.borrow();
-    if !self.nodes.contains_key(node.0) {
+    if !self.node_info.contains_key(node.0) {
       return Err(Error::NodeMissing);
     }
 
     let mut queue = BinaryHeap::new(); // OPTO: reuse allocation
     // Add all children of selected node
     queue.extend(
-      self.nodes[node.0]
+      self.node_info[node.0]
         .children
         .iter()
         .cloned()
-        .map(|child_key| {
-          let child_order = self.get_node(child_key).topo_order;
-          (Reverse(child_order), child_key)
+        .map(|child_node| {
+          let child_order = self.get_node(child_node).topo_order;
+          (Reverse(child_order), child_node)
         }),
     );
     let visited = HashSet::<_, H>::default(); // OPTO: reuse allocation
@@ -906,21 +904,21 @@ impl<N, E, H: BuildHasher + Default> DAG<N, E, H> {
   /// assert_eq!(dag.topo_cmp(&cat, &horse), Less);
   /// ```
   #[inline]
-  pub fn topo_cmp(&self, node_a: impl Borrow<NodeId>, node_b: impl Borrow<NodeId>) -> Ordering {
+  pub fn topo_cmp(&self, node_a: impl Borrow<Node>, node_b: impl Borrow<Node>) -> Ordering {
     let node_a = node_a.borrow();
     let node_b = node_b.borrow();
-    self.nodes[node_a.0]
+    self.node_info[node_a.0]
       .topo_order
-      .cmp(&self.nodes[node_b.0].topo_order)
+      .cmp(&self.node_info[node_b.0].topo_order)
   }
 
 
   fn dfs_forward(
     &self,
-    start_key: NodeId,
-    visited: &mut HashSet<NodeId, H>,
+    start_key: Node,
+    visited: &mut HashSet<Node, H>,
     upper_bound: TopoOrder,
-  ) -> Result<HashSet<NodeId, H>, Error> {
+  ) -> Result<HashSet<Node, H>, Error> {
     let mut stack = Vec::new(); // OPTO: reuse allocation
     let mut result = HashSet::<_, H>::default(); // OPTO: reuse allocation
 
@@ -948,10 +946,10 @@ impl<N, E, H: BuildHasher + Default> DAG<N, E, H> {
 
   fn dfs_backward(
     &self,
-    start_key: NodeId,
-    visited: &mut HashSet<NodeId, H>,
+    start_key: Node,
+    visited: &mut HashSet<Node, H>,
     lower_bound: TopoOrder,
-  ) -> HashSet<NodeId, H> {
+  ) -> HashSet<Node, H> {
     let mut stack = Vec::new(); // OPTO: reuse allocation
     let mut result = HashSet::<_, H>::default(); // OPTO: reuse allocation
 
@@ -975,8 +973,8 @@ impl<N, E, H: BuildHasher + Default> DAG<N, E, H> {
 
   fn reorder_nodes(
     &mut self,
-    change_forward: HashSet<NodeId, H>,
-    change_backward: HashSet<NodeId, H>,
+    change_forward: HashSet<Node, H>,
+    change_backward: HashSet<Node, H>,
   ) {
     let mut change_forward: Vec<_> = change_forward
       .into_iter()
@@ -1006,15 +1004,15 @@ impl<N, E, H: BuildHasher + Default> DAG<N, E, H> {
     all_topo_orders.sort_unstable();
 
     for (key, topo_order) in all_keys.into_iter().zip(all_topo_orders.into_iter()) {
-      self.nodes
+      self.node_info
         .get_mut(key.0)
         .unwrap()
         .topo_order = topo_order;
     }
   }
 
-  fn get_node(&self, idx: NodeId) -> &Node<N, H> {
-    self.nodes.get(idx.0).unwrap()
+  fn get_node(&self, idx: Node) -> &NodeInfo<N, H> {
+    self.node_info.get(idx.0).unwrap()
   }
 }
 
@@ -1049,12 +1047,12 @@ impl<N, E, H: BuildHasher + Default> DAG<N, E, H> {
 /// ```
 pub struct DescendantsUnsorted<'a, N, E, H> {
   dag: &'a DAG<N, E, H>,
-  stack: Vec<NodeId>,
-  visited: HashSet<NodeId, H>,
+  stack: Vec<Node>,
+  visited: HashSet<Node, H>,
 }
 
 impl<'a, N, E, H: BuildHasher> Iterator for DescendantsUnsorted<'a, N, E, H> {
-  type Item = (TopoOrder, NodeId);
+  type Item = (TopoOrder, Node);
   #[inline]
   fn next(&mut self) -> Option<Self::Item> {
     while let Some(node) = self.stack.pop() {
@@ -1063,7 +1061,7 @@ impl<'a, N, E, H: BuildHasher> Iterator for DescendantsUnsorted<'a, N, E, H> {
       } else {
         self.visited.insert(node);
       }
-      let node_repr = self.dag.nodes.get(node.0).unwrap();
+      let node_repr = self.dag.node_info.get(node.0).unwrap();
       let order = node_repr.topo_order;
       self.stack.extend(node_repr.children.iter());
       return Some((order, node));
@@ -1097,12 +1095,12 @@ impl<'a, N, E, H: BuildHasher> Iterator for DescendantsUnsorted<'a, N, E, H> {
 /// ```
 pub struct Descendants<'a, N, E, H> {
   dag: &'a DAG<N, E, H>,
-  queue: BinaryHeap<(Reverse<TopoOrder>, NodeId)>,
-  visited: HashSet<NodeId, H>,
+  queue: BinaryHeap<(Reverse<TopoOrder>, Node)>,
+  visited: HashSet<Node, H>,
 }
 
 impl<'a, N, E, H: BuildHasher + Default> Iterator for Descendants<'a, N, E, H> {
-  type Item = NodeId;
+  type Item = Node;
 
   fn next(&mut self) -> Option<Self::Item> {
     loop {
@@ -1113,7 +1111,7 @@ impl<'a, N, E, H: BuildHasher + Default> Iterator for Descendants<'a, N, E, H> {
           self.visited.insert(node);
         }
 
-        let node_repr = self.dag.nodes.get(node.0).unwrap();
+        let node_repr = self.dag.node_info.get(node.0).unwrap();
         for child in node_repr.children.iter() {
           let order = self.dag.get_node(*child).topo_order;
           self.queue.push((Reverse(order), *child))
@@ -1154,7 +1152,7 @@ mod tests {
 
   use super::*;
 
-  fn get_basic_dag() -> Result<([NodeId; 7], DAG<(), ()>), Error> {
+  fn get_basic_dag() -> Result<([Node; 7], DAG<(), ()>), Error> {
     let mut dag = DAG::new();
 
     let dog = dag.add_node(());

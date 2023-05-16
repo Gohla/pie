@@ -3,24 +3,24 @@ use std::fs::File;
 use std::hash::BuildHasher;
 use std::path::Path;
 
-use pie_graph::NodeId;
+use pie_graph::Node;
 
 use crate::{Context, Session, Task};
 use crate::context::ContextShared;
 use crate::stamp::{FileStamper, OutputStamper};
-use crate::store::TaskNodeId;
+use crate::store::TaskNode;
 use crate::tracker::Tracker;
 
 /// Context that incrementally executes tasks and checks dependencies recursively in a top-down manner.
-pub(crate) struct TopDownContext<'p, 's, T: Task, A, H> {
+pub struct TopDownContext<'p, 's, T: Task, A, H> {
   shared: ContextShared<'p, 's, T, A, H>,
-  task_dependees_cache: Cell<Vec<NodeId>>,
+  task_dependees_cache: Cell<Vec<Node>>,
 }
 
 impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> TopDownContext<'p, 's, T, A, H> {
   /// Creates a new [`TopDownRunner`] with given [`Tracker`].
   #[inline]
-  pub(crate) fn new(session: &'s mut Session<'p, T, A, H>) -> Self {
+  pub fn new(session: &'s mut Session<'p, T, A, H>) -> Self {
     Self {
       shared: ContextShared::new(session),
       task_dependees_cache: Cell::default(),
@@ -29,7 +29,7 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> TopDownContext<'p
 
   /// Requires given `task`, returning its up-to-date output.
   #[inline]
-  pub(crate) fn require(&mut self, task: &T) -> T::Output {
+  pub fn require(&mut self, task: &T) -> T::Output {
     self.shared.task_execution_stack.clear();
     self.shared.session.tracker.require_top_down_initial_start(task);
     let output = self.require_task(task);
@@ -82,7 +82,7 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> Context<T> for To
 }
 
 impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> TopDownContext<'p, 's, T, A, H> {
-  fn should_execute_task(&mut self, task_node: &TaskNodeId, task: &T) -> bool {
+  fn should_execute_task(&mut self, task_node: &TaskNode, task: &T) -> bool {
     self.shared.session.tracker.check_top_down_start(task);
 
     // PERF: because this function can be recursively called, this cache (allocation) is not always reused. However, it
@@ -118,10 +118,10 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> TopDownContext<'p
 
   #[allow(clippy::wrong_self_convention)]
   #[inline]
-  fn is_dependency_inconsistent(&mut self, task_node: &TaskNodeId, dependee: &NodeId) -> bool {
+  fn is_dependency_inconsistent(&mut self, task_node: &TaskNode, dependee: &Node) -> bool {
     // Unwrap OK: first Option is only None if `task_node` or `dependee` does not exist, but they do exist.
     // BorrowCk: we have to clone the dependency, because we pass `&mut self` to `is_inconsistent` later.
-    let dependency = self.shared.session.store.graph.get_dependency_data(task_node, dependee).unwrap().clone();
+    let dependency = self.shared.session.store.graph.get_edge_data(task_node, dependee).unwrap().clone();
     if let Some(dependency) = dependency {
       self.shared.session.tracker.check_dependency_start(&dependency);
       let inconsistent = dependency.is_inconsistent(self);

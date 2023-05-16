@@ -6,10 +6,10 @@ use std::hash::BuildHasher;
 use std::io;
 use std::path::{Path, PathBuf};
 
-use crate::{Context, Session, Task, TaskNodeId};
+use crate::{Context, Session, Task, TaskNode};
 use crate::context::ContextShared;
 use crate::stamp::{FileStamper, OutputStamper};
-use crate::store::{FileNodeId, Store};
+use crate::store::{FileNode, Store};
 use crate::tracker::Tracker;
 
 /// Context that incrementally executes tasks and checks dependencies in a bottom-up manner.
@@ -57,7 +57,7 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> BottomUpContext<'
 
   /// Schedule tasks affected by a change in the file at given `path`.
   fn schedule_affected_by_file(
-    file_node_id: &FileNodeId,
+    file_node_id: &FileNode,
     path: &PathBuf,
     providing: bool,
     store: &Store<T, H>, // Passing in borrows explicitly instead of mutibly borrowing `self` to make borrows work.
@@ -88,7 +88,7 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> BottomUpContext<'
   }
 
   /// Execute the task identified by `task_node_id`, and then schedule new tasks based on the dependencies of the task.
-  fn execute_and_schedule(&mut self, task_node_id: TaskNodeId) -> T::Output {
+  fn execute_and_schedule(&mut self, task_node_id: TaskNode) -> T::Output {
     let task = self.shared.session.store.task_by_node(&task_node_id).clone(); // TODO: get rid of clone?
     let output = self.execute(task_node_id, &task);
 
@@ -127,7 +127,7 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> BottomUpContext<'
 
   /// Execute given `task`.
   #[inline]
-  fn execute(&mut self, task_node_id: TaskNodeId, task: &T) -> T::Output {
+  fn execute(&mut self, task_node_id: TaskNode, task: &T) -> T::Output {
     self.shared.session.store.reset_task(&task_node_id);
     self.shared.pre_execute(&task, task_node_id);
     let output = task.execute(self);
@@ -140,7 +140,7 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> BottomUpContext<'
   /// and then execute that scheduled task. Returns `Some` output if the task was (eventually) scheduled and thus 
   /// executed, or `None` if it was not executed and thus not (eventually) scheduled.
   #[inline]
-  fn require_scheduled_now(&mut self, task_node_id: &TaskNodeId) -> Option<T::Output> {
+  fn require_scheduled_now(&mut self, task_node_id: &TaskNode) -> Option<T::Output> {
     while self.scheduled.is_not_empty() {
       if let Some(min_task_node_id) = self.scheduled.pop_least_task_with_dependency_from(task_node_id, &self.shared.session.store) {
         let output = self.execute_and_schedule(min_task_node_id);
@@ -156,7 +156,7 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> BottomUpContext<'
 
   /// Make given `task` consistent and return its output.
   #[inline]
-  fn make_consistent(&mut self, task: &T, task_node_id: TaskNodeId) -> T::Output {
+  fn make_consistent(&mut self, task: &T, task_node_id: TaskNode) -> T::Output {
     if self.shared.session.visited.contains(&task_node_id) {
       // Unwrap OK: if we have already visited the task this session, it must have an output.
       let output = self.shared.session.store.get_task_output(&task_node_id).unwrap().clone();
@@ -239,8 +239,8 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> Context<T> for Bo
 
 #[derive(Default, Debug)]
 struct Queue<H> {
-  set: HashSet<TaskNodeId, H>,
-  vec: Vec<TaskNodeId>,
+  set: HashSet<TaskNode, H>,
+  vec: Vec<TaskNode>,
 }
 
 impl<H: BuildHasher + Default> Queue<H> {
@@ -253,7 +253,7 @@ impl<H: BuildHasher + Default> Queue<H> {
 
   /// Add a task to the priority queue. Does nothing if the task is already in the queue.
   #[inline]
-  fn add(&mut self, task_node_id: TaskNodeId) {
+  fn add(&mut self, task_node_id: TaskNode) {
     if self.set.contains(&task_node_id) { return; }
     self.set.insert(task_node_id);
     self.vec.push(task_node_id);
@@ -262,7 +262,7 @@ impl<H: BuildHasher + Default> Queue<H> {
   /// Remove the last task (task with the least amount of dependencies to other tasks in the queue) from the queue and
   /// return it.
   #[inline]
-  fn pop<T: Task>(&mut self, store: &Store<T, H>) -> Option<TaskNodeId> {
+  fn pop<T: Task>(&mut self, store: &Store<T, H>) -> Option<TaskNode> {
     self.sort_by_dependencies(store);
     if let r @ Some(task_node_id) = self.vec.pop() {
       self.set.remove(&task_node_id);
@@ -275,7 +275,7 @@ impl<H: BuildHasher + Default> Queue<H> {
   /// Return the least task (task with the least amount of dependencies to other tasks in the queue) that has a 
   /// (transitive) dependency from task `depender`.
   #[inline]
-  fn pop_least_task_with_dependency_from<T: Task>(&mut self, depender: &TaskNodeId, store: &Store<T, H>) -> Option<TaskNodeId> {
+  fn pop_least_task_with_dependency_from<T: Task>(&mut self, depender: &TaskNode, store: &Store<T, H>) -> Option<TaskNode> {
     self.sort_by_dependencies(store);
     let mut found = None;
     for (idx, dependee) in self.vec.iter().enumerate().rev() {

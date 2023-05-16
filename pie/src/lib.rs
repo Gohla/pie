@@ -10,7 +10,7 @@ use stamp::{FileStamper, OutputStamper};
 
 use crate::context::bottom_up::BottomUpContext;
 use crate::context::top_down::TopDownContext;
-use crate::store::{Store, TaskNodeId};
+use crate::store::{Store, TaskNode};
 use crate::tracker::{NoopTracker, Tracker};
 
 pub mod stamp;
@@ -144,7 +144,7 @@ impl<T: Task, A: Tracker<T> + Default, H: BuildHasher + Default> Pie<T, A, H> {
 pub struct Session<'p, T: Task, A, H> {
   store: &'p mut Store<T, H>,
   tracker: &'p mut A,
-  visited: HashSet<TaskNodeId, H>,
+  visited: HashSet<TaskNode, H>,
   dependency_check_errors: Vec<io::Error>,
 }
 

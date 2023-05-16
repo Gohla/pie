@@ -5,7 +5,7 @@ use std::path::Path;
 use crate::{Session, Task};
 use crate::dependency::{Dependency, FileDependency};
 use crate::stamp::{FileStamper, OutputStamper};
-use crate::store::TaskNodeId;
+use crate::store::TaskNode;
 use crate::tracker::Tracker;
 
 pub(crate) mod non_incremental;
@@ -14,7 +14,7 @@ pub(crate) mod top_down;
 
 struct ContextShared<'p, 's, T: Task, A, H> {
   pub(crate) session: &'s mut Session<'p, T, A, H>,
-  pub(crate) task_execution_stack: Vec<TaskNodeId>,
+  pub(crate) task_execution_stack: Vec<TaskNode>,
 }
 
 impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> ContextShared<'p, 's, T, A, H> {
@@ -68,7 +68,7 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> ContextShared<'p,
 
   /// Add dependency edge to graph, but without dependency data, as we first need to execute the task to get an output 
   /// to use as dependency data. This also detects cycles before we execute, preventing infinite recursion/loops.
-  fn add_task_require_dependency(&mut self, task: &T, task_node_id: &TaskNodeId) {
+  fn add_task_require_dependency(&mut self, task: &T, task_node_id: &TaskNode) {
     if let Some(current_task_node) = self.task_execution_stack.last() {
       if let Err(pie_graph::Error::CycleDetected) = self.session.store.add_to_dependencies_of_task(current_task_node, task_node_id, None) {
         let current_task = self.session.store.task_by_node(current_task_node);
@@ -78,19 +78,19 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> ContextShared<'p,
     }
   }
 
-  fn update_task_require_dependency(&mut self, task: T, task_node_id: &TaskNodeId, output: T::Output, stamper: OutputStamper) {
+  fn update_task_require_dependency(&mut self, task: T, task_node_id: &TaskNode, output: T::Output, stamper: OutputStamper) {
     if let Some(current_task_node) = self.task_execution_stack.last() {
       let dependency = Dependency::require_task(task, output, stamper);
       self.session.store.update_dependency_of_task(current_task_node, task_node_id, Some(dependency));
     }
   }
 
-  fn pre_execute(&mut self, task: &T, task_node_id: TaskNodeId) {
+  fn pre_execute(&mut self, task: &T, task_node_id: TaskNode) {
     self.task_execution_stack.push(task_node_id);
     self.session.tracker.execute_task_start(task);
   }
 
-  fn post_execute(&mut self, task: &T, task_node_id: TaskNodeId, output: &T::Output) {
+  fn post_execute(&mut self, task: &T, task_node_id: TaskNode, output: &T::Output) {
     self.session.tracker.execute_task_end(task, output);
     self.task_execution_stack.pop();
     self.session.store.set_task_output(&task_node_id, output.clone());
