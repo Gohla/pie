@@ -67,7 +67,7 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> BottomUpContext<'
   ) {
     tracker.schedule_affected_by_file_start(path);
     for (requiring_task_node, dependency) in store.get_tasks_requiring_or_providing_file(node, providing) {
-      let requiring_task = store.task_by_node(requiring_task_node);
+      let requiring_task = store.get_task(requiring_task_node);
       tracker.check_affected_by_file_start(requiring_task, dependency);
       let inconsistent = dependency.is_inconsistent();
       tracker.check_affected_by_file_end(requiring_task, dependency, inconsistent.as_ref().map(|o| o.as_ref()));
@@ -77,7 +77,7 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> BottomUpContext<'
           scheduled.add(*requiring_task_node);
         }
         Ok(Some(_)) => { // Schedule task; can't extract method due to self borrow above.
-          let task = store.task_by_node(requiring_task_node);
+          let task = store.get_task(requiring_task_node);
           tracker.schedule_task(task);
           scheduled.add(*requiring_task_node);
         }
@@ -89,12 +89,12 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> BottomUpContext<'
 
   /// Execute the task identified by `node`, and then schedule new tasks based on the dependencies of the task.
   fn execute_and_schedule(&mut self, node: TaskNode) -> T::Output {
-    let task = self.shared.session.store.task_by_node(&node).clone(); // TODO: get rid of clone?
+    let task = self.shared.session.store.get_task(&node).clone(); // TODO: get rid of clone?
     let output = self.execute(node, &task);
 
     // Schedule affected tasks that require files provided by `task`.
     for provided_file in self.shared.session.store.get_provided_files(&node).copied() {
-      let path = self.shared.session.store.path_by_node(&provided_file);
+      let path = self.shared.session.store.get_file_path(&provided_file);
       Self::schedule_affected_by_file(
         &provided_file,
         path,
@@ -109,13 +109,13 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> BottomUpContext<'
     // Schedule affected tasks that require `task`'s output.
     self.shared.session.tracker.schedule_affected_by_task_start(&task);
     for (requiring_task_node, dependency) in self.shared.session.store.get_tasks_requiring_task(&node) {
-      let requiring_task = self.shared.session.store.task_by_node(requiring_task_node);
+      let requiring_task = self.shared.session.store.get_task(requiring_task_node);
       self.shared.session.tracker.check_affected_by_required_task_start(requiring_task, dependency);
       let inconsistent = dependency.is_inconsistent_with(&output);
       self.shared.session.tracker.check_affected_by_required_task_end(requiring_task, dependency, inconsistent.clone());
       if let Some(_) = inconsistent {
         // Schedule task; can't extract method due to self borrow above.
-        let task = self.shared.session.store.task_by_node(requiring_task_node);
+        let task = self.shared.session.store.get_task(requiring_task_node);
         self.shared.session.tracker.schedule_task(task);
         self.scheduled.add(*requiring_task_node);
       }
@@ -158,8 +158,8 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> BottomUpContext<'
   #[inline]
   fn make_consistent(&mut self, task: &T, node: TaskNode) -> T::Output {
     if self.shared.session.visited.contains(&node) {
-      // Unwrap OK: if we have already visited the task this session, it must have an output.
-      let output = self.shared.session.store.get_task_output(&node).unwrap().clone();
+      // No panic: if we have already visited the task this session, it must have an output.
+      let output = self.shared.session.store.get_task_output(&node).clone();
       return output;
     }
 
@@ -194,8 +194,8 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> BottomUpContext<'
       // All case cannot occur, thus the task cannot be affected. Therefore, we don't have to execute the task.
       self.shared.session.tracker.up_to_date(task);
 
-      // Unwrap OK: we don't have to execute the task and an output exists.
-      let output = self.shared.session.store.get_task_output(&node).unwrap().clone();
+      // No panic: we don't have to execute the task and an output exists.
+      let output = self.shared.session.store.get_task_output(&node).clone();
       output
     }
   }
@@ -207,11 +207,11 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> Context<T> for Bo
     self.shared.session.tracker.require_task(task);
     let task_node_id = self.shared.session.store.get_or_create_task_node(task);
 
-    self.shared.add_task_require_dependency(task, &task_node_id);
+    self.shared.reserve_task_require_dependency(task, &task_node_id);
 
     let output = self.make_consistent(task, task_node_id);
 
-    self.shared.update_task_require_dependency(task.clone(), &task_node_id, output.clone(), stamper);
+    self.shared.update_reserved_task_require_dependency(task.clone(), &task_node_id, output.clone(), stamper);
     self.shared.session.visited.insert(task_node_id);
 
     output

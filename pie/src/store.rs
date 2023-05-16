@@ -55,21 +55,18 @@ impl<T: Task, H: BuildHasher + Default> Store<T, T::Output, H> {
       node
     }
   }
-  /// Gets the task for `node`, returning `None` if `node` was not found in the dependency graph.
+  /// Gets the task for `node`, panicking if `node` was not found in the dependency graph or if `node` is a file.
   #[inline]
-  pub fn get_task_by_node(&self, node: &TaskNode) -> Option<&T> {
-    self.graph.get_node_data(node).and_then(|d| match d {
-      NodeData::Task { task, .. } => Some(task),
-      _ => None
-    })
+  pub fn get_task(&self, node: &TaskNode) -> &T {
+    let data = self.graph.get_node_data(node)
+      .expect("node should exist in dependency graph");
+    match data {
+      NodeData::Task { task, .. } => task,
+      _ => panic!("node should be a task node")
+    }
   }
-  /// Gets the task for `node`, panicking if `node` was not found in the dependency graph.
-  #[inline]
-  pub fn task_by_node(&self, node: &TaskNode) -> &T {
-    self.get_task_by_node(node).unwrap()
-  }
-
-
+  
+  
   /// Gets the file node for `path`, or creates a node by adding it to the dependency graph.
   #[inline]
   pub fn get_or_create_file_node(&mut self, path: impl AsRef<Path>) -> FileNode {
@@ -82,18 +79,46 @@ impl<T: Task, H: BuildHasher + Default> Store<T, T::Output, H> {
       node
     }
   }
-  /// Gets the path for `node`, returning `None` if `node` was not found in the dependency graph.
+  /// Gets the path for `node`, panicking if `node` was not found in the dependency graph or if `node` is a task.
   #[inline]
-  pub fn get_path_by_node(&self, node: &FileNode) -> Option<&PathBuf> {
-    self.graph.get_node_data(node).and_then(|d| match d {
-      NodeData::File(path) => Some(path),
-      _ => None
-    })
+  pub fn get_file_path(&self, node: &FileNode) -> &PathBuf {
+    let data = self.graph.get_node_data(node)
+      .expect("node should exist in dependency graph");
+    match data {
+      NodeData::File(path) => path,
+      _ => panic!("node should be a file node")
+    }
   }
-  /// Gets the path for `node`, panicking if `node` was not found in the dependency graph.
+
+
+  /// Checks whether task `node` has an output. Returns `false` if `node` does not have an output , if `node` does not
+  /// exist in the dependency graph, or if `node` is a file.
   #[inline]
-  pub fn path_by_node(&self, node: &FileNode) -> &PathBuf {
-    self.get_path_by_node(node).unwrap()
+  pub fn task_has_output(&self, node: &TaskNode) -> bool {
+    if let Some(NodeData::Task { output: Some(_), .. }) = self.graph.get_node_data(node) {
+      true
+    } else {
+      false
+    }
+  }
+  /// Gets the output for task `node`, panicking if `node` was not found in the dependency graph, if `node` is a file,
+  /// or if the task has no output.
+  #[inline]
+  pub fn get_task_output(&self, node: &TaskNode) -> &T::Output {
+    let data = self.graph.get_node_data(node)
+      .expect("node should exist in dependency graph");
+    match data {
+      NodeData::Task { output, .. } => output.as_ref().expect("task should have an output"),
+      _ => panic!("node should be a task node")
+    }
+  }
+  /// Sets the output for task `node` to `new_output`. Does nothing if task `node` does not exist in the dependency 
+  /// graph.
+  #[inline]
+  pub fn set_task_output(&mut self, node: &TaskNode, new_output: T::Output) {
+    if let Some(NodeData::Task { output, .. }) = self.graph.get_node_data_mut(node) {
+      output.replace(new_output);
+    }
   }
 
 
@@ -112,33 +137,6 @@ impl<T: Task, H: BuildHasher + Default> Store<T, T::Output, H> {
   #[inline]
   pub fn topologically_compare(&self, node_a: &Node, node_b: &Node) -> std::cmp::Ordering {
     self.graph.topo_cmp(node_a, node_b)
-  }
-
-
-  /// Checks whether task `node` has an output.
-  #[inline]
-  pub fn task_has_output(&self, node: &TaskNode) -> bool {
-    if let Some(NodeData::Task { output: Some(_), .. }) = self.graph.get_node_data(node) {
-      true
-    } else {
-      false
-    }
-  }
-  /// Gets the output for task `node`.
-  #[inline]
-  pub fn get_task_output(&self, node: &TaskNode) -> Option<&T::Output> {
-    if let Some(NodeData::Task { output: Some(output), .. }) = self.graph.get_node_data(node) {
-      Some(output)
-    } else {
-      None
-    }
-  }
-  /// Sets the output for task `node` to `new_output`.
-  #[inline]
-  pub fn set_task_output(&mut self, node: &TaskNode, new_output: T::Output) {
-    if let Some(NodeData::Task { output, .. }) = self.graph.get_node_data_mut(node) {
-      output.replace(new_output);
-    }
   }
 
 

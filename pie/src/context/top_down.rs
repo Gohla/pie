@@ -43,7 +43,7 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> Context<T> for To
     self.shared.session.tracker.require_task(task);
     let node = self.shared.session.store.get_or_create_task_node(task);
 
-    self.shared.add_task_require_dependency(task, &node);
+    self.shared.reserve_task_require_dependency(task, &node);
 
     let output = if !self.shared.session.visited.contains(&node) && self.should_execute_task(&node, task) { // Execute the task, cache and return up-to-date output.
       self.shared.session.store.reset_task(&node);
@@ -53,12 +53,12 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> Context<T> for To
       output
     } else { // Return already up-to-date output.
       self.shared.session.tracker.up_to_date(task);
-      // Unwrap OK: if we should not execute the task, it must have been executed before, and therefore it has an output.
-      let output = self.shared.session.store.get_task_output(&node).unwrap().clone();
+      // No panic: if we should not execute the task, it must have been executed before, and therefore it has an output.
+      let output = self.shared.session.store.get_task_output(&node).clone();
       output
     };
 
-    self.shared.update_task_require_dependency(task.clone(), &node, output.clone(), stamper);
+    self.shared.update_reserved_task_require_dependency(task.clone(), &node, output.clone(), stamper);
     self.shared.session.visited.insert(node);
 
     output

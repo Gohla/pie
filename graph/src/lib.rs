@@ -1,8 +1,8 @@
 #![forbid(unsafe_code, missing_docs)]
 
 //! The purpose of this crate is to maintain an topological order in the face
-//! of single updates, like adding new nodes, adding new depedencies, deleting
-//! dependencies, and deleting nodes.
+//! of single updates, like adding new nodes, adding new edges, deleting
+//! edges, and deleting nodes.
 //!
 //! Adding nodes, deleting nodes, and deleting dependencies require a trivial
 //! amount of work to perform an update, because those operations do not change
