@@ -205,7 +205,7 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> BottomUpContext<'
 impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> Context<T> for BottomUpContext<'p, 's, T, T::Output, A, H> {
   fn require_task_with_stamper(&mut self, task: &T, stamper: OutputStamper) -> T::Output {
     self.shared.session.tracker.require_task(task);
-    let task_node_id = self.shared.session.store.get_or_create_node_by_task(task);
+    let task_node_id = self.shared.session.store.get_or_create_task_node(task);
 
     self.shared.add_task_require_dependency(task, &task_node_id);
 
@@ -296,6 +296,6 @@ impl<H: BuildHasher + Default> Queue<H> {
   fn sort_by_dependencies<T: Task>(&mut self, store: &Store<T, T::Output, H>) {
     // TODO: only sort if needed? Removing elements should not require a resort?
     // TODO: use select_nth_unstable_by(0) to get the sorted top element for pop?
-    self.vec.sort_unstable_by(|n1, n2| store.graph.topo_cmp(n1, n2));
+    self.vec.sort_unstable_by(|node_a, node_b| store.topologically_compare(node_a, node_b));
   }
 } 

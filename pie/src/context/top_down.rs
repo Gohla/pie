@@ -41,7 +41,7 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> TopDownContext<'p
 impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> Context<T> for TopDownContext<'p, 's, T, T::Output, A, H> {
   fn require_task_with_stamper(&mut self, task: &T, stamper: OutputStamper) -> T::Output {
     self.shared.session.tracker.require_task(task);
-    let node = self.shared.session.store.get_or_create_node_by_task(task);
+    let node = self.shared.session.store.get_or_create_task_node(task);
 
     self.shared.add_task_require_dependency(task, &node);
 
@@ -118,11 +118,11 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> TopDownContext<'p
 
   #[allow(clippy::wrong_self_convention)]
   #[inline]
-  fn is_dependency_inconsistent(&mut self, node: &TaskNode, dependee: &Node) -> bool {
-    // Unwrap OK: first Option is only None if `task_node` or `dependee` does not exist, but they do exist.
-    // BorrowCk: we have to clone the dependency, because we pass `&mut self` to `is_inconsistent` later.
-    let dependency = self.shared.session.store.graph.get_edge_data(node, dependee).unwrap().clone();
+  fn is_dependency_inconsistent(&mut self, src: &TaskNode, dst: &Node) -> bool {
+    let dependency = self.shared.session.store.get_dependency(src, dst);
     if let Some(dependency) = dependency {
+      // Borrow: `dependency` is borrowed from the store (in `self`)`. Thus, we have to clone it because we pass `&mut self` to `is_inconsistent` later.
+      let dependency = dependency.clone();
       self.shared.session.tracker.check_dependency_start(&dependency);
       let inconsistent = dependency.is_inconsistent(self);
       self.shared.session.tracker.check_dependency_end(&dependency, inconsistent.as_ref().map(|o| o.as_ref()));

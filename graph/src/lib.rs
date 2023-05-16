@@ -556,7 +556,7 @@ impl<N, E, H: BuildHasher + Default> DAG<N, E, H> {
   }
 
 
-  /// Gets the destination node and edge data for all outgoing edges of `src`.
+  /// Gets the destination nodes and edge data for all outgoing edges of `src`.
   #[inline]
   pub fn get_outgoing_edges(&self, src: impl Borrow<Node>) -> impl Iterator<Item=(&Node, &E)> + '_ {
     let src = *src.borrow();
@@ -566,9 +566,9 @@ impl<N, E, H: BuildHasher + Default> DAG<N, E, H> {
       .map(move |child_node| (child_node, self.edge_data.get(&(src, *child_node)).unwrap()))
   }
 
-  /// Gets the destination node all outgoing edges of `src`.
+  /// Gets the destination nodes of all outgoing edges of `src`.
   #[inline]
-  pub fn get_outgoing_edge_nodes(&self, src: impl Borrow<Node>) -> impl Iterator<Item=&Node> + '_ {
+  pub fn get_outgoing_edge_nodes(&self, src: impl Borrow<Node>) -> impl Iterator<Item=&Node> {
     let src = src.borrow();
     self.node_info.get(src.0)
       .into_iter()
@@ -597,7 +597,7 @@ impl<N, E, H: BuildHasher + Default> DAG<N, E, H> {
       .map(move |parent_node| (parent_node, self.edge_data.get(&(*parent_node, dst)).unwrap()))
   }
 
-  /// Gets the source node for all incoming edges of `dst`.
+  /// Gets the source nodes for all incoming edges of `dst`.
   #[inline]
   pub fn get_incoming_edge_nodes(&self, dst: impl Borrow<Node>) -> impl Iterator<Item=&Node> + '_ {
     let dst = *dst.borrow();

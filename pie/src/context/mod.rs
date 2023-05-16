@@ -3,7 +3,7 @@ use std::hash::BuildHasher;
 use std::path::Path;
 
 use crate::{Session, Task};
-use crate::dependency::{Dependency, FileDependency, TaskDependency};
+use crate::dependency::{FileDependency, TaskDependency};
 use crate::stamp::{FileStamper, OutputStamper};
 use crate::store::TaskNode;
 use crate::tracker::Tracker;
@@ -70,7 +70,7 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> ContextShared<'p,
   /// to use as dependency data. This also detects cycles before we execute, preventing infinite recursion/loops.
   fn add_task_require_dependency(&mut self, task: &T, node: &TaskNode) {
     if let Some(current_task_node) = self.task_execution_stack.last() {
-      if let Err(pie_graph::Error::CycleDetected) = self.session.store.add_to_dependencies_of_task(current_task_node, node, None) {
+      if let Err(pie_graph::Error::CycleDetected) = self.session.store.reserve_task_require_dependency(current_task_node, node) {
         let current_task = self.session.store.task_by_node(current_task_node);
         let task_stack: Vec<_> = self.task_execution_stack.iter().map(|task_node| self.session.store.task_by_node(task_node)).collect();
         panic!("Cyclic task dependency; current task '{:?}' is requiring task '{:?}' which was already required. Task stack: {:?}", current_task, task, task_stack);
@@ -80,8 +80,8 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> ContextShared<'p,
 
   fn update_task_require_dependency(&mut self, task: T, node: &TaskNode, output: T::Output, stamper: OutputStamper) {
     if let Some(current_task_node) = self.task_execution_stack.last() {
-      let dependency = Dependency::RequireTask(TaskDependency::new(task, stamper, output));
-      self.session.store.update_dependency_of_task(current_task_node, node, Some(dependency));
+      let dependency = TaskDependency::new(task, stamper, output);
+      self.session.store.update_reserved_task_require_dependency(current_task_node, node, dependency);
     }
   }
 
