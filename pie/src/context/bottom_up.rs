@@ -57,7 +57,7 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> BottomUpContext<'
 
   /// Schedule tasks affected by a change in the file at given `path`.
   fn schedule_affected_by_file(
-    file_node_id: &FileNode,
+    node: &FileNode,
     path: &PathBuf,
     providing: bool,
     store: &Store<T, T::Output, H>, // Passing in borrows explicitly instead of mutibly borrowing `self` to make borrows work.
@@ -66,7 +66,7 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> BottomUpContext<'
     scheduled: &mut Queue<H>,
   ) {
     tracker.schedule_affected_by_file_start(path);
-    for (requiring_task_node, dependency) in store.get_tasks_requiring_or_providing_file(file_node_id, providing) {
+    for (requiring_task_node, dependency) in store.get_tasks_requiring_or_providing_file(node, providing) {
       let requiring_task = store.task_by_node(requiring_task_node);
       tracker.check_affected_by_file_start(requiring_task, dependency);
       let inconsistent = dependency.is_inconsistent();
@@ -87,13 +87,13 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> BottomUpContext<'
     tracker.schedule_affected_by_file_end(path);
   }
 
-  /// Execute the task identified by `task_node_id`, and then schedule new tasks based on the dependencies of the task.
-  fn execute_and_schedule(&mut self, task_node_id: TaskNode) -> T::Output {
-    let task = self.shared.session.store.task_by_node(&task_node_id).clone(); // TODO: get rid of clone?
-    let output = self.execute(task_node_id, &task);
+  /// Execute the task identified by `node`, and then schedule new tasks based on the dependencies of the task.
+  fn execute_and_schedule(&mut self, node: TaskNode) -> T::Output {
+    let task = self.shared.session.store.task_by_node(&node).clone(); // TODO: get rid of clone?
+    let output = self.execute(node, &task);
 
     // Schedule affected tasks that require files provided by `task`.
-    for provided_file in self.shared.session.store.get_provided_files(&task_node_id).copied() {
+    for provided_file in self.shared.session.store.get_provided_files(&node).copied() {
       let path = self.shared.session.store.path_by_node(&provided_file);
       Self::schedule_affected_by_file(
         &provided_file,
@@ -108,7 +108,7 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> BottomUpContext<'
 
     // Schedule affected tasks that require `task`'s output.
     self.shared.session.tracker.schedule_affected_by_task_start(&task);
-    for (requiring_task_node, dependency) in self.shared.session.store.get_tasks_requiring_task(&task_node_id) {
+    for (requiring_task_node, dependency) in self.shared.session.store.get_tasks_requiring_task(&node) {
       let requiring_task = self.shared.session.store.task_by_node(requiring_task_node);
       self.shared.session.tracker.check_affected_by_required_task_start(requiring_task, dependency);
       let inconsistent = dependency.is_inconsistent_with(&output);
@@ -127,24 +127,24 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> BottomUpContext<'
 
   /// Execute given `task`.
   #[inline]
-  fn execute(&mut self, task_node_id: TaskNode, task: &T) -> T::Output {
-    self.shared.session.store.reset_task(&task_node_id);
-    self.shared.pre_execute(&task, task_node_id);
+  fn execute(&mut self, node: TaskNode, task: &T) -> T::Output {
+    self.shared.session.store.reset_task(&node);
+    self.shared.pre_execute(&task, node);
     let output = task.execute(self);
-    self.shared.post_execute(&task, task_node_id, &output);
-    self.shared.session.visited.insert(task_node_id);
+    self.shared.post_execute(&task, node, &output);
+    self.shared.session.visited.insert(node);
     output
   }
 
-  /// Execute scheduled tasks (and schedule new tasks) that depend (indirectly) on the task identified by `task_node_id`, 
+  /// Execute scheduled tasks (and schedule new tasks) that depend (indirectly) on the task identified by `node`, 
   /// and then execute that scheduled task. Returns `Some` output if the task was (eventually) scheduled and thus 
   /// executed, or `None` if it was not executed and thus not (eventually) scheduled.
   #[inline]
-  fn require_scheduled_now(&mut self, task_node_id: &TaskNode) -> Option<T::Output> {
+  fn require_scheduled_now(&mut self, node: &TaskNode) -> Option<T::Output> {
     while self.scheduled.is_not_empty() {
-      if let Some(min_task_node_id) = self.scheduled.pop_least_task_with_dependency_from(task_node_id, &self.shared.session.store) {
-        let output = self.execute_and_schedule(min_task_node_id);
-        if min_task_node_id == *task_node_id {
+      if let Some(min_task_node) = self.scheduled.pop_least_task_with_dependency_from(node, &self.shared.session.store) {
+        let output = self.execute_and_schedule(min_task_node);
+        if min_task_node == *node {
           return Some(output);
         }
       } else {
@@ -156,22 +156,22 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> BottomUpContext<'
 
   /// Make given `task` consistent and return its output.
   #[inline]
-  fn make_consistent(&mut self, task: &T, task_node_id: TaskNode) -> T::Output {
-    if self.shared.session.visited.contains(&task_node_id) {
+  fn make_consistent(&mut self, task: &T, node: TaskNode) -> T::Output {
+    if self.shared.session.visited.contains(&node) {
       // Unwrap OK: if we have already visited the task this session, it must have an output.
-      let output = self.shared.session.store.get_task_output(&task_node_id).unwrap().clone();
+      let output = self.shared.session.store.get_task_output(&node).unwrap().clone();
       return output;
     }
 
-    if !self.shared.session.store.task_has_output(&task_node_id) {
+    if !self.shared.session.store.task_has_output(&node) {
       // Have not executed the task before, so we just execute it.
-      return self.execute(task_node_id, task);
+      return self.execute(node, task);
     }
 
     // Task has an output, thus it has been executed before, therefore it has been scheduled if affected, or not 
     // scheduled if not affected.
 
-    if let Some(output) = self.require_scheduled_now(&task_node_id) {
+    if let Some(output) = self.require_scheduled_now(&node) {
       // Task was scheduled. That is, it was either directly or indirectly affected. Therefore, it has been
       // executed, and we return the result of that execution.
       output
@@ -195,7 +195,7 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> BottomUpContext<'
       self.shared.session.tracker.up_to_date(task);
 
       // Unwrap OK: we don't have to execute the task and an output exists.
-      let output = self.shared.session.store.get_task_output(&task_node_id).unwrap().clone();
+      let output = self.shared.session.store.get_task_output(&node).unwrap().clone();
       output
     }
   }
@@ -253,10 +253,10 @@ impl<H: BuildHasher + Default> Queue<H> {
 
   /// Add a task to the priority queue. Does nothing if the task is already in the queue.
   #[inline]
-  fn add(&mut self, task_node_id: TaskNode) {
-    if self.set.contains(&task_node_id) { return; }
-    self.set.insert(task_node_id);
-    self.vec.push(task_node_id);
+  fn add(&mut self, node: TaskNode) {
+    if self.set.contains(&node) { return; }
+    self.set.insert(node);
+    self.vec.push(node);
   }
 
   /// Remove the last task (task with the least amount of dependencies to other tasks in the queue) from the queue and
@@ -264,8 +264,8 @@ impl<H: BuildHasher + Default> Queue<H> {
   #[inline]
   fn pop<T: Task>(&mut self, store: &Store<T, T::Output, H>) -> Option<TaskNode> {
     self.sort_by_dependencies(store);
-    if let r @ Some(task_node_id) = self.vec.pop() {
-      self.set.remove(&task_node_id);
+    if let r @ Some(node) = self.vec.pop() {
+      self.set.remove(&node);
       r
     } else {
       None
