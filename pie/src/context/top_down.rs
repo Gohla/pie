@@ -12,15 +12,15 @@ use crate::store::TaskNode;
 use crate::tracker::Tracker;
 
 /// Context that incrementally executes tasks and checks dependencies recursively in a top-down manner.
-pub struct TopDownContext<'p, 's, T: Task, A, H> {
-  shared: ContextShared<'p, 's, T, A, H>,
+pub struct TopDownContext<'p, 's, T, O, A, H> {
+  shared: ContextShared<'p, 's, T, O, A, H>,
   task_dependees_cache: Cell<Vec<Node>>,
 }
 
-impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> TopDownContext<'p, 's, T, A, H> {
+impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> TopDownContext<'p, 's, T, T::Output, A, H> {
   /// Creates a new [`TopDownRunner`] with given [`Tracker`].
   #[inline]
-  pub fn new(session: &'s mut Session<'p, T, A, H>) -> Self {
+  pub fn new(session: &'s mut Session<'p, T, T::Output, A, H>) -> Self {
     Self {
       shared: ContextShared::new(session),
       task_dependees_cache: Cell::default(),
@@ -38,7 +38,7 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> TopDownContext<'p
   }
 }
 
-impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> Context<T> for TopDownContext<'p, 's, T, A, H> {
+impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> Context<T> for TopDownContext<'p, 's, T, T::Output, A, H> {
   fn require_task_with_stamper(&mut self, task: &T, stamper: OutputStamper) -> T::Output {
     self.shared.session.tracker.require_task(task);
     let task_node_id = self.shared.session.store.get_or_create_node_by_task(task);
@@ -81,7 +81,7 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> Context<T> for To
   fn default_provide_file_stamper(&self) -> FileStamper { self.shared.default_provide_file_stamper() }
 }
 
-impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> TopDownContext<'p, 's, T, A, H> {
+impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> TopDownContext<'p, 's, T, T::Output, A, H> {
   fn should_execute_task(&mut self, task_node: &TaskNode, task: &T) -> bool {
     self.shared.session.tracker.check_top_down_start(task);
 

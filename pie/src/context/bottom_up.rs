@@ -13,14 +13,14 @@ use crate::store::{FileNode, Store};
 use crate::tracker::Tracker;
 
 /// Context that incrementally executes tasks and checks dependencies in a bottom-up manner.
-pub(crate) struct BottomUpContext<'p, 's, T: Task, A, H> {
-  shared: ContextShared<'p, 's, T, A, H>,
+pub(crate) struct BottomUpContext<'p, 's, T, O, A, H> {
+  shared: ContextShared<'p, 's, T, O, A, H>,
   scheduled: Queue<H>,
 }
 
-impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> BottomUpContext<'p, 's, T, A, H> {
+impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> BottomUpContext<'p, 's, T, T::Output, A, H> {
   #[inline]
-  pub(crate) fn new(session: &'s mut Session<'p, T, A, H>) -> Self {
+  pub(crate) fn new(session: &'s mut Session<'p, T, T::Output, A, H>) -> Self {
     Self {
       shared: ContextShared::new(session),
       scheduled: Queue::new(),
@@ -60,7 +60,7 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> BottomUpContext<'
     file_node_id: &FileNode,
     path: &PathBuf,
     providing: bool,
-    store: &Store<T, H>, // Passing in borrows explicitly instead of mutibly borrowing `self` to make borrows work.
+    store: &Store<T, T::Output, H>, // Passing in borrows explicitly instead of mutibly borrowing `self` to make borrows work.
     tracker: &mut A,
     dependency_check_errors: &mut Vec<io::Error>,
     scheduled: &mut Queue<H>,
@@ -202,7 +202,7 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> BottomUpContext<'
 }
 
 
-impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> Context<T> for BottomUpContext<'p, 's, T, A, H> {
+impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> Context<T> for BottomUpContext<'p, 's, T, T::Output, A, H> {
   fn require_task_with_stamper(&mut self, task: &T, stamper: OutputStamper) -> T::Output {
     self.shared.session.tracker.require_task(task);
     let task_node_id = self.shared.session.store.get_or_create_node_by_task(task);
@@ -262,7 +262,7 @@ impl<H: BuildHasher + Default> Queue<H> {
   /// Remove the last task (task with the least amount of dependencies to other tasks in the queue) from the queue and
   /// return it.
   #[inline]
-  fn pop<T: Task>(&mut self, store: &Store<T, H>) -> Option<TaskNode> {
+  fn pop<T: Task>(&mut self, store: &Store<T, T::Output, H>) -> Option<TaskNode> {
     self.sort_by_dependencies(store);
     if let r @ Some(task_node_id) = self.vec.pop() {
       self.set.remove(&task_node_id);
@@ -275,7 +275,7 @@ impl<H: BuildHasher + Default> Queue<H> {
   /// Return the least task (task with the least amount of dependencies to other tasks in the queue) that has a 
   /// (transitive) dependency from task `depender`.
   #[inline]
-  fn pop_least_task_with_dependency_from<T: Task>(&mut self, depender: &TaskNode, store: &Store<T, H>) -> Option<TaskNode> {
+  fn pop_least_task_with_dependency_from<T: Task>(&mut self, depender: &TaskNode, store: &Store<T, T::Output, H>) -> Option<TaskNode> {
     self.sort_by_dependencies(store);
     let mut found = None;
     for (idx, dependee) in self.vec.iter().enumerate().rev() {
@@ -293,7 +293,7 @@ impl<H: BuildHasher + Default> Queue<H> {
   }
 
   #[inline]
-  fn sort_by_dependencies<T: Task>(&mut self, store: &Store<T, H>) {
+  fn sort_by_dependencies<T: Task>(&mut self, store: &Store<T, T::Output, H>) {
     // TODO: only sort if needed? Removing elements should not require a resort?
     // TODO: use select_nth_unstable_by(0) to get the sorted top element for pop?
     self.vec.sort_unstable_by(|n1, n2| store.graph.topo_cmp(n1, n2));

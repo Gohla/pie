@@ -74,33 +74,33 @@ pub trait Context<T: Task> {
 
 
 /// Main entry point into the PIE build system.
-pub struct Pie<T: Task, A = NoopTracker<T>, H = RandomState> {
-  store: Store<T, H>,
+pub struct Pie<T, O, A = NoopTracker<T>, H = RandomState> {
+  store: Store<T, O, H>,
   tracker: A,
 }
 
-impl<T: Task> Default for Pie<T> {
+impl<T: Task> Default for Pie<T, T::Output> {
   #[inline]
   fn default() -> Self { Self::new(NoopTracker::default()) }
 }
 
-impl<T: Task, A: Tracker<T> + Default> Pie<T, A> {
+impl<T: Task, A: Tracker<T> + Default> Pie<T, T::Output, A> {
   /// Creates a new [`Pie`] instance with given `tracker`.
   #[inline]
   pub fn with_tracker(tracker: A) -> Self { Self { store: Store::default(), tracker } }
 }
 
-impl<T: Task, A: Tracker<T> + Default, H: BuildHasher + Default> Pie<T, A, H> {
+impl<T: Task, A: Tracker<T> + Default, H: BuildHasher + Default> Pie<T, T::Output, A, H> {
   /// Creates a new [`Pie`] instance with given `tracker`.
   #[inline]
   pub fn new(tracker: A) -> Self { Self { store: Store::default(), tracker } }
 
   /// Creates a new build session. Only one session may be active at once, enforced via mutable (exclusive) borrow.
   #[inline]
-  pub fn new_session(&mut self) -> Session<T, A, H> { Session::new(self) }
+  pub fn new_session(&mut self) -> Session<T, T::Output, A, H> { Session::new(self) }
   /// Runs `f` inside a new session.
   #[inline]
-  pub fn run_in_session<R>(&mut self, f: impl FnOnce(Session<T, A, H>) -> R) -> R {
+  pub fn run_in_session<R>(&mut self, f: impl FnOnce(Session<T, T::Output, A, H>) -> R) -> R {
     let session = self.new_session();
     f(session)
   }
@@ -113,7 +113,7 @@ impl<T: Task, A: Tracker<T> + Default, H: BuildHasher + Default> Pie<T, A, H> {
   pub fn tracker_mut(&mut self) -> &mut A { &mut self.tracker }
   /// Creates a new [`Pie`] instance with its tracker replaced with `tracker`.
   #[inline]
-  pub fn replace_tracker<AA: Tracker<T>>(self, tracker: AA) -> Pie<T, AA, H> {
+  pub fn replace_tracker<AA: Tracker<T>>(self, tracker: AA) -> Pie<T, T::Output, AA, H> {
     let store = self.store;
     Pie { store, tracker }
   }
@@ -141,16 +141,16 @@ impl<T: Task, A: Tracker<T> + Default, H: BuildHasher + Default> Pie<T, A, H> {
 
 
 /// A session in which builds are executed. Every task is executed at most once each session.
-pub struct Session<'p, T: Task, A, H> {
-  store: &'p mut Store<T, H>,
+pub struct Session<'p, T, O, A, H> {
+  store: &'p mut Store<T, O, H>,
   tracker: &'p mut A,
   visited: HashSet<TaskNode, H>,
   dependency_check_errors: Vec<io::Error>,
 }
 
-impl<'p, T: Task, A: Tracker<T> + Default, H: BuildHasher + Default> Session<'p, T, A, H> {
+impl<'p, T: Task, A: Tracker<T> + Default, H: BuildHasher + Default> Session<'p, T, T::Output, A, H> {
   #[inline]
-  fn new(pie: &'p mut Pie<T, A, H>) -> Self {
+  fn new(pie: &'p mut Pie<T, T::Output, A, H>) -> Self {
     Self {
       store: &mut pie.store,
       tracker: &mut pie.tracker,

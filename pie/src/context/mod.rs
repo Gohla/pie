@@ -12,13 +12,13 @@ pub(crate) mod non_incremental;
 pub(crate) mod bottom_up;
 pub(crate) mod top_down;
 
-struct ContextShared<'p, 's, T: Task, A, H> {
-  pub(crate) session: &'s mut Session<'p, T, A, H>,
+struct ContextShared<'p, 's, T, O, A, H> {
+  pub(crate) session: &'s mut Session<'p, T, O, A, H>,
   pub(crate) task_execution_stack: Vec<TaskNode>,
 }
 
-impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> ContextShared<'p, 's, T, A, H> {
-  fn new(session: &'s mut Session<'p, T, A, H>) -> Self {
+impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> ContextShared<'p, 's, T, T::Output, A, H> {
+  fn new(session: &'s mut Session<'p, T, T::Output, A, H>) -> Self {
     Self {
       session,
       task_execution_stack: Default::default(),

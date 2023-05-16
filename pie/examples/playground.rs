@@ -140,8 +140,8 @@ impl PlaygroundOutput {
 
 // Pie helpers
 
-fn create_pie<A: Tracker<PlaygroundTask> + Default>(tracker: A) -> Pie<PlaygroundTask, A> {
-  let pie = Pie::<PlaygroundTask, _>::with_tracker(tracker);
+fn create_pie<A: Tracker<PlaygroundTask> + Default>(tracker: A) -> Pie<PlaygroundTask, PlaygroundOutput, A> {
+  let pie = Pie::<PlaygroundTask, PlaygroundOutput, A>::with_tracker(tracker);
   if let Ok(mut file) = File::open("target/data/pie.store") {
     let mut buffer = Vec::new();
     file.read_to_end(&mut buffer).expect("Reading store file failed");
@@ -153,7 +153,7 @@ fn create_pie<A: Tracker<PlaygroundTask> + Default>(tracker: A) -> Pie<Playgroun
   }
 }
 
-fn serialize<A: Tracker<PlaygroundTask> + Default>(pie: Pie<PlaygroundTask, A>) {
+fn serialize<A: Tracker<PlaygroundTask> + Default>(pie: Pie<PlaygroundTask, PlaygroundOutput, A>) {
   let mut buffer = Vec::new();
   let mut serializer = Serializer::new(&mut buffer, Some(PrettyConfig::default()))
     .unwrap_or_else(|e| panic!("Creating serializer failed: {:?}", e));

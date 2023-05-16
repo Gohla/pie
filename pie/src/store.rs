@@ -11,12 +11,12 @@ pub type TaskNode = Node;
 pub type FileNode = Node;
 
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-pub(crate) struct Store<T: Task, H> {
+pub(crate) struct Store<T, O, H> {
   #[cfg_attr(feature = "serde", serde(bound(
-  serialize = "T: Task + serde::Serialize, H: BuildHasher + Default, DAG<NodeData<T, T::Output>, Option<Dependency<T, T::Output>>, H>: serde::Serialize",
-  deserialize = "T: Task + serde::Deserialize<'de>, H: BuildHasher + Default, DAG<NodeData<T, T::Output>, Option<Dependency<T, T::Output>>, H>: serde::Deserialize<'de>"
+  serialize = "T: Task + serde::Serialize, O: serde::Serialize, H: BuildHasher + Default, DAG<NodeData<T, O>, Option<Dependency<T, O>>, H>: serde::Serialize",
+  deserialize = "T: Task + serde::Deserialize<'de>, O: serde::Deserialize<'de>, H: BuildHasher + Default, DAG<NodeData<T, O>, Option<Dependency<T, O>>, H>: serde::Deserialize<'de>"
   )))] // Set bounds such that `H` does not have to be (de)serializable
-  pub graph: DAG<NodeData<T, T::Output>, Option<Dependency<T, T::Output>>, H>,
+  pub graph: DAG<NodeData<T, O>, Option<Dependency<T, O>>, H>,
   #[cfg_attr(feature = "serde", serde(bound(
   serialize = "T: Task + serde::Serialize, H: BuildHasher + Default, HashMap<T, TaskNode, H>: serde::Serialize",
   deserialize = "T: Task + serde::Deserialize<'de>, H: BuildHasher + Default, HashMap<T, TaskNode, H>: serde::Deserialize<'de>"
@@ -39,7 +39,7 @@ pub(crate) enum NodeData<T, O> {
   File(PathBuf),
 }
 
-impl<T: Task, H: BuildHasher + Default> Default for Store<T, H> {
+impl<T: Task, H: BuildHasher + Default> Default for Store<T, T::Output, H> {
   #[inline]
   fn default() -> Self {
     Self {
@@ -50,7 +50,7 @@ impl<T: Task, H: BuildHasher + Default> Default for Store<T, H> {
   }
 }
 
-impl<T: Task, H: BuildHasher + Default> Store<T, H> {
+impl<T: Task, H: BuildHasher + Default> Store<T, T::Output, H> {
   #[inline]
   pub fn get_or_create_node_by_task(&mut self, task: &T) -> TaskNode {
     if let Some(node) = self.task_to_node.get(task) {
