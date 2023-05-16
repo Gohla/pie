@@ -108,16 +108,10 @@ type TopoOrder = u32;
 ///
 /// [module-level documentation]: index.html
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", serde(bound(serialize = "N: serde::Serialize, E: serde::Serialize, H: BuildHasher + Default")))]
+#[cfg_attr(feature = "serde", serde(bound(deserialize = "N: serde::Deserialize<'de>, E: serde::Deserialize<'de>, H: BuildHasher + Default")))]
 pub struct DAG<N, E, H = RandomState> {
-  #[cfg_attr(feature = "serde", serde(bound(
-  serialize = "N: serde::Serialize, H: BuildHasher + Default, SlotMap<DefaultKey, NodeInfo<N, H>>: serde::Serialize",
-  deserialize = "N: serde::Deserialize<'de>, SlotMap<DefaultKey, NodeInfo<N, H>>: serde::Deserialize<'de>"
-  )))] // Set bounds such that `H` does not have to be (de)serializable
   node_info: SlotMap<DefaultKey, NodeInfo<N, H>>,
-  #[cfg_attr(feature = "serde", serde(bound(
-  serialize = "E: serde::Serialize, H: BuildHasher + Default, HashMap<(Node, Node), E, H>: serde::Serialize",
-  deserialize = "E: serde::Deserialize<'de>, HashMap<(Node, Node), E, H>: serde::Deserialize<'de>"
-  )))] // Set bounds such that `H` does not have to be (de)serializable
   edge_data: HashMap<(Node, Node), E, H>,
   last_topo_order: TopoOrder,
 
@@ -144,18 +138,12 @@ impl From<DefaultKey> for Node {
 /// Information about a node: its ordering, which nodes it points to, and which nodes point to it.
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", serde(bound(serialize = "N: serde::Serialize, H: BuildHasher + Default")))]
+#[cfg_attr(feature = "serde", serde(bound(deserialize = "N: serde::Deserialize<'de>, H: BuildHasher + Default")))]
 struct NodeInfo<N, H> {
   topo_order: TopoOrder,
   data: N,
-  #[cfg_attr(feature = "serde", serde(bound(
-  serialize = "H: BuildHasher + Default, HashSet<Node, H>: serde::Serialize",
-  deserialize = "H: BuildHasher + Default, HashSet<Node, H>: serde::Deserialize<'de>"
-  )))] // Set bounds such that `H` does not have to be (de)serializable
   parents: HashSet<Node, H>,
-  #[cfg_attr(feature = "serde", serde(bound(
-  serialize = "H: BuildHasher + Default, HashSet<Node, H>: serde::Serialize",
-  deserialize = "H: BuildHasher + Default, HashSet<Node, H>: serde::Deserialize<'de>"
-  )))] // Set bounds such that `H` does not have to be (de)serializable
   children: HashSet<Node, H>,
 }
 

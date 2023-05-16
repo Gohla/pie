@@ -11,27 +11,17 @@ pub type TaskNode = Node;
 pub type FileNode = Node;
 
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-pub(crate) struct Store<T, O, H> {
-  #[cfg_attr(feature = "serde", serde(bound(
-  serialize = "T: Task + serde::Serialize, O: serde::Serialize, H: BuildHasher + Default, DAG<NodeData<T, O>, Option<Dependency<T, O>>, H>: serde::Serialize",
-  deserialize = "T: Task + serde::Deserialize<'de>, O: serde::Deserialize<'de>, H: BuildHasher + Default, DAG<NodeData<T, O>, Option<Dependency<T, O>>, H>: serde::Deserialize<'de>"
-  )))] // Set bounds such that `H` does not have to be (de)serializable
+#[cfg_attr(feature = "serde", serde(bound(serialize = "T: serde::Serialize + Task, O: serde::Serialize, H: BuildHasher + Default")))]
+#[cfg_attr(feature = "serde", serde(bound(deserialize = "T: serde::Deserialize<'de> + Task, O: serde::Deserialize<'de>, H: BuildHasher + Default")))]
+pub struct Store<T, O, H> {
   pub graph: DAG<NodeData<T, O>, Option<Dependency<T, O>>, H>,
-  #[cfg_attr(feature = "serde", serde(bound(
-  serialize = "T: Task + serde::Serialize, H: BuildHasher + Default, HashMap<T, TaskNode, H>: serde::Serialize",
-  deserialize = "T: Task + serde::Deserialize<'de>, H: BuildHasher + Default, HashMap<T, TaskNode, H>: serde::Deserialize<'de>"
-  )))] // Set bounds such that `H` does not have to be (de)serializable
   task_to_node: HashMap<T, TaskNode, H>,
-  #[cfg_attr(feature = "serde", serde(bound(
-  serialize = "H: BuildHasher + Default, HashMap<PathBuf, FileNode, H>: serde::Serialize",
-  deserialize = "H: BuildHasher + Default, HashMap<PathBuf, FileNode, H>: serde::Deserialize<'de>"
-  )))] // Set bounds such that `H` does not have to be (de)serializable
   file_to_node: HashMap<PathBuf, FileNode, H>,
 }
 
 #[derive(Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-pub(crate) enum NodeData<T, O> {
+pub enum NodeData<T, O> {
   Task {
     task: T,
     output: Option<O>,

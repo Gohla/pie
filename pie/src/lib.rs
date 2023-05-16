@@ -84,7 +84,7 @@ impl<T: Task> Default for Pie<T, T::Output> {
   fn default() -> Self { Self::new(NoopTracker::default()) }
 }
 
-impl<T: Task, A: Tracker<T> + Default> Pie<T, T::Output, A> {
+impl<T: Task, A: Tracker<T>> Pie<T, T::Output, A> {
   /// Creates a new [`Pie`] instance with given `tracker`.
   #[inline]
   pub fn with_tracker(tracker: A) -> Self { Self { store: Store::default(), tracker } }
@@ -148,7 +148,7 @@ pub struct Session<'p, T, O, A, H> {
   dependency_check_errors: Vec<io::Error>,
 }
 
-impl<'p, T: Task, A: Tracker<T> + Default, H: BuildHasher + Default> Session<'p, T, T::Output, A, H> {
+impl<'p, T: Task, A: Tracker<T>, H: BuildHasher + Default> Session<'p, T, T::Output, A, H> {
   #[inline]
   fn new(pie: &'p mut Pie<T, T::Output, A, H>) -> Self {
     Self {
