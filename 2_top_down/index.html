@@ -748,7 +748,7 @@ Task dependencies are generic over the type of tasks <code>T</code>, and their t
 </summary>
 <div>
 <p>We chose not to put a <code>Task</code> trait bound on <code>TaskDependency</code>, and instead put the bound on the impl.
-There are several up and downsides to that should be considered when making such a decision.</p>
+There are several up and downsides that should be considered when making such a decision.</p>
 <p>The main upside for putting the <code>Task</code> bound on the <code>TaskDependency</code> struct, is that we can leave out <code>O</code> and use <code>OutputStamp&lt;T::Output&gt;</code> as the type of the <code>stamp</code> field.
 This cuts down a generic parameter, which reduces boilerplate.
 The downside is that we need to then put the <code>Task</code> bound on every struct that uses <code>TaskDependency</code>, which increases boilerplate.</p>
@@ -903,14 +903,13 @@ We just use <code>Dependency&lt;ReadStringFromFile, String&gt;</code> as the typ
 </div>
 <p>Run <code>cargo test</code> to confirm everything still works.
 You will get some warnings about unused things, but that is ok as we will use them in the next section.</p>
-<h3 id="store-and-top-down-context-implementation"><a class="header" href="#store-and-top-down-context-implementation">Store and top-down context implementation</a></h3>
-<p>Now we will implement <code>Store</code> to keep track of the dependency graph, and <code>TopDownContext</code> for top-down incremental building.
-We will start with parts of <code>Store</code>, then parts of <code>TopDownContext</code>, and will go back and forth between them to implement the necessary parts.</p>
+<h3 id="store-implementation"><a class="header" href="#store-implementation">Store implementation</a></h3>
 <p>To do incremental building, we need to keep track of all files, tasks, their dependencies, and task outputs.
-This will be the responsibility of <code>Store</code>.
+This will be the responsibility of the <code>Store</code> data structure.
 The <code>TopDownContext</code> and future context implementations will use methods on <code>Store</code> to request and update this data.
 In other words, <code>Store</code> encapsulates this data.</p>
-<p>Writing a dependency graph data structure is outside of the scope of this tutorial, so we will be using the <code>pie_graph</code> library which we prepared exactly for this use case.
+<p>Basically, <code>Store</code> will be a dependency graph.
+However, writing a dependency graph data structure is outside of the scope of this tutorial, so we will be using the <code>pie_graph</code> library which we prepared exactly for this use case.
 The graph from this library is a directed acyclic graph (DAG), meaning that edges are directed and there may be no cycles in edges, as that would prohibit topological orderings.</p>
 <details id="admonition-graph-library" class="admonition info">
 <summary class="admonition-title">
@@ -937,7 +936,7 @@ use std::path::{Path, PathBuf};
 
 use pie_graph::{DAG, Node};
 
-use crate::dependency::Dependency;
+use crate::dependency::{Dependency, FileDependency, TaskDependency};
 use crate::Task;
 
 pub type TaskNode = Node;
@@ -982,14 +981,12 @@ impl&lt;T: Task&gt; Store&lt;T, T::Output&gt; {
       node
     }
   }
-  /// Gets the task for `node`, panicking if `node` was not found in the dependency graph or if `node` is a file.
+  /// Gets the task for `node`. Panics if `node` was not found in the dependency graph or if `node` is a file.
   pub fn get_task(&amp;self, node: &amp;TaskNode) -&gt; &amp;T {
-    let data = self.graph.get_node_data(node)
-      .expect(&quot;node should exist in dependency graph&quot;);
-    match data {
-      NodeData::Task { task, .. } =&gt; task,
-      _ =&gt; panic!(&quot;node should be a task node&quot;)
-    }
+    let Some(NodeData::Task { task, .. }) = self.graph.get_node_data(node) else {
+      panic!(&quot;BUG: node does not exist in dependency graph or is not a task node&quot;)
+    };
+    task
   }
 
 
@@ -1004,46 +1001,72 @@ impl&lt;T: Task&gt; Store&lt;T, T::Output&gt; {
       node
     }
   }
-  /// Gets the path for `node`, panicking if `node` was not found in the dependency graph or if `node` is a task.
-  #[inline]
+  /// Gets the path for `node`. Panics if `node` was not found in the dependency graph or if `node` is a task.
   pub fn get_file_path(&amp;self, node: &amp;FileNode) -&gt; &amp;PathBuf {
-    let data = self.graph.get_node_data(node)
-      .expect(&quot;node should exist in dependency graph&quot;);
-    match data {
-      NodeData::File(path) =&gt; path,
-      _ =&gt; panic!(&quot;node should be a file node&quot;)
-    }
+    let Some(NodeData::File(path)) = self.graph.get_node_data(node) else {
+      panic!(&quot;BUG: node does not exist in dependency graph or is not a file node&quot;)
+    };
+    path
   }
 
 
-  /// Checks whether task `node` has an output. Returns `false` if `node` does not have an output , if `node` does not
-  /// exist in the dependency graph, or if `node` is a file.
-  #[inline]
+  /// Checks whether task `node` has an output. Returns `false` if `node` does not have an output. Panics if task `node` 
+  /// was not found in the dependency graph or if `node` is a file.
   pub fn task_has_output(&amp;self, node: &amp;TaskNode) -&gt; bool {
-    if let Some(NodeData::Task { output: Some(_), .. }) = self.graph.get_node_data(node) {
-      true
-    } else {
-      false
-    }
+    let Some(NodeData::Task { output, .. }) = self.graph.get_node_data(node) else {
+      panic!(&quot;BUG: node does not exist in dependency graph or is not a task node&quot;)
+    };
+    output.is_some()
   }
-  /// Gets the output for task `node`, panicking if `node` was not found in the dependency graph, if `node` is a file,
+  /// Gets the output for task `node`. Panics if `node` was not found in the dependency graph, if `node` is a file,
   /// or if the task has no output.
-  #[inline]
   pub fn get_task_output(&amp;self, node: &amp;TaskNode) -&gt; &amp;T::Output {
-    let data = self.graph.get_node_data(node)
-      .expect(&quot;node should exist in dependency graph&quot;);
-    match data {
-      NodeData::Task { output, .. } =&gt; output.as_ref().expect(&quot;task should have an output&quot;),
-      _ =&gt; panic!(&quot;node should be a task node&quot;)
-    }
+    let Some(NodeData::Task { output: Some(output), .. }) = self.graph.get_node_data(node) else {
+      panic!(&quot;BUG: node does not exist in dependency graph, is not a task node, or does not have an output&quot;);
+    };
+    output
   }
-  /// Sets the output for task `node` to `new_output`. Does nothing if task `node` does not exist in the dependency 
-  /// graph.
-  #[inline]
+  /// Sets the output for task `node` to `new_output`. Panics if task `node` was not found in the dependency graph or if 
+  /// `node` is a file.
   pub fn set_task_output(&amp;mut self, node: &amp;TaskNode, new_output: T::Output) {
-    if let Some(NodeData::Task { output, .. }) = self.graph.get_node_data_mut(node) {
-      output.replace(new_output);
+    let Some(NodeData::Task { output, .. }) = self.graph.get_node_data_mut(node) else {
+      panic!(&quot;BUG: node does not exist in dependency graph or is not a task node&quot;)
+    };
+    output.replace(new_output);
+  }
+
+
+  /// Get all dependencies of task `src`.
+  pub fn get_dependencies_of_task&lt;'a&gt;(&amp;'a self, src: &amp;'a TaskNode) -&gt; impl Iterator&lt;Item=&amp;'a Option&lt;Dependency&lt;T, T::Output&gt;&gt;&gt; + 'a {
+    self.graph.get_outgoing_edge_data(src)
+  }
+  /// Add a file require dependency from task `src` to file `dst`.
+  pub fn add_file_require_dependency(&amp;mut self, src: &amp;TaskNode, dst: &amp;FileNode, dependency: FileDependency) {
+    // Ignore Result: cycles cannot occur from task to file dependencies, as files do not have dependencies.
+    let _ = self.graph.add_edge(src, dst, Some(Dependency::RequireFile(dependency)));
+  }
+  /// Reserve a task require dependency from task `src` to task `dst`. Returns an `Err` if this dependency creates a 
+  /// cycle. This reservation is required because the dependency from `src` to `dst` should already exist for 
+  /// cycle checking, but we do not yet have the output of task `dst` so we cannot fully create the dependency.
+  pub fn reserve_task_require_dependency(&amp;mut self, src: &amp;TaskNode, dst: &amp;Node) -&gt; Result&lt;(), pie_graph::Error&gt; {
+    self.graph.add_edge(src, dst, None)?;
+    Ok(())
+  }
+  /// Update the reserved task require dependency from task `src` to `dst` to `dependency`. Panics if the dependency was
+  /// not reserved before.
+  pub fn update_reserved_task_require_dependency(&amp;mut self, src: &amp;TaskNode, dst: &amp;Node, dependency: TaskDependency&lt;T, T::Output&gt;) {
+    self.graph.get_edge_data_mut(src, dst).unwrap().replace(Dependency::RequireTask(dependency));
+  }
+
+  /// Reset task `src`, removing its output and removing all its dependencies.
+  pub fn reset_task(&amp;mut self, src: &amp;TaskNode) {
+    if let Some(data) = self.graph.get_node_data_mut(src) {
+      match data {
+        NodeData::Task { output, .. } =&gt; *output = None,
+        _ =&gt; {}
+      }
     }
+    self.graph.remove_edges_of_node(src);
   }
 }</code></pre>
 <p>The <code>Store</code> is generic over tasks <code>T</code> and their outputs <code>O</code>, like we have done before with <code>Dependency</code>.</p>
@@ -1055,21 +1078,54 @@ We will dive deeper into why the <code>Option</code> is needed here later.</p>
 <p>The nodes in our graph are either tasks or files.
 To make our code a bit more explicit about when we expect a task node or a file node, we create the <code>TaskNode</code> and <code>FileNode</code> type aliases.
 Note that these are just aliases, they are not strongly typed, meaning that we can pass a <code>Node</code> (which could be a file node) where we expect a <code>TaskNode</code>, so this is just for readability.</p>
+<h4 id="mapping-nodes"><a class="header" href="#mapping-nodes">Mapping nodes</a></h4>
 <p>Because <code>DAG</code> works with these transparent <code>Node</code> identifiers, but we work with tasks of type <code>T</code> and file paths represented by <code>PathBuf</code>, we need to map between these things.
-The <code>get_or_create_task_node</code> and <code>get_task_by_node</code> methods show how we do this mapping for tasks.
+Add the following code to <code>src/store.rs</code>:</p>
+<pre><code class="language-rust "></code></pre>
+<p>The <code>get_or_create_task_node</code> and <code>get_task_by_node</code> methods show how we do this mapping for tasks.
 When we want to go from a task <code>T</code> to a <code>TaskNode</code>, either we have already added this task to the graph and want to get the <code>TaskNode</code> for it, or we have not yet added it to the graph yet and should add it.
 The former is handled by the if branch in <code>get_or_create_task_node</code>, where we just retrieve the <code>TaskNode</code> from the <code>task_to_node</code> hash map.
 The latter is handled by the else branch where we add the node to the graph with <code>graph.add_node</code> which attaches the <code>NodeData::Task</code> data to the node, and then returns a <code>TaskNode</code> which we insert into the <code>task_to_node</code> map.
-The <code>TaskNode</code> can then be used to query the attached data, to add or remove dependency edges, or to remove the node from the graph.</p>
+The <code>TaskNode</code> can then be used to query attached data and to add or remove dependency edges.</p>
 <p>To go from a <code>TaskNode</code> to a task <code>T</code>, we ask the graph for the attached data of the node and retrieve the task from it in <code>get_task</code>.
-We use <code>expect</code> and <code>panic!</code> here because all callers of this function will know that the task exists and will have <code>NodeData::Task</code> attached to it.
+We use <code>panic!</code> here because all callers of this function will know that the task exists and will have <code>NodeData::Task</code> attached to it.
 If that was not the case, we would return <code>Option&lt;&amp;T&gt;</code> instead.</p>
-<p>Similarly, <code>get_or_create_file_node</code> and <code>get_file_path</code> do the same for files.</p>
-<p>Finally, <code>task_has_output</code>, <code>get_task_output</code>, and <code>set_task_output</code> manipulate the task outputs in <code>NodeData::Task</code>.
-We store the task output so we can retrieve it when we do not need to execute the task.
-When a task is added to the dependency graph, it does not have an output yet, so use <code>Option&lt;O&gt;</code> to store the output and pass in <code>None</code>.</p>
-<p>Now we have enough scaffolding in <code>Store</code> to start scaffolding <code>TopDownContext</code>.
-We have not done anything with edges yet, but will get back to that later.</p>
+<p>We implement similar methods for file nodes.
+Add the following code to <code>src/store.rs</code>:</p>
+<pre><code class="language-rust "></code></pre>
+<p>We store file paths as <code>PathBuf</code>, which is the owned version of <code>Path</code> (similar to <code>String</code>/<code>str</code>)</p>
+<h4 id="task-outputs"><a class="header" href="#task-outputs">Task outputs</a></h4>
+<p>When we do not need to execute a task because it is consistent, we still need to return its output.
+Therefore, we store the task output in <code>NodeData::Task</code> and add methods to query and manipulate task outputs.
+Add the following code to <code>src/store.rs</code>:</p>
+<pre><code class="language-rust "></code></pre>
+<p>The <code>task_has_output</code>, <code>get_task_output</code>, and <code>set_task_output</code> methods manipulate task outputs in <code>NodeData::Task</code>.
+When a task is added to the dependency graph, it does not have an output yet, so we use <code>Option&lt;O&gt;</code> to store the output and pass in <code>None</code>.</p>
+<h4 id="dependencies"><a class="header" href="#dependencies">Dependencies</a></h4>
+<p>Finally, we need methods to query and manipulate dependencies.
+The edges in the graph are dependencies between tasks and files.
+Tasks can depend on other tasks and files, but there are no dependencies between files.
+An edge does not have its own dedicated representation, and is simply represented by two <code>Node</code>s: the source node and the destination node of the edge.</p>
+<p>Add the following code to <code>src/store.rs</code>:</p>
+<pre><code class="language-rust "></code></pre>
+<p>The <code>get_dependencies_of_task</code> method gets the dependencies (edge data of outgoing edges) of a task.</p>
+<p>The <code>add_file_require_dependency</code> method adds a file dependency.
+Adding an edge to the graph (<code>graph.add_edge</code>) can result in cycles, which are not allowed in a directed <em>acyclic</em> graph (DAG).
+Therefore, adding an edge can return an <code>Err</code> indicating that there is a cycle.
+In case of files, this cannot happen because files do not have outgoing dependencies, so we ignore the result by binding it to <code>_</code>.</p>
+<p>Tasks can depend on other tasks, so they can create cycles.
+We want to catch those cycles not just because they are not allowed in a DAG, but because cycles between tasks could result in cyclic task execution, causing builds to infinitely execute.</p>
+<p>When a task requires another task, we need to add an edge to the dependency graph to check if this edge creates a cycle, but also to have this edge in the dependency graph for future cycle detection.
+However, at the moment we require the task, we do not yet have an output for the task, as we only get an output after we've executed the task.
+Therefore, we first <em>reserve</em> the task dependency, and then update it with an output.
+This manifests itself as the attached edge data being <code>Option&lt;Dependency&lt;T, O&gt;&gt;</code>, where <code>None</code> indicates that the dependency has been reserved.</p>
+<p>The <code>reserve_task_require_dependency</code> and <code>update_reserved_task_require_dependency</code> methods implement this behavior.
+We propagate cycle errors so that the caller can report a nice error message.</p>
+<h4 id="resetting-tasks"><a class="header" href="#resetting-tasks">Resetting tasks</a></h4>
+<p>Finally, when we determine that a task is inconsistent and needs to be executed, we first need to remove its output and remove its outgoing dependencies, as those will interfere with incrementality when not removed.
+Add the <code>reset_task</code> method that does this to <code>src/store.rs</code>:</p>
+<pre><code class="language-rust "></code></pre>
+<p>Now we've implemented everything we need for implementing the top-down context.</p>
 <h4 id="top-down-context-basics"><a class="header" href="#top-down-context-basics">Top-down context basics</a></h4>
 <p>Add the <code>top_down</code> module to <code>src/context/mod.rs</code>:</p>
 <pre><code class="language-rust customdiff"></code></pre>
@@ -1079,20 +1135,25 @@ use std::io;
 use std::path::Path;
 
 use crate::{Context, Task};
-use crate::dependency::FileDependency;
+use crate::dependency::{Dependency, FileDependency, TaskDependency};
 use crate::stamp::{FileStamper, OutputStamper};
 use crate::store::{Store, TaskNode};
 
 pub struct TopDownContext&lt;T, O&gt; {
   store: Store&lt;T, O&gt;,
+  current_executing_task: Option&lt;TaskNode&gt;,
 }
 
 impl&lt;T: Task&gt; TopDownContext&lt;T, T::Output&gt; {
   pub fn new(store: Store&lt;T, T::Output&gt;) -&gt; Self {
-    Self { store }
+    Self {
+      store,
+      current_executing_task: None,
+    }
   }
 
   pub fn require(&amp;mut self, task: &amp;T) -&gt; T::Output {
+    self.current_executing_task = None;
     let output = self.require_task(task);
     output
   }
@@ -1102,15 +1163,22 @@ impl&lt;T: Task&gt; Context&lt;T&gt; for TopDownContext&lt;T, T::Output&gt; {
   fn require_task_with_stamper(&amp;mut self, task: &amp;T, stamper: OutputStamper) -&gt; T::Output {
     let node = self.store.get_or_create_task_node(task);
 
-    todo!(&quot;figure out what the currently executing task is&quot;);
-    todo!(&quot;add task dependency to store&quot;);
+    self.reserve_task_require_dependency(&amp;node, task);
 
-    let output = if self.should_execute_task(&amp;node, task) {
+    let output = if self.should_execute_task(&amp;node, task) { // Execute the task, cache and return up-to-date output.
+      self.store.reset_task(&amp;node);
+      let previous_executing_task = self.current_executing_task.replace(node);
       let output = task.execute(self);
-      self.store.set_task_output(&amp;node, output);
-    } else {
+      self.current_executing_task = previous_executing_task;
+      self.store.set_task_output(&amp;node, output.clone());
+      output
+    } else { // Return already up-to-date output.
+      // No panic: if we should not execute the task, it must have been executed before, and therefore it has an output.
       self.store.get_task_output(&amp;node).clone()
     };
+
+    let dependency = TaskDependency::new(task.clone(), stamper, output.clone());
+    self.update_reserved_task_require_dependency(&amp;node, dependency);
 
     output
   }
@@ -1118,18 +1186,72 @@ impl&lt;T: Task&gt; Context&lt;T&gt; for TopDownContext&lt;T, T::Output&gt; {
   fn require_file_with_stamper&lt;P: AsRef&lt;Path&gt;&gt;(&amp;mut self, path: P, stamper: FileStamper) -&gt; Result&lt;Option&lt;File&gt;, io::Error&gt; {
     let path = path.as_ref();
     let (dependency, file) = FileDependency::new(path, stamper)?;
-    let node = self.session.store.get_or_create_file_node(path);
-    todo!(&quot;figure out what the currently executing task is&quot;);
-    todo!(&quot;add file dependency to store&quot;);
+    let node = self.store.get_or_create_file_node(path);
+    let Some(current_executing_task_node) = &amp;self.current_executing_task else {
+      panic!(&quot;BUG: requiring file without a current executing task&quot;);
+    };
+    self.store.add_file_require_dependency(current_executing_task_node, &amp;node, dependency);
     Ok(file)
   }
 }
 
 impl&lt;T: Task&gt; TopDownContext&lt;T, T::Output&gt; {
+  /// Reserve a task require dependency from the current executing task to `dst`, detecting cycles before we execute, 
+  /// preventing infinite recursion/loops.
+  fn reserve_task_require_dependency(&amp;mut self, dst: &amp;TaskNode, dst_task: &amp;T) {
+    let Some(src) = &amp;self.current_executing_task else {
+      return; // No task is executing (i.e., `dst` is the initial required task), so there is no dependency to reserve.
+    };
+    if let Err(pie_graph::Error::CycleDetected) = self.store.reserve_task_require_dependency(src, dst) {
+      let src_task = self.session.store.get_task(src);
+      panic!(&quot;Cyclic task dependency; current executing task '{:?}' is requiring task '{:?}' which was already required&quot;, src_task, dst_task);
+    }
+  }
+
+  /// Update the reserved task dependency from the current executing task to `dst` with an actual task dependency.
+  fn update_reserved_task_require_dependency(&amp;mut self, dst: &amp;TaskNode, dependency: TaskDependency&lt;T, T::Output&gt;) {
+    let Some(src) = &amp;self.current_executing_task else {
+      return; // No task is executing (i.e., `dst` is the initial required task), so there is no dependency to update.
+    };
+    self.store.update_reserved_task_require_dependency(src, dst, dependency);
+  }
+
+  /// Checks whether the task should be executed, returning `true` if it should be executed.
   fn should_execute_task(&amp;mut self, node: &amp;TaskNode, task: &amp;T) -&gt; bool {
-    todo!(&quot;figure out if we should execute the task&quot;);
+    let mut has_dependencies = false;
+    let mut is_dependency_inconsistent = false;
+    // Borrow: because we pass `&amp;mut self` to `is_dependency_inconsistent` for recursive consistency checking, we need
+    //         to clone and collect dependencies into a `Vec` here.
+    let dependencies: Vec&lt;_&gt; = self.shared.session.store.get_dependencies_of_task(node).cloned().collect();
+    for dependency in dependencies {
+      has_dependencies = true;
+      is_dependency_inconsistent |= self.is_dependency_inconsistent(dependency);
+    }
+
+    match has_dependencies {
+      true =&gt; is_dependency_inconsistent, // If the task has dependencies, execute if any dependency is inconsistent.
+      false =&gt; !self.shared.session.store.task_has_output(node), // If task has no dependencies, execute if it has no output, meaning that it has never been executed.
+    }
+  }
+
+  #[allow(clippy::wrong_self_convention)]
+  #[inline]
+  fn is_dependency_inconsistent(&amp;mut self, dependency: Option&lt;Dependency&lt;T, T::Output&gt;&gt;) -&gt; bool {
+    let Some(dependency) = dependency else {
+      panic!(&quot;BUG: checking reserved dependency for inconsistency&quot;);
+    };
+    let inconsistent = dependency.is_inconsistent(self);
+    match inconsistent {
+      Ok(Some(_)) =&gt; true,
+      Err(e) =&gt; { // Error while checking: store error and assume inconsistent
+        self.dependency_check_errors.push(e);
+        true
+      }
+      _ =&gt; false,
+    }
   }
 }</code></pre>
+<h3 id="top-down-context-implementation"><a class="header" href="#top-down-context-implementation">Top-down context implementation</a></h3>
 
                     </main>
 
