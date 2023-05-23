@@ -575,9 +575,19 @@ impl<N, E, H: BuildHasher + Default> DAG<N, E, H> {
       .flat_map(|node_info| node_info.children.iter())
   }
 
+  /// Gets the edge data for all outgoing edges of `src`.
+  #[inline]
+  pub fn get_outgoing_edge_data(&self, src: impl Borrow<Node>) -> impl Iterator<Item=&E> + '_ {
+    let src = *src.borrow();
+    self.node_info.get(src.0)
+      .into_iter()
+      .flat_map(|node_info| node_info.children.iter())
+      .map(move |child_node| self.edge_data.get(&(src, *child_node)).unwrap())
+  }
+
   /// Gets the destination node data for all outgoing edges of `src`.
   #[inline]
-  pub fn get_outgoing_edge_data(&self, src: impl Borrow<Node>) -> impl Iterator<Item=&N> + '_ {
+  pub fn get_outgoing_edge_node_data(&self, src: impl Borrow<Node>) -> impl Iterator<Item=&N> + '_ {
     let src = src.borrow();
     self.node_info.get(src.0)
       .into_iter()
@@ -606,9 +616,19 @@ impl<N, E, H: BuildHasher + Default> DAG<N, E, H> {
       .flat_map(|node_info| node_info.parents.iter())
   }
 
+  /// Gets the edge data for all incoming edges of `dst`.
+  #[inline]
+  pub fn get_incoming_edge_data(&self, dst: impl Borrow<Node>) -> impl Iterator<Item=&E> + '_ {
+    let dst = *dst.borrow();
+    self.node_info.get(dst.0)
+      .into_iter()
+      .flat_map(|node_info| node_info.parents.iter())
+      .map(move |parent_node| self.edge_data.get(&(*parent_node, dst)).unwrap())
+  }
+
   /// Gets the source node data for all incoming edges of `dst`.
   #[inline]
-  pub fn get_incoming_edge_data(&self, dst: impl Borrow<Node>) -> impl Iterator<Item=&N> + '_ {
+  pub fn get_incoming_edge_node_data(&self, dst: impl Borrow<Node>) -> impl Iterator<Item=&N> + '_ {
     let dst = dst.borrow();
     self.node_info.get(dst.0)
       .into_iter()

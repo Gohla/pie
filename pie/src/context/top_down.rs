@@ -1,12 +1,10 @@
-use std::cell::Cell;
 use std::fs::File;
 use std::hash::BuildHasher;
 use std::path::Path;
 
-use pie_graph::Node;
-
 use crate::{Context, Session, Task};
 use crate::context::ContextShared;
+use crate::dependency::{Dependency, TaskDependency};
 use crate::stamp::{FileStamper, OutputStamper};
 use crate::store::TaskNode;
 use crate::tracker::Tracker;
@@ -14,7 +12,6 @@ use crate::tracker::Tracker;
 /// Context that incrementally executes tasks and checks dependencies recursively in a top-down manner.
 pub struct TopDownContext<'p, 's, T, O, A, H> {
   shared: ContextShared<'p, 's, T, O, A, H>,
-  task_dependees_cache: Cell<Vec<Node>>,
 }
 
 impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> TopDownContext<'p, 's, T, T::Output, A, H> {
@@ -23,14 +20,13 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> TopDownContext<'p
   pub fn new(session: &'s mut Session<'p, T, T::Output, A, H>) -> Self {
     Self {
       shared: ContextShared::new(session),
-      task_dependees_cache: Cell::default(),
     }
   }
 
   /// Requires given `task`, returning its up-to-date output.
   #[inline]
   pub fn require(&mut self, task: &T) -> T::Output {
-    self.shared.task_execution_stack.clear();
+    self.shared.reset();
     self.shared.session.tracker.require_top_down_initial_start(task);
     let output = self.require_task(task);
     self.shared.session.tracker.require_top_down_initial_end(task, &output);
@@ -43,13 +39,12 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> Context<T> for To
     self.shared.session.tracker.require_task(task);
     let node = self.shared.session.store.get_or_create_task_node(task);
 
-    self.shared.reserve_task_require_dependency(task, &node);
+    self.shared.reserve_task_require_dependency(&node, task);
 
     let output = if !self.shared.session.visited.contains(&node) && self.should_execute_task(&node, task) { // Execute the task, cache and return up-to-date output.
-      self.shared.session.store.reset_task(&node);
-      self.shared.pre_execute(task, node);
+      let previous_executing_task = self.shared.pre_execute(node, task);
       let output = task.execute(self);
-      self.shared.post_execute(task, node, &output);
+      self.shared.post_execute(previous_executing_task, node, task, output.clone());
       output
     } else { // Return already up-to-date output.
       self.shared.session.tracker.up_to_date(task);
@@ -58,7 +53,8 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> Context<T> for To
       output
     };
 
-    self.shared.update_reserved_task_require_dependency(task.clone(), &node, output.clone(), stamper);
+    let dependency = TaskDependency::new(task.clone(), stamper, output.clone());
+    self.shared.update_reserved_task_require_dependency(&node, dependency);
     self.shared.session.visited.insert(node);
 
     output
@@ -82,61 +78,45 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> Context<T> for To
 }
 
 impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> TopDownContext<'p, 's, T, T::Output, A, H> {
+  /// Checks whether the task should be executed, returning `true` if it should be executed.
   fn should_execute_task(&mut self, node: &TaskNode, task: &T) -> bool {
     self.shared.session.tracker.check_top_down_start(task);
 
-    // PERF: because this function can be recursively called, this cache (allocation) is not always reused. However, it
-    //       is reused enough that it improves performance.
-    let mut task_dependees = self.task_dependees_cache.take();
-    task_dependees.clear();
-    task_dependees.extend(self.shared.session.store.get_dependencies_of_task(node));
-
-    // Check whether the dependencies are still consistent. If one or more are not, we need to execute the task.
     let mut has_dependencies = false;
     let mut is_dependency_inconsistent = false;
-    for dependee in &task_dependees {
+    // Borrow: because we pass `&mut self` to `is_dependency_inconsistent` for recursive consistency checking, we need
+    //         to clone and collect dependencies into a `Vec` here.
+    let dependencies: Vec<_> = self.shared.session.store.get_dependencies_of_task(node).cloned().collect();
+    for dependency in dependencies {
       has_dependencies = true;
-      is_dependency_inconsistent |= self.is_dependency_inconsistent(node, dependee);
+      is_dependency_inconsistent |= self.is_dependency_inconsistent(dependency);
     }
 
-    let result = if has_dependencies {
-      is_dependency_inconsistent
-    } else {
-      if self.shared.session.store.task_has_output(node) {
-        // Task has no dependencies; but has been executed before, so it never has to be executed again.
-        false
-      } else {
-        // Task has not been executed, so we need to execute it.
-        true
-      }
+    let should_execute = match has_dependencies {
+      true => is_dependency_inconsistent, // If the task has dependencies, execute if a dependency is inconsistent.
+      false => !self.shared.session.store.task_has_output(node), // If task has no dependencies, execute if it has no output, meaning that it has never been executed.
     };
 
-    self.task_dependees_cache.set(task_dependees);
     self.shared.session.tracker.check_top_down_end(task);
-    result
+    should_execute
   }
 
   #[allow(clippy::wrong_self_convention)]
   #[inline]
-  fn is_dependency_inconsistent(&mut self, src: &TaskNode, dst: &Node) -> bool {
-    let dependency = self.shared.session.store.get_dependency(src, dst);
-    if let Some(dependency) = dependency {
-      // Borrow: `dependency` is borrowed from the store (in `self`)`. Thus, we have to clone it because we pass `&mut self` to `is_inconsistent` later.
-      let dependency = dependency.clone();
-      self.shared.session.tracker.check_dependency_start(&dependency);
-      let inconsistent = dependency.is_inconsistent(self);
-      self.shared.session.tracker.check_dependency_end(&dependency, inconsistent.as_ref().map(|o| o.as_ref()));
-      match inconsistent {
-        Ok(Some(_)) => {
-          return true;
-        }
-        Err(e) => { // Error while checking -> store error and assume not consistent.
-          self.shared.session.dependency_check_errors.push(e);
-          return true;
-        }
-        _ => {} // Continue to check other dependencies.
+  fn is_dependency_inconsistent(&mut self, dependency: Option<Dependency<T, T::Output>>) -> bool {
+    let Some(dependency) = dependency else {
+      panic!("BUG: checking reserved dependency for inconsistency");
+    };
+    self.shared.session.tracker.check_dependency_start(&dependency);
+    let inconsistent = dependency.is_inconsistent(self);
+    self.shared.session.tracker.check_dependency_end(&dependency, inconsistent.as_ref().map(|o| o.as_ref()));
+    match inconsistent {
+      Ok(Some(_)) => true,
+      Err(e) => { // Error while checking: store error and assume inconsistent
+        self.shared.session.dependency_check_errors.push(e);
+        true
       }
+      _ => false,
     }
-    false
   }
 }

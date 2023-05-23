@@ -291,7 +291,7 @@ Task dependencies are generic over the type of tasks `T`, and their type of outp
 
 ```admonish info title="Trait bounds on structs" collapsible=true
 We chose not to put a `Task` trait bound on `TaskDependency`, and instead put the bound on the impl.
-There are several up and downsides to that should be considered when making such a decision.
+There are several up and downsides that should be considered when making such a decision.
 
 The main upside for putting the `Task` bound on the `TaskDependency` struct, is that we can leave out `O` and use `OutputStamp<T::Output>` as the type of the `stamp` field.
 This cuts down a generic parameter, which reduces boilerplate.
@@ -360,17 +360,15 @@ We just use `Dependency<ReadStringFromFile, String>` as the type, and this is fi
 Run `cargo test` to confirm everything still works.
 You will get some warnings about unused things, but that is ok as we will use them in the next section.
 
-### Store and top-down context implementation
-
-Now we will implement `Store` to keep track of the dependency graph, and `TopDownContext` for top-down incremental building.
-We will start with parts of `Store`, then parts of `TopDownContext`, and will go back and forth between them to implement the necessary parts.
+### Store implementation
 
 To do incremental building, we need to keep track of all files, tasks, their dependencies, and task outputs.
-This will be the responsibility of `Store`.
+This will be the responsibility of the `Store` data structure.
 The `TopDownContext` and future context implementations will use methods on `Store` to request and update this data.
 In other words, `Store` encapsulates this data.
 
-Writing a dependency graph data structure is outside of the scope of this tutorial, so we will be using the `pie_graph` library which we prepared exactly for this use case.
+Basically, `Store` will be a dependency graph.
+However, writing a dependency graph data structure is outside of the scope of this tutorial, so we will be using the `pie_graph` library which we prepared exactly for this use case.
 The graph from this library is a directed acyclic graph (DAG), meaning that edges are directed and there may be no cycles in edges, as that would prohibit topological orderings.
 
 ```admonish info title="Graph library" collapsible=true
@@ -410,34 +408,92 @@ We will dive deeper into why the `Option` is needed here later.
 
 A node in `DAG` is represented by a `Node`, which is a transparent identifier (sometimes called a [handle](https://en.wikipedia.org/wiki/Handle_(computing))) that points to the node and its data.
 
-[//]: # (An edge does not have its own dedicated representation, and is simply represented by two `Node`s: the source node and the destination node of the edge.)
 The nodes in our graph are either tasks or files.
 To make our code a bit more explicit about when we expect a task node or a file node, we create the `TaskNode` and `FileNode` type aliases.
 Note that these are just aliases, they are not strongly typed, meaning that we can pass a `Node` (which could be a file node) where we expect a `TaskNode`, so this is just for readability.
 
-[//]: # (The edges in the graph are dependencies between tasks and files.)
-
-[//]: # (Tasks can depend on other tasks and files, but there are no dependencies *between files*.)
+#### Mapping nodes
 
 Because `DAG` works with these transparent `Node` identifiers, but we work with tasks of type `T` and file paths represented by `PathBuf`, we need to map between these things.
+Add the following code to `src/store.rs`:
+
+```rust,
+
+```
+
 The `get_or_create_task_node` and `get_task_by_node` methods show how we do this mapping for tasks.
 When we want to go from a task `T` to a `TaskNode`, either we have already added this task to the graph and want to get the `TaskNode` for it, or we have not yet added it to the graph yet and should add it.
 The former is handled by the if branch in `get_or_create_task_node`, where we just retrieve the `TaskNode` from the `task_to_node` hash map.
 The latter is handled by the else branch where we add the node to the graph with `graph.add_node` which attaches the `NodeData::Task` data to the node, and then returns a `TaskNode` which we insert into the `task_to_node` map.
-The `TaskNode` can then be used to query the attached data, to add or remove dependency edges, or to remove the node from the graph.
+The `TaskNode` can then be used to query attached data and to add or remove dependency edges.
 
 To go from a `TaskNode` to a task `T`, we ask the graph for the attached data of the node and retrieve the task from it in `get_task`.
-We use `expect` and `panic!` here because all callers of this function will know that the task exists and will have `NodeData::Task` attached to it.
+We use `panic!` here because all callers of this function will know that the task exists and will have `NodeData::Task` attached to it.
 If that was not the case, we would return `Option<&T>` instead.
 
-Similarly, `get_or_create_file_node` and `get_file_path` do the same for files.
+We implement similar methods for file nodes.
+Add the following code to `src/store.rs`:
 
-Finally, `task_has_output`, `get_task_output`, and `set_task_output` manipulate the task outputs in `NodeData::Task`.
-We store the task output so we can retrieve it when we do not need to execute the task.
-When a task is added to the dependency graph, it does not have an output yet, so use `Option<O>` to store the output and pass in `None`.
+```rust,
 
-Now we have enough scaffolding in `Store` to start scaffolding `TopDownContext`.
-We have not done anything with edges yet, but will get back to that later.
+```
+
+We store file paths as `PathBuf`, which is the owned version of `Path` (similar to `String`/`str`)
+
+#### Task outputs
+
+When we do not need to execute a task because it is consistent, we still need to return its output.
+Therefore, we store the task output in `NodeData::Task` and add methods to query and manipulate task outputs.
+Add the following code to `src/store.rs`:
+
+```rust,
+
+```
+
+The `task_has_output`, `get_task_output`, and `set_task_output` methods manipulate task outputs in `NodeData::Task`.
+When a task is added to the dependency graph, it does not have an output yet, so we use `Option<O>` to store the output and pass in `None`.
+
+#### Dependencies
+
+Finally, we need methods to query and manipulate dependencies.
+The edges in the graph are dependencies between tasks and files.
+Tasks can depend on other tasks and files, but there are no dependencies between files.
+An edge does not have its own dedicated representation, and is simply represented by two `Node`s: the source node and the destination node of the edge.
+
+Add the following code to `src/store.rs`:
+
+```rust,
+
+```
+
+The `get_dependencies_of_task` method gets the dependencies (edge data of outgoing edges) of a task.
+
+The `add_file_require_dependency` method adds a file dependency.
+Adding an edge to the graph (`graph.add_edge`) can result in cycles, which are not allowed in a directed *acyclic* graph (DAG).
+Therefore, adding an edge can return an `Err` indicating that there is a cycle.
+In case of files, this cannot happen because files do not have outgoing dependencies, so we ignore the result by binding it to `_`.
+
+Tasks can depend on other tasks, so they can create cycles.
+We want to catch those cycles not just because they are not allowed in a DAG, but because cycles between tasks could result in cyclic task execution, causing builds to infinitely execute.
+
+When a task requires another task, we need to add an edge to the dependency graph to check if this edge creates a cycle, but also to have this edge in the dependency graph for future cycle detection.
+However, at the moment we require the task, we do not yet have an output for the task, as we only get an output after we've executed the task.
+Therefore, we first *reserve* the task dependency, and then update it with an output.
+This manifests itself as the attached edge data being `Option<Dependency<T, O>>`, where `None` indicates that the dependency has been reserved.
+
+The `reserve_task_require_dependency` and `update_reserved_task_require_dependency` methods implement this behavior.
+We propagate cycle errors so that the caller can report a nice error message.
+
+#### Resetting tasks
+
+Finally, when we determine that a task is inconsistent and needs to be executed, we first need to remove its output and remove its outgoing dependencies, as those will interfere with incrementality when not removed.
+Add the `reset_task` method that does this to `src/store.rs`:
+
+```rust,
+
+```
+
+Now we've implemented everything we need for implementing the top-down context.
 
 #### Top-down context basics
 
@@ -452,3 +508,5 @@ Create the `src/context/top_down.rs` file and add the following to get started:
 ```rust,
 {{#include 4_top_down/initial_context.rs}}
 ```
+
+### Top-down context implementation

@@ -8,6 +8,7 @@ use std::path::{Path, PathBuf};
 
 use crate::{Context, Session, Task, TaskNode};
 use crate::context::ContextShared;
+use crate::dependency::TaskDependency;
 use crate::stamp::{FileStamper, OutputStamper};
 use crate::store::{FileNode, Store};
 use crate::tracker::Tracker;
@@ -48,8 +49,8 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> BottomUpContext<'
       );
     }
     // Execute the top scheduled task in the queue until it is empty.
-    while let Some(task_node) = self.scheduled.pop(&mut self.shared.session.store) {
-      self.execute_and_schedule(task_node);
+    while let Some(node) = self.scheduled.pop(&mut self.shared.session.store) {
+      self.execute_and_schedule(node);
     }
 
     self.shared.session.tracker.update_affected_by_end();
@@ -128,10 +129,9 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> BottomUpContext<'
   /// Execute given `task`.
   #[inline]
   fn execute(&mut self, node: TaskNode, task: &T) -> T::Output {
-    self.shared.session.store.reset_task(&node);
-    self.shared.pre_execute(&task, node);
+    let previous_executing_task = self.shared.pre_execute(node, task);
     let output = task.execute(self);
-    self.shared.post_execute(&task, node, &output);
+    self.shared.post_execute(previous_executing_task, node, task, output.clone());
     self.shared.session.visited.insert(node);
     output
   }
@@ -205,14 +205,15 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> BottomUpContext<'
 impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> Context<T> for BottomUpContext<'p, 's, T, T::Output, A, H> {
   fn require_task_with_stamper(&mut self, task: &T, stamper: OutputStamper) -> T::Output {
     self.shared.session.tracker.require_task(task);
-    let task_node_id = self.shared.session.store.get_or_create_task_node(task);
+    let node = self.shared.session.store.get_or_create_task_node(task);
 
-    self.shared.reserve_task_require_dependency(task, &task_node_id);
+    self.shared.reserve_task_require_dependency(&node, task);
 
-    let output = self.make_consistent(task, task_node_id);
+    let output = self.make_consistent(task, node);
 
-    self.shared.update_reserved_task_require_dependency(task.clone(), &task_node_id, output.clone(), stamper);
-    self.shared.session.visited.insert(task_node_id);
+    let dependency = TaskDependency::new(task.clone(), stamper, output.clone());
+    self.shared.update_reserved_task_require_dependency(&node, dependency);
+    self.shared.session.visited.insert(node);
 
     output
   }

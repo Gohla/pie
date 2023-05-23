@@ -19,7 +19,6 @@ pub struct Store<T, O, H> {
   file_to_node: HashMap<PathBuf, FileNode, H>,
 }
 
-#[derive(Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum NodeData<T, O> {
   Task {
@@ -55,18 +54,16 @@ impl<T: Task, H: BuildHasher + Default> Store<T, T::Output, H> {
       node
     }
   }
-  /// Gets the task for `node`, panicking if `node` was not found in the dependency graph or if `node` is a file.
+  /// Gets the task for `node`. Panics if `node` was not found in the dependency graph or if `node` is a file.
   #[inline]
   pub fn get_task(&self, node: &TaskNode) -> &T {
-    let data = self.graph.get_node_data(node)
-      .expect("node should exist in dependency graph");
-    match data {
-      NodeData::Task { task, .. } => task,
-      _ => panic!("node should be a task node")
-    }
+    let Some(NodeData::Task { task, .. }) = self.graph.get_node_data(node) else {
+      panic!("BUG: node does not exist in dependency graph or is not a task node")
+    };
+    task
   }
-  
-  
+
+
   /// Gets the file node for `path`, or creates a node by adding it to the dependency graph.
   #[inline]
   pub fn get_or_create_file_node(&mut self, path: impl AsRef<Path>) -> FileNode {
@@ -79,84 +76,66 @@ impl<T: Task, H: BuildHasher + Default> Store<T, T::Output, H> {
       node
     }
   }
-  /// Gets the path for `node`, panicking if `node` was not found in the dependency graph or if `node` is a task.
+  /// Gets the path for `node`. Panics if `node` was not found in the dependency graph or if `node` is a task.
   #[inline]
   pub fn get_file_path(&self, node: &FileNode) -> &PathBuf {
-    let data = self.graph.get_node_data(node)
-      .expect("node should exist in dependency graph");
-    match data {
-      NodeData::File(path) => path,
-      _ => panic!("node should be a file node")
-    }
+    let Some(NodeData::File(path)) = self.graph.get_node_data(node) else {
+      panic!("BUG: node does not exist in dependency graph or is not a file node")
+    };
+    path
   }
 
 
-  /// Checks whether task `node` has an output. Returns `false` if `node` does not have an output , if `node` does not
-  /// exist in the dependency graph, or if `node` is a file.
+  /// Checks whether task `node` has an output. Returns `false` if `node` does not have an output. Panics if task `node` 
+  /// was not found in the dependency graph or if `node` is a file.
   #[inline]
   pub fn task_has_output(&self, node: &TaskNode) -> bool {
-    if let Some(NodeData::Task { output: Some(_), .. }) = self.graph.get_node_data(node) {
-      true
-    } else {
-      false
-    }
+    let Some(NodeData::Task { output, .. }) = self.graph.get_node_data(node) else {
+      panic!("BUG: node does not exist in dependency graph or is not a task node")
+    };
+    output.is_some()
   }
-  /// Gets the output for task `node`, panicking if `node` was not found in the dependency graph, if `node` is a file,
+  /// Gets the output for task `node`. Panics if `node` was not found in the dependency graph, if `node` is a file,
   /// or if the task has no output.
   #[inline]
   pub fn get_task_output(&self, node: &TaskNode) -> &T::Output {
-    let data = self.graph.get_node_data(node)
-      .expect("node should exist in dependency graph");
-    match data {
-      NodeData::Task { output, .. } => output.as_ref().expect("task should have an output"),
-      _ => panic!("node should be a task node")
-    }
+    let Some(NodeData::Task { output: Some(output), .. }) = self.graph.get_node_data(node) else {
+      panic!("BUG: node does not exist in dependency graph, is not a task node, or does not have an output");
+    };
+    output
   }
-  /// Sets the output for task `node` to `new_output`. Does nothing if task `node` does not exist in the dependency 
-  /// graph.
+  /// Sets the output for task `node` to `new_output`. Panics if task `node` was not found in the dependency graph or if 
+  /// `node` is a file.
   #[inline]
   pub fn set_task_output(&mut self, node: &TaskNode, new_output: T::Output) {
-    if let Some(NodeData::Task { output, .. }) = self.graph.get_node_data_mut(node) {
-      output.replace(new_output);
-    }
+    let Some(NodeData::Task { output, .. }) = self.graph.get_node_data_mut(node) else {
+      panic!("BUG: node does not exist in dependency graph or is not a task node")
+    };
+    output.replace(new_output);
   }
 
 
-  /// Get all destination nodes of the outgoing dependencies of task `src`.
+  /// Get all dependencies of task `src`.
   #[inline]
-  pub fn get_dependencies_of_task<'a>(&'a self, src: &'a TaskNode) -> impl Iterator<Item=&'a Node> + 'a {
-    self.graph.get_outgoing_edge_nodes(src)
+  pub fn get_dependencies_of_task<'a>(&'a self, src: &'a TaskNode) -> impl Iterator<Item=&'a Option<Dependency<T, T::Output>>> + 'a {
+    self.graph.get_outgoing_edge_data(src)
   }
-  /// Get the dependency between `src` and `dst`. Returns `None` if there is no dependency between `src` and `dst`, or 
-  /// when the dependency exists but is a reserved task dependency.
-  #[inline]
-  pub fn get_dependency(&self, src: &Node, dst: &Node) -> Option<&Dependency<T, T::Output>> {
-    self.graph.get_edge_data(src, dst).unwrap_or(&None).as_ref()
-  }
-  /// Compare `src` and `dst`, topographically.
-  #[inline]
-  pub fn topologically_compare(&self, node_a: &Node, node_b: &Node) -> std::cmp::Ordering {
-    self.graph.topo_cmp(node_a, node_b)
-  }
-
-
   /// Add a file require dependency from task `src` to file `dst`.
   #[inline]
   pub fn add_file_require_dependency(&mut self, src: &TaskNode, dst: &FileNode, dependency: FileDependency) {
-    // OK: cycles cannot occur from task to file dependencies, as files do not have dependencies.
-    self.graph.add_edge(src, dst, Some(Dependency::RequireFile(dependency))).ok();
+    // Ignore Result: cycles cannot occur from task to file dependencies, as files do not have dependencies.
+    let _ = self.graph.add_edge(src, dst, Some(Dependency::RequireFile(dependency)));
   }
   /// Add a file provide dependency from task `src` to file `dst`.
   #[inline]
   pub fn add_file_provide_dependency(&mut self, src: &TaskNode, dst: &FileNode, dependency: FileDependency) {
-    // OK: cycles cannot occur from task to file dependencies, as files do not have dependencies.
-    self.graph.add_edge(src, dst, Some(Dependency::ProvideFile(dependency))).ok();
+    // Ignore Result: cycles cannot occur from task to file dependencies, as files do not have dependencies.
+    let _ = self.graph.add_edge(src, dst, Some(Dependency::ProvideFile(dependency)));
   }
-
   /// Reserve a task require dependency from task `src` to task `dst`. Returns an `Err` if this dependency creates a 
-  /// cycle. This reservation is required because the dependency from `src` and `dst` should already exist for 
+  /// cycle. This reservation is required because the dependency from `src` to `dst` should already exist for 
   /// validation purposes (cycles, hidden dependencies, etc.), but we do not yet have the output of task `dst` so we
-  /// cannot fully create the task dependency.
+  /// cannot fully create the dependency.
   #[inline]
   pub fn reserve_task_require_dependency(&mut self, src: &TaskNode, dst: &Node) -> Result<(), pie_graph::Error> {
     self.graph.add_edge(src, dst, None)?;
@@ -170,11 +149,16 @@ impl<T: Task, H: BuildHasher + Default> Store<T, T::Output, H> {
   }
 
 
-  /// Reset task `src`, removing all its dependencies.
+  /// Reset task `src`, removing its output and removing all its dependencies.
   #[inline]
   pub fn reset_task(&mut self, src: &TaskNode) {
+    if let Some(data) = self.graph.get_node_data_mut(src) {
+      match data {
+        NodeData::Task { output, .. } => *output = None,
+        _ => {}
+      }
+    }
     self.graph.remove_edges_of_node(src);
-    // TODO: should this remove output?
   }
 
 
@@ -182,6 +166,11 @@ impl<T: Task, H: BuildHasher + Default> Store<T, T::Output, H> {
   #[inline]
   pub fn contains_transitive_task_dependency(&self, src: &TaskNode, dst: &TaskNode) -> bool {
     self.graph.contains_transitive_edge(src, dst)
+  }
+  /// Compare `src` and `dst`, topographically.
+  #[inline]
+  pub fn topologically_compare(&self, node_a: &Node, node_b: &Node) -> std::cmp::Ordering {
+    self.graph.topo_cmp(node_a, node_b)
   }
 
 
