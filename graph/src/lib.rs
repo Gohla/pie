@@ -396,6 +396,9 @@ impl<N, E, H: BuildHasher + Default> DAG<N, E, H> {
     if src == dst { // No loops to self
       return Err(Error::CycleDetected);
     }
+    if !self.node_info.contains_key(src.0) || !self.node_info.contains_key(dst.0) {
+      return Err(Error::NodeMissing);
+    }
 
     // Insert forward edge
     let mut no_prev_edge = self.node_info[src.0].children.insert(*dst);

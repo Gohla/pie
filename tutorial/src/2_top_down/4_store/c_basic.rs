@@ -13,7 +13,7 @@ pub struct Store<T, O> {
 }
 
 #[derive(Debug)]
-pub enum NodeData<T, O> {
+enum NodeData<T, O> {
   Task {
     task: T,
     output: Option<O>,
