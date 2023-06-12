@@ -38,9 +38,10 @@ incremental = true
 codegen-units = 256
 
 
-# Testing: same as development profile. Very low compile-time.
+# Testing: same as development profile but with unwinding panics that can be catched. Very low compile-time.
 [profile.test]
 inherits = "dev"
+panic = "unwind"
 
 
 # Debug profile: full debug information, no optimisations. Low compile-time.

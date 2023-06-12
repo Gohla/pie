@@ -82,20 +82,15 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> TopDownContext<'p
   fn should_execute_task(&mut self, node: &TaskNode, task: &T) -> bool {
     self.shared.session.tracker.check_top_down_start(task);
 
-    let mut has_dependencies = false;
     let mut is_dependency_inconsistent = false;
     // Borrow: because we pass `&mut self` to `is_dependency_inconsistent` for recursive consistency checking, we need
     //         to clone and collect dependencies into a `Vec` here.
     let dependencies: Vec<_> = self.shared.session.store.get_dependencies_of_task(node).cloned().collect();
     for dependency in dependencies {
-      has_dependencies = true;
       is_dependency_inconsistent |= self.is_dependency_inconsistent(dependency);
     }
-
-    let should_execute = match has_dependencies {
-      true => is_dependency_inconsistent, // If the task has dependencies, execute if a dependency is inconsistent.
-      false => !self.shared.session.store.task_has_output(node), // If task has no dependencies, execute if it has no output, meaning that it has never been executed.
-    };
+    // Execute if a dependency is inconsistent or if the task has no output (meaning that it has never been executed)
+    let should_execute = is_dependency_inconsistent || !self.shared.session.store.task_has_output(node);
 
     self.shared.session.tracker.check_top_down_end(task);
     should_execute

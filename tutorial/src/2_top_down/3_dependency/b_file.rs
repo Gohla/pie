@@ -4,7 +4,7 @@ use std::io;
 use std::path::PathBuf;
 
 use crate::{Context, Task};
-use crate::fs::{metadata, open_if_file};
+use crate::fs::open_if_file;
 use crate::stamp::{FileStamp, FileStamper, OutputStamp, OutputStamper};
 
 #[derive(Clone, Eq, PartialEq, Debug)]

@@ -99,8 +99,10 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> ContextShared<'p,
     self.session.store.update_reserved_task_require_dependency(current_executing_task_node, dst, dependency);
   }
 
-  /// Perform common pre-execution operations. Pre/post execute methods needed instead of one execute method because 
-  /// `&mut Context` needs to be passed to `task.execute`, complicating borrowing.
+  /// Perform common pre-execution operations for `task` and its `node`, returning the currently executing task.
+  ///
+  /// Note: pre/post execute methods are needed instead of one execute method because `&mut Context` needs to be passed
+  /// to `task.execute`, complicating borrowing.
   #[inline]
   pub fn pre_execute(&mut self, node: TaskNode, task: &T) -> Option<TaskNode> {
     self.session.store.reset_task(&node);
@@ -108,8 +110,11 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> ContextShared<'p,
     self.current_executing_task.replace(node)
   }
 
-  /// Perform common post-execution operations. Pre/post execute methods needed instead of one execute method because 
-  /// `&mut Context` needs to be passed to `task.execute`, complicating borrowing.
+  /// Perform common post-execution operations for `task` and its `node`, restoring the `previous_executing_task` and 
+  /// setting the `output` of the task.
+  ///
+  /// Note: pre/post execute methods are needed instead of one execute method because `&mut Context` needs to be passed
+  /// to `task.execute`, complicating borrowing.
   #[inline]
   pub fn post_execute(&mut self, previous_executing_task: Option<TaskNode>, node: TaskNode, task: &T, output: T::Output) {
     self.current_executing_task = previous_executing_task;

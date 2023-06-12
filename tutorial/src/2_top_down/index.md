@@ -380,7 +380,7 @@ The implementation in the `incremental-topo` library is based on a [paper by D. 
 Add the `pie_graph` dependency to `Cargo.toml`:
 
 ```rust,customdiff
-
+{{#include ../../gen/2_top_down/4_store/a_Cargo.toml.diff:4:}}
 ```
 
 #### Store basics
@@ -388,7 +388,7 @@ Add the `pie_graph` dependency to `Cargo.toml`:
 Add the `store` module to `src/lib.rs`:
 
 ```rust,customdiff
-
+{{#include ../../gen/2_top_down/4_store/b_module.rs.diff:4:}}
 ```
 
 This module is not public, as users of the library should not interact with the store.
@@ -396,7 +396,7 @@ This module is not public, as users of the library should not interact with the 
 Create the `src/store.rs` file and add the following to get started:
 
 ```rust,
-{{#include 4_top_down/initial_store.rs}}
+{{#include 4_store/c_basic.rs}}
 ```
 
 The `Store` is generic over tasks `T` and their outputs `O`, like we have done before with `Dependency`.
@@ -415,10 +415,18 @@ Note that these are just aliases, they are not strongly typed, meaning that we c
 #### Mapping nodes
 
 Because `DAG` works with these transparent `Node` identifiers, but we work with tasks of type `T` and file paths represented by `PathBuf`, we need to map between these things.
-Add the following code to `src/store.rs`:
+
+Change `src/store.rs` to add hash maps to map between these things:
+
+```rust,customdiff
+{{#include ../../gen/2_top_down/4_store/c_mapping_diff.rs.diff:4:}}
+```
+
+
+Then, add the following code to `src/store.rs`:
 
 ```rust,
-
+{{#include 4_store/e_mapping.rs}}
 ```
 
 The `get_or_create_task_node` and `get_task_by_node` methods show how we do this mapping for tasks.
@@ -428,16 +436,10 @@ The latter is handled by the else branch where we add the node to the graph with
 The `TaskNode` can then be used to query attached data and to add or remove dependency edges.
 
 To go from a `TaskNode` to a task `T`, we ask the graph for the attached data of the node and retrieve the task from it in `get_task`.
-We use `panic!` here because all callers of this function will know that the task exists and will have `NodeData::Task` attached to it.
+We use `panic!` here because all callers of this function (which is only our own library because it is a private module) will know that the task exists and will have `NodeData::Task` attached to it.
 If that was not the case, we would return `Option<&T>` instead.
 
-We implement similar methods for file nodes.
-Add the following code to `src/store.rs`:
-
-```rust,
-
-```
-
+We implement similar methods for file nodes in `get_or_create_file_node` and `get_file_path`.
 We store file paths as `PathBuf`, which is the owned version of `Path` (similar to `String`/`str`)
 
 #### Task outputs
@@ -447,11 +449,14 @@ Therefore, we store the task output in `NodeData::Task` and add methods to query
 Add the following code to `src/store.rs`:
 
 ```rust,
-
+{{#include 4_store/f_output.rs}}
 ```
 
 The `task_has_output`, `get_task_output`, and `set_task_output` methods manipulate task outputs in `NodeData::Task`.
 When a task is added to the dependency graph, it does not have an output yet, so we use `Option<O>` to store the output and pass in `None`.
+
+Again, we are using panics here because these methods will only called from our own library, and we are sure that these errors will not be reached when the methods are used properly.
+If they are reached, the panic indicates a programming error.
 
 #### Dependencies
 
@@ -463,7 +468,7 @@ An edge does not have its own dedicated representation, and is simply represente
 Add the following code to `src/store.rs`:
 
 ```rust,
-
+{{#include 4_store/g_dependency.rs}}
 ```
 
 The `get_dependencies_of_task` method gets the dependencies (edge data of outgoing edges) of a task.
@@ -482,7 +487,7 @@ Therefore, we first *reserve* the task dependency, and then update it with an ou
 This manifests itself as the attached edge data being `Option<Dependency<T, O>>`, where `None` indicates that the dependency has been reserved.
 
 The `reserve_task_require_dependency` and `update_reserved_task_require_dependency` methods implement this behavior.
-We propagate cycle errors so that the caller can report a nice error message.
+We propagate cycle errors so that the caller can report an error message.
 
 #### Resetting tasks
 
@@ -490,10 +495,12 @@ Finally, when we determine that a task is inconsistent and needs to be executed,
 Add the `reset_task` method that does this to `src/store.rs`:
 
 ```rust,
-
+{{#include 4_store/h_reset.rs}}
 ```
 
 Now we've implemented everything we need for implementing the top-down context.
+
+### Top-down context implementation
 
 #### Top-down context basics
 

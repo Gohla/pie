@@ -86,20 +86,15 @@ impl<T: Task> TopDownContext<T, T::Output> {
 
   /// Checks whether the task should be executed, returning `true` if it should be executed.
   fn should_execute_task(&mut self, node: &TaskNode, task: &T) -> bool {
-    let mut has_dependencies = false;
     let mut is_dependency_inconsistent = false;
     // Borrow: because we pass `&mut self` to `is_dependency_inconsistent` for recursive consistency checking, we need
     //         to clone and collect dependencies into a `Vec` here.
     let dependencies: Vec<_> = self.shared.session.store.get_dependencies_of_task(node).cloned().collect();
     for dependency in dependencies {
-      has_dependencies = true;
       is_dependency_inconsistent |= self.is_dependency_inconsistent(dependency);
     }
-
-    match has_dependencies {
-      true => is_dependency_inconsistent, // If the task has dependencies, execute if any dependency is inconsistent.
-      false => !self.shared.session.store.task_has_output(node), // If task has no dependencies, execute if it has no output, meaning that it has never been executed.
-    }
+    // Execute if a dependency is inconsistent or if the task has no output (meaning that it has never been executed)
+    is_dependency_inconsistent || !self.shared.session.store.task_has_output(node)
   }
 
   #[allow(clippy::wrong_self_convention)]

@@ -91,5 +91,17 @@ pub fn step_all(
         add("e_test.rs", "dependency.rs"),
       ]);
     });
+    stepper.with_path("4_store", |stepper| {
+      stepper.apply([
+        create_diff("a_Cargo.toml", "../Cargo.toml"),
+        create_diff("b_module.rs", "lib.rs"),
+        add("c_basic.rs", "store.rs"),
+        create_diff("d_mapping_diff.rs", "store.rs"),
+        add("e_mapping.rs", "store.rs"),
+        add("f_output.rs", "store.rs"),
+        add("g_dependency.rs", "store.rs"),
+        add("h_reset.rs", "store.rs"),
+      ]);
+    });
   });
 }

@@ -1,0 +1,12 @@
+[package]
+name = "pie"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+pie_graph = { path = "/Users/gohla/Dev/personal/pie/graph" }
+
+[dev-dependencies]
+tempfile = "3"
+
+[workspace]
