@@ -15,7 +15,20 @@ pub struct FileDependency {
 }
 
 impl FileDependency {
-  pub fn new(path: impl Into<PathBuf>, stamper: FileStamper) -> Result<(Self, Option<File>), io::Error> {
+  /// Creates a new file dependency with `path` and `stamper`, returning:
+  /// - `Ok(file_dependency)` normally,
+  /// - `Err(e)` if stamping failed.
+  pub fn new(path: impl Into<PathBuf>, stamper: FileStamper) -> Result<Self, io::Error> {
+    let path = path.into();
+    let stamp = stamper.stamp(&path)?;
+    let dependency = FileDependency { path, stamper, stamp };
+    Ok(dependency)
+  }
+  /// Creates a new file dependency with `path` and `stamper`, returning:
+  /// - `Ok((file_dependency, Some(file)))` if a file exists at given path,
+  /// - `Ok((file_dependency, None))` if no file exists at given path (but a directory could exist at given path),
+  /// - `Err(e)` if stamping or opening the file failed.
+  pub fn new_with_file(path: impl Into<PathBuf>, stamper: FileStamper) -> Result<(Self, Option<File>), io::Error> {
     let path = path.into();
     let stamp = stamper.stamp(&path)?;
     let file = open_if_file(&path)?;

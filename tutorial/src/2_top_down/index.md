@@ -268,7 +268,7 @@ Create the `src/dependency.rs` file and add:
 ```
 
 A `FileDependency` stores the `path` the dependency is about, the `stamper` used to create a stamp for this dependency, and the `stamp` that was created at the time the file dependency was made.
-The `FileDependency::new` function also returns the opened file if it exists, so that users of this function can read from the file without having to open it again.
+The `FileDependency::new_with_path` function also returns the opened file if it exists, so that users of this function can read from the file without having to open it again.
 
 A file dependency is inconsistent when the stored stamp is not equal to a stamp that we create at the time of checking, implemented in `FileDependency::is_inconsistent`.
 For example, if we created a file dependency (with modified stamper) for a file that was modified yesterday, then modify the file, and then call `is_inconsistent` on the file dependency, it would return `Some(new_stamp)` indicating that the dependency is inconsistent.
@@ -412,6 +412,9 @@ The nodes in our graph are either tasks or files.
 To make our code a bit more explicit about when we expect a task node or a file node, we create the `TaskNode` and `FileNode` type aliases.
 Note that these are just aliases, they are not strongly typed, meaning that we can pass a `Node` (which could be a file node) where we expect a `TaskNode`, so this is just for readability.
 
+TODO: use newtypes
+TODO: addendum about one way to use the API in an invalid way: creating another store and using its nodes. Can be guarded against with lifetime branding. But not doing that as it is not an end-user facing API, so we will make sure ourselves not to use the Store API in this invalid way.
+
 #### Mapping nodes
 
 Because `DAG` works with these transparent `Node` identifiers, but we work with tasks of type `T` and file paths represented by `PathBuf`, we need to map between these things.
@@ -422,25 +425,27 @@ Change `src/store.rs` to add hash maps to map between these things:
 {{#include ../../gen/2_top_down/4_store/c_mapping_diff.rs.diff:4:}}
 ```
 
-
 Then, add the following code to `src/store.rs`:
 
 ```rust,
 {{#include 4_store/e_mapping.rs}}
 ```
 
-The `get_or_create_task_node` and `get_task_by_node` methods show how we do this mapping for tasks.
+The `get_or_create_task_node` and `get_task` methods show how we do this mapping for tasks.
 When we want to go from a task `T` to a `TaskNode`, either we have already added this task to the graph and want to get the `TaskNode` for it, or we have not yet added it to the graph yet and should add it.
 The former is handled by the if branch in `get_or_create_task_node`, where we just retrieve the `TaskNode` from the `task_to_node` hash map.
 The latter is handled by the else branch where we add the node to the graph with `graph.add_node` which attaches the `NodeData::Task` data to the node, and then returns a `TaskNode` which we insert into the `task_to_node` map.
-The `TaskNode` can then be used to query attached data and to add or remove dependency edges.
+The `TaskNode` handle can then be used in the rest of the API
 
 To go from a `TaskNode` to a task `T`, we ask the graph for the attached data of the node and retrieve the task from it in `get_task`.
-We use `panic!` here because all callers of this function (which is only our own library because it is a private module) will know that the task exists and will have `NodeData::Task` attached to it.
-If that was not the case, we would return `Option<&T>` instead.
+
+Note that we are using `panic!` here to indicate that invalid usage of this method is an *unrecoverable programming error* that should not occur.
+Returning an `Option<&T>` makes no sense here, as the caller of this method has no way to recover from this.
+Because this is not an end-user-facing API (`store` module is private), we control all the calls to this method, and thus we are responsible for using this method in a valid way. 
+Therefore, when we call this method, we should document why it is valid if this is not immediately obvious, and we need to test whether we really use it in a valid way.
 
 We implement similar methods for file nodes in `get_or_create_file_node` and `get_file_path`.
-We store file paths as `PathBuf`, which is the owned version of `Path` (similar to `String`/`str`)
+We store file paths as `PathBuf`, which is the owned version of `Path` (similar to `String` being the owned version of `str`)
 
 #### Task outputs
 
@@ -455,8 +460,7 @@ Add the following code to `src/store.rs`:
 The `task_has_output`, `get_task_output`, and `set_task_output` methods manipulate task outputs in `NodeData::Task`.
 When a task is added to the dependency graph, it does not have an output yet, so we use `Option<O>` to store the output and pass in `None`.
 
-Again, we are using panics here because these methods will only called from our own library, and we are sure that these errors will not be reached when the methods are used properly.
-If they are reached, the panic indicates a programming error.
+Again, we are using panics here to indicate unrecoverable programming errors.
 
 #### Dependencies
 
@@ -499,6 +503,10 @@ Add the `reset_task` method that does this to `src/store.rs`:
 ```
 
 Now we've implemented everything we need for implementing the top-down context.
+
+#### Tests
+
+TODO
 
 ### Top-down context implementation
 

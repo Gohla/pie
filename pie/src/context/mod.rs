@@ -39,9 +39,9 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> ContextShared<'p,
     };
 
     if let Some(dst) = self.session.store.get_task_providing_file(&node) {
-      if !self.session.store.contains_transitive_task_dependency(current_executing_task_node, dst) {
+      if !self.session.store.contains_transitive_task_dependency(current_executing_task_node, &dst) {
         let current_executing_task = self.session.store.get_task(current_executing_task_node);
-        let dst_task = self.session.store.get_task(dst);
+        let dst_task = self.session.store.get_task(&dst);
         panic!("Hidden dependency; file '{}' is required by the current executing task '{:?}' without a dependency to providing task: {:?}", path.display(), current_executing_task, dst_task);
       }
     }

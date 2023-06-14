@@ -1,3 +1,4 @@
+use std::borrow::Borrow;
 use std::collections::HashMap;
 use std::hash::BuildHasher;
 use std::path::{Path, PathBuf};
@@ -7,9 +8,6 @@ use pie_graph::{DAG, Node};
 use crate::dependency::{Dependency, FileDependency, TaskDependency};
 use crate::Task;
 
-pub type TaskNode = Node;
-pub type FileNode = Node;
-
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(bound(serialize = "T: serde::Serialize + Task, O: serde::Serialize, H: BuildHasher + Default")))]
 #[cfg_attr(feature = "serde", serde(bound(deserialize = "T: serde::Deserialize<'de> + Task, O: serde::Deserialize<'de>, H: BuildHasher + Default")))]
@@ -17,6 +15,24 @@ pub struct Store<T, O, H> {
   graph: DAG<NodeData<T, O>, Option<Dependency<T, O>>, H>,
   task_to_node: HashMap<T, TaskNode, H>,
   file_to_node: HashMap<PathBuf, FileNode, H>,
+}
+
+#[repr(transparent)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+pub struct TaskNode(Node);
+
+impl Borrow<Node> for &TaskNode {
+  fn borrow(&self) -> &Node { &self.0 }
+}
+
+#[repr(transparent)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+pub struct FileNode(Node);
+
+impl Borrow<Node> for &FileNode {
+  fn borrow(&self) -> &Node { &self.0 }
 }
 
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -50,6 +66,7 @@ impl<T: Task, H: BuildHasher + Default> Store<T, T::Output, H> {
         task: task.clone(),
         output: None,
       });
+      let node = TaskNode(node);
       self.task_to_node.insert(task.clone(), node);
       node
     }
@@ -72,6 +89,7 @@ impl<T: Task, H: BuildHasher + Default> Store<T, T::Output, H> {
       *file_node
     } else {
       let node = self.graph.add_node(NodeData::File(path.to_path_buf()));
+      let node = FileNode(node);
       self.file_to_node.insert(path.to_path_buf(), node);
       node
     }
@@ -137,14 +155,14 @@ impl<T: Task, H: BuildHasher + Default> Store<T, T::Output, H> {
   /// validation purposes (cycles, hidden dependencies, etc.), but we do not yet have the output of task `dst` so we
   /// cannot fully create the dependency.
   #[inline]
-  pub fn reserve_task_require_dependency(&mut self, src: &TaskNode, dst: &Node) -> Result<(), pie_graph::Error> {
+  pub fn reserve_task_require_dependency(&mut self, src: &TaskNode, dst: &TaskNode) -> Result<(), pie_graph::Error> {
     self.graph.add_edge(src, dst, None)?;
     Ok(())
   }
   /// Update the reserved task require dependency from task `src` to `dst` to `dependency`. Panics if the dependency was
   /// not reserved before.
   #[inline]
-  pub fn update_reserved_task_require_dependency(&mut self, src: &TaskNode, dst: &Node, dependency: TaskDependency<T, T::Output>) {
+  pub fn update_reserved_task_require_dependency(&mut self, src: &TaskNode, dst: &TaskNode, dependency: TaskDependency<T, T::Output>) {
     self.graph.get_edge_data_mut(src, dst).unwrap().replace(Dependency::RequireTask(dependency));
   }
 
@@ -167,41 +185,41 @@ impl<T: Task, H: BuildHasher + Default> Store<T, T::Output, H> {
   pub fn contains_transitive_task_dependency(&self, src: &TaskNode, dst: &TaskNode) -> bool {
     self.graph.contains_transitive_edge(src, dst)
   }
-  /// Compare `src` and `dst`, topographically.
+  /// Compare `node_a` and `node_b`, topographically.
   #[inline]
-  pub fn topologically_compare(&self, node_a: &Node, node_b: &Node) -> std::cmp::Ordering {
+  pub fn topologically_compare(&self, node_a: &TaskNode, node_b: &TaskNode) -> std::cmp::Ordering {
     self.graph.topo_cmp(node_a, node_b)
   }
 
 
   /// Get all task nodes and corresponding dependencies that require task `dst`.
   #[inline]
-  pub fn get_tasks_requiring_task<'a>(&'a self, dst: &'a TaskNode) -> impl Iterator<Item=(&TaskNode, &TaskDependency<T, T::Output>)> + '_ {
+  pub fn get_tasks_requiring_task<'a>(&'a self, dst: &'a TaskNode) -> impl Iterator<Item=(TaskNode, &TaskDependency<T, T::Output>)> + '_ {
     self.graph.get_incoming_edges(dst)
-      .filter_map(|(n, d)| d.as_ref().and_then(|d| d.as_task_dependency().map(|d| (n, d))))
+      .filter_map(|(n, d)| d.as_ref().and_then(|d| d.as_task_dependency().map(|d| (TaskNode(*n), d))))
   }
   /// Get all task nodes and corresponding dependencies that require file `dst`.
   #[inline]
-  pub fn get_tasks_requiring_file<'a>(&'a self, dst: &'a FileNode) -> impl Iterator<Item=(&TaskNode, &FileDependency)> + '_ {
+  pub fn get_tasks_requiring_file<'a>(&'a self, dst: &'a FileNode) -> impl Iterator<Item=(TaskNode, &FileDependency)> + '_ {
     self.graph.get_incoming_edges(dst)
-      .filter_map(|(n, d)| d.as_ref().and_then(|d| d.as_require_file_dependency().map(|d| (n, d))))
+      .filter_map(|(n, d)| d.as_ref().and_then(|d| d.as_require_file_dependency().map(|d| (TaskNode(*n), d))))
   }
   /// Get the task node that provides file `dst`, or `None` if there is none.
   #[inline]
-  pub fn get_task_providing_file(&self, dst: &FileNode) -> Option<&TaskNode> {
+  pub fn get_task_providing_file(&self, dst: &FileNode) -> Option<TaskNode> {
     self.graph.get_incoming_edges(dst)
-      .filter_map(|(n, d)| d.as_ref().and_then(|d| if d.is_provide_file() { Some(n) } else { None })).next()
+      .filter_map(|(n, d)| d.as_ref().and_then(|d| if d.is_provide_file() { Some(TaskNode(*n)) } else { None })).next()
   }
   /// Get all task nodes and corresponding dependencies that require or provide file `dst`.
   #[inline]
-  pub fn get_tasks_requiring_or_providing_file<'a>(&'a self, dst: &'a FileNode, provide: bool) -> impl Iterator<Item=(&TaskNode, &FileDependency)> + '_ {
+  pub fn get_tasks_requiring_or_providing_file<'a>(&'a self, dst: &'a FileNode, provide: bool) -> impl Iterator<Item=(TaskNode, &FileDependency)> + '_ {
     self.graph.get_incoming_edges(dst)
-      .filter_map(move |(n, d)| d.as_ref().and_then(move |d| d.as_require_or_provide_file_dependency(provide).map(|d| (n, d))))
+      .filter_map(move |(n, d)| d.as_ref().and_then(move |d| d.as_require_or_provide_file_dependency(provide).map(|d| (TaskNode(*n), d))))
   }
   /// Get all file nodes that are provided by task `src`.
   #[inline]
-  pub fn get_provided_files<'a>(&'a self, src: &'a TaskNode) -> impl Iterator<Item=&FileNode> + '_ {
+  pub fn get_provided_files<'a>(&'a self, src: &'a TaskNode) -> impl Iterator<Item=FileNode> + '_ {
     self.graph.get_outgoing_edges(src)
-      .filter_map(|(n, d)| d.as_ref().and_then(|d| if d.is_provide_file() { Some(n) } else { None }))
+      .filter_map(|(n, d)| d.as_ref().and_then(|d| if d.is_provide_file() { Some(FileNode(*n)) } else { None }))
   }
 }
