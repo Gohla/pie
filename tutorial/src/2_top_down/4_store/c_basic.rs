@@ -1,3 +1,4 @@
+use std::borrow::Borrow;
 use std::path::{Path, PathBuf};
 
 use pie_graph::{DAG, Node};
@@ -5,26 +6,25 @@ use pie_graph::{DAG, Node};
 use crate::dependency::{Dependency, FileDependency, TaskDependency};
 use crate::Task;
 
-pub type TaskNode = Node;
-pub type FileNode = Node;
-
+/// Stores files and tasks, and their dependencies, in a DAG (directed acyclic graph). Provides operations to mutate
+/// and query this graph.
 pub struct Store<T, O> {
-  graph: DAG<NodeData<T, O>, Option<Dependency<T, O>>>,
+  graph: DAG<NodeData<T, O>, Dependency<T, O>>,
 }
 
 #[derive(Debug)]
 enum NodeData<T, O> {
+  File(PathBuf),
   Task {
     task: T,
     output: Option<O>,
   },
-  File(PathBuf),
 }
 
 impl<T: Task> Default for Store<T, T::Output> {
   fn default() -> Self {
     Self {
-      graph: DAG::with_default_hasher(),
+      graph: DAG::default(),
     }
   }
 }

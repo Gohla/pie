@@ -155,6 +155,7 @@ pub struct CreateDiffAndApply {
   modified_file_path: Option<PathBuf>,
   destination_file_path: Option<PathBuf>,
   diff_output_file_path: Option<PathBuf>,
+  context_length: Option<usize>,
 }
 
 impl Display for CreateDiffAndApply {
@@ -182,6 +183,10 @@ impl CreateDiffAndApply {
     self.diff_output_file_path = Some(path.into());
     self
   }
+  pub fn context_length(mut self, context_length: usize) -> Self {
+    self.context_length = Some(context_length);
+    self
+  }
 
   pub fn into_modification(self) -> Modification {
     Modification::CreateDiffAndApply(self)
@@ -202,6 +207,7 @@ impl CreateDiffAndApply {
       diff_output_file_path
     };
     let diff_output_file_path = stepper.generated_root_directory.join(&diff_output_file_path);
+    let context_length = self.context_length.unwrap_or(5);
 
     let original_file_path = if let Some(original_file_path) = &self.original_file_path {
       stepper.source_root_directory.join(original_file_path)
@@ -215,6 +221,7 @@ impl CreateDiffAndApply {
       modified_file_path,
       destination_file_path,
       diff_output_file_path,
+      context_length,
     })
   }
 }
@@ -243,6 +250,7 @@ pub struct CreateDiffAndApplyResolved {
   modified_file_path: PathBuf,
   destination_file_path: PathBuf,
   diff_output_file_path: PathBuf,
+  context_length: usize,
 }
 
 impl Display for CreateDiffAndApplyResolved {
@@ -258,7 +266,7 @@ impl CreateDiffAndApplyResolved {
     let modified_text = read_to_string(&self.modified_file_path)
       .context("failed to read modified file text")?;
     let mut diff_options = DiffOptions::default();
-    diff_options.set_context_len(5);
+    diff_options.set_context_len(self.context_length);
     let patch = diff_options.create_patch(&original_text, &modified_text);
     crate::util::write_to_file(&patch.to_bytes(), &self.diff_output_file_path, false)
       .context("failed to write to diff output file")?;

@@ -96,7 +96,9 @@ pub fn step_all(
         create_diff("a_Cargo.toml", "../Cargo.toml"),
         create_diff("b_module.rs", "lib.rs"),
         add("c_basic.rs", "store.rs"),
-        create_diff("d_mapping_diff.rs", "store.rs"),
+        create_diff_builder("d_mapping_diff.rs", "store.rs")
+          .context_length(20)
+          .into_modification(),
         add("e_mapping.rs", "store.rs"),
         add("f_output.rs", "store.rs"),
         add("g_dependency.rs", "store.rs"),

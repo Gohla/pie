@@ -84,7 +84,7 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> ContextShared<'p,
     let Some(current_executing_task_node) = &self.current_executing_task else {
       return; // No task is executing (i.e., `dst` is the initial required task), so there is no dependency to reserve.
     };
-    if let Err(pie_graph::Error::CycleDetected) = self.session.store.reserve_task_require_dependency(current_executing_task_node, dst) {
+    if let Err(()) = self.session.store.reserve_task_require_dependency(current_executing_task_node, dst) {
       let current_executing_task = self.session.store.get_task(current_executing_task_node);
       panic!("Cyclic task dependency; current executing task '{:?}' is requiring task '{:?}' which directly or indirectly requires the current executing task", current_executing_task, dst_task);
     }

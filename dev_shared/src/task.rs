@@ -61,7 +61,7 @@ pub struct WriteStringToFile(pub Box<CommonTask>, pub PathBuf, pub FileStamper);
 
 impl WriteStringToFile {
   fn execute<C: Context<CommonTask>>(&self, context: &mut C) -> Result<(), ()> {
-    let string = context.require_task(self.0.as_ref()).into_string()?;
+    let string = context.require_task(&self.0).into_string()?;
     let mut file = File::create(&self.1).map_err(|_| ())?;
     file.write_all(string.as_bytes()).map_err(|_| ())?;
     context.provide_file_with_stamper(&self.1, self.2).map_err(|_| ())?;

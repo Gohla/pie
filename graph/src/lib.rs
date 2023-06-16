@@ -96,6 +96,7 @@ use std::collections::{HashMap, HashSet};
 use std::collections::hash_map::RandomState;
 use std::hash::BuildHasher;
 
+use hashlink::LinkedHashSet;
 use slotmap::{DefaultKey, SlotMap};
 
 type TopoOrder = u32;
@@ -103,6 +104,8 @@ type TopoOrder = u32;
 
 /// Data structure for maintaining a directed-acyclic graph (DAG) with topological ordering, maintained in an 
 /// incremental fashion.
+///
+/// When iterating over edges or their associated data, the order is the insertion order.
 ///
 /// See the [module-level documentation] for more information.
 ///
@@ -129,22 +132,17 @@ pub struct DAG<N, E, H = RandomState> {
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Node(DefaultKey);
 
-impl From<DefaultKey> for Node {
-  #[inline]
-  fn from(src: DefaultKey) -> Self { Self(src) }
-}
-
 
 /// Information about a node: its ordering, which nodes it points to, and which nodes point to it.
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(bound(serialize = "N: serde::Serialize, H: BuildHasher + Default")))]
 #[cfg_attr(feature = "serde", serde(bound(deserialize = "N: serde::Deserialize<'de>, H: BuildHasher + Default")))]
 struct NodeInfo<N, H> {
   topo_order: TopoOrder,
   data: N,
-  parents: HashSet<Node, H>,
-  children: HashSet<Node, H>,
+  parents: LinkedHashSet<Node, H>,
+  children: LinkedHashSet<Node, H>,
 }
 
 impl<N, H: BuildHasher + Default> NodeInfo<N, H> {
@@ -184,6 +182,19 @@ impl fmt::Display for Error {
 impl std::error::Error for Error {}
 
 
+impl<N, E, H: BuildHasher + Default> Default for DAG<N, E, H> {
+  #[inline]
+  fn default() -> Self {
+    Self {
+      last_topo_order: 0,
+      node_info: SlotMap::default(),
+      edge_data: Default::default(),
+      stack_visited_scratch_space: Cell::default(),
+    }
+  }
+}
+
+
 impl<N, E> DAG<N, E> {
   /// Create a new DAG.
   ///
@@ -195,29 +206,10 @@ impl<N, E> DAG<N, E> {
   /// assert!(dag.is_empty());
   /// ```
   #[inline]
-  pub fn new() -> Self { Self::with_default_hasher() }
+  pub fn new() -> Self { Self::default() }
 }
 
 impl<N, E, H: BuildHasher + Default> DAG<N, E, H> {
-  /// Create a new DAG.
-  ///
-  /// # Examples
-  /// ```
-  /// use pie_graph::DAG;
-  /// let dag = DAG::<(), ()>::new();
-  ///
-  /// assert!(dag.is_empty());
-  /// ```
-  #[inline]
-  pub fn with_default_hasher() -> Self {
-    Self {
-      last_topo_order: 0,
-      node_info: SlotMap::new(),
-      edge_data: Default::default(),
-      stack_visited_scratch_space: Cell::default(),
-    }
-  }
-
   /// Add a new node with `data` to the graph and return a unique [`Node`] which identifies it.
   ///
   /// Initially this node will not have any order relative to the nodes that are already in the graph. Only when 
@@ -311,14 +303,14 @@ impl<N, E, H: BuildHasher + Default> DAG<N, E, H> {
 
     // Remove node
     let node_info = self.node_info.remove(node.0).unwrap();
-    // Delete forward edges
+    // Remove forward edges
     for child in &node_info.children {
       if let Some(child_node) = self.node_info.get_mut(child.0) {
         child_node.parents.remove(&node.into());
       }
       self.edge_data.remove(&(node, *child));
     }
-    // Delete backward edges
+    // Remove backward edges
     for parent in &node_info.parents {
       if let Some(parent_node) = self.node_info.get_mut(parent.0) {
         parent_node.children.remove(&node.into());
@@ -326,7 +318,7 @@ impl<N, E, H: BuildHasher + Default> DAG<N, E, H> {
       self.edge_data.remove(&(*parent, node));
     }
     // OPTO: inefficient compaction step
-    for (_, other_node) in self.node_info.iter_mut() {
+    for other_node in self.node_info.values_mut() {
       if other_node.topo_order > node_info.topo_order {
         other_node.topo_order -= 1;
       }
@@ -346,8 +338,8 @@ impl<N, E, H: BuildHasher + Default> DAG<N, E, H> {
   /// have a previous edge between these two nodes.
   ///
   /// # Errors
-  /// This function will return an `Err` if the edge introduces a cycle into the graph or if either of the nodes
-  /// passed is not found in the graph.
+  ///
+  /// Returns an `Err` if the edge introduces a cycle or if either of the given nodes is not found in the graph.
   ///
   /// # Examples
   /// ```
@@ -364,8 +356,7 @@ impl<N, E, H: BuildHasher + Default> DAG<N, E, H> {
   /// assert!(dag.add_edge(&cat, mouse, ()).unwrap());
   /// ```
   ///
-  /// Here is an example which returns [`Error::CycleDetected`] when
-  /// introducing a cycle:
+  /// Here is an example which returns [`Error::CycleDetected`] when introducing a cycle:
   ///
   /// ```
   /// # use pie_graph::{DAG, Error};
@@ -776,7 +767,7 @@ impl<N, E, H: BuildHasher + Default> DAG<N, E, H> {
   pub fn iter_unsorted(&self) -> impl Iterator<Item=(TopoOrder, Node)> + '_ {
     self.node_info
       .iter()
-      .map(|(index, node)| (node.topo_order, index.into()))
+      .map(|(key, node)| (node.topo_order, Node(key)))
   }
 
   /// Return an iterator over the descendants of a node in the graph, in an unsorted order.

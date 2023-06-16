@@ -6,17 +6,17 @@ use tempfile::TempDir;
 use ::pie::stamp::FileStamper;
 use dev_shared::check::CheckErrorExt;
 use dev_shared::task::CommonTask;
-use dev_shared::test::Pie;
+use dev_shared::TestPie;
 
 #[fixture]
-fn pie() -> Pie<CommonTask> { dev_shared::test::create_pie() }
+fn pie() -> TestPie<CommonTask> { dev_shared::create_test_pie() }
 
 #[fixture]
-fn temp_dir() -> TempDir { dev_shared::create_temp_dir() }
+fn temp_dir() -> TempDir { dev_shared::fs::create_temp_dir() }
 
 
 #[rstest]
-fn test_modified_stamp_on_file(mut pie: Pie<CommonTask>, temp_dir: TempDir) {
+fn test_modified_stamp_on_file(mut pie: TestPie<CommonTask>, temp_dir: TempDir) {
   let path = temp_dir.path().join("test.txt");
 
   // Modified stamper
@@ -75,7 +75,7 @@ fn test_modified_stamp_on_file(mut pie: Pie<CommonTask>, temp_dir: TempDir) {
 
 #[cfg(not(windows))] // These tests are flaky on Windows, due to modification dates not updating directly?
 #[rstest]
-fn test_modified_stamp_on_directory(mut pie: Pie<CommonTask>, temp_dir: TempDir) {
+fn test_modified_stamp_on_directory(mut pie: TestPie<CommonTask>, temp_dir: TempDir) {
   let dir_path = temp_dir.path().join("dir");
   fs::create_dir_all(&dir_path).check();
   let file_path_1 = dir_path.join("test1.txt");
@@ -170,7 +170,7 @@ fn test_modified_stamp_on_directory(mut pie: Pie<CommonTask>, temp_dir: TempDir)
 }
 
 #[rstest]
-fn test_hash_stamp_on_file(mut pie: Pie<CommonTask>, temp_dir: TempDir) {
+fn test_hash_stamp_on_file(mut pie: TestPie<CommonTask>, temp_dir: TempDir) {
   let path = temp_dir.path().join("test.txt");
 
   // Hash stamper
@@ -245,7 +245,7 @@ fn test_hash_stamp_on_file(mut pie: Pie<CommonTask>, temp_dir: TempDir) {
 }
 
 #[rstest]
-fn test_hash_stamp_on_directory(mut pie: Pie<CommonTask>, temp_dir: TempDir) {
+fn test_hash_stamp_on_directory(mut pie: TestPie<CommonTask>, temp_dir: TempDir) {
   let dir_path = temp_dir.path().join("dir");
   fs::create_dir_all(&dir_path).check();
   let file_path_1 = dir_path.join("test1.txt");

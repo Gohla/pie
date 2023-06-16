@@ -7,17 +7,17 @@ use tempfile::TempDir;
 use ::pie::stamp::FileStamper;
 use dev_shared::check::CheckErrorExt;
 use dev_shared::task::{CommonOutput, CommonTask};
-use dev_shared::test::Pie;
+use dev_shared::TestPie;
 
 #[fixture]
-fn pie() -> Pie<CommonTask> { dev_shared::test::create_pie() }
+fn pie() -> TestPie<CommonTask> { dev_shared::create_test_pie() }
 
 #[fixture]
-fn temp_dir() -> TempDir { dev_shared::create_temp_dir() }
+fn temp_dir() -> TempDir { dev_shared::fs::create_temp_dir() }
 
 
 #[rstest]
-fn test_nothing_affected(mut pie: Pie<CommonTask>) {
+fn test_nothing_affected(mut pie: TestPie<CommonTask>) {
   pie.run_in_session(|mut session| {
     session.update_affected_by(&[]);
     assert_eq!(session.dependency_check_errors().len(), 0);
@@ -28,7 +28,7 @@ fn test_nothing_affected(mut pie: Pie<CommonTask>) {
 }
 
 #[rstest]
-fn test_directly_affected_task(mut pie: Pie<CommonTask>, temp_dir: TempDir) {
+fn test_directly_affected_task(mut pie: TestPie<CommonTask>, temp_dir: TempDir) {
   let path = temp_dir.path().join("test.txt");
   fs::write(&path, "HELLO WORLD!").check();
 
@@ -52,7 +52,7 @@ fn test_directly_affected_task(mut pie: Pie<CommonTask>, temp_dir: TempDir) {
 }
 
 #[rstest]
-fn test_indirectly_affected_tasks(mut pie: Pie<CommonTask>, temp_dir: TempDir) {
+fn test_indirectly_affected_tasks(mut pie: TestPie<CommonTask>, temp_dir: TempDir) {
   let path = temp_dir.path().join("in.txt");
   fs::write(&path, "HELLO WORLD!").check();
 
@@ -82,7 +82,7 @@ fn test_indirectly_affected_tasks(mut pie: Pie<CommonTask>, temp_dir: TempDir) {
 }
 
 #[rstest]
-fn test_indirectly_affected_tasks_early_cutoff(mut pie: Pie<CommonTask>, temp_dir: TempDir) {
+fn test_indirectly_affected_tasks_early_cutoff(mut pie: TestPie<CommonTask>, temp_dir: TempDir) {
   let read_path = temp_dir.path().join("in.txt");
   fs::write(&read_path, "HELLO WORLD!").check();
   let write_path = temp_dir.path().join("out.txt");
@@ -115,7 +115,7 @@ fn test_indirectly_affected_tasks_early_cutoff(mut pie: Pie<CommonTask>, temp_di
 }
 
 #[rstest]
-fn test_indirectly_affected_multiple_tasks(mut pie: Pie<CommonTask>, temp_dir: TempDir) {
+fn test_indirectly_affected_multiple_tasks(mut pie: TestPie<CommonTask>, temp_dir: TempDir) {
   let read_path = temp_dir.path().join("in.txt");
   fs::write(&read_path, "HELLO WORLD!").check();
   let write_lower_path = temp_dir.path().join("out_lower.txt");
@@ -184,7 +184,7 @@ fn test_indirectly_affected_multiple_tasks(mut pie: Pie<CommonTask>, temp_dir: T
 }
 
 #[rstest]
-fn test_require_now(mut pie: Pie<CommonTask>, temp_dir: TempDir) {
+fn test_require_now(mut pie: TestPie<CommonTask>, temp_dir: TempDir) {
   let marker_path = temp_dir.path().join("marker.txt");
   let read_path = temp_dir.path().join("in.txt");
   fs::write(&read_path, "hello world!").check();

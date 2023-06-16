@@ -7,7 +7,7 @@ In other words, an incremental context executes the *minimum number of tasks* re
 However, due to dynamic dependencies, this is not trivial.
 We cannot first gather all tasks into a dependency tree and then topologically sort that, as dependencies are added and removed *while tasks are executing*.
 To do incremental builds in the presence of dynamic dependencies, we need to check and execute affected tasks *one at a time*, updating the dependency graph, while tasks are executing.
-To achieve this, we will employ a technique called *top-down incremental building*, which starts checking if a top (root) task needs to be executed, and recursively checks whether dependent tasks should be executed until we reach the bottom (leaf) task(s), akin to a depth-first search.
+To achieve this, we will employ a technique called *top-down incremental building*, where we start checking if a top (root) task needs to be executed, and recursively check whether dependent tasks should be executed until we reach the bottom (leaf) task(s), akin to a depth-first search.
 
 Furthermore, build systems almost always interact with the file system in some way. 
 For example, tasks read configuration and source files, or write intermediate and binary files.
@@ -82,9 +82,20 @@ Create file `src/fs.rs` with:
 {{#include 0_require_file/c_fs.rs}}
 ```
 
-The comments explain the behaviour.
+The `metadata` function gets the filesystem metadata given a path, and `open_if_file` opens the file for given path.
+The reason for these functions is that the standard library function `std::fs::metadata` treats non-existent files as an error, whereas we don't want to treat it as an error and just return `None`.
+Furthermore, `open_if_file` works around an issue where opening a directory on Windows (and possibly other operating systems) is an error, where we want to treat it as `None` again.
+The documentation comments explain the exact behaviour.
 
-We will write some tests to confirm the behaviour, but for that we need a utility to create temporary files and directories.
+We will write some tests to confirm the behaviour, but for that we need utilities to create temporary files and directories.
+Furthermore, we will be writing more unit tests, integration tests, and even benchmarks in this tutorial, so we will set up these utilities in such a way that they are reachable by all these use cases.
+The only way to do that in Rust right now, is to create a separate crate and have the `pie` crate depend on it.
+
+TODO: create dev_shared crate
+TODO: add tempfile and utilities to it
+TODO: then have pie depend on dev_shared in dev-dependencies
+TODO: modify tests to use this
+
 Instead of implementing that ourselves, we will use an existing crate.
 Add the `tempfile` dependency to `Cargo.toml`:
 
@@ -268,7 +279,7 @@ Create the `src/dependency.rs` file and add:
 ```
 
 A `FileDependency` stores the `path` the dependency is about, the `stamper` used to create a stamp for this dependency, and the `stamp` that was created at the time the file dependency was made.
-The `FileDependency::new_with_path` function also returns the opened file if it exists, so that users of this function can read from the file without having to open it again.
+The `FileDependency::new_with_file` function also returns the opened file if it exists, so that users of this function can read from the file without having to open it again.
 
 A file dependency is inconsistent when the stored stamp is not equal to a stamp that we create at the time of checking, implemented in `FileDependency::is_inconsistent`.
 For example, if we created a file dependency (with modified stamper) for a file that was modified yesterday, then modify the file, and then call `is_inconsistent` on the file dependency, it would return `Some(new_stamp)` indicating that the dependency is inconsistent.
@@ -402,50 +413,79 @@ Create the `src/store.rs` file and add the following to get started:
 The `Store` is generic over tasks `T` and their outputs `O`, like we have done before with `Dependency`.
 
 The `DAG` type from `pie_graph` represents a DAG with nodes and edges, and data attached to those nodes and edges.
+The nodes in our graph are either files or tasks, and the edges are dependencies.
+
 The first generic argument to `DAG` is the type of data to attach to nodes, which is `NodeData<T, O>` in our case.
-The second argument is the type of data to attach to edges, which is `Option<Dependency<T, O>>`, using the `Dependency` enum we defined earlier.
-We will dive deeper into why the `Option` is needed here later.
+Because nodes can be files or tasks, `NodeData<T, O>` enumerates these, storing the path for files, and the task along with its output for tasks.
+We store file paths as `PathBuf`, which is the owned version of `Path` (similar to `String` being the owned version of `str`).
+The task output is stored as `Option<O>` because we can add a task to the graph without having executed it, so we don't have its output yet.
+
+The second argument is the type of data to attach to edges, which is `Dependency<T, O>`, using the `Dependency` enum we defined earlier.
+
+We implement `Default` for the store to initialize it.
+
+```admonish info title="Deriving default" collapsible=true
+We cannot derive this `Default` implementation even though it seems we should be able to, because the derived implementation will require `T` and `O` to be `Default`, and this is not always the case.
+This is because the `Default` derive macro is conservative and adds a `: Default` bound to *every* generic argument in the `Default` trait implementation, and there is no way to disable this behaviour.
+Therefore, we implement `Default` ourselves.
+
+There are several crates that have more configurable derive macros for these things, but adding an extra dependency to generate a few lines of code is not worth the extra compilation time, so we just implement it manually here.
+```
+
+#### Graph nodes
 
 A node in `DAG` is represented by a `Node`, which is a transparent identifier (sometimes called a [handle](https://en.wikipedia.org/wiki/Handle_(computing))) that points to the node and its data.
+We can create nodes in the graph, and then query attached data (`NodeData`) given a node.
+So `DAG` allows us to go from `Node` to a `PathBuf` and task `T` through attached `NodeData`.
 
-The nodes in our graph are either tasks or files.
-To make our code a bit more explicit about when we expect a task node or a file node, we create the `TaskNode` and `FileNode` type aliases.
-Note that these are just aliases, they are not strongly typed, meaning that we can pass a `Node` (which could be a file node) where we expect a `TaskNode`, so this is just for readability.
+However, we want each unique file and task to be represented by a single unique node in the graph.
+We need this for incrementality so that if the build system encounters the same task twice, we can find the corresponding task node in the graph the second time, check if it is consistent, and return its output if it is.
 
-TODO: use newtypes
-TODO: addendum about one way to use the API in an invalid way: creating another store and using its nodes. Can be guarded against with lifetime branding. But not doing that as it is not an end-user facing API, so we will make sure ourselves not to use the Store API in this invalid way.
-
-#### Mapping nodes
-
-Because `DAG` works with these transparent `Node` identifiers, but we work with tasks of type `T` and file paths represented by `PathBuf`, we need to map between these things.
+To ensure unique nodes, we need to maintain the reverse mapping from `PathBuf` and `T` to `Node` ourselves, which we will do with `HashMap`s.
+This is also the reason for the `Eq` and `Hash` trait bounds on the `Task` trait, so we can use them as keys in `HashMap`s.
 
 Change `src/store.rs` to add hash maps to map between these things:
 
 ```rust,customdiff
-{{#include ../../gen/2_top_down/4_store/c_mapping_diff.rs.diff:4:}}
+{{#include ../../gen/2_top_down/4_store/d_mapping_diff.rs.diff:4:}}
 ```
 
-Then, add the following code to `src/store.rs`:
+Furthermore, we also create the `FileNode` and `TaskNode` [newtypes](https://rust-unofficial.github.io/patterns/patterns/behavioural/newtype.html) here so that we can prevent a file node to be accidentally used as a task node, and vice versa.
+The `Borrow` implementations will make subsequent code a bit more concise by automatically converting `&FileNode` and `&TaskNode`s to `&Node`s.
+
+Now we will add methods create nodes and to query their attached data.
+Add the following code to `src/store.rs`:
 
 ```rust,
 {{#include 4_store/e_mapping.rs}}
 ```
 
-The `get_or_create_task_node` and `get_task` methods show how we do this mapping for tasks.
-When we want to go from a task `T` to a `TaskNode`, either we have already added this task to the graph and want to get the `TaskNode` for it, or we have not yet added it to the graph yet and should add it.
-The former is handled by the if branch in `get_or_create_task_node`, where we just retrieve the `TaskNode` from the `task_to_node` hash map.
-The latter is handled by the else branch where we add the node to the graph with `graph.add_node` which attaches the `NodeData::Task` data to the node, and then returns a `TaskNode` which we insert into the `task_to_node` map.
-The `TaskNode` handle can then be used in the rest of the API
+The `get_or_create_file_node` method creates file nodes.
+When we want to go from a file path (using `impl AsRef<Path>`) to a `FileNode`, either we have already added this file path to the graph and want to get the `FileNode` for it, or we have not yet added it to the graph yet and should add it.
+The former is handled by the if branch in `get_or_create_file_node`, where we just retrieve the `FileNode` from the `file_to_node` hash map.
+The latter is handled by the else branch where we add the node to the graph with `graph.add_node` which attaches the `NodeData::File` data to the node, and then returns a `FileNode` which we insert into the `file_to_node` map.
 
-To go from a `TaskNode` to a task `T`, we ask the graph for the attached data of the node and retrieve the task from it in `get_task`.
+The `get_file_path` method does the inverse.
+We get the attached data given a node, and extract the file path from it.
 
 Note that we are using `panic!` here to indicate that invalid usage of this method is an *unrecoverable programming error* that should not occur.
-Returning an `Option<&T>` makes no sense here, as the caller of this method has no way to recover from this.
-Because this is not an end-user-facing API (`store` module is private), we control all the calls to this method, and thus we are responsible for using this method in a valid way. 
-Therefore, when we call this method, we should document why it is valid if this is not immediately obvious, and we need to test whether we really use it in a valid way.
+Returning an `Option<&PathBuf>` makes no sense here, as the caller of this method has no way to recover from this.
+Because this is not an end-user-facing API (`store` module is private), we control all the calls to this method, and thus we are responsible for using these methods in a valid way. 
+Therefore, when we call these methods, we should document why it is valid (if this is not immediately obvious), and we need to test whether we really use it in a valid way.
 
-We implement similar methods for file nodes in `get_or_create_file_node` and `get_file_path`.
-We store file paths as `PathBuf`, which is the owned version of `Path` (similar to `String` being the owned version of `str`)
+We're also documenting the panics in a `# Panics` section in the documentation comment, as is common practice in Rust.
+
+```admonish info title="Triggering these panics" collapsible=true
+Because only `Store` can create `FileNode`s and `TaskNode`s, and all methods only take these values as inputs, these panics will not happen under normal usage.
+The only way to trigger these panics (in safe Rust) would be to create two stores, and use the nodes from one store in another.
+However, since this is a private module, we just need to make sure that we don't do that.
+
+There are some tricks to prevent even this kind of invalid usage.
+For example, the [generativity](https://docs.rs/generativity/latest/generativity/) crate generates unique identifiers based on lifetimes.
+However, that is a bit overkill, especially for an internal API, so we won't be using that.
+```
+
+We implement similar methods for task nodes in `get_or_create_task_node` and `get_task`.
 
 #### Task outputs
 
@@ -458,16 +498,15 @@ Add the following code to `src/store.rs`:
 ```
 
 The `task_has_output`, `get_task_output`, and `set_task_output` methods manipulate task outputs in `NodeData::Task`.
-When a task is added to the dependency graph, it does not have an output yet, so we use `Option<O>` to store the output and pass in `None`.
 
 Again, we are using panics here to indicate unrecoverable programming errors.
 
 #### Dependencies
 
-Finally, we need methods to query and manipulate dependencies.
+Now we need methods to query and manipulate dependencies.
 The edges in the graph are dependencies between tasks and files.
 Tasks can depend on other tasks and files, but there are no dependencies between files.
-An edge does not have its own dedicated representation, and is simply represented by two `Node`s: the source node and the destination node of the edge.
+An edge does not have its own dedicated representation, and is simply represented by two nodes: the source node and the destination node of the edge.
 
 Add the following code to `src/store.rs`:
 
@@ -476,22 +515,31 @@ Add the following code to `src/store.rs`:
 ```
 
 The `get_dependencies_of_task` method gets the dependencies (edge data of outgoing edges) of a task.
+We're using `debug_assert!` here to trigger a panic indicating an unrecoverable programming error only in development mode, because this check is too expensive to run in release (optimized) mode.
 
 The `add_file_require_dependency` method adds a file dependency.
-Adding an edge to the graph (`graph.add_edge`) can result in cycles, which are not allowed in a directed *acyclic* graph (DAG).
-Therefore, adding an edge can return an `Err` indicating that there is a cycle.
-In case of files, this cannot happen because files do not have outgoing dependencies, so we ignore the result by binding it to `_`.
+Adding an edge to the graph can result in cycles, which are not allowed in a directed *acyclic* graph (DAG).
+Therefore, `graph.add_edge` can return an `Err` indicating that there is a cycle.
+In case of files, this cannot happen because files do not have outgoing dependencies, and the API enforces this by never taking a `FileNode` as a source (`src`) of an edge.
 
 Tasks can depend on other tasks, so they can create cycles.
-We want to catch those cycles not just because they are not allowed in a DAG, but because cycles between tasks could result in cyclic task execution, causing builds to infinitely execute.
+In `add_task_require_dependency`, we propagate the cycle detected error (by returning `Err(())`) to the caller because the caller has more information to create an error message for the user that made a cyclic task dependency.
 
-When a task requires another task, we need to add an edge to the dependency graph to check if this edge creates a cycle, but also to have this edge in the dependency graph for future cycle detection.
-However, at the moment we require the task, we do not yet have an output for the task, as we only get an output after we've executed the task.
-Therefore, we first *reserve* the task dependency, and then update it with an output.
-This manifests itself as the attached edge data being `Option<Dependency<T, O>>`, where `None` indicates that the dependency has been reserved.
+[//]: # (We want to catch those cycles not just because they are not allowed in a DAG, but because cycles between tasks could result in cyclic task execution, causing builds to infinitely execute.)
 
-The `reserve_task_require_dependency` and `update_reserved_task_require_dependency` methods implement this behavior.
-We propagate cycle errors so that the caller can report an error message.
+[//]: # ()
+[//]: # (When a task requires another task, we need to add an edge to the dependency graph to check if this edge creates a cycle, but also to have this edge in the dependency graph for future cycle detection.)
+
+[//]: # (However, at the moment we require the task, we do not yet have an output for the task, as we only get an output after we've executed the task.)
+
+[//]: # (Therefore, we first *reserve* the task dependency, and then update it with an output.)
+
+[//]: # (This manifests itself as the attached edge data being `Option<Dependency<T, O>>`, where `None` indicates that the dependency has been reserved.)
+
+[//]: # ()
+[//]: # (The `reserve_task_require_dependency` and `update_reserved_task_require_dependency` methods implement this behavior.)
+
+[//]: # (We propagate cycle errors so that the caller can report an error message.)
 
 #### Resetting tasks
 
@@ -502,7 +550,7 @@ Add the `reset_task` method that does this to `src/store.rs`:
 {{#include 4_store/h_reset.rs}}
 ```
 
-Now we've implemented everything we need for implementing the top-down context.
+Now we've implemented everything we need for implementing the top-down context, but first we will write some tests.
 
 #### Tests
 

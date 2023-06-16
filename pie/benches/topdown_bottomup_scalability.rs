@@ -4,8 +4,8 @@ use std::path::{Path, PathBuf};
 use criterion::{BatchSize, BenchmarkId, black_box, Criterion, criterion_group, criterion_main, Throughput};
 use tempfile::TempDir;
 
-use dev_shared::bench::create_pie;
-use dev_shared::create_temp_dir;
+use dev_shared::bench::create_bench_pie;
+use dev_shared::fs::create_temp_dir;
 use dev_shared::task::CommonTask;
 
 /// Show that bottom-up builds scale better than top-down builds due to bottom-up builds only checking the affected
@@ -62,7 +62,7 @@ pub fn top_down_vs_bottom_up_scalability(c: &mut Criterion) {
 
     // Top-down builds
     g.bench_function(BenchmarkId::new("top-down & no changes", num_dependencies), |b| {
-      let mut pie = create_pie();
+      let mut pie = create_bench_pie();
       pie.run_in_session(|mut session| { session.require(&task); });
       b.iter(|| {
         pie.run_in_session(|mut session| {
@@ -73,7 +73,7 @@ pub fn top_down_vs_bottom_up_scalability(c: &mut Criterion) {
     let mut bench_top_down_changes = |ratio| {
       let percentage = (ratio * 100.0) as u64;
       g.bench_function(BenchmarkId::new(format!("top-down & {}% changes", percentage), num_dependencies), |b| {
-        let mut pie = create_pie();
+        let mut pie = create_bench_pie();
         pie.run_in_session(|mut session| { session.require(&task); });
         b.iter_batched(
           || {
@@ -98,7 +98,7 @@ pub fn top_down_vs_bottom_up_scalability(c: &mut Criterion) {
 
     // Bottom-up builds
     g.bench_function(BenchmarkId::new("bottom-up & no changes", num_dependencies), |b| {
-      let mut pie = create_pie();
+      let mut pie = create_bench_pie();
       pie.run_in_session(|mut session| { session.require(&task); });
       b.iter(|| {
         pie.run_in_session(|mut session| {
@@ -109,7 +109,7 @@ pub fn top_down_vs_bottom_up_scalability(c: &mut Criterion) {
     let mut bench_bottom_up_changes = |ratio| {
       let percentage = (ratio * 100.0) as u64;
       g.bench_function(BenchmarkId::new(format!("bottom-up & {}% changes", percentage), num_dependencies), |b| {
-        let mut pie = create_pie();
+        let mut pie = create_bench_pie();
         pie.run_in_session(|mut session| { session.require(&task); });
         b.iter_batched(
           || {

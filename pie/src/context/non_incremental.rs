@@ -3,10 +3,10 @@ use std::io::Error;
 use std::path::Path;
 
 use crate::{Context, Task};
-use crate::stamp::{FileStamper, OutputStamper};
 use crate::fs::open_if_file;
+use crate::stamp::{FileStamper, OutputStamper};
 
-pub struct NonIncrementalContext {}
+pub struct NonIncrementalContext;
 
 impl<T: Task> Context<T> for NonIncrementalContext {
   #[inline]

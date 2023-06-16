@@ -1,8 +1,8 @@
 use criterion::{BenchmarkId, black_box, Criterion, criterion_group, criterion_main, Throughput};
 use tempfile::TempDir;
 
-use dev_shared::bench::create_pie;
-use dev_shared::create_temp_dir;
+use dev_shared::bench::create_bench_pie;
+use dev_shared::fs::create_temp_dir;
 use dev_shared::task::CommonTask;
 use pie::stamp::FileStamper;
 
@@ -40,7 +40,7 @@ pub fn file_dependency_scalability(c: &mut Criterion) {
 
   g.bench_function(BenchmarkId::new("without file dependencies", num_dependencies), |b| {
     // Require the task once, so all tasks are executed and cached.
-    let mut pie = create_pie();
+    let mut pie = create_bench_pie();
     pie.run_in_session(|mut session| {
       session.require(&task_without_file_deps)
     });
@@ -54,7 +54,7 @@ pub fn file_dependency_scalability(c: &mut Criterion) {
 
   g.bench_function(BenchmarkId::new("with file dependencies", num_dependencies), |b| {
     // Require the task once, so all tasks are executed and cached.
-    let mut pie = create_pie();
+    let mut pie = create_bench_pie();
     pie.run_in_session(|mut session| {
       session.require(&task_with_file_deps)
     });

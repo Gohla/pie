@@ -1,23 +1,39 @@
 impl<T: Task> Store<T, T::Output> {
-  /// Get all dependencies of task `src`.
-  pub fn get_dependencies_of_task<'a>(&'a self, src: &'a TaskNode) -> impl Iterator<Item=&'a Option<Dependency<T, T::Output>>> + 'a {
+  /// Get all dependencies of task `src`. 
+  ///
+  /// # Panics
+  ///
+  /// Panics in development builds if `src` was not found in the dependency graph.
+  pub fn get_dependencies_of_task<'a>(&'a self, src: &'a TaskNode) -> impl Iterator<Item=&'a Dependency<T, T::Output>> + 'a {
+    debug_assert!(self.graph.contains_node(src), "BUG: node {:?} was not found in the dependency graph", src);
     self.graph.get_outgoing_edge_data(src)
   }
-  /// Add a file require dependency from task `src` to file `dst`.
+  /// Add a file require `dependency` from task `src` to file `dst`.
+  ///
+  /// # Panics
+  ///
+  /// Panics if `src` or `dst` were not found in the dependency graph, or if a cycle is created by adding this dependency.
   pub fn add_file_require_dependency(&mut self, src: &TaskNode, dst: &FileNode, dependency: FileDependency) {
-    // Ignore Result: cycles cannot occur from task to file dependencies, as files do not have dependencies.
-    let _ = self.graph.add_edge(src, dst, Some(Dependency::RequireFile(dependency)));
+    match self.graph.add_edge(src, dst, Dependency::RequireFile(dependency)) {
+      Err(pie_graph::Error::NodeMissing) => panic!("BUG: source node {:?} or destination node {:?} was not found in the dependency graph", src, dst),
+      Err(pie_graph::Error::CycleDetected) => panic!("BUG: cycle detected when adding file dependency from {:?} to {:?}", src, dst),
+      _ => {},
+    }
   }
-  /// Reserve a task require dependency from task `src` to task `dst`. Returns an `Err` if this dependency creates a 
-  /// cycle. This reservation is required because the dependency from `src` to `dst` should already exist for 
-  /// cycle checking, but we do not yet have the output of task `dst` so we cannot fully create the dependency.
-  pub fn reserve_task_require_dependency(&mut self, src: &TaskNode, dst: &Node) -> Result<(), pie_graph::Error> {
-    self.graph.add_edge(src, dst, None)?;
-    Ok(())
-  }
-  /// Update the reserved task require dependency from task `src` to `dst` to `dependency`. Panics if the dependency was
-  /// not reserved before.
-  pub fn update_reserved_task_require_dependency(&mut self, src: &TaskNode, dst: &Node, dependency: TaskDependency<T, T::Output>) {
-    self.graph.get_edge_data_mut(src, dst).unwrap().replace(Dependency::RequireTask(dependency));
+  /// Adds a task require `dependency` from task `src` to task `dst`.
+  ///
+  /// # Errors
+  ///
+  /// Returns `Err(())` if adding this dependency to the graph creates a cycle.
+  ///
+  /// # Panics
+  ///
+  /// Panics if `src` or `dst` were not found in the dependency graph.
+  pub fn add_task_require_dependency(&mut self, src: &TaskNode, dst: &TaskNode, dependency: TaskDependency<T, T::Output>) -> Result<(), ()> {
+    match self.graph.add_edge(src, dst, Dependency::RequireTask(dependency)) {
+      Err(pie_graph::Error::NodeMissing) => panic!("BUG: source node {:?} or destination node {:?} was not found in the dependency graph", src, dst),
+      Err(pie_graph::Error::CycleDetected) => Err(()),
+      _ => Ok(()),
+    }
   }
 }

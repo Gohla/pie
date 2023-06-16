@@ -34,7 +34,7 @@ mod test {
     fs::write(&path, "test1")
       .expect("failed to write to file");
 
-    let (file_dependency, _) = FileDependency::new(&path, FileStamper::Modified)
+    let file_dependency = FileDependency::new(&path, FileStamper::Modified)
       .expect("failed to create file dependency");
     let dependency: Dependency<ReadStringFromFile, String> = Dependency::RequireFile(file_dependency.clone());
     assert!(file_dependency.is_inconsistent().expect("failed to check for inconsistency").is_none());

@@ -8,17 +8,17 @@ use tempfile::TempDir;
 use ::pie::stamp::FileStamper;
 use dev_shared::check::CheckErrorExt;
 use dev_shared::task::CommonTask;
-use dev_shared::test::Pie;
+use dev_shared::TestPie;
 
 #[fixture]
-fn pie() -> Pie<CommonTask> { dev_shared::test::create_pie() }
+fn pie() -> TestPie<CommonTask> { dev_shared::create_test_pie() }
 
 #[fixture]
-fn temp_dir() -> TempDir { dev_shared::create_temp_dir() }
+fn temp_dir() -> TempDir { dev_shared::fs::create_temp_dir() }
 
 
 #[rstest]
-fn test_serde_roundtrip_one_task(mut pie: Pie<CommonTask>, temp_dir: TempDir) {
+fn test_serde_roundtrip_one_task(mut pie: TestPie<CommonTask>, temp_dir: TempDir) {
   let path = temp_dir.path().join("test.txt");
   fs::write(&path, "HELLO WORLD!").check();
 

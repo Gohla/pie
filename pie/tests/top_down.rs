@@ -8,17 +8,17 @@ use ::pie::stamp::FileStamper;
 use ::pie::tracker::event::Event::*;
 use dev_shared::check::CheckErrorExt;
 use dev_shared::task::{CommonOutput, CommonTask};
-use dev_shared::test::Pie;
+use dev_shared::TestPie;
 
 #[fixture]
-fn pie() -> Pie<CommonTask> { dev_shared::test::create_pie() }
+fn pie() -> TestPie<CommonTask> { dev_shared::create_test_pie() }
 
 #[fixture]
-fn temp_dir() -> TempDir { dev_shared::create_temp_dir() }
+fn temp_dir() -> TempDir { dev_shared::fs::create_temp_dir() }
 
 
 #[rstest]
-fn test_exec(mut pie: Pie<CommonTask>) {
+fn test_exec(mut pie: TestPie<CommonTask>) {
   let task = CommonTask::string_constant("string");
 
   pie.run_in_session(|mut session| {
@@ -39,7 +39,7 @@ fn test_exec(mut pie: Pie<CommonTask>) {
 }
 
 #[rstest]
-fn test_reuse(mut pie: Pie<CommonTask>) {
+fn test_reuse(mut pie: TestPie<CommonTask>) {
   let task = CommonTask::string_constant("string");
 
   pie.run_in_session(|mut session| {
@@ -68,7 +68,7 @@ fn test_reuse(mut pie: Pie<CommonTask>) {
 }
 
 #[rstest]
-fn test_require_task(mut pie: Pie<CommonTask>, temp_dir: TempDir) {
+fn test_require_task(mut pie: TestPie<CommonTask>, temp_dir: TempDir) {
   let path = temp_dir.path().join("in.txt");
   fs::write(&path, "HELLO WORLD!").check();
 
@@ -128,7 +128,7 @@ fn test_require_task(mut pie: Pie<CommonTask>, temp_dir: TempDir) {
 }
 
 #[rstest]
-fn test_require_file(mut pie: Pie<CommonTask>, temp_dir: TempDir) {
+fn test_require_file(mut pie: TestPie<CommonTask>, temp_dir: TempDir) {
   let path = temp_dir.path().join("in.txt");
   fs::write(&path, "HELLO WORLD!").check();
   let task = CommonTask::read_string_from_file(&path, FileStamper::Modified);
@@ -162,7 +162,7 @@ fn test_require_file(mut pie: Pie<CommonTask>, temp_dir: TempDir) {
 }
 
 #[rstest]
-fn test_provide_file(mut pie: Pie<CommonTask>, temp_dir: TempDir) {
+fn test_provide_file(mut pie: TestPie<CommonTask>, temp_dir: TempDir) {
   let path = temp_dir.path().join("out.txt");
   let task = CommonTask::write_constant_string_to_file("HELLO WORLD!", &path, FileStamper::Modified);
 
@@ -199,7 +199,7 @@ fn test_provide_file(mut pie: Pie<CommonTask>, temp_dir: TempDir) {
 
 #[rstest]
 #[should_panic(expected = "Cyclic task dependency")]
-fn require_self_cycle_panics(mut pie: Pie<CommonTask>) {
+fn require_self_cycle_panics(mut pie: TestPie<CommonTask>) {
   pie.run_in_session(|mut session| {
     session.require(&CommonTask::require_self());
   });
@@ -207,7 +207,7 @@ fn require_self_cycle_panics(mut pie: Pie<CommonTask>) {
 
 #[rstest]
 #[should_panic(expected = "Cyclic task dependency")]
-fn require_cycle_panics(mut pie: Pie<CommonTask>) {
+fn require_cycle_panics(mut pie: TestPie<CommonTask>) {
   pie.run_in_session(|mut session| {
     session.require(&CommonTask::require_cycle_a());
   });
@@ -216,7 +216,7 @@ fn require_cycle_panics(mut pie: Pie<CommonTask>) {
 
 #[rstest]
 #[should_panic(expected = "Overlapping provided file")]
-fn overlapping_provided_file_panics(mut pie: Pie<CommonTask>, temp_dir: TempDir) {
+fn overlapping_provided_file_panics(mut pie: TestPie<CommonTask>, temp_dir: TempDir) {
   let path = temp_dir.path().join("out.txt");
   pie.run_in_session(|mut session| {
     let task_1 = CommonTask::write_constant_string_to_file("Test 1", &path, FileStamper::Modified);
@@ -230,7 +230,7 @@ fn overlapping_provided_file_panics(mut pie: Pie<CommonTask>, temp_dir: TempDir)
 
 #[rstest]
 #[should_panic(expected = "Hidden dependency")]
-fn hidden_dependency_during_require_panics(mut pie: Pie<CommonTask>, temp_dir: TempDir) {
+fn hidden_dependency_during_require_panics(mut pie: TestPie<CommonTask>, temp_dir: TempDir) {
   let path = temp_dir.path().join("inout.txt");
   pie.run_in_session(|mut session| {
     let providing_task = CommonTask::write_constant_string_to_file("Test 1", &path, FileStamper::Modified);
@@ -244,7 +244,7 @@ fn hidden_dependency_during_require_panics(mut pie: Pie<CommonTask>, temp_dir: T
 
 #[rstest]
 #[should_panic(expected = "Hidden dependency")]
-fn hidden_dependency_during_provide_panics(mut pie: Pie<CommonTask>, temp_dir: TempDir) {
+fn hidden_dependency_during_provide_panics(mut pie: TestPie<CommonTask>, temp_dir: TempDir) {
   let path = temp_dir.path().join("inout.txt");
   fs::write(&path, "test").check();
   pie.run_in_session(|mut session| {

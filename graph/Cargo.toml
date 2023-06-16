@@ -7,6 +7,7 @@ publish = false
 
 [dependencies]
 slotmap = "1"
+hashlink = "0.8"
 serde = { version = "1", features = ["derive"], optional = true }
 
 [dev-dependencies]
@@ -14,4 +15,4 @@ pretty_env_logger = "0.4"
 
 [features]
 default = ["serde"]
-serde = ["dep:serde", "slotmap/serde"]
+serde = ["dep:serde", "slotmap/serde", "hashlink/serde_impl"]
