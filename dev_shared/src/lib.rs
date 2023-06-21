@@ -10,7 +10,6 @@ use pie::tracker::writing::WritingTracker;
 
 pub mod fs;
 pub mod task;
-pub mod assert;
 pub mod check;
 
 /// Testing PIE with event tracking for testing purposes, and stdout writing for debugging.

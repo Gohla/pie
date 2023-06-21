@@ -22,7 +22,7 @@ Let's make tasks and contexts more concrete by defining them in code.
 
 Since we want users of the build system to implement their own tasks, we will define `Task` as a trait.
 Likewise, we will also be implementing multiple contexts in this tutorial, so we will also define `Context` as a trait.
-Add the following code to your `src/lib.rs` file:
+Add the following code to your `pie/src/lib.rs` file:
 
 ```rust,
 {{#include 0_api/a_api.rs}}
@@ -97,21 +97,21 @@ However, incrementality is *hard*, so let's start with an extremely simple non-i
 ### Context module
 
 Since we will be implementing three different contexts in this tutorial, we will separate them in different modules.
-Create the `context` module by adding a module to `src/lib.rs`:
+Create the `context` module by adding a module to `pie/src/lib.rs`:
 
 ```rust,customdiff
 {{#include ../../gen/1_api/1_non_incremental/a_context_module.rs.diff:4:}}
 ```
 
-This is a diff over `src/lib.rs` where lines with a green background are additions, lines with a red background are removals, and lines with a grey background are context on where to add/remove lines, similar to diffs on source code hubs like GitHub.
+This is a diff over `pie/src/lib.rs` where lines with a green background are additions, lines with a red background are removals, and lines with a grey background are context on where to add/remove lines, similar to diffs on source code hubs like GitHub.
 
-Create the `src/context` directory, and in it, create the `src/context/mod.rs` file with the following contents:
+Create the `pie/src/context` directory, and in it, create the `pie/src/context/mod.rs` file with the following contents:
 
 ```rust,
 {{#include 1_non_incremental/b_non_incremental_module.rs}}
 ```
 
-Then, create the `src/context/non_incremental.rs` file, it will be empty for now.
+Then, create the `pie/src/context/non_incremental.rs` file, it will be empty for now.
 Your project structure should now look like:
 
 ```
@@ -131,7 +131,7 @@ Like traits, modules also have [visibility](https://doc.rust-lang.org/reference/
 
 ### Implementation
 
-Implement the non-incremental context in `src/context/non_incremental.rs` by adding:
+Implement the non-incremental context in `pie/src/context/non_incremental.rs` by adding:
 
 ```rust,
 {{#include 1_non_incremental/c_non_incremental_context.rs}}
@@ -157,7 +157,7 @@ We could also write that as `return task.execute(self);`, but that is more verbo
 
 ### Simple Test
 
-Add the following test to `src/context/non_incremental.rs`:
+Add the following test to `pie/src/context/non_incremental.rs`:
 
 ```rust,
 {{#include 1_non_incremental/d_test.rs}}

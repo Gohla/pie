@@ -22,22 +22,11 @@ To check if a file dependency is consistent, we just stamp the file again and co
 
 Similarly, we can employ stamps for task dependencies as well by stamping the output of a task.
 
-Before we start coding, let's sketch the outline of the solution — we will:
-
-* Extend `Context` with a way to for tasks to register file dependencies.
-  * Implement file system utility functions in module `fs`.
-  * Make `NonIncrementalContext` compatible with the extension to `Context`.
-* Implement a `TopDownContext` that does incremental building.
-  * Implement file and task output stamps.
-  * Extend `Context` to support stampers when creating dependencies.
-  * Implement file and task dependencies.
-  * Implement `Store` that keeps track of the dependency graph.
-* Write tests for `TopDownContext` to confirm that it is sound and incremental.
-  * Implement a `Tracker` that can track build events, so we can assert whether a task has executed or not to test incrementality.
+First, we will start by adding file dependencies.
 
 ## Adding File Dependencies
 
-To support file dependencies, add a method to the `Context` trait in `src/lib.rs`:
+To support file dependencies, add a method to the `Context` trait in `pie/src/lib.rs`:
 
 ```rust,customdiff
 {{#include ../../gen/2_top_down/0_require_file/a_context.rs.diff:4:}}
@@ -70,13 +59,13 @@ You can also see this as a kind of method overloading, without having to provide
 Now we need to implement this method for `NonIncrementalContext`.
 However, because we will be performing similar file system operations in the incremental context as well, we will create some utility functions for this first.
 
-Add the `fs` module to `src/lib.rs`:
+Add the `fs` module to `pie/src/lib.rs`:
 
 ```rust,customdiff
 {{#include ../../gen/2_top_down/0_require_file/b_fs_module.rs.diff:4:}}
 ```
 
-Create file `src/fs.rs` with:
+Create file `pie/src/fs.rs` with:
 
 ```rust,
 {{#include 0_require_file/c_fs.rs}}
@@ -87,39 +76,71 @@ The reason for these functions is that the standard library function `std::fs::m
 Furthermore, `open_if_file` works around an issue where opening a directory on Windows (and possibly other operating systems) is an error, where we want to treat it as `None` again.
 The documentation comments explain the exact behaviour.
 
+```admonish info title="Rust Help" collapsible=true
+The `?` operator makes it easy to [propgate errors](https://doc.rust-lang.org/book/ch09-02-recoverable-errors-with-result.html#a-shortcut-for-propagating-errors-the--operator).
+Because errors are just values in Rust, to propgate an error, you'd normally have to match each result and manually propagate the error.
+The `r?` operator applied to a `Result` `r` does this for you, it basically desugars to something like `match r { Err(e) => return Err(e), _ => {} }`.
+
+Comments with three forward slashes `///` are [documentation comments](https://doc.rust-lang.org/book/ch14-02-publishing-to-crates-io.html#making-useful-documentation-comments) that document the function/struct/enum/trait/etc. they are applied to.
+```
+
 We will write some tests to confirm the behaviour, but for that we need utilities to create temporary files and directories.
 Furthermore, we will be writing more unit tests, integration tests, and even benchmarks in this tutorial, so we will set up these utilities in such a way that they are reachable by all these use cases.
 The only way to do that in Rust right now, is to create a separate crate and have the `pie` crate depend on it.
 
-TODO: create dev_shared crate
-TODO: add tempfile and utilities to it
-TODO: then have pie depend on dev_shared in dev-dependencies
-TODO: modify tests to use this
+Next to the `pie` directory, create a directory named `dev_shared`.
+Create the `dev_shared/Cargo.toml` file with the following contents:
 
-Instead of implementing that ourselves, we will use an existing crate.
-Add the `tempfile` dependency to `Cargo.toml`:
+```toml,
+{{#include 0_require_file/d_dev_shared_Cargo.toml}}
+```
 
-```toml,customdiff
-{{#include ../../gen/2_top_down/0_require_file/d_Cargo.toml.diff:4:}}
+We've added the `tempfile` dependency here already, which is a crate that creates and automatically cleans up temporary files and directories.
+
+```admonish info title="Rust Help" collapsible=true
+We use other libraries (crates) by [specifying dependencies](https://doc.rust-lang.org/cargo/reference/specifying-dependencies.html).
+Because basically every Rust library adheres to [semantic versioning](https://semver.org/), we can use `"3"` as a version requirement which indicates that we will use the most up-to-date `3.x.x` version.
+```
+
+Create the main library file `dev_shared/src/lib.rs`, with functions for creating temporary files and directories:
+
+```rust,
+{{#include 0_require_file/e_dev_shared_lib.rs}}
+```
+
+Your directory structure should now look like this:
+
+```
+{{#include ../../gen/2_top_down/0_require_file/e_dir.txt:2:}}
+```
+
+To access these utility functions in the `pie` crate, add a dependency to `dev_shared` in `pie/Cargo.toml`:
+
+```toml,customdiff,
+{{#include ../../gen/2_top_down/0_require_file/f_Cargo.toml.diff:4:}}
 ```
 
 Note that this is dependency is added under `dev-dependencies`, indicating that this dependency is only available when running tests, benchmarks, and examples.
-Therefore, users of our library will not depend on this library, which is good because temporary file creation is not necessary to users of our library.
+Therefore, users of our library will not depend on this library, which is good, because temporary file management is not necessary to users of our library.
 
-Now, add the following tests to `src/fs.rs`:
+Back to testing our filesystem utilities.
+Add the following tests to `pie/src/fs.rs`:
 
 ```rust,
-{{#include 0_require_file/e_fs_test.rs}}
+{{#include 0_require_file/g_fs_test.rs}}
 ```
 
-The `tempfile` library takes care of deleting temporary files when they go out of scope (at the end of the test).
+We test whether the functions conform to the specified behaviour.
 Unfortunately, we can't easily test when `metadata` and `open_if_file` should return an error, because we cannot disable read permissions on files via the Rust standard library.
 
-Now we are done with our filesystem utility excursion.
-Make the non-incremental context compatible by changing `src/context/non_incremental.rs`:
+We use our `create_temp_file` and `create_temp_dir` utility functions to create temporary files and directories.
+The `tempfile` library takes care of deleting temporary files when they go out of scope (at the end of the test).
+
+Now we are done with our filesystem and testing utility excursion.
+Make the non-incremental context compatible by changing `pie/src/context/non_incremental.rs`:
 
 ```rust,customdiff
-{{#include ../../gen/2_top_down/0_require_file/f_non_incremental_context.rs.diff:4:}}
+{{#include ../../gen/2_top_down/0_require_file/h_non_incremental_context.rs.diff:4:}}
 ```
 
 Since the non-incremental context does not track anything, we simply try to open the file and return it.
@@ -130,15 +151,6 @@ This implements the description we made earlier:
 * Otherwise, `file` is `Some(file)`.
 
 Confirm everything works with `cargo test`.
-
-```admonish info title="Rust Help" collapsible=true
-
-The `?` operator makes it easy to [propgate errors](https://doc.rust-lang.org/book/ch09-02-recoverable-errors-with-result.html#a-shortcut-for-propagating-errors-the--operator).
-Because errors are just values in Rust, to propgate an error, you'd normally have to match each result and manually propagate the error.
-The `r?` operator applied to a `Result` `r` does this for you, it basically desugars to something like `match r { Err(e) => return Err(e), _ => {} }`.
-
-Comments with three forward slashes `///` are [documentation comments](https://doc.rust-lang.org/book/ch14-02-publishing-to-crates-io.html#making-useful-documentation-comments) that document the function/struct/enum/trait/etc. they are applied to.
-```
 
 ## Implementing the Incremental Context
 
@@ -156,14 +168,14 @@ To implement this, we will need several components:
 - A `FileDependency` type that holds a `FileStamper` and `FileStamp` to check whether a file is consistent.
 - A `TaskDependency` type that holds an `OutputStamper` and `OutputStamp` to check whether a task is consistent.
 - A `Dependency` type that merges `FileDependency` and `TaskDependency` so we can check whether a dependency is consistent without having to know what kind of dependency it is.
-- A `Store` type which holds the dependency graph with methods for interacting with the graph.
+- A `Store` type which holds the dependency graph with methods for mutating and querying the graph, using `Dependency` to represent dependencies.
 - A `TopDownContext` type that implements `Context` in an incremental way, using `Store`.
 
-We will start with implementing stamps and dependencies, as that can be implemented as a stand-alone part.
+We will start with implementing stamps and dependencies, as those can be implemented as a stand-alone part.
 
 ### Stamp implementation
 
-Add the `stamp` module to `src/lib.rs`:
+Add the `stamp` module to `pie/src/lib.rs`:
 
 ```rust,customdiff
 {{#include ../../gen/2_top_down/1_stamp/a_module.rs.diff:4:}}
@@ -173,7 +185,7 @@ Note that this module is declared `pub`, as users of the library should be able 
 
 #### File stamps
 
-Create the `src/stamp.rs` file and add:
+Create the `pie/src/stamp.rs` file and add:
 
 ```rust,
 {{#include 1_stamp/b_file.rs}}
@@ -194,7 +206,7 @@ We also derive `Eq` for stampers, because the stamper of a dependency could chan
 #### Task output stamps
 
 We implement task output stampers in a similar way.
-Add to `src/stamp.rs`:
+Add to `pie/src/stamp.rs`:
 
 ```rust,
 {{#include 1_stamp/c_output.rs}}
@@ -212,7 +224,7 @@ Thus, `OutputStamp` is only `Clone` when `O` is `Clone`, `OutputStamp` is only `
 Because we declared `Task::Output` with bound `Clone + Eq + Debug`, we can be sure that `OutputStamp` is always `Clone`, `Eq`, and `Debug`.
 ```
 
-```admonish info title="User definable stamps" collapsible=true
+```admonish info title="User-defined stamps" collapsible=true
 `FileStamper` and `OutputStamper` could also be a trait which would allow users of the library to implement their own stampers.
 For simplicity, we do not explore that option in this tutorial.
 If you feel adventurous, you could try to implement this after you've finished the tutorial.
@@ -222,7 +234,7 @@ Do note that this introduces a lot of extra generics and trait bounds everywhere
 #### Tests
 
 Finally, we write some tests.
-Add to `src/stamp.rs`:
+Add to `pie/src/stamp.rs`:
 
 ```rust,
 {{#include 1_stamp/d_test.rs}}
@@ -239,7 +251,7 @@ We now have a module dedicated to stamps.
 However, stampers are constructed by users of the library that author tasks, and they need to pass in these stampers when creating dependencies.
 Therefore, we need to update the `Context` trait to allow passing in these stampers.
 
-Change `Context` in `src/lib.rs`:
+Change `Context` in `pie/src/lib.rs`:
 
 ```rust,customdiff
 {{#include ../../gen/2_top_down/2_stamp_context/a_context.rs.diff:4:}}
@@ -261,7 +273,7 @@ Run `cargo test` to confirm everything still works.
 
 ### Dependency implementation
 
-Add the `dependency` module to `src/lib.rs`:
+Add the `dependency` module to `pie/src/lib.rs`:
 
 ```rust,customdiff
 {{#include ../../gen/2_top_down/3_dependency/a_module.rs.diff:4:}}
@@ -272,7 +284,7 @@ They should only create stampers, which are passed to dependencies via the `Cont
 
 #### File dependencies
 
-Create the `src/dependency.rs` file and add:
+Create the `pie/src/dependency.rs` file and add:
 
 ```rust,
 {{#include 3_dependency/b_file.rs}}
@@ -291,7 +303,7 @@ Creating and checking a file dependency can fail due to file operations failing 
 #### Task dependencies
 
 Task dependencies are implemented in a similar way.
-Add to `src/dependency.rs`:
+Add to `pie/src/dependency.rs`:
 
 ```rust,
 {{#include 3_dependency/c_task.rs}}
@@ -319,7 +331,7 @@ Because we need to recursively check the task, `TaskDependency::is_inconsistent`
 #### Dependency enum
 
 Finally, we create a `Dependency` enum that abstracts over these two kinds of dependencies.
-Add to `src/dependency.rs`:
+Add to `pie/src/dependency.rs`:
 
 ```rust,
 {{#include 3_dependency/d_dependency.rs}}
@@ -344,7 +356,7 @@ But, if you have an idea on how to this nicely (after you've completed this tuto
 #### Tests
 
 As usual, we write some tests to confirm the behaviour.
-Add tests to `src/dependency.rs`:
+Add tests to `pie/src/dependency.rs`:
 
 ```rust,
 {{#include 3_dependency/e_test.rs}}
@@ -388,7 +400,7 @@ That is exactly what we need, as dynamic dependencies prevents us from calculati
 The implementation in the `incremental-topo` library is based on a [paper by D. J. Pearce and P. H. J. Kelly](http://www.doc.ic.ac.uk/~phjk/Publications/DynamicTopoSortAlg-JEA-07.pdf) that describes several dynamic topological sort algorithms for directed acyclic graphs.
 ```
 
-Add the `pie_graph` dependency to `Cargo.toml`:
+Add the `pie_graph` dependency to `pie/Cargo.toml`:
 
 ```rust,customdiff
 {{#include ../../gen/2_top_down/4_store/a_Cargo.toml.diff:4:}}
@@ -396,7 +408,7 @@ Add the `pie_graph` dependency to `Cargo.toml`:
 
 #### Store basics
 
-Add the `store` module to `src/lib.rs`:
+Add the `store` module to `pie/src/lib.rs`:
 
 ```rust,customdiff
 {{#include ../../gen/2_top_down/4_store/b_module.rs.diff:4:}}
@@ -404,7 +416,7 @@ Add the `store` module to `src/lib.rs`:
 
 This module is not public, as users of the library should not interact with the store.
 
-Create the `src/store.rs` file and add the following to get started:
+Create the `pie/src/store.rs` file and add the following to get started:
 
 ```rust,
 {{#include 4_store/c_basic.rs}}
@@ -423,6 +435,7 @@ The task output is stored as `Option<O>` because we can add a task to the graph 
 The second argument is the type of data to attach to edges, which is `Dependency<T, O>`, using the `Dependency` enum we defined earlier.
 
 We implement `Default` for the store to initialize it.
+We also add a `new` function to initialize the store, which right now is the same as `default`, but will get a more specific meaning later.
 
 ```admonish info title="Deriving default" collapsible=true
 We cannot derive this `Default` implementation even though it seems we should be able to, because the derived implementation will require `T` and `O` to be `Default`, and this is not always the case.
@@ -444,7 +457,7 @@ We need this for incrementality so that if the build system encounters the same 
 To ensure unique nodes, we need to maintain the reverse mapping from `PathBuf` and `T` to `Node` ourselves, which we will do with `HashMap`s.
 This is also the reason for the `Eq` and `Hash` trait bounds on the `Task` trait, so we can use them as keys in `HashMap`s.
 
-Change `src/store.rs` to add hash maps to map between these things:
+Change `pie/src/store.rs` to add hash maps to map between these things:
 
 ```rust,customdiff
 {{#include ../../gen/2_top_down/4_store/d_mapping_diff.rs.diff:4:}}
@@ -454,7 +467,7 @@ Furthermore, we also create the `FileNode` and `TaskNode` [newtypes](https://rus
 The `Borrow` implementations will make subsequent code a bit more concise by automatically converting `&FileNode` and `&TaskNode`s to `&Node`s.
 
 Now we will add methods create nodes and to query their attached data.
-Add the following code to `src/store.rs`:
+Add the following code to `pie/src/store.rs`:
 
 ```rust,
 {{#include 4_store/e_mapping.rs}}
@@ -491,7 +504,7 @@ We implement similar methods for task nodes in `get_or_create_task_node` and `ge
 
 When we do not need to execute a task because it is consistent, we still need to return its output.
 Therefore, we store the task output in `NodeData::Task` and add methods to query and manipulate task outputs.
-Add the following code to `src/store.rs`:
+Add the following code to `pie/src/store.rs`:
 
 ```rust,
 {{#include 4_store/f_output.rs}}
@@ -508,7 +521,7 @@ The edges in the graph are dependencies between tasks and files.
 Tasks can depend on other tasks and files, but there are no dependencies between files.
 An edge does not have its own dedicated representation, and is simply represented by two nodes: the source node and the destination node of the edge.
 
-Add the following code to `src/store.rs`:
+Add the following code to `pie/src/store.rs`:
 
 ```rust,
 {{#include 4_store/g_dependency.rs}}
@@ -544,11 +557,14 @@ In `add_task_require_dependency`, we propagate the cycle detected error (by retu
 #### Resetting tasks
 
 Finally, when we determine that a task is inconsistent and needs to be executed, we first need to remove its output and remove its outgoing dependencies, as those will interfere with incrementality when not removed.
-Add the `reset_task` method that does this to `src/store.rs`:
+We do NOT want to remove incoming dependencies, as that would remove dependencies from other tasks to this task, which breaks incrementality, so we can't just remove and re-add the task to the graph.
+Add the `reset_task` method that does this to `pie/src/store.rs`:
 
 ```rust,
 {{#include 4_store/h_reset.rs}}
 ```
+
+This will reset the task output back to `None`, and remove all outgoing edges (dependencies).
 
 Now we've implemented everything we need for implementing the top-down context, but first we will write some tests.
 
@@ -556,17 +572,19 @@ Now we've implemented everything we need for implementing the top-down context, 
 
 TODO
 
+
+
 ### Top-down context implementation
 
 #### Top-down context basics
 
-Add the `top_down` module to `src/context/mod.rs`:
+Add the `top_down` module to `pie/src/context/mod.rs`:
 
 ```rust,customdiff
 
 ```
 
-Create the `src/context/top_down.rs` file and add the following to get started:
+Create the `pie/src/context/top_down.rs` file and add the following to get started:
 
 ```rust,
 {{#include 4_top_down/initial_context.rs}}

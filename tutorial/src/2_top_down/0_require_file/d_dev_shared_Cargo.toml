@@ -1,9 +1,7 @@
 [package]
-name = "pie"
+name = "dev_shared"
 version = "0.1.0"
 edition = "2021"
 
-[workspace]
-
-[dev-dependencies]
+[dependencies]
 tempfile = "3"

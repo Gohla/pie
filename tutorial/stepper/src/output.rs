@@ -55,7 +55,10 @@ pub struct DirectoryStructure {
 }
 
 impl DirectoryStructure {
-  pub fn new(destination_directory_path: impl Into<PathBuf>, output_file_path: impl Into<PathBuf>) -> Output {
+  pub fn new(
+    destination_directory_path: impl Into<PathBuf>,
+    output_file_path: impl Into<PathBuf>
+  ) -> Output {
     let destination_directory_path = destination_directory_path.into();
     let output_file_path = output_file_path.into();
     Output::DirectoryStructure(Self { destination_directory_path, output_file_path })

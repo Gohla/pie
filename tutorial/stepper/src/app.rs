@@ -61,12 +61,15 @@ pub fn step_all(
         create_diff("a_context.rs", "lib.rs"),
         create_diff("b_fs_module.rs", "lib.rs"),
         add("c_fs.rs", "fs.rs"),
-        create_diff("d_Cargo.toml", "../Cargo.toml"),
-        add("e_fs_test.rs", "fs.rs"),
-        create_diff_builder("f_non_incremental_context.rs", "context/non_incremental.rs")
+        add("d_dev_shared_Cargo.toml", "../../dev_shared/Cargo.toml"),
+        add("e_dev_shared_lib.rs", "../../dev_shared/src/lib.rs"),
+        create_diff("f_Cargo.toml", "../Cargo.toml"),
+        add("g_fs_test.rs", "fs.rs"),
+        create_diff_builder("h_non_incremental_context.rs", "context/non_incremental.rs")
           .original("../../1_api/1_non_incremental/c_non_incremental_context.rs") // HACK: Explicitly set original file to the one without tests
           .into_modification(),
-      ]);
+      ])
+        .output(DirectoryStructure::new("../../", "e_dir.txt"));
     });
     stepper.with_path("1_stamp", |stepper| {
       stepper.apply([

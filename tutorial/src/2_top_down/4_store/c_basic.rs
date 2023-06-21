@@ -21,10 +21,15 @@ enum NodeData<T, O> {
   },
 }
 
+
 impl<T: Task> Default for Store<T, T::Output> {
   fn default() -> Self {
     Self {
       graph: DAG::default(),
     }
   }
+}
+
+impl<T: Task> Store<T, T::Output> {
+  pub fn new() -> Self { Self::default() }
 }

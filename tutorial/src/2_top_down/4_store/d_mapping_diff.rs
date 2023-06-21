@@ -42,6 +42,7 @@ impl Borrow<Node> for &TaskNode {
   fn borrow(&self) -> &Node { &self.0 }
 }
 
+
 impl<T: Task> Default for Store<T, T::Output> {
   fn default() -> Self {
     Self {
@@ -50,4 +51,8 @@ impl<T: Task> Default for Store<T, T::Output> {
       task_to_node: HashMap::default(),
     }
   }
+}
+
+impl<T: Task> Store<T, T::Output> {
+  pub fn new() -> Self { Self::default() }
 }

@@ -384,11 +384,11 @@ impl<N, E, H: BuildHasher + Default> DAG<N, E, H> {
     let src = src.borrow();
     let dst = dst.borrow();
 
-    if src == dst { // No loops to self
-      return Err(Error::CycleDetected);
-    }
     if !self.node_info.contains_key(src.0) || !self.node_info.contains_key(dst.0) {
       return Err(Error::NodeMissing);
+    }
+    if src == dst { // No loops to self
+      return Err(Error::CycleDetected);
     }
 
     // Insert forward edge
@@ -676,7 +676,7 @@ impl<N, E, H: BuildHasher + Default> DAG<N, E, H> {
 
   /// Attempt to remove all outgoing edges of `src` from the graph, returning `Some(edge_data)` if any edges were 
   /// removed, or `None` if the node does not exist or does not have any edges.
-  pub fn remove_edges_of_node(&mut self, src: impl Borrow<Node>) -> Option<Vec<(Node, E)>> { // TODO: test!
+  pub fn remove_outgoing_edges_of_node(&mut self, src: impl Borrow<Node>) -> Option<Vec<(Node, E)>> { // TODO: test!
     let pred_id = src.borrow();
     if !self.node_info.contains_key(pred_id.0) {
       return None;

@@ -10,6 +10,6 @@ impl<T: Task> Store<T, T::Output> {
     } else {
       panic!("BUG: node {:?} was not found in the dependency graph", src);
     }
-    self.graph.remove_edges_of_node(src);
+    self.graph.remove_outgoing_edges_of_node(src);
   }
 }
