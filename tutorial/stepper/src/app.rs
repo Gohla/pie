@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use crate::modification::{add, apply_diff, create, create_diff, create_diff_builder};
+use crate::modification::{add, apply_diff, create, create_diff, create_diff_builder, insert};
 use crate::output::{CargoOutput, DirectoryStructure};
 use crate::stepper::Stepper;
 
@@ -106,6 +106,11 @@ pub fn step_all(
         add("f_output.rs", "store.rs"),
         add("g_dependency.rs", "store.rs"),
         add("h_reset.rs", "store.rs"),
+        add("i_test_file_mapping.rs", "store.rs"),
+        insert("j_test_task_mapping.rs", "}", "store.rs"),
+        insert("k_test_task_output.rs", "}", "store.rs"),
+        insert("l_test_dependencies.rs", "}", "store.rs"),
+        insert("m_test_reset.rs", "}", "store.rs"),
       ]);
     });
   });

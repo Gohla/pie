@@ -3,16 +3,17 @@ use std::fs::read_to_string;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
-use anyhow::Context;
+use anyhow::{bail, Context};
 use diffy::{DiffOptions, Patch};
 
 use crate::stepper::Stepper;
-use crate::util::{add_extension, open_writable_file};
+use crate::util::{add_extension, open_writable_file, write_to_file};
 
 #[derive(Clone)]
 pub enum Modification {
   CreateFile(CreateFile),
   AddToFile(AddToFile),
+  InsertIntoFile(InsertIntoFile),
   CreateDiffAndApply(CreateDiffAndApply),
   ApplyDiff(ApplyDiff),
 }
@@ -22,6 +23,7 @@ impl Display for Modification {
     match self {
       Self::CreateFile(m) => m.fmt(f),
       Self::AddToFile(m) => m.fmt(f),
+      Self::InsertIntoFile(m) => m.fmt(f),
       Self::CreateDiffAndApply(m) => m.fmt(f),
       Self::ApplyDiff(m) => m.fmt(f),
     }
@@ -33,6 +35,7 @@ impl Modification {
     let resolved = match self {
       Self::CreateFile(m) => ModificationResolved::CreateFile(m.resolve(stepper)?),
       Self::AddToFile(m) => ModificationResolved::AddToFile(m.resolve(stepper)?),
+      Self::InsertIntoFile(m) => ModificationResolved::InsertIntoFile(m.resolve(stepper)?),
       Self::CreateDiffAndApply(m) => ModificationResolved::CreateDiffAndApply(m.resolve(stepper)?),
       Self::ApplyDiff(m) => ModificationResolved::ApplyDiff(m.resolve(stepper)?),
     };
@@ -43,6 +46,7 @@ impl Modification {
 pub enum ModificationResolved {
   CreateFile(CreateFile),
   AddToFile(AddToFile),
+  InsertIntoFile(InsertIntoFile),
   CreateDiffAndApply(CreateDiffAndApplyResolved),
   ApplyDiff(ApplyDiff),
 }
@@ -52,6 +56,7 @@ impl Display for ModificationResolved {
     match self {
       Self::CreateFile(m) => m.fmt(f),
       Self::AddToFile(m) => m.fmt(f),
+      Self::InsertIntoFile(m) => m.fmt(f),
       Self::CreateDiffAndApply(m) => m.fmt(f),
       Self::ApplyDiff(m) => m.fmt(f),
     }
@@ -63,6 +68,7 @@ impl ModificationResolved {
     match self {
       Self::CreateFile(m) => m.apply(),
       Self::AddToFile(m) => m.apply(stepper),
+      Self::InsertIntoFile(m) => m.apply(),
       Self::CreateDiffAndApply(m) => m.apply(stepper),
       Self::ApplyDiff(m) => m.apply(),
     }
@@ -141,6 +147,86 @@ impl AddToFile {
       .context("failed to append to destination file")?;
 
     stepper.last_original_file.insert(self.destination_file_path.clone(), self.addition_file_path.clone());
+
+    Ok(())
+  }
+}
+
+
+// Insert into to file
+
+#[derive(Clone, Debug)]
+pub enum InsertionPlace {
+  BeforeLine(usize),
+  BeforeLastMatchOf(&'static str)
+}
+
+impl From<usize> for InsertionPlace {
+  fn from(value: usize) -> Self { Self::BeforeLine(value) }
+}
+
+impl From<&'static str> for InsertionPlace {
+  fn from(value: &'static str) -> Self { Self::BeforeLastMatchOf(value) }
+}
+
+#[derive(Clone)]
+pub struct InsertIntoFile {
+  insertion_file_path: PathBuf,
+  insertion_place: InsertionPlace,
+  destination_file_path: PathBuf,
+}
+
+pub fn insert(
+  insertion_file_path: impl Into<PathBuf>,
+  insertion_place: impl Into<InsertionPlace>,
+  destination_file_path: impl Into<PathBuf>,
+) -> Modification {
+  let insertion_file_path = insertion_file_path.into();
+  let insertion_place = insertion_place.into();
+  let destination_file_path = destination_file_path.into();
+  Modification::InsertIntoFile(InsertIntoFile { insertion_file_path, insertion_place, destination_file_path })
+}
+
+impl Display for InsertIntoFile {
+  fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+    write!(f, "Insert {} into {} at {:?}", self.insertion_file_path.display(), self.destination_file_path.display(), self.insertion_place)
+  }
+}
+
+impl InsertIntoFile {
+  fn resolve(self, stepper: &Stepper) -> anyhow::Result<InsertIntoFile> {
+    let insertion_file_path = stepper.source_root_directory.join(&self.insertion_file_path);
+    let insertion_place = self.insertion_place;
+    let destination_file_path = stepper.destination_root_directory.join(&self.destination_file_path);
+    Ok(Self { insertion_file_path, insertion_place, destination_file_path })
+  }
+
+  fn apply(&self) -> anyhow::Result<()> {
+    let insertion_text = read_to_string(&self.insertion_file_path)
+      .context("failed to read insertion file to string")?;
+    let destination_text = read_to_string(&self.destination_file_path)
+      .context("failed to read destination file to string")?;
+    let new_text = match &self.insertion_place {
+      InsertionPlace::BeforeLine(line) => {
+        let between_lines: Vec<_> = insertion_text.lines().collect();
+        let destination_lines: Vec<_> = destination_text.lines().collect();
+        let (before, after) = destination_lines.split_at(line - 2); // -1 to make it 0 based, -1 to get the line to insert after.
+        let mut new_lines = Vec::with_capacity(before.len() + between_lines.len() + after.len());
+        new_lines.extend_from_slice(before);
+        new_lines.extend_from_slice(&between_lines);
+        new_lines.extend_from_slice(after);
+        new_lines.join("\n")
+      },
+      InsertionPlace::BeforeLastMatchOf(pattern) => {
+        let Some(index) = destination_text.rfind(pattern) else {
+          bail!("failed to insert before last match of {}, that pattern was not found", pattern);
+        };
+        let (before, after) = destination_text.split_at(index);
+        format!("{}\n\n{}{}", before, insertion_text, after)
+      },
+    };
+    write_to_file(new_text.as_bytes(), &self.destination_file_path, false)
+      .context("failed to write to destination file")?;
 
     Ok(())
   }

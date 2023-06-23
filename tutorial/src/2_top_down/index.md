@@ -346,7 +346,7 @@ We wrap the changed stamp in an `InconsistentDependency` enum, and map to the co
 Because `Dependency` can store a `TaskDependency`, we need to propagate the `T` and `O` generics.
 Likewise, `InconsistentDependency` propagates the `O` generic for `OutputStamp`.
 
-```admonish info title="User definable dependencies" collapsible=true
+```admonish info title="User-defined dependencies" collapsible=true
 Like with stampers, `Dependency` could also be a trait to allow users of the library to define their own dependencies.
 However, as we will see later, these dynamic dependencies also require validation, and I am unsure how such a `Dependency` trait should look.
 Therefore, we don't have an appendix on how to implement this.
@@ -527,7 +527,8 @@ Add the following code to `pie/src/store.rs`:
 {{#include 4_store/g_dependency.rs}}
 ```
 
-The `get_dependencies_of_task` method gets the dependencies (edge data of outgoing edges) of a task.
+The `get_dependencies_of_task` method gets the dependencies (edge data of outgoing edges) of a task, and returns it as an iterator (which is empty if task has no dependencies).
+This method needs explicit lifetime annotations due to the signature of `get_outgoing_edge_data` and the way we return an iterator using `impl Iterator<...`.
 We're using `debug_assert!` here to trigger a panic indicating an unrecoverable programming error only in development mode, because this check is too expensive to run in release (optimized) mode.
 
 The `add_file_require_dependency` method adds a file dependency.
@@ -566,13 +567,85 @@ Add the `reset_task` method that does this to `pie/src/store.rs`:
 
 This will reset the task output back to `None`, and remove all outgoing edges (dependencies).
 
-Now we've implemented everything we need for implementing the top-down context, but first we will write some tests.
-
 #### Tests
 
-TODO
+Now we've implemented everything we need for implementing the top-down context, but first we will write some tests.
 
+##### Testing file mapping
 
+Add the following code to `pie/src/store.rs` for testing the file mapping:
+
+```rust,
+{{#include 4_store/i_test_file_mapping.rs}}
+```
+
+We create a simple task `StringConstant` because we need a `Task` implementation to test `Store`, as `Store` is generic over a `Task` type.
+We will never execute it because `Store` does not execute tasks.
+
+Test `test_file_mapping` checks whether the file node mapping works as expected:
+- `get_or_create_file_node` calls with the same path should produce the same `FileNode`.
+- `get_or_create_file_node` calls with different paths should produce different `FileNode`s.
+
+This works because `"hello.txt"` and `"world.txt"` are different paths, thus their `Eq` and `Hash` implementations ensure they get separate spots in the `file_to_node` hash map.
+
+Test `test_file_mapping_panics` triggers the panic in `get_file_path` by creating a `FileNode` with a "fake store", and then using that rogue file node in another store.
+While it is unlikely that we will make this mistake when using `Store`, it is good to confirm that this panics.
+The `#[should_panic]` attribute makes the test succeed if it panics, and fail if it does not panic.
+
+##### Testing task mapping
+
+Test the task mapping by inserting the following code into the `test` module (before the last `}`):
+
+```rust,
+{{#include 4_store/j_test_task_mapping.rs}}
+```
+
+We test this in the same way as the file mapping.
+Again, this works because `StringConstant("Hello")` and `StringConstant("World")` are different due to their derived `Eq` and `Hash` implementations, which make them different due to the strings being different. 
+Likewise, `StringConstant::new("Hello")` and `StringConstant::new("Hello")` are equal even if they are created with 2 separate invocations of `new`.
+
+These (in)equalities might seem quite obvious, but it is important to keep in mind because incrementality can only work if we can identify equal tasks at a later time, so that we can check their dependencies and return their cached output when those dependencies are consistent.
+Later on we will also see that this is important for soundness of the incremental build system.
+
+##### Testing task outputs
+
+Test task outputs by inserting the following code into the `test` module:
+
+```rust,
+{{#include 4_store/k_test_task_output.rs}}
+```
+
+Test `test_task_outputs` ensures that:
+- `task_has_output` only returns true if given task has an output, 
+- and that `get_task_output` returns the output set by `set_task_output` for given task.
+
+Test `test_get_task_output_panics` triggers a panic when we call `get_task_output` for a task that has no output, which is an invalid usage of `Store` that is more likely to happen than the other panics. 
+
+##### Testing dependencies
+
+Test dependencies by inserting the following code into the `test` module:
+
+```rust,
+{{#include 4_store/l_test_dependencies.rs}}
+```
+
+The `test_dependencies` test is a bit more involved because it ensures that:
+- `get_dependencies_of_task` returns the dependencies of given task. If the task has no dependencies, the iterator is empty. We test if an iterator is empty by getting the first element of the iterator with `.next()` and assert that it is `None`.
+- `get_dependencies_of_task` returns the dependencies of given task in the order in which they were added, which will be important for soundness later. The graph library returns dependencies in insertion order.
+- `add_task_require_dependency` adds a dependency to the correct task.
+- creating a cycle with `add_task_require_dependency` results in it returning `Err(())`.
+
+Note that the `StringConstant` task does not actually create file or task dependencies, but since `Store` never executes a task, we can pretend that it does in tests. 
+
+##### Testing task reset
+
+Finally, test task reset by inserting the following code into the `test` module:
+
+```rust,
+{{#include 4_store/m_test_reset.rs}}
+```
+
+Here, we ensure that a task with an output and dependencies, does not have an output and dependencies after a reset, while leaving another task untouched.
 
 ### Top-down context implementation
 
@@ -587,7 +660,7 @@ Add the `top_down` module to `pie/src/context/mod.rs`:
 Create the `pie/src/context/top_down.rs` file and add the following to get started:
 
 ```rust,
-{{#include 4_top_down/initial_context.rs}}
+
 ```
 
 ### Top-down context implementation

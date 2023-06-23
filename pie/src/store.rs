@@ -221,7 +221,7 @@ impl<T: Task, H: BuildHasher + Default> Store<T, T::Output, H> {
   }
 
 
-  /// Reset task `src`, removing its output and removing all its dependencies.
+  /// Reset task `src`, removing its output and removing all its outgoing dependencies.
   ///
   /// # Panics
   ///
@@ -375,14 +375,17 @@ mod test {
     let task_b = StringConstant::new(&output_b);
     let node_b = store.get_or_create_task_node(&task_b);
 
+    // Assert that tasks have no output by default.
     assert!(!store.task_has_output(&node_a));
     assert!(!store.task_has_output(&node_b));
 
+    // Set output for task A, assert that A has that output but B is unchanged.
     store.set_task_output(&node_a, output_a.clone());
     assert!(store.task_has_output(&node_a));
     assert_eq!(store.get_task_output(&node_a), &output_a);
     assert!(!store.task_has_output(&node_b));
 
+    // Set output for task B, assert that B has that output but A is unchanged.
     store.set_task_output(&node_b, output_b.clone());
     assert!(store.task_has_output(&node_a));
     assert_eq!(store.get_task_output(&node_a), &output_a);
@@ -515,25 +518,45 @@ mod test {
   #[test]
   fn test_reset() {
     let mut store = Store::new();
-    let output = "Hello".to_string();
-    let task = StringConstant::new(output.clone());
-    let task_node = store.get_or_create_task_node(&task);
+    let output_a = "Hello".to_string();
+    let task_a = StringConstant::new(output_a.clone());
+    let task_a_node = store.get_or_create_task_node(&task_a);
+    let output_b = "World".to_string();
+    let task_b = StringConstant::new(output_b.clone());
+    let task_b_node = store.get_or_create_task_node(&task_b);
     let path = PathBuf::from("hello.txt");
     let file_node = store.get_or_create_file_node(&path);
 
-    store.set_task_output(&task_node, output.clone());
-    assert!(store.task_has_output(&task_node));
-    assert_eq!(store.get_task_output(&task_node), &output);
+    // Set outputs for task A and B.
+    store.set_task_output(&task_a_node, output_a.clone());
+    assert!(store.task_has_output(&task_a_node));
+    assert_eq!(store.get_task_output(&task_a_node), &output_a);
+    store.set_task_output(&task_b_node, output_b.clone());
+    assert!(store.task_has_output(&task_b_node));
+    assert_eq!(store.get_task_output(&task_b_node), &output_b);
 
+    // Add file dependency for task A and B.
     let file_dependency = FileDependency::new(&path, FileStamper::Exists).unwrap();
-    store.add_file_require_dependency(&task_node, &file_node, file_dependency.clone());
-    let deps: Vec<_> = store.get_dependencies_of_task(&task_node).cloned().collect();
-    assert_eq!(deps.get(0), Some(&Some(Dependency::RequireFile(file_dependency.clone()))));
-    assert_eq!(deps.get(1), None);
+    store.add_file_require_dependency(&task_a_node, &file_node, file_dependency.clone());
+    let deps_of_a: Vec<_> = store.get_dependencies_of_task(&task_a_node).cloned().collect();
+    assert_eq!(deps_of_a.get(0), Some(&Some(Dependency::RequireFile(file_dependency.clone()))));
+    assert_eq!(deps_of_a.get(1), None);
+    store.add_file_require_dependency(&task_b_node, &file_node, file_dependency.clone());
+    let deps_of_b: Vec<_> = store.get_dependencies_of_task(&task_b_node).cloned().collect();
+    assert_eq!(deps_of_b.get(0), Some(&Some(Dependency::RequireFile(file_dependency.clone()))));
+    assert_eq!(deps_of_b.get(1), None);
 
-    store.reset_task(&task_node);
-    assert!(!store.task_has_output(&task_node));
-    assert_eq!(store.get_dependencies_of_task(&task_node).next(), None);
+    // Reset only task A.
+    store.reset_task(&task_a_node);
+    // Assert that task A is reset.
+    assert!(!store.task_has_output(&task_a_node));
+    assert_eq!(store.get_dependencies_of_task(&task_a_node).next(), None);
+    // Assert that task B is unchanged.
+    assert!(store.task_has_output(&task_b_node));
+    assert_eq!(store.get_task_output(&task_b_node), &output_b);
+    let deps_of_b: Vec<_> = store.get_dependencies_of_task(&task_b_node).cloned().collect();
+    assert_eq!(deps_of_b.get(0), Some(&Some(Dependency::RequireFile(file_dependency.clone()))));
+    assert_eq!(deps_of_b.get(1), None);
   }
 
   #[test]
