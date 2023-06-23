@@ -1,8 +1,8 @@
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub struct TaskDependency<T, O> {
-  pub task: T,
-  pub stamper: OutputStamper,
-  pub stamp: OutputStamp<O>,
+  task: T,
+  stamper: OutputStamper,
+  stamp: OutputStamp<O>,
 }
 
 impl<T: Task> TaskDependency<T, T::Output> {

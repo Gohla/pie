@@ -10,9 +10,9 @@ use crate::stamp::{FileStamp, FileStamper, OutputStamp, OutputStamper};
 #[derive(Clone, Eq, PartialEq, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct FileDependency {
-  pub path: PathBuf,
-  pub stamper: FileStamper,
-  pub stamp: FileStamp,
+  path: PathBuf,
+  stamper: FileStamper,
+  stamp: FileStamp,
 }
 
 impl FileDependency {
@@ -39,6 +39,13 @@ impl FileDependency {
     Ok((dependency, file))
   }
 
+  #[inline]
+  pub fn path(&self) -> &PathBuf { &self.path }
+  #[inline]
+  pub fn stamper(&self) -> &FileStamper { &self.stamper }
+  #[inline]
+  pub fn stamp(&self) -> &FileStamp { &self.stamp }
+
   /// Checks whether this file dependency is inconsistent, returning:
   /// - `Ok(Some(stamp))` if this dependency is inconsistent (with `stamp` being the new stamp of the dependency),
   /// - `Ok(None)` if this dependency is consistent,
@@ -59,9 +66,9 @@ impl FileDependency {
 #[derive(Clone, Eq, PartialEq, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct TaskDependency<T, O> {
-  pub task: T,
-  pub stamper: OutputStamper,
-  pub stamp: OutputStamp<O>,
+  task: T,
+  stamper: OutputStamper,
+  stamp: OutputStamp<O>,
 }
 
 impl<T: Task> TaskDependency<T, T::Output> {
@@ -70,6 +77,13 @@ impl<T: Task> TaskDependency<T, T::Output> {
     let stamp = stamper.stamp(output);
     Self { task, stamper, stamp }
   }
+
+  #[inline]
+  pub fn task(&self) -> &T { &self.task }
+  #[inline]
+  pub fn stamper(&self) -> &OutputStamper { &self.stamper }
+  #[inline]
+  pub fn stamp(&self) -> &OutputStamp<T::Output> { &self.stamp }
 
   /// Checks whether this task dependency is inconsistent, returning:
   /// - `Some(stamp)` if this dependency is inconsistent (with `stamp` being the new stamp of the dependency),

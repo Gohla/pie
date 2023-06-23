@@ -78,28 +78,28 @@ impl<T: Task> EventTracker<T> {
     self.contains_n(n, |e| Self::match_require_file(e))
   }
   #[inline]
-  pub fn contains_no_require_file_start_of(&self, path: impl Into<PathBuf> + Clone) -> bool {
-    self.contains_no(|e| Self::match_require_file_of(e, path.clone()))
+  pub fn contains_no_require_file_start_of(&self, path: &PathBuf) -> bool {
+    self.contains_no(|e| Self::match_require_file_of(e, path))
   }
   #[inline]
-  pub fn contains_one_require_file_start_of(&self, path: impl Into<PathBuf> + Clone) -> bool {
-    self.contains_one(|e| Self::match_require_file_of(e, path.clone()))
+  pub fn contains_one_require_file_start_of(&self, path: &PathBuf) -> bool {
+    self.contains_one(|e| Self::match_require_file_of(e, path))
   }
   #[inline]
-  pub fn contains_require_file_start_of(&self, n: usize, path: impl Into<PathBuf> + Clone) -> bool {
-    self.contains_n(n, |e| Self::match_require_file_of(e, path.clone()))
+  pub fn contains_require_file_start_of(&self, n: usize, path: &PathBuf) -> bool {
+    self.contains_n(n, |e| Self::match_require_file_of(e, path))
   }
   #[inline]
-  pub fn contains_no_require_file_start_of_with(&self, path: impl Into<PathBuf> + Clone, stamp_fn: impl Fn(FileStamp) -> bool + Clone) -> bool {
-    self.contains_no(|e| Self::match_require_file_of_with(e, path.clone(), stamp_fn.clone()))
+  pub fn contains_no_require_file_start_of_with(&self, path: &PathBuf, stamp_fn: impl Fn(&FileStamp) -> bool) -> bool {
+    self.contains_no(|e| Self::match_require_file_of_with(e, path, &stamp_fn))
   }
   #[inline]
-  pub fn contains_one_require_file_start_of_with(&self, path: impl Into<PathBuf> + Clone, stamp_fn: impl Fn(FileStamp) -> bool + Clone) -> bool {
-    self.contains_one(|e| Self::match_require_file_of_with(e, path.clone(), stamp_fn.clone()))
+  pub fn contains_one_require_file_start_of_with(&self, path: &PathBuf, stamp_fn: impl Fn(&FileStamp) -> bool) -> bool {
+    self.contains_one(|e| Self::match_require_file_of_with(e, path, &stamp_fn))
   }
   #[inline]
-  pub fn contains_require_file_start_of_with(&self, n: usize, path: impl Into<PathBuf> + Clone, stamp_fn: impl Fn(FileStamp) -> bool + Clone) -> bool {
-    self.contains_n(n, |e| Self::match_require_file_of_with(e, path.clone(), stamp_fn.clone()))
+  pub fn contains_require_file_start_of_with(&self, n: usize, path: &PathBuf, stamp_fn: impl Fn(&FileStamp) -> bool) -> bool {
+    self.contains_n(n, |e| Self::match_require_file_of_with(e, path, &stamp_fn))
   }
 
   #[inline]
@@ -187,16 +187,16 @@ impl<T: Task> EventTracker<T> {
     }
   }
   #[inline]
-  fn match_require_file_of(e: &Event<T>, path: impl Into<PathBuf>) -> bool {
+  fn match_require_file_of(e: &Event<T>, path: &PathBuf) -> bool {
     match e {
-      Event::RequireFile(d) if d.path == path.into() => true,
+      Event::RequireFile(d) if d.path() == path => true,
       _ => false,
     }
   }
   #[inline]
-  fn match_require_file_of_with(e: &Event<T>, path: impl Into<PathBuf>, stamp_fn: impl Fn(FileStamp) -> bool) -> bool {
+  fn match_require_file_of_with(e: &Event<T>, path: &PathBuf, stamp_fn: &impl Fn(&FileStamp) -> bool) -> bool {
     match e {
-      Event::RequireFile(d) if d.path == path.into() && stamp_fn(d.stamp) => true,
+      Event::RequireFile(d) if d.path() == path && stamp_fn(d.stamp()) => true,
       _ => false,
     }
   }
@@ -209,16 +209,16 @@ impl<T: Task> EventTracker<T> {
     }
   }
   #[inline]
-  fn match_provide_file_of(e: &Event<T>, path: impl Into<PathBuf>) -> bool {
+  fn match_provide_file_of(e: &Event<T>, path: &PathBuf) -> bool {
     match e {
-      Event::ProvideFile(d) if d.path == path.into() => true,
+      Event::ProvideFile(d) if d.path() == path => true,
       _ => false,
     }
   }
   #[inline]
-  fn match_provide_file_of_with(e: &Event<T>, path: impl Into<PathBuf>, stamp: FileStamp) -> bool {
+  fn match_provide_file_of_with(e: &Event<T>, path: &PathBuf, stamp: &FileStamp) -> bool {
     match e {
-      Event::ProvideFile(d) if d.path == path.into() && d.stamp == stamp => true,
+      Event::ProvideFile(d) if d.path() == path && d.stamp() == stamp => true,
       _ => false,
     }
   }

@@ -9,9 +9,9 @@ use crate::stamp::{FileStamp, FileStamper, OutputStamp, OutputStamper};
 
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub struct FileDependency {
-  pub path: PathBuf,
-  pub stamper: FileStamper,
-  pub stamp: FileStamp,
+  path: PathBuf,
+  stamper: FileStamper,
+  stamp: FileStamp,
 }
 
 impl FileDependency {
