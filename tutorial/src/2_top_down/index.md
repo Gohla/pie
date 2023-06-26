@@ -257,9 +257,9 @@ Change `Context` in `pie/src/lib.rs`:
 {{#include ../../gen/2_top_down/2_stamp_context/a_context.rs.diff:4:}}
 ```
 
-We add the `require_task_with_stamper` and `require_file_with_stamper` methods which allow passing in a stamper.
-We add default implementations for the `require_task` and `require_file` methods which pass in a default stamper.
-The defaults are provided by `default_output_stamper` and `default_file_stamper` which can be overridden by the context implementation.
+We add the `require_file_with_stamper` and `require_task_with_stamper` methods which allow passing in a stamper.
+We add default implementations for the `require_file` and `require_task` methods which pass in a default stamper.
+The defaults are provided by `default_require_file_stamper` and `default_output_stamper` which can be overridden by the context implementation.
 
 Update `NonIncrementalContext` in `src/context/non_incremental.rs` to implement the new methods:
 
@@ -608,7 +608,10 @@ This works because `"hello.txt"` and `"world.txt"` are different paths, thus the
 
 Test `test_file_mapping_panics` triggers the panic in `get_file_path` by creating a `FileNode` with a "fake store", and then using that rogue file node in another store.
 While it is unlikely that we will make this mistake when using `Store`, it is good to confirm that this panics.
+
+```admonish info title="Rust help" collapsible=true
 The `#[should_panic]` attribute makes the test succeed if it panics, and fail if it does not panic.
+```
 
 ##### Testing task mapping
 

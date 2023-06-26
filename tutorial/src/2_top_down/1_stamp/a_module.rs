@@ -14,6 +14,6 @@ pub trait Task: Clone + Eq + Hash + Debug {
 }
 
 pub trait Context<T: Task> {
-  fn require_task(&mut self, task: &T) -> T::Output;
   fn require_file<P: AsRef<Path>>(&mut self, path: P) -> Result<Option<File>, io::Error>;
+  fn require_task(&mut self, task: &T) -> T::Output;
 }

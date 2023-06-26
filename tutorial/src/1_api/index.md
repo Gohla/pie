@@ -243,17 +243,26 @@ Effectively, due to the way we defined `Task` and `Context`, we can only use *a 
 However, there is a good reason for this which will become more apparent once we implement incrementality.
 
 ```admonish info title="Why only a single Task type?" collapsible=true
-The gist of it is that an incremental context wants to build a dependency graph and cache task outputs, so that we can figure out from the dependency graph whether a task is affected by a change, and just return its output if it is not affected.
-For that, a context implementation will have a `Store<T>`.
+The gist of it is that an incremental context wants to build a *single dependency graph* and cache task outputs, so that we can figure out from the graph whether a task is affected by a change, and just return its output if it is not affected.
+Therefore, a context implementation will maintain a `Store<T>`.
 
-A `Context<ReturnHelloWorld>` and `Context<ToLowerCase>` would have to be implemented by different types, which would have different `Store`s, which would then have completely separate dependency graphs.
-That won't work, as we need a single (global) dependency graph over all tasks to figure out what is affected.
+A `Context<ReturnHelloWorld>` and `Context<ToLowerCase>` would then have a `Store<ReturnHelloWorld>` and `Store<ToLowerCase>` respectively.
+These two stores would then maintain two different dependency graphs, one where the nodes in the graph are `ReturnHelloWorld` and one where the nodes are `ToLowerCase`.
+But that won't work, as we need a single dependency graph over all tasks to figure out what is affected.
+
+There are several solutions to this problem.
+For example, we could use [trait objects](https://doc.rust-lang.org/book/ch17-02-trait-objects.html).
+However, this introduces a whole slew of problems because many traits that we use are not trait-object safe. 
+`Clone` is not object safe because it requires `Sized`. 
+`Eq` is not object safe because it uses `Self`. 
+Serializing trait-objects is problematic.
+There are workarounds for all these things, but it is not pretty and very complicated.
+
+Another solution would be to encapsulate different tasks into a single type, using (procedural) macros to automatically generate this single task type.
+This solution is more feasible, but still introduces a lot of complexity which is not worth it in this tutorial.
+
+Therefore, in this tutorial we will keep it simple.
 ```
-
-[//]: # (Using trait objects, but this introduces a whole slew of problems because many traits that we use are not trait-object safe. `Clone` is not compatible because it requires `Sized`. `Eq` is not compatible because it uses `Self`. Serializing trait-objects is problematic. There are workarounds for all these things, but it is not pretty and very complicated.)
-
-There is a much more complicated way to actually solve this problem, but it introduces too much complexity into the tutorial, so we will be going with a much simpler solution.
-In chapter *TODO*, we will describe this solution which does support multiple task types.
 
 For now, we will solve this by just using a single task type which is an enumeration of the different possible tasks.
 Replace the test with the following:
