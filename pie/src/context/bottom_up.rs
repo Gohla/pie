@@ -215,6 +215,15 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> BottomUpContext<'
 
 
 impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> Context<T> for BottomUpContext<'p, 's, T, T::Output, A, H> {
+  #[inline]
+  fn require_file_with_stamper<P: AsRef<Path>>(&mut self, path: P, stamper: FileStamper) -> Result<Option<File>, io::Error> {
+    self.session.require_file_with_stamper(path, stamper)
+  }
+  #[inline]
+  fn provide_file_with_stamper<P: AsRef<Path>>(&mut self, path: P, stamper: FileStamper) -> Result<(), io::Error> {
+    self.session.provide_file_with_stamper(path, stamper)
+  }
+  
   fn require_task_with_stamper(&mut self, task: &T, stamper: OutputStamper) -> T::Output {
     self.session.tracker.require_task(task);
     let node = self.session.store.get_or_create_task_node(task);
@@ -231,20 +240,11 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> Context<T> for Bo
   }
 
   #[inline]
-  fn require_file_with_stamper<P: AsRef<Path>>(&mut self, path: P, stamper: FileStamper) -> Result<Option<File>, io::Error> {
-    self.session.require_file_with_stamper(path, stamper)
-  }
-  #[inline]
-  fn provide_file_with_stamper<P: AsRef<Path>>(&mut self, path: P, stamper: FileStamper) -> Result<(), io::Error> {
-    self.session.provide_file_with_stamper(path, stamper)
-  }
-
-  #[inline]
-  fn default_output_stamper(&self) -> OutputStamper { OutputStamper::Equals }
-  #[inline]
   fn default_require_file_stamper(&self) -> FileStamper { FileStamper::Modified }
   #[inline]
   fn default_provide_file_stamper(&self) -> FileStamper { FileStamper::Modified }
+  #[inline]
+  fn default_output_stamper(&self) -> OutputStamper { OutputStamper::Equals }
 }
 
 

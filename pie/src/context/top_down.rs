@@ -22,7 +22,7 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> TopDownContext<'p
 
   /// Requires given `task`, returning its up-to-date output.
   #[inline]
-  pub fn require(&mut self, task: &T) -> T::Output {
+  pub fn require_initial(&mut self, task: &T) -> T::Output {
     self.session.reset();
     self.session.tracker.require_top_down_initial_start(task);
     let output = self.require_task(task);
@@ -32,6 +32,15 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> TopDownContext<'p
 }
 
 impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> Context<T> for TopDownContext<'p, 's, T, T::Output, A, H> {
+  #[inline]
+  fn require_file_with_stamper<P: AsRef<Path>>(&mut self, path: P, stamper: FileStamper) -> Result<Option<File>, std::io::Error> {
+    self.session.require_file_with_stamper(path, stamper)
+  }
+  #[inline]
+  fn provide_file_with_stamper<P: AsRef<Path>>(&mut self, path: P, stamper: FileStamper) -> Result<(), std::io::Error> {
+    self.session.provide_file_with_stamper(path, stamper)
+  }
+
   fn require_task_with_stamper(&mut self, task: &T, stamper: OutputStamper) -> T::Output {
     self.session.tracker.require_task(task);
     let node = self.session.store.get_or_create_task_node(task);
@@ -58,20 +67,11 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> Context<T> for To
   }
 
   #[inline]
-  fn require_file_with_stamper<P: AsRef<Path>>(&mut self, path: P, stamper: FileStamper) -> Result<Option<File>, std::io::Error> {
-    self.session.require_file_with_stamper(path, stamper)
-  }
-  #[inline]
-  fn provide_file_with_stamper<P: AsRef<Path>>(&mut self, path: P, stamper: FileStamper) -> Result<(), std::io::Error> {
-    self.session.provide_file_with_stamper(path, stamper)
-  }
-
-  #[inline]
-  fn default_output_stamper(&self) -> OutputStamper { self.session.default_output_stamper() }
-  #[inline]
   fn default_require_file_stamper(&self) -> FileStamper { self.session.default_require_file_stamper() }
   #[inline]
   fn default_provide_file_stamper(&self) -> FileStamper { self.session.default_provide_file_stamper() }
+  #[inline]
+  fn default_output_stamper(&self) -> OutputStamper { self.session.default_output_stamper() }
 }
 
 impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> TopDownContext<'p, 's, T, T::Output, A, H> {

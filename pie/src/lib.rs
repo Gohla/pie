@@ -31,15 +31,6 @@ pub trait Task: Clone + Eq + Hash + Debug {
 /// Incremental context, mediating between tasks and executors, enabling tasks to dynamically create dependencies that 
 /// executors use for incremental execution.
 pub trait Context<T: Task> {
-  /// Requires given `task`, creating a dependency to it with the default output stamper, returning its up-to-date 
-  /// output.
-  #[inline]
-  fn require_task(&mut self, task: &T) -> T::Output {
-    self.require_task_with_stamper(task, self.default_output_stamper())
-  }
-  /// Requires given `task`, creating a dependency to it with given `stamper`, returning its up-to-date output.
-  fn require_task_with_stamper(&mut self, task: &T, stamper: OutputStamper) -> T::Output;
-
   /// Requires file at given `path`, creating a read-dependency to it by creating a stamp with the default require file 
   /// stamper. Returns the opened file (in read-only mode). Call this method *just before reading from the file*, so 
   /// that the stamp corresponds to the data that you are reading.
@@ -64,12 +55,21 @@ pub trait Context<T: Task> {
   /// file. This method does not return the opened file, as it must be called *after writing to the file*.
   fn provide_file_with_stamper<P: AsRef<Path>>(&mut self, path: P, stamper: FileStamper) -> Result<(), io::Error>;
 
-  /// Returns the default output stamper.
-  fn default_output_stamper(&self) -> OutputStamper;
+  /// Requires given `task`, creating a dependency to it with the default output stamper, returning its up-to-date 
+  /// output.
+  #[inline]
+  fn require_task(&mut self, task: &T) -> T::Output {
+    self.require_task_with_stamper(task, self.default_output_stamper())
+  }
+  /// Requires given `task`, creating a dependency to it with given `stamper`, returning its up-to-date output.
+  fn require_task_with_stamper(&mut self, task: &T, stamper: OutputStamper) -> T::Output;
+
   /// Returns the default require file stamper.
   fn default_require_file_stamper(&self) -> FileStamper;
   /// Returns the default provide file stamper.
   fn default_provide_file_stamper(&self) -> FileStamper;
+  /// Returns the default output stamper.
+  fn default_output_stamper(&self) -> OutputStamper;
 }
 
 
@@ -140,7 +140,7 @@ impl<T: Task, A: Tracker<T> + Default, H: BuildHasher + Default> Pie<T, T::Outpu
 }
 
 
-/// A session in which builds are executed. Every task is executed at most once each session.
+/// A session in which builds are executed. A task is executed at most once each session.
 pub struct Session<'p, T, O, A, H> {
   store: &'p mut Store<T, O, H>,
   tracker: &'p mut A,
@@ -165,7 +165,7 @@ impl<'p, T: Task, A: Tracker<T>, H: BuildHasher + Default> Session<'p, T, T::Out
   #[inline]
   pub fn require(&mut self, task: &T) -> T::Output {
     let mut context = TopDownContext::new(self);
-    context.require(task)
+    context.require_initial(task)
   }
 
   /// Make up-to-date all tasks (transitively) affected by changed files.
