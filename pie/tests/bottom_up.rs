@@ -197,8 +197,11 @@ fn test_require_now(mut pie: TestPie<CommonTask>, temp_dir: TempDir) {
     session.require(&task); // `task` does not require `to_lower_task` because `marker.txt` does not exist.
   });
 
-  fs::write(&marker_path, "").check(); // Create the marker file, so `task` will require `to_lower_task`.
+  // Create the marker file, so `task` will require `to_lower_task`.
+  fs::write(&marker_path, "").check();
+  // Change the file that ReadStringFromFile reads, which `to_lower_task` depends on, thus `to_lower_task` is affected and should be executed.
   fs::write(&read_path, "hello world!!").check();
+  
   pie.run_in_session(|mut session| {
     session.update_affected_by(&[read_path, marker_path]);
 

@@ -68,31 +68,59 @@ impl FileDependency {
 pub struct TaskDependency<T, O> {
   task: T,
   stamper: OutputStamper,
-  stamp: OutputStamp<O>,
+  stamp: Option<OutputStamp<O>>,
 }
 
 impl<T: Task> TaskDependency<T, T::Output> {
+  /// Creates a new `task` dependency using `stamper` on `output` to create a stamp.
   #[inline]
   pub fn new(task: T, stamper: OutputStamper, output: T::Output) -> Self {
-    let stamp = stamper.stamp(output);
+    let stamp = Some(stamper.stamp(output));
     Self { task, stamper, stamp }
   }
 
+  /// Creates a new reserved `task` dependency with `stamper`. A reserved task dependency does not have an output yet, 
+  /// so no stamp can be created, thus its stamp is set to `None`.
+  #[inline]
+  pub fn new_reserved(task: T, stamper: OutputStamper) -> Self {
+    Self { task, stamper, stamp: None }
+  }
+  /// Updates a reserved task dependency with `output`, storing the stamp created from that output. The task dependency
+  /// is not reserved any more after this operation.
+  ///
+  /// # Panics
+  ///
+  /// Panics if this is not reserved task dependency (i.e., `self.stamp` is `Some`)
+  #[inline]
+  pub fn update_reserved(&mut self, output: T::Output) {
+    if self.stamp.is_some() {
+      panic!("BUG: attempt to update non-reserved task dependency: {:?}", self.task);
+    }
+    self.stamp = Some(self.stamper.stamp(output));
+  }
+  
   #[inline]
   pub fn task(&self) -> &T { &self.task }
   #[inline]
   pub fn stamper(&self) -> &OutputStamper { &self.stamper }
   #[inline]
-  pub fn stamp(&self) -> &OutputStamp<T::Output> { &self.stamp }
+  pub fn stamp(&self) -> Option<&OutputStamp<T::Output>> { self.stamp.as_ref() }
 
   /// Checks whether this task dependency is inconsistent, returning:
   /// - `Some(stamp)` if this dependency is inconsistent (with `stamp` being the new stamp of the dependency),
   /// - `None` if this dependency is consistent.
+  ///
+  /// # Panics
+  ///
+  /// Panics if this is a reserved task dependency (i.e., `self.stamp` is `None`)
   #[inline]
   pub fn is_inconsistent<C: Context<T>>(&self, context: &mut C) -> Option<OutputStamp<T::Output>> {
+    let Some(stamp) = &self.stamp else {
+      panic!("BUG: attempt to consistency check reserved task dependency: {:?}", self.task);
+    };
     let output = context.require_task(&self.task);
     let new_stamp = self.stamper.stamp(output);
-    let consistent = new_stamp == self.stamp;
+    let consistent = new_stamp == *stamp;
     if consistent {
       None
     } else {
@@ -102,10 +130,17 @@ impl<T: Task> TaskDependency<T, T::Output> {
   /// Checks whether this task dependency is inconsistent with given `output`, returning:
   /// - `Some(stamp)` if this dependency is inconsistent (with `stamp` being the new stamp of the dependency),
   /// - `None` if this dependency is consistent.
+  ///
+  /// # Panics
+  ///
+  /// Panics if this is a reserved task dependency (i.e., `self.stamp` is `None`)
   #[inline]
   pub fn is_inconsistent_with<'a>(&self, output: &'a T::Output) -> Option<OutputStamp<&'a T::Output>> {
+    let Some(stamp) = &self.stamp else {
+      panic!("BUG: attempt to consistency check reserved task dependency: {:?}", self.task);
+    };
     let new_stamp = self.stamper.stamp(output);
-    let consistent = new_stamp == self.stamp.as_ref();
+    let consistent = new_stamp == stamp.as_ref();
     if consistent {
       None
     } else {

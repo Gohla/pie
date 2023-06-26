@@ -80,23 +80,23 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> ContextShared<'p,
   /// Reserve a task require dependency from the current executing task to `dst`, detecting cycles before we execute, 
   /// preventing infinite recursion/loops.
   #[inline]
-  pub fn reserve_task_require_dependency(&mut self, dst: &TaskNode, dst_task: &T) {
+  pub fn reserve_task_require_dependency(&mut self, dst: &TaskNode, dst_task: &T, dependency: TaskDependency<T, T::Output>) {
     let Some(current_executing_task_node) = &self.current_executing_task else {
       return; // No task is executing (i.e., `dst` is the initial required task), so there is no dependency to reserve.
     };
-    if let Err(()) = self.session.store.reserve_task_require_dependency(current_executing_task_node, dst) {
+    if let Err(()) = self.session.store.add_task_require_dependency(current_executing_task_node, dst, dependency) {
       let current_executing_task = self.session.store.get_task(current_executing_task_node);
       panic!("Cyclic task dependency; current executing task '{:?}' is requiring task '{:?}' which directly or indirectly requires the current executing task", current_executing_task, dst_task);
     }
   }
 
-  /// Update the reserved task dependency from the current executing task to `dst` with an actual task dependency.
+  /// Update the reserved task dependency from the current executing task to `dst` with `output`.
   #[inline]
-  pub fn update_reserved_task_require_dependency(&mut self, dst: &TaskNode, dependency: TaskDependency<T, T::Output>) {
+  pub fn update_reserved_task_require_dependency(&mut self, dst: &TaskNode, output: T::Output) {
     let Some(current_executing_task_node) = &self.current_executing_task else {
       return; // No task is executing (i.e., `dst` is the initial required task), so there is no dependency to update.
     };
-    self.session.store.update_reserved_task_require_dependency(current_executing_task_node, dst, dependency);
+    self.session.store.get_task_require_dependency_mut(current_executing_task_node, dst).update_reserved(output);
   }
 
   /// Perform common pre-execution operations for `task` and its `node`, returning the currently executing task.

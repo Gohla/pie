@@ -17,6 +17,7 @@ use crate::tracker::Tracker;
 pub(crate) struct BottomUpContext<'p, 's, T, O, A, H> {
   shared: ContextShared<'p, 's, T, O, A, H>,
   scheduled: Queue<H>,
+  executing: HashSet<TaskNode, H>,
 }
 
 impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> BottomUpContext<'p, 's, T, T::Output, A, H> {
@@ -25,6 +26,7 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> BottomUpContext<'
     Self {
       shared: ContextShared::new(session),
       scheduled: Queue::new(),
+      executing: HashSet::default(),
     }
   }
 
@@ -46,6 +48,7 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> BottomUpContext<'
         &mut self.shared.session.tracker,
         &mut self.shared.session.dependency_check_errors,
         &mut self.scheduled,
+        &self.executing,
       );
     }
     // Execute the top scheduled task in the queue until it is empty.
@@ -65,9 +68,13 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> BottomUpContext<'
     tracker: &mut A,
     dependency_check_errors: &mut Vec<io::Error>,
     scheduled: &mut Queue<H>,
+    executing: &HashSet<TaskNode, H>,
   ) {
     tracker.schedule_affected_by_file_start(path);
     for (requiring_task_node, dependency) in store.get_tasks_requiring_or_providing_file(node, providing) {
+      if executing.contains(&requiring_task_node) {
+        continue; // Don't schedule tasks that are already executing.
+      }
       let requiring_task = store.get_task(&requiring_task_node);
       tracker.check_affected_by_file_start(requiring_task, dependency);
       let inconsistent = dependency.is_inconsistent();
@@ -78,8 +85,7 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> BottomUpContext<'
           scheduled.add(requiring_task_node);
         }
         Ok(Some(_)) => { // Schedule task; can't extract method due to self borrow above.
-          let task = store.get_task(&requiring_task_node);
-          tracker.schedule_task(task);
+          tracker.schedule_task(requiring_task);
           scheduled.add(requiring_task_node);
         }
         _ => {}
@@ -104,20 +110,23 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> BottomUpContext<'
         &mut self.shared.session.tracker,
         &mut self.shared.session.dependency_check_errors,
         &mut self.scheduled,
+        &self.executing,
       );
     }
 
     // Schedule affected tasks that require `task`'s output.
     self.shared.session.tracker.schedule_affected_by_task_start(&task);
     for (requiring_task_node, dependency) in self.shared.session.store.get_tasks_requiring_task(&node) {
+      if self.executing.contains(&requiring_task_node) {
+        continue; // Don't schedule tasks that are already executing.
+      }
       let requiring_task = self.shared.session.store.get_task(&requiring_task_node);
       self.shared.session.tracker.check_affected_by_required_task_start(requiring_task, dependency);
       let inconsistent = dependency.is_inconsistent_with(&output);
       self.shared.session.tracker.check_affected_by_required_task_end(requiring_task, dependency, inconsistent.clone());
       if let Some(_) = inconsistent {
         // Schedule task; can't extract method due to self borrow above.
-        let task = self.shared.session.store.get_task(&requiring_task_node);
-        self.shared.session.tracker.schedule_task(task);
+        self.shared.session.tracker.schedule_task(requiring_task);
         self.scheduled.add(requiring_task_node);
       }
     }
@@ -130,7 +139,9 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> BottomUpContext<'
   #[inline]
   fn execute(&mut self, node: TaskNode, task: &T) -> T::Output {
     let previous_executing_task = self.shared.pre_execute(node, task);
+    self.executing.insert(node);
     let output = task.execute(self);
+    self.executing.remove(&node);
     self.shared.post_execute(previous_executing_task, node, task, output.clone());
     self.shared.session.visited.insert(node);
     output
@@ -207,23 +218,23 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> Context<T> for Bo
     self.shared.session.tracker.require_task(task);
     let node = self.shared.session.store.get_or_create_task_node(task);
 
-    self.shared.reserve_task_require_dependency(&node, task);
+    let dependency = TaskDependency::new_reserved(task.clone(), stamper);
+    self.shared.reserve_task_require_dependency(&node, task, dependency);
 
     let output = self.make_consistent(task, node);
 
-    let dependency = TaskDependency::new(task.clone(), stamper, output.clone());
-    self.shared.update_reserved_task_require_dependency(&node, dependency);
+    self.shared.update_reserved_task_require_dependency(&node, output.clone());
     self.shared.session.visited.insert(node);
 
     output
   }
 
   #[inline]
-  fn require_file_with_stamper<P: AsRef<Path>>(&mut self, path: P, stamper: FileStamper) -> Result<Option<File>, std::io::Error> {
+  fn require_file_with_stamper<P: AsRef<Path>>(&mut self, path: P, stamper: FileStamper) -> Result<Option<File>, io::Error> {
     self.shared.require_file_with_stamper(path, stamper)
   }
   #[inline]
-  fn provide_file_with_stamper<P: AsRef<Path>>(&mut self, path: P, stamper: FileStamper) -> Result<(), std::io::Error> {
+  fn provide_file_with_stamper<P: AsRef<Path>>(&mut self, path: P, stamper: FileStamper) -> Result<(), io::Error> {
     self.shared.provide_file_with_stamper(path, stamper)
   }
 

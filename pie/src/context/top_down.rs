@@ -39,7 +39,8 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> Context<T> for To
     self.shared.session.tracker.require_task(task);
     let node = self.shared.session.store.get_or_create_task_node(task);
 
-    self.shared.reserve_task_require_dependency(&node, task);
+    let dependency = TaskDependency::new_reserved(task.clone(), stamper);
+    self.shared.reserve_task_require_dependency(&node, task, dependency);
 
     let output = if !self.shared.session.visited.contains(&node) && self.should_execute_task(&node, task) { // Execute the task, cache and return up-to-date output.
       let previous_executing_task = self.shared.pre_execute(node, task);
@@ -52,9 +53,8 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> Context<T> for To
       let output = self.shared.session.store.get_task_output(&node).clone();
       output
     };
-
-    let dependency = TaskDependency::new(task.clone(), stamper, output.clone());
-    self.shared.update_reserved_task_require_dependency(&node, dependency);
+    
+    self.shared.update_reserved_task_require_dependency(&node, output.clone());
     self.shared.session.visited.insert(node);
 
     output
@@ -98,10 +98,7 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> TopDownContext<'p
 
   #[allow(clippy::wrong_self_convention)]
   #[inline]
-  fn is_dependency_inconsistent(&mut self, dependency: Option<Dependency<T, T::Output>>) -> bool {
-    let Some(dependency) = dependency else {
-      panic!("BUG: checking reserved dependency for inconsistency");
-    };
+  fn is_dependency_inconsistent(&mut self, dependency: Dependency<T, T::Output>) -> bool {
     self.shared.session.tracker.check_dependency_start(&dependency);
     let inconsistent = dependency.is_inconsistent(self);
     self.shared.session.tracker.check_dependency_end(&dependency, inconsistent.as_ref().map(|o| o.as_ref()));
