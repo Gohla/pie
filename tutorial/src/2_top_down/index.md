@@ -181,7 +181,7 @@ Add the `stamp` module to `pie/src/lib.rs`:
 {{#include ../../gen/2_top_down/1_stamp/a_module.rs.diff:4:}}
 ```
 
-Note that this module is declared `pub`, as users of the library should be able to construct stampers.
+This module is public as users of the library should be able to construct stampers.
 
 #### File stamps
 
@@ -279,7 +279,7 @@ Add the `dependency` module to `pie/src/lib.rs`:
 {{#include ../../gen/2_top_down/3_dependency/a_module.rs.diff:4:}}
 ```
 
-This module is not public, as users of the library should not construct dependencies.
+This module is private, as users of the library should not construct dependencies.
 They should only create stampers, which are passed to dependencies via the `Context`.
 
 #### File dependencies
@@ -414,7 +414,8 @@ Add the `store` module to `pie/src/lib.rs`:
 {{#include ../../gen/2_top_down/4_store/b_module.rs.diff:4:}}
 ```
 
-This module is not public, as users of the library should not interact with the store.
+This module is private, as users of the library should not interact with the store.
+Only `Context` implementations will use the store.
 
 Create the `pie/src/store.rs` file and add the following to get started:
 
@@ -460,11 +461,28 @@ This is also the reason for the `Eq` and `Hash` trait bounds on the `Task` trait
 Change `pie/src/store.rs` to add hash maps to map between these things:
 
 ```rust,customdiff
-{{#include ../../gen/2_top_down/4_store/d_mapping_diff.rs.diff:4:}}
+{{#include ../../gen/2_top_down/4_store/d1_mapping_diff.rs.diff:4:}}
 ```
 
-Furthermore, we also create the `FileNode` and `TaskNode` [newtypes](https://rust-unofficial.github.io/patterns/patterns/behavioural/newtype.html) here so that we can prevent a file node to be accidentally used as a task node, and vice versa.
+To prevent accidentally using a file node as a task node, and vice versa, change `pie/src/store.rs` to add specific types of nodes:
+
+```rust,customdiff
+{{#include ../../gen/2_top_down/4_store/d2_mapping_diff.rs.diff:4:}}
+```
+
+The `FileNode` and `TaskNode` types are [newtypes](https://rust-unofficial.github.io/patterns/patterns/behavioural/newtype.html) that wrap a `Node` into a specific type of node.
 The `Borrow` implementations will make subsequent code a bit more concise by automatically converting `&FileNode` and `&TaskNode`s to `&Node`s.
+
+```admonish info title="Newtypes" collapsible=true
+Because the `Node`s inside the newtypes are not public, it is not possible to construct a `FileNode` or `TaskNode` outside of this module.
+Therefore, if we only accept and create `FileNode` and `TaskNode` in the `Store` API, it is not possible to use the wrong kind of node.
+
+The `Borrow` implementation does leak outside of this module, but not outside of this crate (library).
+This is because the visibility of a trait implementation is the intersection of the visibilities of the trait and type it is implemented on.
+`Borrow` is public, but `FileNode` and `TaskNode` are only public within this crate.
+Thefore, modules of this crate can extract the `Node` out of `FileNode` and `TaskNode`.
+However, that `Node` cannot be used to construct a `FileNode` or `TaskNode`, so it is not a problem.
+```
 
 Now we will add methods create nodes and to query their attached data.
 Add the following code to `pie/src/store.rs`:

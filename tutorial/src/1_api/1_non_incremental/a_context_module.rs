@@ -1,7 +1,7 @@
 use std::fmt::Debug;
 use std::hash::Hash;
 
-mod context;
+pub mod context;
 
 pub trait Task: Clone + Eq + Hash + Debug {
   type Output: Clone + Eq + Debug;

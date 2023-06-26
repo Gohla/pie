@@ -6,9 +6,9 @@ use std::path::Path;
 
 use stamp::{FileStamper, OutputStamper};
 
-mod context;
-mod fs;
 pub mod stamp;
+pub mod context;
+mod fs;
 mod dependency;
 mod store;
 

@@ -1,1 +1,1 @@
-pub(crate) mod non_incremental;
+pub mod non_incremental;

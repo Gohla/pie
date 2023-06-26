@@ -4,7 +4,7 @@ use std::hash::Hash;
 use std::io;
 use std::path::Path;
 
-mod context;
+pub mod context;
 
 pub trait Task: Clone + Eq + Hash + Debug {
   type Output: Clone + Eq + Debug;

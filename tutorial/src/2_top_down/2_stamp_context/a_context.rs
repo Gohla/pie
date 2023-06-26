@@ -6,9 +6,9 @@ use std::path::Path;
 
 use stamp::{FileStamper, OutputStamper};
 
-mod context;
-mod fs;
 pub mod stamp;
+pub mod context;
+mod fs;
 
 pub trait Task: Clone + Eq + Hash + Debug {
   type Output: Clone + Eq + Debug;

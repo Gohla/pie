@@ -13,6 +13,7 @@ pub mod non_incremental;
 pub mod bottom_up;
 pub mod top_down;
 
+/// Extension trait on [`Session`] for usage in [`Context`] implementations.
 pub trait SessionExt<T, O> {
   /// Reset the session, setting the current executing task to `None`.
   fn reset(&mut self);
@@ -23,9 +24,10 @@ pub trait SessionExt<T, O> {
   fn provide_file_with_stamper(&mut self, path: impl AsRef<Path>, stamper: FileStamper) -> Result<(), io::Error>;
 
   /// Reserve a task require dependency, depending from the current executing task to `dst`, detecting cycles before we 
-  /// execute, preventing infinite recursion/loops.
+  /// execute, preventing infinite recursion/loops. Does nothing if there is no current executing task.
   fn reserve_task_require_dependency(&mut self, dst: &TaskNode, dst_task: &T, dependency: TaskDependency<T, O>);
-  /// Update the reserved task dependency, depending from the current executing task to `dst`, with `output`.
+  /// Update the reserved task dependency, depending from the current executing task to `dst`, with `output`. Does 
+  /// nothing if there is no current executing task.
   fn update_reserved_task_require_dependency(&mut self, dst: &TaskNode, output: O);
 
   /// Perform common pre-execution operations for `task` and its `node`, returning the currently executing task.
@@ -118,6 +120,8 @@ impl<'p, T: Task, A: Tracker<T>, H: BuildHasher + Default> SessionExt<T, T::Outp
 
   #[inline]
   fn pre_execute(&mut self, node: TaskNode, task: &T) -> Option<TaskNode> {
+    // Note: pre/post execute methods are needed instead of one execute method because `&mut Context` needs to be passed 
+    // to `task.execute`, complicating borrowing.
     self.store.reset_task(&node);
     self.tracker.execute_task_start(task);
     self.current_executing_task.replace(node)
@@ -129,7 +133,4 @@ impl<'p, T: Task, A: Tracker<T>, H: BuildHasher + Default> SessionExt<T, T::Outp
     self.tracker.execute_task_end(task, &output);
     self.store.set_task_output(&node, output);
   }
-
-  // Note: pre/post execute methods are needed instead of one execute method because `&mut Context` needs to be passed 
-  // to `task.execute`, complicating borrowing.
 }

@@ -253,6 +253,10 @@ impl<T: Task> Dependency<T, T::Output> {
   /// - `Ok(Some(stamp))` if the dependency is inconsistent (with `stamp` being the new stamp of the dependency),
   /// - `Ok(None)` if the dependency is consistent,
   /// - `Err(e)` if there was an error checking the dependency for consistency.
+  ///
+  /// # Panics
+  ///
+  /// Panics if this is a reserved task dependency (i.e., `self.stamp` is `None`)
   #[inline]
   pub fn is_inconsistent<C: Context<T>>(&self, context: &mut C) -> Result<Option<InconsistentDependency<T::Output>>, io::Error> {
     let option = match self {

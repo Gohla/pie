@@ -111,7 +111,9 @@ Create the `pie/src/context` directory, and in it, create the `pie/src/context/m
 {{#include 1_non_incremental/b_non_incremental_module.rs}}
 ```
 
-Then, create the `pie/src/context/non_incremental.rs` file, it will be empty for now.
+Both modules are public so that users of our library can access context implementations.
+
+Create the `pie/src/context/non_incremental.rs` file, it will be empty for now.
 Your project structure should now look like:
 
 ```
