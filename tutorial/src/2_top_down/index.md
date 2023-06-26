@@ -254,12 +254,18 @@ Therefore, we need to update the `Context` trait to allow passing in these stamp
 Change `Context` in `pie/src/lib.rs`:
 
 ```rust,customdiff
-{{#include ../../gen/2_top_down/2_stamp_context/a_context.rs.diff:4:}}
+{{#include ../../gen/2_top_down/2_stamp_context/a1_context.rs.diff:4:}}
 ```
 
-We add the `require_file_with_stamper` and `require_task_with_stamper` methods which allow passing in a stamper.
-We add default implementations for the `require_file` and `require_task` methods which pass in a default stamper.
-The defaults are provided by `default_require_file_stamper` and `default_output_stamper` which can be overridden by the context implementation.
+We add the `require_file_with_stamper` method which allow passing in a stamper.
+We add a default implementation for `require_file` that passes in a default stamper.
+The default is provided by `default_require_file_stamper` which can be overridden by context implementations.
+
+Now apply the same to tasks, changing `Context` again in `pie/src/lib.rs`:
+
+```rust,customdiff
+{{#include ../../gen/2_top_down/2_stamp_context/a2_context.rs.diff:4:}}
+```
 
 Update `NonIncrementalContext` in `src/context/non_incremental.rs` to implement the new methods:
 
@@ -675,13 +681,15 @@ Here, we ensure that a task with an output and dependencies, does not have an ou
 Add the `top_down` module to `pie/src/context/mod.rs`:
 
 ```rust,customdiff
-
+{{#include ../../gen/2_top_down/5_context/a_module.rs.diff:4:}}
 ```
 
 Create the `pie/src/context/top_down.rs` file and add the following to get started:
 
 ```rust,
-
+{{#include 5_context/b_basic.rs}}
 ```
 
-### Top-down context implementation
+The `TopDownContext` is generic over tasks `T` and their outputs `O`, owns a `Store`, and can be created using `default` or `new`.
+
+`TopDownContext` implements `Context`, and the main challenge will be implementing the `require_file_with_stamper` and `require_file_with_stamper` methods *incrementally* and *correctly*.

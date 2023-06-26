@@ -65,13 +65,6 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> Context<T> for To
 
     output
   }
-
-  #[inline]
-  fn default_require_file_stamper(&self) -> FileStamper { self.session.default_require_file_stamper() }
-  #[inline]
-  fn default_provide_file_stamper(&self) -> FileStamper { self.session.default_provide_file_stamper() }
-  #[inline]
-  fn default_output_stamper(&self) -> OutputStamper { self.session.default_output_stamper() }
 }
 
 impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> TopDownContext<'p, 's, T, T::Output, A, H> {

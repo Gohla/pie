@@ -20,56 +20,74 @@ mod store;
 mod context;
 mod fs;
 
-/// The unit of computation in a programmatic incremental build system.
+/// A unit of computation in a programmatic incremental build system.
 pub trait Task: Clone + Eq + Hash + Debug {
-  /// The type of output this task produces when executed.
+  /// Type of output this task returns when executed.
   type Output: Clone + Eq + Debug;
-  /// Execute the task, with `context` providing a means to specify dynamic dependencies, returning `Self::Output`.
+  /// Execute the task, using `context` to specify dynamic dependencies, returning `Self::Output`.
   fn execute<C: Context<Self>>(&self, context: &mut C) -> Self::Output;
 }
 
-/// Incremental context, mediating between tasks and executors, enabling tasks to dynamically create dependencies that 
-/// executors use for incremental execution.
+/// Programmatic incremental build context, enabling tasks to create dynamic dependencies that context implementations 
+/// use for incremental execution.
 pub trait Context<T: Task> {
-  /// Requires file at given `path`, creating a read-dependency to it by creating a stamp with the default require file 
-  /// stamper. Returns the opened file (in read-only mode). Call this method *just before reading from the file*, so 
-  /// that the stamp corresponds to the data that you are reading.
+  /// Requires file at given `path`, recording a read-dependency to it (using the default require file stamper). Call 
+  /// this method *just before reading from the file*, so that the dependency corresponds to the data that you are 
+  /// reading. Returns:
+  /// - `Ok(Some(file))` if a file exists at given `path` with `file` in read-only mode, 
+  /// - `Ok(None)` if no file exists at given `path` (but a directory could exist at given `path`),
+  /// - `Err(e)` if there was an error getting the metadata for given `path`, if there was an error opening the file, or 
+  ///   if there was an error stamping the file.
   #[inline]
   fn require_file(&mut self, path: impl AsRef<Path>) -> Result<Option<File>, io::Error> {
     self.require_file_with_stamper(path, self.default_require_file_stamper())
   }
-  /// Requires file at given `path`, creating a read-dependency to it by creating a stamp with given `stamper`. 
-  /// Returns the opened file (in read-only mode) if the file exists, `None` otherwise. Call this method *just before 
-  /// reading from the file*, so that the stamp corresponds to the data that you are reading.
+  /// Requires file at given `path`, recording a read-dependency to it (using given `stamper`). Call this method 
+  /// *just before reading from the file*, so that the dependency corresponds to the data that you are reading. Returns:
+  /// - `Ok(Some(file))` if a file exists at given `path` with `file` in read-only mode, 
+  /// - `Ok(None)` if no file exists at given `path` (but a directory could exist at given `path`),
+  /// - `Err(e)` if there was an error getting the metadata for given `path`, if there was an error opening the file, or 
+  ///   if there was an error stamping the file.
   fn require_file_with_stamper<P: AsRef<Path>>(&mut self, path: P, stamper: FileStamper) -> Result<Option<File>, io::Error>;
+  /// Returns the default require file stamper.
+  #[inline]
+  fn default_require_file_stamper(&self) -> FileStamper { FileStamper::Modified }
 
-  /// Provides file at given `path`, creating a write-dependency to it by creating a stamp with the default provide file
-  /// stamper. Call this method *after writing to the file*, so that the stamp corresponds to the data that you've
-  /// written to the file. This method does not return the opened file, as it must be called *after writing to the file*.
+  /// Provides file at given `path`, recording a write-dependency to it (using the default provide file stamper) . Call 
+  /// this method *just after writing to the file*, so that the dependency corresponds to the data that you wrote. 
+  /// This method does not return the opened file, as it must be called *after writing to the file*.
+  ///
+  /// # Errors
+  ///
+  /// If stamping the file fails, returns that error.
   #[inline]
   fn provide_file(&mut self, path: impl AsRef<Path>) -> Result<(), io::Error> {
     self.provide_file_with_stamper(path, self.default_provide_file_stamper())
   }
-  /// Provides file at given `path`, creating a write-dependency to it by creating a stamp with given `stamper`.
-  /// Call this method *after writing to the file*, so that the stamp corresponds to the data that you've written to the
-  /// file. This method does not return the opened file, as it must be called *after writing to the file*.
+  /// Provides file at given `path`, recording a write-dependency to it (using given `stamper`). Call this method 
+  /// *just after writing to the file*, so that the dependency corresponds to the data that you wrote. 
+  /// This method does not return the opened file, as it must be called *after writing to the file*.
+  ///
+  /// # Errors
+  ///
+  /// If stamping the file fails, returns that error.
   fn provide_file_with_stamper<P: AsRef<Path>>(&mut self, path: P, stamper: FileStamper) -> Result<(), io::Error>;
+  /// Returns the default provide file stamper.
+  #[inline]
+  fn default_provide_file_stamper(&self) -> FileStamper { FileStamper::Modified }
 
-  /// Requires given `task`, creating a dependency to it with the default output stamper, returning its up-to-date 
-  /// output.
+  /// Requires given `task`, recording a dependency (using the default output stamper) and selectively executing it. 
+  /// Returns its up-to-date output.
   #[inline]
   fn require_task(&mut self, task: &T) -> T::Output {
     self.require_task_with_stamper(task, self.default_output_stamper())
   }
-  /// Requires given `task`, creating a dependency to it with given `stamper`, returning its up-to-date output.
+  /// Requires given `task`, recording a dependency (using given `stamper`) and selectively executing it. Returns its
+  /// up-to-date output.
   fn require_task_with_stamper(&mut self, task: &T, stamper: OutputStamper) -> T::Output;
-
-  /// Returns the default require file stamper.
-  fn default_require_file_stamper(&self) -> FileStamper;
-  /// Returns the default provide file stamper.
-  fn default_provide_file_stamper(&self) -> FileStamper;
   /// Returns the default output stamper.
-  fn default_output_stamper(&self) -> OutputStamper;
+  #[inline]
+  fn default_output_stamper(&self) -> OutputStamper { OutputStamper::Equals }
 }
 
 

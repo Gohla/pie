@@ -5,13 +5,13 @@ use std::path::Path;
 
 use crate::{Session, Task};
 use crate::dependency::{FileDependency, TaskDependency};
-use crate::stamp::{FileStamper, OutputStamper};
+use crate::stamp::FileStamper;
 use crate::store::TaskNode;
 use crate::tracker::Tracker;
 
 pub mod non_incremental;
-pub mod bottom_up;
 pub mod top_down;
+pub mod bottom_up;
 
 /// Extension trait on [`Session`] for usage in [`Context`] implementations.
 pub trait SessionExt<T, O> {
@@ -35,13 +35,6 @@ pub trait SessionExt<T, O> {
   /// Perform common post-execution operations for `task` and its `node`, restoring the `previous_executing_task` and 
   /// setting the `output` of the task.
   fn post_execute(&mut self, previous_executing_task: Option<TaskNode>, node: TaskNode, task: &T, output: O);
-
-  #[inline]
-  fn default_output_stamper(&self) -> OutputStamper { OutputStamper::Equals }
-  #[inline]
-  fn default_require_file_stamper(&self) -> FileStamper { FileStamper::Modified }
-  #[inline]
-  fn default_provide_file_stamper(&self) -> FileStamper { FileStamper::Modified }
 }
 
 impl<'p, T: Task, A: Tracker<T>, H: BuildHasher + Default> SessionExt<T, T::Output> for Session<'p, T, T::Output, A, H> {

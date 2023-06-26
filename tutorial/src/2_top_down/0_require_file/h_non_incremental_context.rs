@@ -12,6 +12,7 @@ impl<T: Task> Context<T> for NonIncrementalContext {
     let file = open_if_file(&path)?;
     Ok(file)
   }
+
   fn require_task(&mut self, task: &T) -> T::Output {
     task.execute(self)
   }

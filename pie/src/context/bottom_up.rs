@@ -223,7 +223,7 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> Context<T> for Bo
   fn provide_file_with_stamper<P: AsRef<Path>>(&mut self, path: P, stamper: FileStamper) -> Result<(), io::Error> {
     self.session.provide_file_with_stamper(path, stamper)
   }
-  
+
   fn require_task_with_stamper(&mut self, task: &T, stamper: OutputStamper) -> T::Output {
     self.session.tracker.require_task(task);
     let node = self.session.store.get_or_create_task_node(task);
@@ -238,13 +238,6 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> Context<T> for Bo
 
     output
   }
-
-  #[inline]
-  fn default_require_file_stamper(&self) -> FileStamper { FileStamper::Modified }
-  #[inline]
-  fn default_provide_file_stamper(&self) -> FileStamper { FileStamper::Modified }
-  #[inline]
-  fn default_output_stamper(&self) -> OutputStamper { OutputStamper::Equals }
 }
 
 

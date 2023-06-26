@@ -13,6 +13,7 @@ impl<T: Task> Context<T> for NonIncrementalContext {
     let file = open_if_file(&path)?;
     Ok(file)
   }
+
   fn require_task_with_stamper(&mut self, task: &T, _stamper: OutputStamper) -> T::Output {
     task.execute(self)
   }

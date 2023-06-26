@@ -81,7 +81,11 @@ pub fn step_all(
     });
     stepper.with_path("2_stamp_context", |stepper| {
       stepper.apply([
-        create_diff("a_context.rs", "lib.rs"),
+        create_diff_builder("a1_context.rs", "lib.rs")
+          .context_length(20)
+          .into_modification(),
+        create_diff_builder("a2_context.rs", "lib.rs")
+          .into_modification(),
         create_diff("b_non_incremental_context.rs", "context/non_incremental.rs"),
       ]);
     });
@@ -114,6 +118,12 @@ pub fn step_all(
         insert("k_test_task_output.rs", "}", "store.rs"),
         insert("l_test_dependencies.rs", "}", "store.rs"),
         insert("m_test_reset.rs", "}", "store.rs"),
+      ]);
+    });
+    stepper.with_path("5_context", |stepper| {
+      stepper.apply([
+        create_diff("a_module.rs", "context/mod.rs"),
+        add("b_basic.rs", "context/top_down.rs"),
       ]);
     });
   });
