@@ -58,7 +58,9 @@ pub fn step_all(
   stepper.with_path("2_top_down", |stepper| {
     stepper.with_path("0_require_file", |stepper| {
       stepper.apply([
-        create_diff("a_context.rs", "lib.rs"),
+        create_diff_builder("a_context.rs", "lib.rs")
+          .context_length(10)
+          .into_modification(),
         create_diff("b_fs_module.rs", "lib.rs"),
         add("c_fs.rs", "fs.rs"),
         add("d_dev_shared_Cargo.toml", "../../dev_shared/Cargo.toml"),
