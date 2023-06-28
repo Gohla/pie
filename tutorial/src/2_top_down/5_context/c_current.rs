@@ -9,12 +9,14 @@ use crate::store::{Store, TaskNode};
 
 pub struct TopDownContext<T, O> {
   store: Store<T, O>,
+  current_executing_task: Option<TaskNode>,
 }
 
 impl<T: Task> Default for TopDownContext<T, T::Output> {
   fn default() -> Self {
     Self {
       store: Store::default(),
+      current_executing_task: None,
     }
   }
 }
@@ -26,6 +28,9 @@ impl<T: Task> TopDownContext<T, T::Output> {
 
 impl<T: Task> Context<T> for TopDownContext<T, T::Output> {
   fn require_file_with_stamper<P: AsRef<Path>>(&mut self, path: P, stamper: FileStamper) -> Result<Option<File>, io::Error> {
+    let Some(current_executing_task_node) = &self.current_executing_task else {
+      return fs::open_if_file(path); // No current executing task, so no dependency needs to be made.
+    };
     todo!()
   }
 

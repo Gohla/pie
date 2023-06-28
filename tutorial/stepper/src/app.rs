@@ -124,6 +124,15 @@ pub fn step_all(
       stepper.apply([
         create_diff("a_module.rs", "context/mod.rs"),
         add("b_basic.rs", "context/top_down.rs"),
+        create_diff_builder("c_current.rs", "context/top_down.rs")
+          .context_length(8)
+          .into_modification(),
+        create_diff("d_file.rs", "context/top_down.rs"),
+        create_diff("e_task.rs", "context/top_down.rs"),
+        create_diff("f_task_dep.rs", "context/top_down.rs"),
+        create_diff("g_check.rs", "context/top_down.rs"),
+        create_diff("h_error_field.rs", "context/top_down.rs"),
+        create_diff("i_error_store.rs", "context/top_down.rs"),
       ]);
     });
   });
