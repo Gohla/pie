@@ -162,7 +162,7 @@ impl<O> OutputStamp<O> {
 mod test {
   use std::fs;
 
-  use dev_shared::fs::create_temp_file;
+  use dev_shared::fs::{create_temp_file, write_until_modified};
 
   use super::*;
 
@@ -183,19 +183,8 @@ mod test {
     let temp_file = create_temp_file();
     let stamp = stamper.stamp(&temp_file).expect("failed to stamp");
     assert_eq!(stamp, stamper.stamp(&temp_file).expect("failed to stamp"));
-
-    fn get_modified(path: impl AsRef<Path>) -> SystemTime {
-      fs::metadata(path)
-        .expect("failed to get metadata")
-        .modified()
-        .expect("failed to get modified date")
-    }
-    let modified = get_modified(&temp_file);
-    loop { // Keep writing until modified date changes
-      fs::write(&temp_file, format!("{:?}", stamp))
-        .expect("failed to write to temporary file");
-      if modified != get_modified(&temp_file) { break; }
-    }
+    
+    write_until_modified(&temp_file, format!("{:?}", stamp));
     assert_ne!(stamp, stamper.stamp(&temp_file).expect("failed to stamp"), "modified stamp is equal after modifying file");
 
     fs::remove_file(&temp_file).expect("failed to delete temporary file");

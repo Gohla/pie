@@ -98,7 +98,7 @@ impl<T: Task> TaskDependency<T, T::Output> {
     }
     self.stamp = Some(self.stamper.stamp(output));
   }
-  
+
   #[inline]
   pub fn task(&self) -> &T { &self.task }
   #[inline]
@@ -284,7 +284,7 @@ mod test {
   use std::io::Read;
   use std::path::Path;
 
-  use dev_shared::fs::create_temp_file;
+  use dev_shared::fs::{create_temp_file, write_until_modified};
 
   use crate::context::non_incremental::NonIncrementalContext;
 
@@ -323,9 +323,8 @@ mod test {
     let dependency: Dependency<ReadStringFromFile, String> = Dependency::RequireFile(file_dependency.clone());
     assert!(file_dependency.is_inconsistent().expect("failed to check for inconsistency").is_none());
     assert!(dependency.is_inconsistent(&mut context).expect("failed to check for inconsistency").is_none());
-
-    fs::write(&temp_file, "test2")
-      .expect("failed to write to file");
+    
+    write_until_modified(&temp_file, "test2");
     assert!(file_dependency.is_inconsistent().expect("failed to check for inconsistency").is_some());
     assert!(dependency.is_inconsistent(&mut context).expect("failed to check for inconsistency").is_some());
   }
@@ -345,8 +344,7 @@ mod test {
     assert!(task_dependency.is_inconsistent(&mut context).is_none());
     assert!(dependency.is_inconsistent(&mut context).expect("failed to check for inconsistency").is_none());
 
-    fs::write(&temp_file, "test2")
-      .expect("failed to write to file");
+    write_until_modified(&temp_file, "test2");
     assert!(task_dependency.is_inconsistent(&mut context).is_some());
     assert!(dependency.is_inconsistent(&mut context).expect("failed to check for inconsistency").is_some());
   }
