@@ -13,6 +13,7 @@ pub struct Stepper {
   pub destination_root_directory: PathBuf,
   pub generated_root_directory: PathBuf,
   pub last_original_file: HashMap<PathBuf, PathBuf>,
+  pub substitutions: Vec<Substitution>,
   pub cargo_args: Vec<OsString>,
 }
 
@@ -23,12 +24,14 @@ impl Stepper {
     generated_root_directory: impl Into<PathBuf>,
     cargo_args: CA,
   ) -> Self {
-    let source_root_directory = source_root_directory.into();
-    let destination_root_directory = destination_root_directory.into();
-    let generated_root_directory = generated_root_directory.into();
-    let last_original_file = HashMap::new();
-    let cargo_args = cargo_args.into_iter().map(|ao| ao.as_ref().to_owned()).collect();
-    Self { source_root_directory, destination_root_directory, generated_root_directory, last_original_file, cargo_args }
+    Self {
+      source_root_directory: source_root_directory.into(),
+      destination_root_directory: destination_root_directory.into(),
+      generated_root_directory: generated_root_directory.into(),
+      last_original_file: Default::default(),
+      substitutions: Default::default(),
+      cargo_args: cargo_args.into_iter().map(|a| a.as_ref().to_owned()).collect(),
+    }
   }
 
   pub fn push_path(&mut self, path: impl AsRef<Path>) {
@@ -48,8 +51,21 @@ impl Stepper {
     result
   }
 
-  pub fn set_cargo_args<CA: IntoIterator<Item=AO>, AO: AsRef<OsStr>>(&mut self, cargo_args: CA) {
-    self.cargo_args = cargo_args.into_iter().map(|ao| ao.as_ref().to_owned()).collect();
+  pub fn add_substitution(&mut self, pattern: impl Into<String>, external_replacement: impl Into<String>, internal_replacement: impl Into<String>) {
+    self.substitutions.push(Substitution::new(pattern, external_replacement, internal_replacement));
+  }
+
+  pub fn apply_substitutions(&self, text: impl AsRef<str>) -> Substituted {
+    let text = text.as_ref();
+    let mut substituted = Substituted::default();
+    for substitution in &self.substitutions {
+      substitution.apply(text, &mut substituted);
+    }
+    substituted
+  }
+
+  pub fn set_cargo_args<CA: IntoIterator<Item=A>, A: AsRef<OsStr>>(&mut self, cargo_args: CA) {
+    self.cargo_args = cargo_args.into_iter().map(|a| a.as_ref().to_owned()).collect();
   }
 }
 
@@ -141,5 +157,40 @@ impl<'a> Applied<'a> {
       output.apply(self)
         .expect("failed to apply output");
     }
+  }
+}
+
+
+// Substitutions
+
+pub struct Substitution {
+  pub pattern: String,
+  pub external_replacement: String,
+  pub internal_replacement: String,
+}
+
+#[derive(Default)]
+pub struct Substituted {
+  pub external: String,
+  pub internal: String,
+}
+
+impl Substitution {
+  pub fn new(
+    pattern: impl Into<String>,
+    external_replacement: impl Into<String>,
+    internal_replacement: impl Into<String>
+  ) -> Self {
+    Self {
+      pattern: pattern.into(),
+      external_replacement: external_replacement.into(),
+      internal_replacement: internal_replacement.into(),
+    }
+  }
+
+  pub fn apply(&self, text: impl AsRef<str>, substituted: &mut Substituted) {
+    let text = text.as_ref();
+    substituted.external = text.replace(&self.pattern, &self.external_replacement);
+    substituted.internal = text.replace(&self.pattern, &self.internal_replacement);
   }
 }

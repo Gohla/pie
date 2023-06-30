@@ -4,8 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-pie_graph = { path = "/Users/gohla/Dev/personal/pie/graph" }
+%%%PIE_GRAPH_DEPENDENCY%%%
 
 [dev-dependencies]
 dev_shared = { path = "../dev_shared" }
-

@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use crate::modification::{add, apply_diff, create, create_diff, create_diff_builder, insert};
 use crate::output::{CargoOutput, DirectoryStructure};
@@ -13,6 +13,10 @@ pub fn step_all(
     "../gen/",
     ["build"],
   );
+  
+  let pie_graph_path = PathBuf::from("../../graph").canonicalize()
+    .expect("failed to get absolute path to pie_graph");
+  stepper.add_substitution("%%%PIE_GRAPH_DEPENDENCY%%%", r#"pie_graph = "0.1""#, format!("pie_graph = {{ path = \"{}\" }}", pie_graph_path.display()));
 
   stepper.with_path("0_setup", |stepper| {
     stepper

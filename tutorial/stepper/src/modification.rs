@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 use anyhow::{bail, Context};
 use diffy::{DiffOptions, Patch};
 
-use crate::stepper::Stepper;
+use crate::stepper::{Stepper, Substituted};
 use crate::util::{add_extension, open_writable_file, write_to_file};
 
 #[derive(Clone)]
@@ -68,9 +68,9 @@ impl ModificationResolved {
     match self {
       Self::CreateFile(m) => m.apply(),
       Self::AddToFile(m) => m.apply(stepper),
-      Self::InsertIntoFile(m) => m.apply(),
+      Self::InsertIntoFile(m) => m.apply(stepper),
       Self::CreateDiffAndApply(m) => m.apply(stepper),
-      Self::ApplyDiff(m) => m.apply(),
+      Self::ApplyDiff(m) => m.apply(stepper),
     }
   }
 }
@@ -141,6 +141,7 @@ impl AddToFile {
   fn apply(&self, stepper: &mut Stepper) -> anyhow::Result<()> {
     let addition_text = read_to_string(&self.addition_file_path)
       .context("failed to read addition file to string")?;
+    let addition_text = stepper.apply_substitutions(&addition_text).internal;
     let mut file = open_writable_file(&self.destination_file_path, true)
       .context("failed to open writable file")?;
     write!(file, "{}\n\n", addition_text)
@@ -201,7 +202,7 @@ impl InsertIntoFile {
     Ok(Self { insertion_file_path, insertion_place, destination_file_path })
   }
 
-  fn apply(&self) -> anyhow::Result<()> {
+  fn apply(&self, stepper: &Stepper) -> anyhow::Result<()> {
     let insertion_text = read_to_string(&self.insertion_file_path)
       .context("failed to read insertion file to string")?;
     let destination_text = read_to_string(&self.destination_file_path)
@@ -225,6 +226,7 @@ impl InsertIntoFile {
         format!("{}\n\n{}{}", before, insertion_text, after)
       },
     };
+    let new_text = stepper.apply_substitutions(&new_text).internal;
     write_to_file(new_text.as_bytes(), &self.destination_file_path, false)
       .context("failed to write to destination file")?;
 
@@ -351,13 +353,15 @@ impl CreateDiffAndApplyResolved {
       .context("failed to read original file text")?;
     let modified_text = read_to_string(&self.modified_file_path)
       .context("failed to read modified file text")?;
+    let Substituted { external: modified_text_external, internal: modified_text_internal } = stepper.apply_substitutions(&modified_text);
+
     let mut diff_options = DiffOptions::default();
     diff_options.set_context_len(self.context_length);
-    let patch = diff_options.create_patch(&original_text, &modified_text);
-    crate::util::write_to_file(&patch.to_bytes(), &self.diff_output_file_path, false)
+    let patch_external = diff_options.create_patch(&original_text, &modified_text_external);
+    write_to_file(&patch_external.to_bytes(), &self.diff_output_file_path, false)
       .context("failed to write to diff output file")?;
-
-    apply_patch(patch, &self.destination_file_path)?;
+    let patch_internal = diff_options.create_patch(&original_text, &modified_text_internal);
+    apply_patch(patch_internal, &self.destination_file_path)?;
 
     stepper.last_original_file.insert(self.destination_file_path.clone(), self.modified_file_path.clone());
 
@@ -396,9 +400,10 @@ impl ApplyDiff {
     Ok(Self { diff_file_path, destination_file_path })
   }
 
-  fn apply(&self) -> anyhow::Result<()> {
+  fn apply(&self, stepper: &Stepper) -> anyhow::Result<()> {
     let diff = read_to_string(&self.diff_file_path)
       .context("failed to read diff to string")?;
+    let diff = stepper.apply_substitutions(&diff).external;
     let patch = diffy::Patch::from_str(&diff)
       .context("failed to create patch from diff string")?;
     apply_patch(patch, &self.destination_file_path)?;
