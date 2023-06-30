@@ -1,0 +1,554 @@
+<!DOCTYPE HTML>
+<html lang="en" class="sidebar-visible no-js light">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Incremental Top-Down Context - Build your own Programmatic Incremental Build System</title>
+
+
+        <!-- Custom HTML head -->
+        
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff" />
+
+        <link rel="icon" href="../../favicon.svg">
+        <link rel="shortcut icon" href="../../favicon.png">
+        <link rel="stylesheet" href="../../css/variables.css">
+        <link rel="stylesheet" href="../../css/general.css">
+        <link rel="stylesheet" href="../../css/chrome.css">
+        <link rel="stylesheet" href="../../css/print.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="../../FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="../../fonts/fonts.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" href="../../highlight.css">
+        <link rel="stylesheet" href="../../tomorrow-night.css">
+        <link rel="stylesheet" href="../../ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+        <link rel="stylesheet" href="../../src/custom.css">
+        <link rel="stylesheet" href="../../src/mdbook-admonish.css">
+
+    </head>
+    <body>
+    <div id="body-container">
+        <!-- Provide site root to javascript -->
+        <script>
+            var path_to_root = "../../";
+            var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "navy" : "light";
+        </script>
+
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                var theme = localStorage.getItem('mdbook-theme');
+                var sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            var theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            var html = document.querySelector('html');
+            html.classList.remove('no-js')
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add('js');
+        </script>
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            var html = document.querySelector('html');
+            var sidebar = null;
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+            }
+            html.classList.remove('sidebar-visible');
+            html.classList.add("sidebar-" + sidebar);
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <div class="sidebar-scrollbox">
+                <ol class="chapter"><li class="chapter-item expanded affix "><div>Introduction</div></li><li class="chapter-item expanded affix "><li class="part-title">Programmability</li><li class="chapter-item expanded "><div><strong aria-hidden="true">1.</strong> Setup</div></li><li class="chapter-item expanded "><a href="../../1_programmability/1_api/index.html"><strong aria-hidden="true">2.</strong> Programmable Build System API</a></li><li class="chapter-item expanded "><a href="../../1_programmability/2_non_incremental/index.html"><strong aria-hidden="true">3.</strong> Non-Incremental Context</a></li><li class="chapter-item expanded affix "><li class="part-title">Incrementality</li><li class="chapter-item expanded "><a href="../../2_incrementality/0_introduction/index.html"><strong aria-hidden="true">4.</strong> Introduction</a></li><li class="chapter-item expanded "><a href="../../2_incrementality/1_require_file/index.html"><strong aria-hidden="true">5.</strong> Requiring Files</a></li><li class="chapter-item expanded "><a href="../../2_incrementality/2_stamp/index.html"><strong aria-hidden="true">6.</strong> Stamps</a></li><li class="chapter-item expanded "><a href="../../2_incrementality/3_dependency/index.html"><strong aria-hidden="true">7.</strong> Dynamic Dependencies</a></li><li class="chapter-item expanded "><a href="../../2_incrementality/4_store/index.html"><strong aria-hidden="true">8.</strong> Dependency Graph Store</a></li><li class="chapter-item expanded "><a href="../../2_incrementality/5_context/index.html" class="active"><strong aria-hidden="true">9.</strong> Incremental Top-Down Context</a></li><li class="chapter-item expanded "><div><strong aria-hidden="true">10.</strong> Minimality</div></li><li class="chapter-item expanded affix "><li class="part-title">Soundness</li><li class="chapter-item expanded "><div><strong aria-hidden="true">11.</strong> Prevent Overlapping File Writes</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">12.</strong> Prevent Hidden Dependencies</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">13.</strong> Prevent Cycles</div></li><li class="chapter-item expanded affix "><li class="part-title">Improvements</li><li class="chapter-item expanded "><div><strong aria-hidden="true">14.</strong> Serialization</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">15.</strong> More Stampers</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">16.</strong> Configurable Hashing</div></li><li class="chapter-item expanded affix "><li class="part-title">Efficiency</li><li class="chapter-item expanded "><div><strong aria-hidden="true">17.</strong> Incremental Bottom-Up Context</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">18.</strong> Observability</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">19.</strong> Deferred Tasks</div></li><li class="chapter-item expanded affix "><li class="part-title">Appendix</li><li class="chapter-item expanded "><div><strong aria-hidden="true">20.</strong> Multiple Task Types</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">21.</strong> On Static Dependencies</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">22.</strong> On Declarativity</div></li><li class="spacer"></li><li class="chapter-item expanded affix "><div>Related Work</div></li></ol>
+            </div>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
+        </nav>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky bordered">
+                    <div class="left-buttons">
+                        <button id="sidebar-toggle" class="icon-button" type="button" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </button>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                        <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">Build your own Programmatic Incremental Build System</h1>
+
+                    <div class="right-buttons">
+                        <a href="../../print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h1 id="top-down-context"><a class="header" href="#top-down-context">Top-down Context</a></h1>
+<p>We've implemented all the prerequisites for incremental top-down building.
+Now we will create the <code>TopDownContext</code> type which implements the <code>Context</code> trait in an incremental way. </p>
+<h2 id="top-down-context-basics"><a class="header" href="#top-down-context-basics">Top-down context basics</a></h2>
+<p>Add the <code>top_down</code> module to <code>pie/src/context/mod.rs</code>:</p>
+<pre><code class="language-rust customdiff"> pub mod non_incremental;
++pub mod top_down;</code></pre>
+<p>Create the <code>pie/src/context/top_down.rs</code> file and add the following to get started:</p>
+<pre><code class="language-rust ">use std::fs::File;
+use std::io;
+use std::path::Path;
+
+use crate::{Context, fs, Task};
+use crate::dependency::{FileDependency, TaskDependency};
+use crate::stamp::{FileStamper, OutputStamper};
+use crate::store::{Store, TaskNode};
+
+pub struct TopDownContext&lt;T, O&gt; {
+  store: Store&lt;T, O&gt;,
+}
+
+impl&lt;T: Task&gt; Default for TopDownContext&lt;T, T::Output&gt; {
+  fn default() -&gt; Self {
+    Self {
+      store: Store::default(),
+    }
+  }
+}
+
+impl&lt;T: Task&gt; TopDownContext&lt;T, T::Output&gt; {
+  pub fn new() -&gt; Self { Self::default() }
+}
+
+
+impl&lt;T: Task&gt; Context&lt;T&gt; for TopDownContext&lt;T, T::Output&gt; {
+  fn require_file_with_stamper&lt;P: AsRef&lt;Path&gt;&gt;(&amp;mut self, path: P, stamper: FileStamper) -&gt; Result&lt;Option&lt;File&gt;, io::Error&gt; {
+    todo!()
+  }
+
+  fn require_task_with_stamper(&amp;mut self, task: &amp;T, stamper: OutputStamper) -&gt; T::Output {
+    todo!()
+  }
+}</code></pre>
+<p>The <code>TopDownContext</code> type is generic over tasks <code>T</code> and their outputs <code>O</code>, owns a <code>Store</code>, and can be created using <code>default</code> or <code>new</code>.</p>
+<p><code>TopDownContext</code> implements <code>Context</code>, and the main challenge will be implementing the <code>require_file_with_stamper</code> and <code>require_task_with_stamper</code> methods <em>incrementally</em> and <em>correctly</em>.</p>
+<h2 id="requiring-files"><a class="header" href="#requiring-files">Requiring files</a></h2>
+<p>Tasks such as <code>ReadStringFromFile</code> which we've used in tests before call <code>context.require_file</code> to declare that they depend on a file in the filesystem.
+For incrementality, we need to add this dependency to the dependency graph.
+This dependency will go from the <em>current executing task</em> to the file.
+Therefore, we will need to keep track of the current executing task.</p>
+<p>Change <code>pie/src/context/mod.rs</code> to add a field for tracking the current executing task, and use it in <code>require_file_with_stamper</code>:</p>
+<pre><code class="language-rust customdiff">
+ use crate::{Context, fs, Task};
+ use crate::dependency::{FileDependency, TaskDependency};
+ use crate::stamp::{FileStamper, OutputStamper};
+ use crate::store::{Store, TaskNode};
+
+ pub struct TopDownContext&lt;T, O&gt; {
+   store: Store&lt;T, O&gt;,
++  current_executing_task: Option&lt;TaskNode&gt;,
+ }
+
+ impl&lt;T: Task&gt; Default for TopDownContext&lt;T, T::Output&gt; {
+   fn default() -&gt; Self {
+     Self {
+       store: Store::default(),
++      current_executing_task: None,
+     }
+   }
+ }
+
+ impl&lt;T: Task&gt; TopDownContext&lt;T, T::Output&gt; {
+   pub fn new() -&gt; Self { Self::default() }
+ }
+
+
+ impl&lt;T: Task&gt; Context&lt;T&gt; for TopDownContext&lt;T, T::Output&gt; {
+   fn require_file_with_stamper&lt;P: AsRef&lt;Path&gt;&gt;(&amp;mut self, path: P, stamper: FileStamper) -&gt; Result&lt;Option&lt;File&gt;, io::Error&gt; {
++    let Some(current_executing_task_node) = &amp;self.current_executing_task else {
++      return fs::open_if_file(path); // No current executing task, so no dependency needs to be made.
++    };
+     todo!()
+   }
+
+   fn require_task_with_stamper(&amp;mut self, task: &amp;T, stamper: OutputStamper) -&gt; T::Output {
+     todo!()
+   }
+ }</code></pre>
+<p>We're not setting <code>current_executing_task</code> yet, as that is the responsibility of <code>require_task_with_stamper</code> which we will implement later.
+In <code>require_file_with_stamper</code> we're now getting the current executing task.
+If there is no current executing task, which only happens if a user directly calls <code>require_file</code> on a context, we don't make a dependency and just open the file.</p>
+<p>Now we need to add the file dependency, change <code>pie/src/context/mod.rs</code> to do this: </p>
+<pre><code class="language-rust customdiff"> impl&lt;T: Task&gt; Context&lt;T&gt; for TopDownContext&lt;T, T::Output&gt; {
+   fn require_file_with_stamper&lt;P: AsRef&lt;Path&gt;&gt;(&amp;mut self, path: P, stamper: FileStamper) -&gt; Result&lt;Option&lt;File&gt;, io::Error&gt; {
+     let Some(current_executing_task_node) = &amp;self.current_executing_task else {
+       return fs::open_if_file(path); // No current executing task, so no dependency needs to be made.
+     };
+-    todo!()
++    let path = path.as_ref();
++    let node = self.store.get_or_create_file_node(path);
++    let (dependency, file) = FileDependency::new_with_file(path, stamper)?;
++    self.store.add_file_require_dependency(current_executing_task_node, &amp;node, dependency);
++    Ok(file)
+   }
+
+   fn require_task_with_stamper(&amp;mut self, task: &amp;T, stamper: OutputStamper) -&gt; T::Output {
+     todo!()
+   }</code></pre>
+<p>We simply create or get an existing file node, create a file dependency, and add the file require dependency to the graph via <code>store</code>.
+Errors are propagated to the caller, so they can react accordingly to filesystem operation failures.</p>
+<h2 id="requiring-tasks"><a class="header" href="#requiring-tasks">Requiring tasks</a></h2>
+<p>To implement <code>require_task_with_stamper</code>, we need to check whether we should execute a task.
+A task should be executed either if it's new (it does not have an output stored yet), or if at least one of its dependencies is inconsistent.
+If we don't execute it, then it must have an output value and all its dependencies are consistent, so we just return its output value.</p>
+<p>Change <code>pie/src/context/mod.rs</code> to implement this logic:</p>
+<pre><code class="language-rust customdiff">     self.store.add_file_require_dependency(current_executing_task_node, &amp;node, dependency);
+     Ok(file)
+   }
+
+   fn require_task_with_stamper(&amp;mut self, task: &amp;T, stamper: OutputStamper) -&gt; T::Output {
+-    todo!()
++    let node = self.store.get_or_create_task_node(task);
++
++    // Get required task output by executing it if needed, or by getting the output from the store if not needed.
++    let output = if self.should_execute_task(&amp;node) {
++      self.store.reset_task(&amp;node);
++      let previous_executing_task = self.current_executing_task.replace(node);
++      let output = task.execute(self);
++      self.current_executing_task = previous_executing_task;
++      self.store.set_task_output(&amp;node, output.clone());
++      output
++    } else {
++      // Correctness: when `should_execute_task` returns `true`, the above block is executed. Otherwise this block is 
++      // executed and `should_execute_task` ensures that the task has an output.
++      self.store.get_task_output(&amp;node).clone()
++    };
++
++    output
+   }
+ }</code></pre>
+<p>We first create or get an existing file node.
+Then, we check whether the task should be executed with <code>should_execute_task</code> which we still need to implement.</p>
+<p>If that returns true, we reset the task, set the current executing task, actually execute the task, restore the previous executing task, and set the task output.
+Otherwise, we get the output of the task from the store, which cannot panic because <code>should_execute_task</code> ensures that the task has an output if it returns false.
+Finally, we return the output.</p>
+<p>We still need to create a task dependency. Change <code>pie/src/context/mod.rs</code> to add the dependency:</p>
+<pre><code class="language-rust customdiff">       // Correctness: when `should_execute_task` returns `true`, the above block is executed. Otherwise this block is 
+       // executed and `should_execute_task` ensures that the task has an output.
+       self.store.get_task_output(&amp;node).clone()
+     };
+
++    // Create task require dependency if a task is currently executing (i.e., we are not requiring the initial task).
++    if let Some(current_executing_task_node) = &amp;self.current_executing_task {
++      let dependency = TaskDependency::new(task.clone(), stamper, output.clone());
++      if self.store.add_task_require_dependency(current_executing_task_node, &amp;node, dependency).is_err() {
++        let current_executing_task = self.store.get_task(current_executing_task_node);
++        panic!(&quot;Cyclic task dependency; current executing task '{:?}' is requiring task '{:?}' which was already required&quot;, current_executing_task, task);
++      }
++    }
++
+     output
+   }
+ }</code></pre>
+<p>If there is no current executing task, which occurs when a user requires the initial task, we skip creating a dependency.
+Otherwise, we create a dependency and add it to the store.
+However, creating a task dependency can create cycles, and we need to handle that error.</p>
+<p>At this point, we need to make a hard decision about the API of our library.
+<code>require_task_with_stamper</code> returns the task output, with no opportunity to return an error.
+If we want to propagate this error, we'd need to change the <code>Context::require_task</code> API to return <code>Result&lt;T::Output, CycleError&gt;</code>.
+However, because tasks call these methods on <code>Context</code>, we'd also need to change <code>Task::execute</code> to return <code>Result&lt;T::Output, CycleError&gt;</code>.
+That would require all tasks to propagate these cycle errors every time they require another task.</p>
+<p>Furthermore, some tasks want to return their own kinds of errors, where <code>T::Output</code> will be <code>Result&lt;AnOutput, AnError&gt;</code>.
+In that case, the concrete return type would be <code>Result&lt;Result&lt;AnOutput, AnError&gt;, CycleError&gt;</code>, which is annoying to deal with.</p>
+<p>On the other hand, we can panic when a cycle is found, which requires no changes to the API.
+We do end up in a mostly unrecoverable state, so a panic is a valid option.
+However, this is not ideal, because it means the build system can panic due to invalid task dependencies created by the user of the system.
+Panics will (most of the time) stop the program, which can be annoying to deal with.</p>
+<p>This is a hard trade-off to make.
+Either we propagate errors which will not end the program but will introduce a lot of boilerplate and annoyance in task implementations.
+Or we panic which will end the program but introduces no boilerplate.</p>
+<p>In this tutorial, we will go with panics on cycles, because it results in a much simpler system.</p>
+<details id="admonition-recovering-from-panics" class="admonition info">
+<summary class="admonition-title">
+<p>Recovering from panics</p>
+<p><a class="admonition-anchor-link" href="#admonition-recovering-from-panics"></a></p>
+</summary>
+<div>
+<p>Panics either abort the program (when panics are set to abort in <code>Cargo.toml</code>), or unwind the call stack and then end the program.</p>
+<p>When panics abort, there is nothing we can do about it. 
+A panic will immediately abort the program.
+When panics unwind, the call stack is unwound, which still runs all destructors (<a href="https://doc.rust-lang.org/std/ops/trait.Drop.html" title="" target="_blank">
+<code>Drop</code></a>), and this unwinding can be caught.</p>
+<p>We can catch unwinding panics with <a href="https://doc.rust-lang.org/std/panic/fn.catch_unwind.html" title="" target="_blank">
+<code>catch_unwind</code></a>, which is a way to recover from panics.
+This does require that the types used in the closure passed to <code>catch_unwind</code> are <a href="https://doc.rust-lang.org/std/panic/trait.UnwindSafe.html" title="" target="_blank">unwind safe</a>.
+This is because panics exit a function early, which can mess up some invariants of your code.
+For example, a call to set a task output can be skipped when a panic occurs, breaking a code invariant.
+Therefore, types such as <code>&amp;mut T</code> are not unwind safe by default, because these invariants can break under panics.</p>
+<p>Note that unwind safety is something different than the general safety guarantees provided by Rust: type-safe, memory-safe, thread-safe.
+An unwind unsafe type is still type-safe, memory-safe, and thread-safe.</p>
+<p>Unwind safety can be more easily achieved by using owned types which run destructors when the function call ends, which work under normal circumstances, but also when unwinding panics.</p>
+<p>In the context of the PIE build system, if we panic on unrecoverable errors, but want to allow catching these panics, we need to think about unwind safety.
+At any point we panic, we need to think about keeping the system in a valid state.</p>
+<p>Another way to recover from panics is to run the panicking code on a different thread.
+If the code panics, it will only end that thread, effectively allowing panic recovery.
+However, this does require some form of thread-safety, beause you are moving a computation to a different thread.
+Furthermore, some platforms do not have access to threads, such as WASM, where this approach would not work.</p>
+<p>A final note is that care must be taken when <a href="https://doc.rust-lang.org/nomicon/ffi.html#ffi-and-unwinding" title="" target="_blank">unwiding panics across foreign function interfaces (FFI)</a>.</p>
+</div>
+</details>
+<h2 id="checking-tasks"><a class="header" href="#checking-tasks">Checking tasks</a></h2>
+<p>The final piece to our puzzle is the <code>should_execute_task</code> implementation.</p>
+<p>Add the following code to <code>pie/src/context/mod.rs</code>:</p>
+<pre><code class="language-rust customdiff ">     }
+
+     output
+   }
+ }
++
++impl&lt;T: Task&gt; TopDownContext&lt;T, T::Output&gt; {
++  /// Checks whether given task should be executed, returning `true` if it should be executed. A task should be executed
++  /// if any of its dependencies are inconsistent, or when it has no output.
++  fn should_execute_task(&amp;mut self, node: &amp;TaskNode) -&gt; bool {
++    // Borrow: because we pass `self` (which is `&amp;mut self`) to `is_inconsistent` for recursive consistency checking, 
++    //         we need to clone and collect dependencies into a `Vec`. Otherwise we have an immutable borrow of `self`
++    //         through `self.store` while we create a mutable borrow of `self`, which is not allowed.
++    let dependencies: Vec&lt;_&gt; = self.store.get_dependencies_of_task(node).cloned().collect();
++    for dependency in dependencies {
++      match dependency.is_inconsistent(self) {
++        Ok(Some(_)) =&gt; return true,
++        _ =&gt; {} // Consistent: continue checking
++      }
++    }
++    // Task has no dependencies or all dependencies are consistent. Should only execute if it has no output, meaning
++    // that it has never been executed before.
++    return !self.store.task_has_output(node);
++  }
++}</code></pre>
+<p>The premise of <code>should_execute_task</code> is simple: go over the dependencies of a task until <code>dependency.is_inconsistent</code> is true, at which we return true.
+If all dependencies are consistent, then return true only if the task has no output.
+Otherwise, return false.</p>
+<p>However, there are some complications due to borrowing.
+Checking if a task dependency is inconsistent requires recursive checking: <code>TaskDependency::is_inconsistent</code> requires a <code>&amp;mut Context</code> to call <code>Context::require_task</code>, which in turn can require this method again. 
+To that end, we pass <code>self</code> to <code>is_inconsistent</code>, because <code>self</code> is an instance of <code>TopDownContext</code> which implements <code>Context</code>.</p>
+<p>In this method, <code>self</code> is <code>&amp;mut self</code>, a mutable borrow.
+Therefore, we cannot have <em>any other borrows</em> active while <code>is_inconsistent</code> is being called, because that would violate one of the safety mechanisms of Rust where mutable borrows are <em>exclusive</em>.
+Getting the task's dependencies from the store requires a borrow, so we cannot hold onto that borrow.
+We get around that here by cloning the dependencies and collecting them into a <code>Vec</code>.</p>
+<p>We also document this fact in a comment to explain to readers (us in the future) why we do this cloning, preventing refactorings only to hit that same borrowing issue again. </p>
+<p>Cloning and collecting does have a performance overhead as we need to clone the dependencies and heap allocate a <code>Vec</code> to store them.
+For this tutorial, that is fine, but in a real-world application we should minimize cloning if possible and look into reducing heap allocations.</p>
+<details id="admonition-reference-counting" class="admonition info">
+<summary class="admonition-title">
+<p>Reference counting</p>
+<p><a class="admonition-anchor-link" href="#admonition-reference-counting"></a></p>
+</summary>
+<div>
+<p>Cloning a <code>Dependency</code> results in heap allocations, because cloning <code>FileDependency</code> clones a <code>PathBuf</code> which is a heap allocated string (basically a <code>Vec&lt;u8&gt;</code>), and cloning a <code>TaskDependency</code> clones the <code>Task</code>, which may require allocations as well.</p>
+<p>One way to avoid heap allocations in both kinds of dependencies is to store the <code>PathBuf</code> and <code>Task</code> in a <a href="https://doc.rust-lang.org/std/rc/struct.Rc.html" title="" target="_blank">reference-counting pointer <code>Rc</code></a>.
+Then, there will only be one heap allocated <code>PathBuf</code> and <code>Task</code>, and cloning just increments the reference count.
+The upside is that this approach is easy to implement and reduces allocations.
+The downside is that clones require incrementing the reference count, which is a write operation that does have a tiny bit of overhead.
+In many cases, this overhead is smaller than cloning data when the data is large enough or requires heap allocations.
+In our case, it would probably be worth doing this, but benchmarking is required to confirm this.</p>
+<p>Note that instead of always wrapping tasks in a <code>Rc</code>, task authors could implement <code>Task</code> on <code>Rc&lt;TheirTask&gt;</code> instead.
+Since <code>Rc</code> implements <code>Clone</code>, any time we <code>task.clone()</code>, we would just increase the reference count instead.</p>
+<p>When working in a multi-threaded situation, you would use the thread-safe <a href="https://doc.rust-lang.org/std/sync/struct.Arc.html" title="" target="_blank">
+<code>Arc</code></a> instead.</p>
+</div>
+</details>
+<details id="admonition-string-optimizations" class="admonition info">
+<summary class="admonition-title">
+<p>String optimizations</p>
+<p><a class="admonition-anchor-link" href="#admonition-string-optimizations"></a></p>
+</summary>
+<div>
+<p>A technique for reducing allocations on strings (and string-like types such as <code>PathBuf</code>) is to apply <a href="https://fasterthanli.me/articles/small-strings-in-rust" title="" target="_blank">small string optimization</a>, where small strings are stored inline instead of requiring a heap allocation.
+This only works if the strings are usually small enough to fit inline on the stack (for example, 32 bytes).</p>
+<p>Another technique for strings is string interning, where equal strings are stored in a central place and then re-used everywhere.
+This technique is great when we use the same string a lot of times.
+That may be a good strategy for a build system, where we work with the same file paths over and over.</p>
+<p>There are several crates implementing these techniques, but I have not used one myself yet, so I cannot recommend one.</p>
+</div>
+</details>
+<details id="admonition-avoiding-heap-allocations-from-collecting-into-vecs" class="admonition info">
+<summary class="admonition-title">
+<p>Avoiding heap allocations from collecting into Vecs</p>
+<p><a class="admonition-anchor-link" href="#admonition-avoiding-heap-allocations-from-collecting-into-vecs"></a></p>
+</summary>
+<div>
+<p>Collecting the elements of an iterator into a <code>Vec</code> requires heap allocations as <code>Vec</code> is allocated on the heap.
+We can avoid or at least reduce the number of heap allocations by re-using the same <code>Vec</code> instead of creating a new one.
+Instead of collecting, you would store the <code>Vec</code> in the struct, clear it, and then <code>extend</code> it with the iterator.</p>
+<p>When you <code>clear</code> a <code>Vec</code>, it removes all the elements, but keeps the heap allocated space.
+Only if you would add more elements than it has space for, another heap allocation would be required, which will happen less and less frequently when you keep reusing the same <code>Vec</code>.
+The downside is that you are keeping this heap allocated space for as long as you keep reusing the same <code>Vec</code>, which could waste some memory, but usually this is not a big problem.
+You could of course call <code>vec.shrink_to_fit()</code> after not using it for a while to free up this space.</p>
+<p>However, we cannot apply this technique here, because if we store the <code>Vec</code> in <code>TopDownContext</code>, we would run into the same borrowing problem again.
+This technique also requires that you have mutable access to the <code>Vec</code> in order to mutate it.</p>
+<p>Both of these limitations can be overcome by using a <a href="https://doc.rust-lang.org/std/cell/struct.Cell.html" title="" target="_blank">
+<code>Cell</code></a>.
+<code>Cell</code> allows mutation to its inner value in an immutable context.
+The catch is that you <em>cannot get a reference to its inner value</em>, you can only <code>take</code> the value out, mutate it, and then <code>set</code> it back.
+Unfortunately, even this technique cannot be fully applied to <code>should_execute_task</code>, because it is called recursively and therefore the <code>Cell</code> will be empty when we try to <code>take</code> the <code>Vec</code> out.</p>
+<p>If we want to avoid heap allocations from collecting new <code>Vec</code>s in <code>should_execute_task</code>, we would need to come up with a creative solution.
+But this is outside of the scope of even this extra information block, so we'll just leave it at that.</p>
+</div>
+</details>
+<p>Finally, we need to do something with dependency checking failures.
+We've ignored the case where <code>dependency.is_inconsistent</code> returns <code>Err</code>.
+When dependency checking result in an error, we should store the error for the user to investigate, and assume the dependency is inconsistent.</p>
+<p>Change <code>pie/src/context/mod.rs</code> to store dependency check errors and give users access to it:</p>
+<pre><code class="language-rust customdiff"> use crate::store::{Store, TaskNode};
+
+ pub struct TopDownContext&lt;T, O&gt; {
+   store: Store&lt;T, O&gt;,
+   current_executing_task: Option&lt;TaskNode&gt;,
++  dependency_check_errors: Vec&lt;io::Error&gt;,
+ }
+
+ impl&lt;T: Task&gt; Default for TopDownContext&lt;T, T::Output&gt; {
+   fn default() -&gt; Self {
+     Self {
+       store: Store::default(),
+       current_executing_task: None,
++      dependency_check_errors: Vec::default(),
+     }
+   }
+ }
+
+ impl&lt;T: Task&gt; TopDownContext&lt;T, T::Output&gt; {
+   pub fn new() -&gt; Self { Self::default() }
++
++  pub fn get_dependency_check_errors(&amp;self) -&gt; impl Iterator&lt;Item=&amp;io::Error&gt; {
++    self.dependency_check_errors.iter()
++  }
+ }
+
+
+ impl&lt;T: Task&gt; Context&lt;T&gt; for TopDownContext&lt;T, T::Output&gt; {
+   fn require_file_with_stamper&lt;P: AsRef&lt;Path&gt;&gt;(&amp;mut self, path: P, stamper: FileStamper) -&gt; Result&lt;Option&lt;File&gt;, io::Error&gt; {</code></pre>
+<p>And then change <code>pie/src/context/mod.rs</code> to store these errors:</p>
+<pre><code class="language-rust customdiff">     //         through `self.store` while we create a mutable borrow of `self`, which is not allowed.
+     let dependencies: Vec&lt;_&gt; = self.store.get_dependencies_of_task(node).cloned().collect();
+     for dependency in dependencies {
+       match dependency.is_inconsistent(self) {
+         Ok(Some(_)) =&gt; return true,
++        Err(e) =&gt; { // Error while checking: store error and assume inconsistent
++          self.dependency_check_errors.push(e);
++          return true;
++        }
+         _ =&gt; {} // Consistent: continue checking
+       }
+     }
+     // Task has no dependencies or all dependencies are consistent. Should only execute if it has no output, meaning
+     // that it has never been executed before.</code></pre>
+<p>It took us a while, but now we've implemented an incremental build system with dynamic dependencies!
+Instead of throwing a party, we should first write tests to see if it is indeed incremental, but also to check that it is correct.</p>
+<h2 id="tests"><a class="header" href="#tests">Tests</a></h2>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="../../2_incrementality/4_store/index.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="../../2_incrementality/4_store/index.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+
+            </nav>
+
+        </div>
+
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="../../elasticlunr.min.js"></script>
+        <script src="../../mark.min.js"></script>
+        <script src="../../searcher.js"></script>
+
+        <script src="../../clipboard.min.js"></script>
+        <script src="../../highlight.js"></script>
+        <script src="../../book.js"></script>
+
+        <!-- Custom JS scripts -->
+        <script src="../../src/diff.js"></script>
+
+
+    </div>
+    </body>
+</html>

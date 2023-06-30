@@ -1,0 +1,486 @@
+<!DOCTYPE HTML>
+<html lang="en" class="sidebar-visible no-js light">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Dynamic Dependencies - Build your own Programmatic Incremental Build System</title>
+
+
+        <!-- Custom HTML head -->
+        
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff" />
+
+        <link rel="icon" href="../../favicon.svg">
+        <link rel="shortcut icon" href="../../favicon.png">
+        <link rel="stylesheet" href="../../css/variables.css">
+        <link rel="stylesheet" href="../../css/general.css">
+        <link rel="stylesheet" href="../../css/chrome.css">
+        <link rel="stylesheet" href="../../css/print.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="../../FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="../../fonts/fonts.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" href="../../highlight.css">
+        <link rel="stylesheet" href="../../tomorrow-night.css">
+        <link rel="stylesheet" href="../../ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+        <link rel="stylesheet" href="../../src/custom.css">
+        <link rel="stylesheet" href="../../src/mdbook-admonish.css">
+
+    </head>
+    <body>
+    <div id="body-container">
+        <!-- Provide site root to javascript -->
+        <script>
+            var path_to_root = "../../";
+            var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "navy" : "light";
+        </script>
+
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                var theme = localStorage.getItem('mdbook-theme');
+                var sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            var theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            var html = document.querySelector('html');
+            html.classList.remove('no-js')
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add('js');
+        </script>
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            var html = document.querySelector('html');
+            var sidebar = null;
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+            }
+            html.classList.remove('sidebar-visible');
+            html.classList.add("sidebar-" + sidebar);
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <div class="sidebar-scrollbox">
+                <ol class="chapter"><li class="chapter-item expanded affix "><div>Introduction</div></li><li class="chapter-item expanded affix "><li class="part-title">Programmability</li><li class="chapter-item expanded "><div><strong aria-hidden="true">1.</strong> Setup</div></li><li class="chapter-item expanded "><a href="../../1_programmability/1_api/index.html"><strong aria-hidden="true">2.</strong> Programmable Build System API</a></li><li class="chapter-item expanded "><a href="../../1_programmability/2_non_incremental/index.html"><strong aria-hidden="true">3.</strong> Non-Incremental Context</a></li><li class="chapter-item expanded affix "><li class="part-title">Incrementality</li><li class="chapter-item expanded "><a href="../../2_incrementality/0_introduction/index.html"><strong aria-hidden="true">4.</strong> Introduction</a></li><li class="chapter-item expanded "><a href="../../2_incrementality/1_require_file/index.html"><strong aria-hidden="true">5.</strong> Requiring Files</a></li><li class="chapter-item expanded "><a href="../../2_incrementality/2_stamp/index.html"><strong aria-hidden="true">6.</strong> Stamps</a></li><li class="chapter-item expanded "><a href="../../2_incrementality/3_dependency/index.html" class="active"><strong aria-hidden="true">7.</strong> Dynamic Dependencies</a></li><li class="chapter-item expanded "><a href="../../2_incrementality/4_store/index.html"><strong aria-hidden="true">8.</strong> Dependency Graph Store</a></li><li class="chapter-item expanded "><a href="../../2_incrementality/5_context/index.html"><strong aria-hidden="true">9.</strong> Incremental Top-Down Context</a></li><li class="chapter-item expanded "><div><strong aria-hidden="true">10.</strong> Minimality</div></li><li class="chapter-item expanded affix "><li class="part-title">Soundness</li><li class="chapter-item expanded "><div><strong aria-hidden="true">11.</strong> Prevent Overlapping File Writes</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">12.</strong> Prevent Hidden Dependencies</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">13.</strong> Prevent Cycles</div></li><li class="chapter-item expanded affix "><li class="part-title">Improvements</li><li class="chapter-item expanded "><div><strong aria-hidden="true">14.</strong> Serialization</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">15.</strong> More Stampers</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">16.</strong> Configurable Hashing</div></li><li class="chapter-item expanded affix "><li class="part-title">Efficiency</li><li class="chapter-item expanded "><div><strong aria-hidden="true">17.</strong> Incremental Bottom-Up Context</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">18.</strong> Observability</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">19.</strong> Deferred Tasks</div></li><li class="chapter-item expanded affix "><li class="part-title">Appendix</li><li class="chapter-item expanded "><div><strong aria-hidden="true">20.</strong> Multiple Task Types</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">21.</strong> On Static Dependencies</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">22.</strong> On Declarativity</div></li><li class="spacer"></li><li class="chapter-item expanded affix "><div>Related Work</div></li></ol>
+            </div>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
+        </nav>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky bordered">
+                    <div class="left-buttons">
+                        <button id="sidebar-toggle" class="icon-button" type="button" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </button>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                        <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">Build your own Programmatic Incremental Build System</h1>
+
+                    <div class="right-buttons">
+                        <a href="../../print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h1 id="dynamic-dependencies"><a class="header" href="#dynamic-dependencies">Dynamic Dependencies</a></h1>
+<p>Now that we've implemented stamps, we can implement dynamic dependencies and their consistency checking.
+A dependency is inconsistent if after stamping, the new stamp is different from the old stamp.
+Therefore, dependencies need to keep track of their stamper and their previous stamp.
+To that end, we will implement the <code>FileDependency</code> and <code>TaskDependency</code> types with methods for consistency checking.
+We will also implement a <code>Dependency</code> type that abstracts over <code>FileDependency</code> and <code>TaskDependency</code>, which we will need for the dependency graph implementation in the next chapter.</p>
+<p>Add the <code>dependency</code> module to <code>pie/src/lib.rs</code>:</p>
+<pre><code class="language-rust customdiff"> use stamp::{FileStamper, OutputStamper};
+
+ pub mod stamp;
+ pub mod context;
+ mod fs;
++mod dependency;
+
+ /// A unit of computation in a programmatic incremental build system.
+ pub trait Task: Clone + Eq + Hash + Debug {
+   /// Type of output this task returns when executed.
+   type Output: Clone + Eq + Debug;</code></pre>
+<p>This module is private, as users of the library should not construct dependencies.
+They should only create dependencies (and choose stampers) via <code>Context</code> methods.</p>
+<h2 id="file-dependencies"><a class="header" href="#file-dependencies">File dependencies</a></h2>
+<p>Create the <code>pie/src/dependency.rs</code> file and add:</p>
+<pre><code class="language-rust ">use std::fmt::Debug;
+use std::fs::File;
+use std::io;
+use std::path::PathBuf;
+
+use crate::{Context, Task};
+use crate::fs::open_if_file;
+use crate::stamp::{FileStamp, FileStamper, OutputStamp, OutputStamper};
+
+#[derive(Clone, Eq, PartialEq, Debug)]
+pub struct FileDependency {
+  path: PathBuf,
+  stamper: FileStamper,
+  stamp: FileStamp,
+}
+
+impl FileDependency {
+  /// Creates a new file dependency with `path` and `stamper`, returning:
+  /// - `Ok(file_dependency)` normally,
+  /// - `Err(e)` if stamping failed.
+  pub fn new(path: impl Into&lt;PathBuf&gt;, stamper: FileStamper) -&gt; Result&lt;Self, io::Error&gt; {
+    let path = path.into();
+    let stamp = stamper.stamp(&amp;path)?;
+    let dependency = FileDependency { path, stamper, stamp };
+    Ok(dependency)
+  }
+  /// Creates a new file dependency with `path` and `stamper`, returning:
+  /// - `Ok((file_dependency, Some(file)))` if a file exists at given path,
+  /// - `Ok((file_dependency, None))` if no file exists at given path (but a directory could exist at given path),
+  /// - `Err(e)` if stamping or opening the file failed.
+  pub fn new_with_file(path: impl Into&lt;PathBuf&gt;, stamper: FileStamper) -&gt; Result&lt;(Self, Option&lt;File&gt;), io::Error&gt; {
+    let path = path.into();
+    let stamp = stamper.stamp(&amp;path)?;
+    let file = open_if_file(&amp;path)?;
+    let dependency = FileDependency { path, stamper, stamp };
+    Ok((dependency, file))
+  }
+
+  /// Checks whether this file dependency is inconsistent, returning:
+  /// - `Ok(Some(stamp))` if this dependency is inconsistent (with `stamp` being the new stamp of the dependency),
+  /// - `Ok(None)` if this dependency is consistent,
+  /// - `Err(e)` if there was an error checking this dependency for consistency.
+  pub fn is_inconsistent(&amp;self) -&gt; Result&lt;Option&lt;FileStamp&gt;, io::Error&gt; {
+    let new_stamp = self.stamper.stamp(&amp;self.path)?;
+    if new_stamp == self.stamp {
+      Ok(None)
+    } else {
+      Ok(Some(new_stamp))
+    }
+  }
+}</code></pre>
+<p>A <code>FileDependency</code> stores the <code>path</code> the dependency is about, the <code>stamper</code> used to create a stamp for this dependency, and the <code>stamp</code> that was created at the time the file dependency was made.
+The <code>FileDependency::new_with_file</code> function also returns the opened file if it exists, so that users of this function can read from the file without having to open it again.</p>
+<p>A file dependency is inconsistent when the stored stamp is not equal to a stamp that we create at the time of checking, implemented in <code>FileDependency::is_inconsistent</code>.
+For example, if we created a file dependency (with modified stamper) for a file that was modified yesterday, then modify the file, and then call <code>is_inconsistent</code> on the file dependency, it would return <code>Some(new_stamp)</code> indicating that the dependency is inconsistent.</p>
+<p>We implement an <code>is_inconsistent</code> method here instead of an <code>is_consistent</code> method, so that we can return the changed stamp when the dependency is inconsistent, which we will use for debug logging purposes later.</p>
+<p>Creating and checking a file dependency can fail due to file operations failing (for example, cannot access the file), so we propagate those errors.</p>
+<h2 id="task-dependencies"><a class="header" href="#task-dependencies">Task dependencies</a></h2>
+<p>Task dependencies are implemented in a similar way.
+Add to <code>pie/src/dependency.rs</code>:</p>
+<pre><code class="language-rust ">#[derive(Clone, Eq, PartialEq, Debug)]
+pub struct TaskDependency&lt;T, O&gt; {
+  task: T,
+  stamper: OutputStamper,
+  stamp: OutputStamp&lt;O&gt;,
+}
+
+impl&lt;T: Task&gt; TaskDependency&lt;T, T::Output&gt; {
+  pub fn new(task: T, stamper: OutputStamper, output: T::Output) -&gt; Self {
+    let stamp = stamper.stamp(output);
+    Self { task, stamper, stamp }
+  }
+
+  /// Checks whether this task dependency is inconsistent, returning:
+  /// - `Some(stamp)` if this dependency is inconsistent (with `stamp` being the new stamp of the dependency),
+  /// - `None` if this dependency is consistent.
+  pub fn is_inconsistent&lt;C: Context&lt;T&gt;&gt;(&amp;self, context: &amp;mut C) -&gt; Option&lt;OutputStamp&lt;T::Output&gt;&gt; {
+    let output = context.require_task(&amp;self.task);
+    let new_stamp = self.stamper.stamp(output);
+    if new_stamp == self.stamp {
+      None
+    } else {
+      Some(new_stamp)
+    }
+  }
+}</code></pre>
+<p>A <code>TaskDependency</code> stores the <code>task</code> the dependency is about, along with its <code>stamper</code> and <code>stamp</code> that is created when the dependency is created.
+Task dependencies are generic over the type of tasks <code>T</code>, and their type of outputs <code>O</code>.</p>
+<details id="admonition-trait-bounds-on-structs" class="admonition info">
+<summary class="admonition-title">
+<p>Trait bounds on structs</p>
+<p><a class="admonition-anchor-link" href="#admonition-trait-bounds-on-structs"></a></p>
+</summary>
+<div>
+<p>We chose not to put a <code>Task</code> trait bound on <code>TaskDependency</code>, and instead put the bound on the impl.
+There are several up and downsides that should be considered when making such a decision.</p>
+<p>The main upside for putting the <code>Task</code> bound on the <code>TaskDependency</code> struct, is that we can leave out <code>O</code> and use <code>OutputStamp&lt;T::Output&gt;</code> as the type of the <code>stamp</code> field.
+This cuts down a generic parameter, which reduces boilerplate.
+The downside is that we need to then put the <code>Task</code> bound on every struct that uses <code>TaskDependency</code>, which increases boilerplate.</p>
+<p>In this case, we chose not to put the trait bound on the struct to prevent that trait bound from bubbling up into other structs that use <code>TaskDependency</code>, as it would need to appear in almost every struct in the library.</p>
+</div>
+</details>
+<p>A task dependency is inconsistent if, after recursively checking it, its stamp has changed, implemented in <code>TaskDependency::is_inconsistent</code>.
+Usually, this will be using the <code>Equals</code> task output stamper, so a task dependency is usually inconsistent when the output of the task changes.
+Because we need to recursively check the task, <code>TaskDependency::is_inconsistent</code> requires a context to be passed in.
+Again, there is more mutual recursion here.</p>
+<p>This recursive consistency checking is one of the core ideas that make programmatic incremental build systems possible.
+But why is this so important? Why do we need recursive checking?
+Well, we want our build system to be <em>sound</em>, meaning that we must execute <em>all</em> tasks that are affected by a change.
+When we <em>do not execute</em> a task that <em>is affected by a change</em>, we are <em>unsound</em>, and introduce an <em>incrementality bug</em>! </p>
+<p>Because of dynamic dependencies, a change in a leaf in the dependency tree may affect a task at the root.
+For example, a compilation task depends on a task that reads a configuration file, which depends on the configuration file.
+A change to a configuration file (leaf) affects a task that reads the configuration file, which in turn affects the compilation task (root).
+Therefore, we need to recursively check the dependency tree in order to execute all tasks affected by changes.</p>
+<p>A different way to think about this, is to think about the invariant of the dependency consistency checking.
+The invariant is that a dependency is consistent if and only if the subtree of that dependency is consistent, and the dependency itself is consistent.
+The easiest way to adhere to this invariant, is recursive checking.</p>
+<p>A final note about recursive checking is that tasks can be executed during it, and executing task can lead to new dynamic dependencies.
+However, recursive checking handles this without problems because these dependencies are created through the <code>Context</code>, which in turn will call <code>is_inconsistent</code> when needed.</p>
+<h2 id="dependency-enum"><a class="header" href="#dependency-enum">Dependency enum</a></h2>
+<p>Finally, we create a <code>Dependency</code> enum that abstracts over these two kinds of dependencies.
+Add to <code>pie/src/dependency.rs</code>:</p>
+<pre><code class="language-rust ">#[derive(Clone, Eq, PartialEq, Debug)]
+pub enum Dependency&lt;T, O&gt; {
+  RequireFile(FileDependency),
+  RequireTask(TaskDependency&lt;T, O&gt;),
+}
+
+#[derive(Clone, Eq, PartialEq, Debug)]
+pub enum InconsistentDependency&lt;O&gt; {
+  File(FileStamp),
+  Task(OutputStamp&lt;O&gt;),
+}
+
+impl&lt;T: Task&gt; Dependency&lt;T, T::Output&gt; {
+  /// Checks whether this dependency is inconsistent, returning:
+  /// - `Ok(Some(stamp))` if the dependency is inconsistent (with `stamp` being the new stamp of the dependency),
+  /// - `Ok(None)` if the dependency is consistent,
+  /// - `Err(e)` if there was an error checking the dependency for consistency.
+  pub fn is_inconsistent&lt;C: Context&lt;T&gt;&gt;(&amp;self, context: &amp;mut C) -&gt; Result&lt;Option&lt;InconsistentDependency&lt;T::Output&gt;&gt;, io::Error&gt; {
+    let option = match self {
+      Dependency::RequireFile(d) =&gt; d.is_inconsistent()?
+        .map(|s| InconsistentDependency::File(s)),
+      Dependency::RequireTask(d) =&gt; d.is_inconsistent(context)
+        .map(|s| InconsistentDependency::Task(s)),
+    };
+    Ok(option)
+  }
+}</code></pre>
+<p><code>Dependency</code> just merges the two kinds of dependencies and provides an <code>is_inconsistent</code> method that calls the corresponding method.
+We return the changed stamp here as well for debug logging later.
+We wrap the changed stamp in an <code>InconsistentDependency</code> enum, and map to the correct variant if there is an inconsistency.</p>
+<p>Because <code>Dependency</code> can store a <code>TaskDependency</code>, we need to propagate the <code>T</code> and <code>O</code> generics.
+Likewise, <code>InconsistentDependency</code> propagates the <code>O</code> generic for <code>OutputStamp</code>.</p>
+<details id="admonition-user-defined-dependencies" class="admonition info">
+<summary class="admonition-title">
+<p>User-defined dependencies</p>
+<p><a class="admonition-anchor-link" href="#admonition-user-defined-dependencies"></a></p>
+</summary>
+<div>
+<p>Like with stampers, <code>Dependency</code> could also be a trait to allow users of the library to define their own dependencies.
+However, as we will see later, these dynamic dependencies also require validation, and I am unsure how such a <code>Dependency</code> trait should look.
+Therefore, we don't have an appendix on how to implement this.
+But, if you have an idea on how to this nicely (after you've completed this tutorial), please get in touch!</p>
+</div>
+</details>
+<h2 id="tests"><a class="header" href="#tests">Tests</a></h2>
+<p>As usual, we write some tests to confirm the behaviour.
+Add tests to <code>pie/src/dependency.rs</code>:</p>
+<pre><code class="language-rust ">#[cfg(test)]
+mod test {
+  use std::fs;
+  use std::io::Read;
+  use std::path::Path;
+
+  use dev_shared::create_temp_file;
+
+  use crate::context::non_incremental::NonIncrementalContext;
+
+  use super::*;
+
+  /// Task that reads file at given path and returns it contents as a string.
+  #[derive(Clone, PartialEq, Eq, Hash, Debug)]
+  pub struct ReadStringFromFile(PathBuf);
+
+  impl ReadStringFromFile {
+    pub fn new(path: impl AsRef&lt;Path&gt;) -&gt; Self { Self(path.as_ref().to_path_buf()) }
+  }
+
+  impl Task for ReadStringFromFile {
+    type Output = String;
+    fn execute&lt;C: Context&lt;Self&gt;&gt;(&amp;self, context: &amp;mut C) -&gt; Self::Output {
+      let mut string = String::new();
+      let file = context.require_file(&amp;self.0).expect(&quot;failed to require file&quot;);
+      if let Some(mut file) = file {
+        file.read_to_string(&amp;mut string).expect(&quot;failed to read from file&quot;);
+      };
+      string
+    }
+  }
+
+  #[test]
+  fn test_file_dependency_consistency() {
+    let mut context = NonIncrementalContext;
+
+    let temp_file = create_temp_file();
+    fs::write(&amp;temp_file, &quot;test1&quot;)
+      .expect(&quot;failed to write to file&quot;);
+
+    let file_dependency = FileDependency::new(temp_file.path(), FileStamper::Modified)
+      .expect(&quot;failed to create file dependency&quot;);
+    let dependency: Dependency&lt;ReadStringFromFile, String&gt; = Dependency::RequireFile(file_dependency.clone());
+    assert!(file_dependency.is_inconsistent().expect(&quot;failed to check for inconsistency&quot;).is_none());
+    assert!(dependency.is_inconsistent(&amp;mut context).expect(&quot;failed to check for inconsistency&quot;).is_none());
+
+    fs::write(&amp;temp_file, &quot;test2&quot;)
+      .expect(&quot;failed to write to file&quot;);
+    assert!(file_dependency.is_inconsistent().expect(&quot;failed to check for inconsistency&quot;).is_some());
+    assert!(dependency.is_inconsistent(&amp;mut context).expect(&quot;failed to check for inconsistency&quot;).is_some());
+  }
+
+  #[test]
+  fn test_task_dependency_consistency() {
+    let mut context = NonIncrementalContext;
+
+    let temp_file = create_temp_file();
+    fs::write(&amp;temp_file, &quot;test1&quot;)
+      .expect(&quot;failed to write to file&quot;);
+    let task = ReadStringFromFile::new(&amp;temp_file);
+    let output = context.require_task(&amp;task);
+
+    let task_dependency = TaskDependency::new(task.clone(), OutputStamper::Equals, output);
+    let dependency = Dependency::RequireTask(task_dependency.clone());
+    assert!(task_dependency.is_inconsistent(&amp;mut context).is_none());
+    assert!(dependency.is_inconsistent(&amp;mut context).expect(&quot;failed to check for inconsistency&quot;).is_none());
+
+    fs::write(&amp;temp_file, &quot;test2&quot;)
+      .expect(&quot;failed to write to file&quot;);
+    assert!(task_dependency.is_inconsistent(&amp;mut context).is_some());
+    assert!(dependency.is_inconsistent(&amp;mut context).expect(&quot;failed to check for inconsistency&quot;).is_some());
+  }
+}</code></pre>
+<p>We test a file dependency by asserting that <code>is_inconsistent</code> returns <code>Some</code> after changing the file.</p>
+<p>Testing task dependencies requires a bit more work.
+We create task <code>ReadStringFromFile</code> that reads a string from a file, and then returns that string as output.
+We require the task to get its output (<code>&quot;test1&quot;</code>), and create a task dependency with it.
+Then, we change the file and check consistency of the task dependency.
+That recursively requires the task, the context will execute the task, and the task now returns (<code>&quot;test2&quot;</code>).
+Since we use the <code>Equals</code> output stamper, and <code>&quot;test1&quot;</code> does not equal <code>&quot;test2&quot;</code>, the dependency is inconsistent and returns a stamp containing <code>&quot;test2&quot;</code>.</p>
+<p>Note that we are both testing the specific dependencies (<code>FileDependency</code> and <code>TaskDependency</code>), and the general <code>Dependency</code>.</p>
+<div id="admonition-note" class="admonition note">
+<div class="admonition-title">
+<p>Note</p>
+<p><a class="admonition-anchor-link" href="#admonition-note"></a></p>
+</div>
+<div>
+<p>Normally, a task such as <code>ReadStringFromFile</code> shound return a <code>Result&lt;String, io::Error&gt;</code>, but for testing purposes we are just using panics with <code>expect</code>.</p>
+<p>In the file dependency case, using <code>Dependency</code> requires an explicit type annotation because there is no task to infer the type from.
+We just use <code>Dependency&lt;ReadStringFromFile, String&gt;</code> as the type, and this is fine even though we don't use <code>ReadStringFromFile</code> in that test, because the <code>Dependency::RequireFile</code> variant does not use those types.</p>
+</div>
+</div>
+<p>Run <code>cargo test</code> to confirm everything still works.
+You will get some warnings about unused things, but that is ok as we will use them in the next section.</p>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="../../2_incrementality/2_stamp/index.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+
+                            <a rel="next" href="../../2_incrementality/4_store/index.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="../../2_incrementality/2_stamp/index.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+
+                    <a rel="next" href="../../2_incrementality/4_store/index.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+            </nav>
+
+        </div>
+
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="../../elasticlunr.min.js"></script>
+        <script src="../../mark.min.js"></script>
+        <script src="../../searcher.js"></script>
+
+        <script src="../../clipboard.min.js"></script>
+        <script src="../../highlight.js"></script>
+        <script src="../../book.js"></script>
+
+        <!-- Custom JS scripts -->
+        <script src="../../src/diff.js"></script>
+
+
+    </div>
+    </body>
+</html>

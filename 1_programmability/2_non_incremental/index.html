@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Programmable Build System API - Build your own Programmatic Incremental Build System</title>
+        <title>Non-Incremental Context - Build your own Programmatic Incremental Build System</title>
 
 
         <!-- Custom HTML head -->
@@ -12,32 +12,32 @@
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="theme-color" content="#ffffff" />
 
-        <link rel="icon" href="../favicon.svg">
-        <link rel="shortcut icon" href="../favicon.png">
-        <link rel="stylesheet" href="../css/variables.css">
-        <link rel="stylesheet" href="../css/general.css">
-        <link rel="stylesheet" href="../css/chrome.css">
-        <link rel="stylesheet" href="../css/print.css" media="print">
+        <link rel="icon" href="../../favicon.svg">
+        <link rel="shortcut icon" href="../../favicon.png">
+        <link rel="stylesheet" href="../../css/variables.css">
+        <link rel="stylesheet" href="../../css/general.css">
+        <link rel="stylesheet" href="../../css/chrome.css">
+        <link rel="stylesheet" href="../../css/print.css" media="print">
 
         <!-- Fonts -->
-        <link rel="stylesheet" href="../FontAwesome/css/font-awesome.css">
-        <link rel="stylesheet" href="../fonts/fonts.css">
+        <link rel="stylesheet" href="../../FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="../../fonts/fonts.css">
 
         <!-- Highlight.js Stylesheets -->
-        <link rel="stylesheet" href="../highlight.css">
-        <link rel="stylesheet" href="../tomorrow-night.css">
-        <link rel="stylesheet" href="../ayu-highlight.css">
+        <link rel="stylesheet" href="../../highlight.css">
+        <link rel="stylesheet" href="../../tomorrow-night.css">
+        <link rel="stylesheet" href="../../ayu-highlight.css">
 
         <!-- Custom theme stylesheets -->
-        <link rel="stylesheet" href="../src/custom.css">
-        <link rel="stylesheet" href="../src/mdbook-admonish.css">
+        <link rel="stylesheet" href="../../src/custom.css">
+        <link rel="stylesheet" href="../../src/mdbook-admonish.css">
 
     </head>
     <body>
     <div id="body-container">
         <!-- Provide site root to javascript -->
         <script>
-            var path_to_root = "../";
+            var path_to_root = "../../";
             var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "navy" : "light";
         </script>
 
@@ -85,7 +85,7 @@
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div class="sidebar-scrollbox">
-                <ol class="chapter"><li class="chapter-item expanded affix "><div>Introduction</div></li><li class="chapter-item expanded affix "><li class="part-title">Programmability</li><li class="chapter-item expanded "><div><strong aria-hidden="true">1.</strong> Setup</div></li><li class="chapter-item expanded "><a href="../1_api/index.html" class="active"><strong aria-hidden="true">2.</strong> Programmable Build System API</a></li><li class="chapter-item expanded affix "><li class="part-title">Incrementality</li><li class="chapter-item expanded "><a href="../2_top_down/index.html"><strong aria-hidden="true">3.</strong> Incremental Top-Down Context</a></li><li class="chapter-item expanded "><div><strong aria-hidden="true">4.</strong> Minimality</div></li><li class="chapter-item expanded affix "><li class="part-title">Soundness</li><li class="chapter-item expanded "><div><strong aria-hidden="true">5.</strong> Prevent Overlapping File Writes</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">6.</strong> Prevent Hidden Dependencies</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">7.</strong> Prevent Cycles</div></li><li class="chapter-item expanded affix "><li class="part-title">Improvements</li><li class="chapter-item expanded "><div><strong aria-hidden="true">8.</strong> Serialization</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">9.</strong> Stamps</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">10.</strong> Configurable Hashing</div></li><li class="chapter-item expanded affix "><li class="part-title">Efficiency</li><li class="chapter-item expanded "><div><strong aria-hidden="true">11.</strong> Incremental Bottom-Up Context</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">12.</strong> Observability</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">13.</strong> Deferred Tasks</div></li><li class="chapter-item expanded affix "><li class="part-title">Appendix</li><li class="chapter-item expanded "><div><strong aria-hidden="true">14.</strong> Multiple Task Types</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">15.</strong> On Static Dependencies</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">16.</strong> On Declarativity</div></li><li class="spacer"></li><li class="chapter-item expanded affix "><div>Related Work</div></li></ol>
+                <ol class="chapter"><li class="chapter-item expanded affix "><div>Introduction</div></li><li class="chapter-item expanded affix "><li class="part-title">Programmability</li><li class="chapter-item expanded "><div><strong aria-hidden="true">1.</strong> Setup</div></li><li class="chapter-item expanded "><a href="../../1_programmability/1_api/index.html"><strong aria-hidden="true">2.</strong> Programmable Build System API</a></li><li class="chapter-item expanded "><a href="../../1_programmability/2_non_incremental/index.html" class="active"><strong aria-hidden="true">3.</strong> Non-Incremental Context</a></li><li class="chapter-item expanded affix "><li class="part-title">Incrementality</li><li class="chapter-item expanded "><a href="../../2_incrementality/0_introduction/index.html"><strong aria-hidden="true">4.</strong> Introduction</a></li><li class="chapter-item expanded "><a href="../../2_incrementality/1_require_file/index.html"><strong aria-hidden="true">5.</strong> Requiring Files</a></li><li class="chapter-item expanded "><a href="../../2_incrementality/2_stamp/index.html"><strong aria-hidden="true">6.</strong> Stamps</a></li><li class="chapter-item expanded "><a href="../../2_incrementality/3_dependency/index.html"><strong aria-hidden="true">7.</strong> Dynamic Dependencies</a></li><li class="chapter-item expanded "><a href="../../2_incrementality/4_store/index.html"><strong aria-hidden="true">8.</strong> Dependency Graph Store</a></li><li class="chapter-item expanded "><a href="../../2_incrementality/5_context/index.html"><strong aria-hidden="true">9.</strong> Incremental Top-Down Context</a></li><li class="chapter-item expanded "><div><strong aria-hidden="true">10.</strong> Minimality</div></li><li class="chapter-item expanded affix "><li class="part-title">Soundness</li><li class="chapter-item expanded "><div><strong aria-hidden="true">11.</strong> Prevent Overlapping File Writes</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">12.</strong> Prevent Hidden Dependencies</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">13.</strong> Prevent Cycles</div></li><li class="chapter-item expanded affix "><li class="part-title">Improvements</li><li class="chapter-item expanded "><div><strong aria-hidden="true">14.</strong> Serialization</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">15.</strong> More Stampers</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">16.</strong> Configurable Hashing</div></li><li class="chapter-item expanded affix "><li class="part-title">Efficiency</li><li class="chapter-item expanded "><div><strong aria-hidden="true">17.</strong> Incremental Bottom-Up Context</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">18.</strong> Observability</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">19.</strong> Deferred Tasks</div></li><li class="chapter-item expanded affix "><li class="part-title">Appendix</li><li class="chapter-item expanded "><div><strong aria-hidden="true">20.</strong> Multiple Task Types</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">21.</strong> On Static Dependencies</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">22.</strong> On Declarativity</div></li><li class="spacer"></li><li class="chapter-item expanded affix "><div>Related Work</div></li></ol>
             </div>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
         </nav>
@@ -117,7 +117,7 @@
                     <h1 class="menu-title">Build your own Programmatic Incremental Build System</h1>
 
                     <div class="right-buttons">
-                        <a href="../print.html" title="Print this book" aria-label="Print this book">
+                        <a href="../../print.html" title="Print this book" aria-label="Print this book">
                             <i id="print-button" class="fa fa-print"></i>
                         </a>
 
@@ -146,103 +146,10 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1 id="programmable-build-system-api"><a class="header" href="#programmable-build-system-api">Programmable Build System API</a></h1>
-<p>In this first chapter, we will program the core API of the programmatic incremental build system, and implement an extremely simple non-incremental version of the build system to get started.</p>
-<h2 id="task-and-context"><a class="header" href="#task-and-context">Task and Context</a></h2>
-<p>The unit of computation in a programmatic build system is a <em>task</em>.
-A task is kind of like a closure: a value that can be executed to produce their output.
-However, in an <em>incremental</em> programmatic build system, we also need to keep track of <em>dynamic dependencies</em> that are made while tasks are executing.
-Therefore, tasks are executed under a <em>build context</em> which enable them to create these dependencies.
-Tasks <em>require</em> other tasks through the context, creating a dynamic dependency and returning their up-to-date output.</p>
-<p>On the other hand, an incremental build context wants to <em>selectively execute tasks</em> — only those that are affected by a change.
-To that end, a build context will selectively execute tasks, tasks require other tasks through the build context, the build context selectively executes those, and so forth.
-Thus, tasks and build contexts are mutually recursive.</p>
-<p>In this tutorial, we will be using the words <em>context</em>, <em>build context</em>, and <em>build system</em> interchangeably, typically using just <em>context</em> as it is concise.</p>
-<p>Let's make tasks and contexts more concrete by defining them in code.</p>
-<h3 id="api-implementation"><a class="header" href="#api-implementation">API Implementation</a></h3>
-<p>Since we want users of the build system to implement their own tasks, we will define <code>Task</code> as a trait.
-Likewise, we will also be implementing multiple contexts in this tutorial, so we will also define <code>Context</code> as a trait.
-Add the following code to your <code>pie/src/lib.rs</code> file:</p>
-<pre><code class="language-rust ">use std::fmt::Debug;
-use std::hash::Hash;
-
-/// A unit of computation in a programmatic incremental build system.
-pub trait Task: Clone + Eq + Hash + Debug {
-  /// Type of output this task returns when executed.
-  type Output: Clone + Eq + Debug;
-  /// Execute the task, using `context` to specify dynamic dependencies, returning `Self::Output`.
-  fn execute&lt;C: Context&lt;Self&gt;&gt;(&amp;self, context: &amp;mut C) -&gt; Self::Output;
-}
-
-/// Programmatic incremental build context, enabling tasks to create dynamic dependencies that context implementations 
-/// use for incremental execution.
-pub trait Context&lt;T: Task&gt; {
-  /// Requires given `task`, recording a dependency and selectively executing it. Returns its up-to-date output.
-  fn require_task(&amp;mut self, task: &amp;T) -&gt; T::Output;
-}</code></pre>
-<div id="admonition-note" class="admonition note">
-<div class="admonition-title">
-<p>Note</p>
-<p><a class="admonition-anchor-link" href="#admonition-note"></a></p>
-</div>
-<div>
-<p>If this seems overwhelming to you, don't worry. We will go through the API and explain things. But more importantly, the API should become more clear once we implement it in the next section and subsequent chapters.
-Furthermore, if you're new to Rust and/or need help understanding certain concepts, I will try to explain them in Rust Help blocks. They are collapsed by default to reduce distraction, clicking the header opens them. See the first Rust Help block at the end of this section.</p>
-</div>
-</div>
-<p>The <code>Task</code> trait has several supertraits that we will need later in the tutorial to implement incrementality:</p>
-<ul>
-<li><code>Eq</code> and <code>Hash</code>: to check whether a task is equal to another one, and to create a hash of it, so we can use
-a <code>HashMap</code> to get the output of a task if it is up-to-date.</li>
-<li><code>Clone</code>: to create a clone of the task so that we can store it in the <code>HashMap</code> without having ownership of it.</li>
-<li><code>Debug</code>: to format the task for debugging purposes.</li>
-</ul>
-<p>A <code>Task</code> has a single method <code>execute</code>, which takes a reference to itself (<code>&amp;self</code>), and a mutable reference to a context (<code>context: &amp;mut C</code>), and produces a value of type <code>Self::Output</code>.
-Because <code>Context</code> is a trait, we use generics (<code>&lt;C: Context&lt;Self&gt;&gt;</code>) to have <code>execute</code> work for any <code>Context</code> implementation (ignoring the <code>Self</code> part for now).
-The <code>execute</code> method takes self by reference such that a task can access its data, but not mutate it, as that could throw off incrementality by changing the hash/equality of the task.
-Finally, the type of output of a task is defined by the <code>Output</code> associated type, and this type must implement <code>Clone</code>, <code>Eq</code>, and <code>Debug</code> for the same reason as <code>Task</code>.</p>
-<p>The <code>Context</code> trait is generic over <code>Task</code>, allowing it to work with any task implementation.
-It has a single method <code>require_task</code> for creating a dependency to a task and returning its up-to-date result.
-It takes a mutable reference to itself, enabling dependency tracking and caching, which require mutation.
-Because of this, the context reference passed to <code>Task::execute</code> is also mutable.</p>
-<p>This <code>Task</code> and <code>Context</code> API mirrors the mutually recursive definition of task and context we discussed earlier, and forms the basis for the entire build system.</p>
-<p>Build the project by running <code>cargo build</code>.
-The output should look something like:</p>
-<pre><code class="language-shell ">   Compiling pie v0.1.0 (/private/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmpjSfMPe/pie)
-    Finished dev [unoptimized + debuginfo] target(s) in 0.12s
-</code></pre>
-<details id="admonition-rust-help" class="admonition info">
-<summary class="admonition-title">
-<p>Rust Help</p>
-<p><a class="admonition-anchor-link" href="#admonition-rust-help"></a></p>
-</summary>
-<div>
-<p><a href="https://doc.rust-lang.org/book/ch00-00-introduction.html" title="" target="_blank">The Rust Programming Language</a> is an introductory book about Rust. I will try to provide links to the book where possible.</p>
-<p>Rust has a <a href="https://doc.rust-lang.org/book/ch07-00-managing-growing-projects-with-packages-crates-and-modules.html" title="" target="_blank">module system</a> for project organization. The <code>lib.rs</code> file is the &quot;main file&quot; of a library. Later on, we will be creating more modules in different files.</p>
-<p>Things are imported into the current scope with <a href="https://doc.rust-lang.org/book/ch07-04-bringing-paths-into-scope-with-the-use-keyword.html" title="" target="_blank">
-<code>use</code></a> statements. We import the <code>Debug</code> and <code>Hash</code> traits from the standard library with two <code>use</code> statements. Use statements use <a href="https://doc.rust-lang.org/book/ch07-03-paths-for-referring-to-an-item-in-the-module-tree.html" title="" target="_blank">paths</a> to refer to nested things. We use <code>::</code> for nesting, similar to namespaces in C++.</p>
-<p>Rust models the concept of <a href="https://doc.rust-lang.org/book/ch04-00-understanding-ownership.html" title="" target="_blank">ownership</a> to enable memory safety without a garbage collector.
-The <code>execute</code> method accepts a <em>reference</em> to the current type, indicated with <code>&amp;</code>: <code>&amp;self</code>. This reference is <em>immutable</em>, meaning that we can read data from it, but not mutate it. In Rust, things are immutable by default.
-On the other hand, <code>execute</code> accepts a <em>mutable reference</em> to the context, indicated with <code>&amp;mut</code>: <code>context: &amp;mut C</code>, which does allow mutation.</p>
-<p><a href="https://doc.rust-lang.org/book/ch10-02-traits.html" title="" target="_blank">Traits</a> are the main mechanism for open extensibility in Rust. They are comparable to interfaces in class-oriented languages. We will implement a context and tasks in the next section.</p>
-<p><a href="https://doc.rust-lang.org/book/ch19-03-advanced-traits.html#using-supertraits-to-require-one-traits-functionality-within-another-trait" title="" target="_blank">Supertraits</a> are a kind of inheritance. The <code>: Clone + Eq + Hash + Debug</code> part of the <code>Task</code> trait means that every <code>Task</code> implementation must also implement the <code>Clone</code>, <code>Eq</code>, <code>Hash</code>, and <code>Debug</code> traits. These traits are part of the standard library:</p>
-<ul>
-<li><a href="https://doc.rust-lang.org/std/clone/trait.Clone.html" title="" target="_blank">Clone</a> for duplicating values.</li>
-<li><a href="https://doc.rust-lang.org/std/cmp/trait.Eq.html" title="" target="_blank">Eq</a> for equality comparisons, along with <a href="https://doc.rust-lang.org/std/cmp/trait.PartialEq.html" title="" target="_blank">PartialEq</a>.</li>
-<li><a href="https://doc.rust-lang.org/std/hash/trait.Hash.html" title="" target="_blank">Hash</a> for turning a value into a hash.</li>
-<li><a href="https://doc.rust-lang.org/std/fmt/trait.Debug.html" title="" target="_blank">Debug</a> for formatting values in a programmer-facing debugging context.</li>
-</ul>
-<p><code>Clone</code> and <code>Eq</code> are so common that they are part of the <a href="https://doc.rust-lang.org/std/prelude/index.html" title="" target="_blank">Rust Prelude</a>, so we don't have to import those with <code>use</code> statements.</p>
-<p><a href="https://doc.rust-lang.org/book/ch05-03-method-syntax.html" title="" target="_blank">Methods</a> are functions that take a form of <code>self</code> as the first argument. This enables convenient object-like calling syntax: <code>context.require_task(&amp;task);</code>.</p>
-<p><a href="https://doc.rust-lang.org/book/ch19-03-advanced-traits.html#specifying-placeholder-types-in-trait-definitions-with-associated-types" title="" target="_blank">Associated types</a> are a kind of placeholder type in a trait such that methods of traits can use that type. In <code>Task</code> this allows us to talk about the <code>Output</code> type of a task. In <code>Context</code> this allows us to refer to both the <code>Task</code> type <code>T</code> and its output type <code>T::Output</code>. The <code>::</code> syntax here is used to access associated types of traits.</p>
-<p>The <code>Self</code> type in a trait is a built-in associated type that is a placeholder for the type that is implementing the trait.</p>
-<p>The <code>Task</code> trait is defined with <code>pub</code> (public) <a href="https://doc.rust-lang.org/reference/visibility-and-privacy.html" title="" target="_blank">visibility</a>, such that users of the library can implement it. Because <code>Task</code> uses <code>Context</code> in its public API, <code>Context</code> must also be public, even though we don't intend for users to implement their own <code>Context</code>.</p>
-</div>
-</details>
-<h2 id="non-incremental-context"><a class="header" href="#non-incremental-context">Non-Incremental Context</a></h2>
+                        <h1 id="non-incremental-context"><a class="header" href="#non-incremental-context">Non-Incremental Context</a></h1>
 <p>We set up the <code>Task</code> and <code>Context</code> API in such a way that we can implement incrementality.
 However, incrementality is <em>hard</em>, so let's start with an extremely simple non-incremental <code>Context</code> implementation to get a feeling for the API.</p>
-<h3 id="context-module"><a class="header" href="#context-module">Context module</a></h3>
+<h2 id="context-module"><a class="header" href="#context-module">Context module</a></h2>
 <p>Since we will be implementing three different contexts in this tutorial, we will separate them in different modules.
 Create the <code>context</code> module by adding a module to <code>pie/src/lib.rs</code>:</p>
 <pre><code class="language-rust customdiff"> use std::fmt::Debug;
@@ -272,10 +179,10 @@ Your project structure should now look like:</p>
     └── lib.rs
 </code></pre>
 <p>Confirm your module structure is correct by building with <code>cargo build</code>.</p>
-<details id="admonition-rust-help-1" class="admonition info">
+<details id="admonition-rust-help" class="admonition info">
 <summary class="admonition-title">
 <p>Rust Help</p>
-<p><a class="admonition-anchor-link" href="#admonition-rust-help-1"></a></p>
+<p><a class="admonition-anchor-link" href="#admonition-rust-help"></a></p>
 </summary>
 <div>
 <p>Modules are typically <a href="https://doc.rust-lang.org/book/ch07-05-separating-modules-into-different-files.html" title="" target="_blank">separated into different files</a>.
@@ -285,7 +192,7 @@ Use the latter if you intend to nest modules, otherwise use the former.</p>
 <p>Like traits, modules also have <a href="https://doc.rust-lang.org/reference/visibility-and-privacy.html" title="" target="_blank">visibility</a>.</p>
 </div>
 </details>
-<h3 id="implementation"><a class="header" href="#implementation">Implementation</a></h3>
+<h2 id="implementation"><a class="header" href="#implementation">Implementation</a></h2>
 <p>Implement the non-incremental context in <code>pie/src/context/non_incremental.rs</code> by adding:</p>
 <pre><code class="language-rust ">use crate::{Context, Task};
 
@@ -298,10 +205,10 @@ impl&lt;T: Task&gt; Context&lt;T&gt; for NonIncrementalContext {
 }</code></pre>
 <p>This <code>NonIncrementalContext</code> is extremely simple: in <code>require_task</code> we unconditionally execute the task, and pass <code>self</code> along so the task we're calling can require additional tasks.
 Let's write some tests to see if this does what we expect.</p>
-<details id="admonition-rust-help-2" class="admonition info">
+<details id="admonition-rust-help-1" class="admonition info">
 <summary class="admonition-title">
 <p>Rust Help</p>
-<p><a class="admonition-anchor-link" href="#admonition-rust-help-2"></a></p>
+<p><a class="admonition-anchor-link" href="#admonition-rust-help-1"></a></p>
 </summary>
 <div>
 <p>In Rust, libraries are called <a href="https://doc.rust-lang.org/book/ch07-01-packages-and-crates.html" title="" target="_blank">crates</a>.
@@ -314,7 +221,7 @@ Since we don't need any data in <code>NonIncrementalContext</code>, we define it
 We could also write that as <code>return task.execute(self);</code>, but that is more verbose.</p>
 </div>
 </details>
-<h3 id="simple-test"><a class="header" href="#simple-test">Simple Test</a></h3>
+<h2 id="simple-test"><a class="header" href="#simple-test">Simple Test</a></h2>
 <p>Add the following test to <code>pie/src/context/non_incremental.rs</code>:</p>
 <pre><code class="language-rust ">#[cfg(test)]
 mod test {
@@ -345,9 +252,9 @@ in a reference to the task.
 It returns the output of the task, which we test with <code>assert_eq!</code>.</p>
 <p>Run the test by running <code>cargo test</code>.
 The output should look something like:</p>
-<pre><code class="language-shell ">   Compiling pie v0.1.0 (/private/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmpjSfMPe/pie)
-    Finished test [unoptimized + debuginfo] target(s) in 0.46s
-     Running unittests src/lib.rs (/private/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmpjSfMPe/pie/target/debug/deps/pie-daca3a31898407a4)
+<pre><code class="language-shell ">   Compiling pie v0.1.0 (/private/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmp01oGfg/pie)
+    Finished test [unoptimized + debuginfo] target(s) in 0.36s
+     Running unittests src/lib.rs (/private/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmp01oGfg/pie/target/debug/deps/pie-daca3a31898407a4)
 
 running 1 test
 test context::non_incremental::test::test_require_task_direct ... ok
@@ -363,10 +270,10 @@ test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; fini
 </code></pre>
 <p>Which indicates that the test indeed succeeds!
 You can experiment by returning a different string from <code>ReturnHelloWorld::execute</code> to see what a failed test looks like.</p>
-<details id="admonition-rust-help-3" class="admonition info">
+<details id="admonition-rust-help-2" class="admonition info">
 <summary class="admonition-title">
 <p>Rust Help</p>
-<p><a class="admonition-anchor-link" href="#admonition-rust-help-3"></a></p>
+<p><a class="admonition-anchor-link" href="#admonition-rust-help-2"></a></p>
 </summary>
 <div>
 <p><a href="https://doc.rust-lang.org/book/ch11-03-test-organization.html#the-tests-module-and-cfgtest" title="" target="_blank">Unit tests</a> for a module 
@@ -384,7 +291,7 @@ If not, it <a href="https://doc.rust-lang.org/book/ch09-01-unrecoverable-errors-
 This macro is typically <a href="https://doc.rust-lang.org/book/ch11-01-writing-tests.html" title="" target="_blank">used in tests</a> for assertions, as a panic marks a test as failed.</p>
 </div>
 </details>
-<h3 id="test-with-multiple-tasks"><a class="header" href="#test-with-multiple-tasks">Test with Multiple Tasks</a></h3>
+<h2 id="test-with-multiple-tasks"><a class="header" href="#test-with-multiple-tasks">Test with Multiple Tasks</a></h2>
 <p>Our first test only tests a single task that does not use the context, so let's write a test with two tasks where one requires the other to increase our test coverage.
 Add the following test:</p>
 <pre><code class="language-rust customdiff">     }
@@ -420,7 +327,7 @@ Add the following test:</p>
 <p>We use the same <code>ReturnHelloWorld</code> task as before, but now also have a <code>ToLowerCase</code> task which requires <code>ReturnHelloWorld</code> and then turn its string lowercase.
 However, due to the way we've set up the types between <code>Task</code> and <code>Context</code>, we will run into a problem.
 Running <code>cargo test</code>, you should get these errors:</p>
-<pre><code class="language-shell ">   Compiling pie v0.1.0 (/private/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmpjSfMPe/pie)
+<pre><code class="language-shell ">   Compiling pie v0.1.0 (/private/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmp01oGfg/pie)
 error[E0308]: mismatched types
   --&gt; src/context/non_incremental.rs:48:30
    |
@@ -456,7 +363,7 @@ This doesn't work as <code>Context&lt;ToLowerCase&gt;::require_task</code> only 
 
      let mut context = NonIncrementalContext;</code></pre>
 <p>But that is not allowed:</p>
-<pre><code class="language-shell ">   Compiling pie v0.1.0 (/private/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmpjSfMPe/pie)
+<pre><code class="language-shell ">   Compiling pie v0.1.0 (/private/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmp01oGfg/pie)
 error[E0276]: impl has stricter requirements than trait
   --&gt; src/context/non_incremental.rs:47:21
    |
@@ -554,10 +461,10 @@ In its <code>Task</code> implementation, we match ourselves and return <code>&qu
 When the variant is <code>ReturnHelloWorld</code>, we require <code>&amp;Self::ReturnHelloWorld</code> through the context, which is now valid because it is an instance of <code>Test</code>, and turn its string lowercase and return that.
 This now works due to only having a single task type.
 Run the test with <code>cargo test</code> to confirm it is working.</p>
-<details id="admonition-rust-help-4" class="admonition info">
+<details id="admonition-rust-help-3" class="admonition info">
 <summary class="admonition-title">
 <p>Rust Help</p>
-<p><a class="admonition-anchor-link" href="#admonition-rust-help-4"></a></p>
+<p><a class="admonition-anchor-link" href="#admonition-rust-help-3"></a></p>
 </summary>
 <div>
 <p><a href="https://doc.rust-lang.org/book/ch06-01-defining-an-enum.html" title="" target="_blank">Enums</a> define a type by a set of variants, similar to enums in other languages, sometimes called tagged unions in other languages.
@@ -571,8 +478,11 @@ We're now ready to start implementing an incremental context in the next chapter
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="../../1_programmability/1_api/index.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
 
-                            <a rel="next" href="../2_top_down/index.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next" href="../../2_incrementality/0_introduction/index.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <i class="fa fa-angle-right"></i>
                             </a>
 
@@ -582,8 +492,11 @@ We're now ready to start implementing an incremental context in the next chapter
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="../../1_programmability/1_api/index.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
 
-                    <a rel="next" href="../2_top_down/index.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next" href="../../2_incrementality/0_introduction/index.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <i class="fa fa-angle-right"></i>
                     </a>
             </nav>
@@ -598,16 +511,16 @@ We're now ready to start implementing an incremental context in the next chapter
         </script>
 
 
-        <script src="../elasticlunr.min.js"></script>
-        <script src="../mark.min.js"></script>
-        <script src="../searcher.js"></script>
+        <script src="../../elasticlunr.min.js"></script>
+        <script src="../../mark.min.js"></script>
+        <script src="../../searcher.js"></script>
 
-        <script src="../clipboard.min.js"></script>
-        <script src="../highlight.js"></script>
-        <script src="../book.js"></script>
+        <script src="../../clipboard.min.js"></script>
+        <script src="../../highlight.js"></script>
+        <script src="../../book.js"></script>
 
         <!-- Custom JS scripts -->
-        <script src="../src/diff.js"></script>
+        <script src="../../src/diff.js"></script>
 
 
     </div>
