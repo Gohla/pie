@@ -32,13 +32,7 @@ jobs:
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
             target/
-            tutorial/stepper/target/
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
       - id: build-pie
         name: Build PIE
         run: cargo test
-      - id: run-tutorial-stepper
-        name: Run tutorial stepper
-        run: |
-          cd tutorial/stepper
-          cargo run -- --debug
