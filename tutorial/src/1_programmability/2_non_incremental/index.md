@@ -1,106 +1,15 @@
-# Programmable Build System API
-
-In this first chapter, we will program the core API of the programmatic incremental build system, and implement an extremely simple non-incremental version of the build system to get started.
-
-## Task and Context
-
-The unit of computation in a programmatic build system is a *task*.
-A task is kind of like a closure: a value that can be executed to produce their output.
-However, in an *incremental* programmatic build system, we also need to keep track of *dynamic dependencies* that are made while tasks are executing.
-Therefore, tasks are executed under a *build context* which enable them to create these dependencies.
-Tasks *require* other tasks through the context, creating a dynamic dependency and returning their up-to-date output.
-
-On the other hand, an incremental build context wants to *selectively execute tasks* — only those that are affected by a change.
-To that end, a build context will selectively execute tasks, tasks require other tasks through the build context, the build context selectively executes those, and so forth.
-Thus, tasks and build contexts are mutually recursive.
-
-In this tutorial, we will be using the words *context*, *build context*, and *build system* interchangeably, typically using just *context* as it is concise.
-
-Let's make tasks and contexts more concrete by defining them in code.
-
-### API Implementation
-
-Since we want users of the build system to implement their own tasks, we will define `Task` as a trait.
-Likewise, we will also be implementing multiple contexts in this tutorial, so we will also define `Context` as a trait.
-Add the following code to your `pie/src/lib.rs` file:
-
-```rust,
-{{#include 0_api/a_api.rs}}
-```
-
-```admonish
-If this seems overwhelming to you, don't worry. We will go through the API and explain things. But more importantly, the API should become more clear once we implement it in the next section and subsequent chapters.
-Furthermore, if you're new to Rust and/or need help understanding certain concepts, I will try to explain them in Rust Help blocks. They are collapsed by default to reduce distraction, clicking the header opens them. See the first Rust Help block at the end of this section.
-```
-
-The `Task` trait has several supertraits that we will need later in the tutorial to implement incrementality:
-
-* `Eq` and `Hash`: to check whether a task is equal to another one, and to create a hash of it, so we can use
-  a `HashMap` to get the output of a task if it is up-to-date.
-* `Clone`: to create a clone of the task so that we can store it in the `HashMap` without having ownership of it.
-* `Debug`: to format the task for debugging purposes.
-
-A `Task` has a single method `execute`, which takes a reference to itself (`&self`), and a mutable reference to a context (`context: &mut C`), and produces a value of type `Self::Output`.
-Because `Context` is a trait, we use generics (`<C: Context<Self>>`) to have `execute` work for any `Context` implementation (ignoring the `Self` part for now).
-The `execute` method takes self by reference such that a task can access its data, but not mutate it, as that could throw off incrementality by changing the hash/equality of the task.
-Finally, the type of output of a task is defined by the `Output` associated type, and this type must implement `Clone`, `Eq`, and `Debug` for the same reason as `Task`.
-
-The `Context` trait is generic over `Task`, allowing it to work with any task implementation.
-It has a single method `require_task` for creating a dependency to a task and returning its up-to-date result.
-It takes a mutable reference to itself, enabling dependency tracking and caching, which require mutation.
-Because of this, the context reference passed to `Task::execute` is also mutable.
-
-This `Task` and `Context` API mirrors the mutually recursive definition of task and context we discussed earlier, and forms the basis for the entire build system.
-
-Build the project by running `cargo build`.
-The output should look something like:
-
-```shell,
-{{#include ../../gen/1_api/0_api/a_cargo.txt}}
-```
-
-```admonish info title="Rust Help" collapsible=true
-[The Rust Programming Language](https://doc.rust-lang.org/book/ch00-00-introduction.html) is an introductory book about Rust. I will try to provide links to the book where possible.
-
-Rust has a [module system](https://doc.rust-lang.org/book/ch07-00-managing-growing-projects-with-packages-crates-and-modules.html) for project organization. The `lib.rs` file is the "main file" of a library. Later on, we will be creating more modules in different files.
-
-Things are imported into the current scope with [`use`](https://doc.rust-lang.org/book/ch07-04-bringing-paths-into-scope-with-the-use-keyword.html) statements. We import the `Debug` and `Hash` traits from the standard library with two `use` statements. Use statements use [paths](https://doc.rust-lang.org/book/ch07-03-paths-for-referring-to-an-item-in-the-module-tree.html) to refer to nested things. We use `::` for nesting, similar to namespaces in C++.
-
-Rust models the concept of [ownership](https://doc.rust-lang.org/book/ch04-00-understanding-ownership.html) to enable memory safety without a garbage collector.
-The `execute` method accepts a *reference* to the current type, indicated with `&`: `&self`. This reference is *immutable*, meaning that we can read data from it, but not mutate it. In Rust, things are immutable by default.
-On the other hand, `execute` accepts a *mutable reference* to the context, indicated with `&mut`: `context: &mut C`, which does allow mutation.
-
-[Traits](https://doc.rust-lang.org/book/ch10-02-traits.html) are the main mechanism for open extensibility in Rust. They are comparable to interfaces in class-oriented languages. We will implement a context and tasks in the next section.
-
-[Supertraits](https://doc.rust-lang.org/book/ch19-03-advanced-traits.html#using-supertraits-to-require-one-traits-functionality-within-another-trait) are a kind of inheritance. The `: Clone + Eq + Hash + Debug` part of the `Task` trait means that every `Task` implementation must also implement the `Clone`, `Eq`, `Hash`, and `Debug` traits. These traits are part of the standard library:
-* [Clone](https://doc.rust-lang.org/std/clone/trait.Clone.html) for duplicating values.
-* [Eq](https://doc.rust-lang.org/std/cmp/trait.Eq.html) for equality comparisons, along with [PartialEq](https://doc.rust-lang.org/std/cmp/trait.PartialEq.html).
-* [Hash](https://doc.rust-lang.org/std/hash/trait.Hash.html) for turning a value into a hash.
-* [Debug](https://doc.rust-lang.org/std/fmt/trait.Debug.html) for formatting values in a programmer-facing debugging context.
-
-`Clone` and `Eq` are so common that they are part of the [Rust Prelude](https://doc.rust-lang.org/std/prelude/index.html), so we don't have to import those with `use` statements.
-
-[Methods](https://doc.rust-lang.org/book/ch05-03-method-syntax.html) are functions that take a form of `self` as the first argument. This enables convenient object-like calling syntax: `context.require_task(&task);`.
-
-[Associated types](https://doc.rust-lang.org/book/ch19-03-advanced-traits.html#specifying-placeholder-types-in-trait-definitions-with-associated-types) are a kind of placeholder type in a trait such that methods of traits can use that type. In `Task` this allows us to talk about the `Output` type of a task. In `Context` this allows us to refer to both the `Task` type `T` and its output type `T::Output`. The `::` syntax here is used to access associated types of traits.
-
-The `Self` type in a trait is a built-in associated type that is a placeholder for the type that is implementing the trait.
-
-The `Task` trait is defined with `pub` (public) [visibility](https://doc.rust-lang.org/reference/visibility-and-privacy.html), such that users of the library can implement it. Because `Task` uses `Context` in its public API, `Context` must also be public, even though we don't intend for users to implement their own `Context`. 
-```
-
-## Non-Incremental Context
+# Non-Incremental Context
 
 We set up the `Task` and `Context` API in such a way that we can implement incrementality.
 However, incrementality is *hard*, so let's start with an extremely simple non-incremental `Context` implementation to get a feeling for the API.
 
-### Context module
+## Context module
 
 Since we will be implementing three different contexts in this tutorial, we will separate them in different modules.
 Create the `context` module by adding a module to `pie/src/lib.rs`:
 
 ```rust,customdiff
-{{#include ../../gen/1_api/1_non_incremental/a_context_module.rs.diff:4:}}
+{{#include ../../../gen/1_programmability/2_non_incremental/a_context_module.rs.diff:4:}}
 ```
 
 This is a diff over `pie/src/lib.rs` where lines with a green background are additions, lines with a red background are removals, and lines with a grey background are context on where to add/remove lines, similar to diffs on source code hubs like GitHub.
@@ -108,7 +17,7 @@ This is a diff over `pie/src/lib.rs` where lines with a green background are add
 Create the `pie/src/context` directory, and in it, create the `pie/src/context/mod.rs` file with the following contents:
 
 ```rust,
-{{#include 1_non_incremental/b_non_incremental_module.rs}}
+{{#include b_non_incremental_module.rs}}
 ```
 
 Both modules are public so that users of our library can access context implementations.
@@ -117,7 +26,7 @@ Create the `pie/src/context/non_incremental.rs` file, it will be empty for now.
 Your project structure should now look like:
 
 ```
-{{#include ../../gen/1_api/1_non_incremental/b_dir.txt}}
+{{#include ../../../gen/1_programmability/2_non_incremental/b_dir.txt}}
 ```
 
 Confirm your module structure is correct by building with `cargo build`.
@@ -131,12 +40,12 @@ Use the latter if you intend to nest modules, otherwise use the former.
 Like traits, modules also have [visibility](https://doc.rust-lang.org/reference/visibility-and-privacy.html).
 ```
 
-### Implementation
+## Implementation
 
 Implement the non-incremental context in `pie/src/context/non_incremental.rs` by adding:
 
 ```rust,
-{{#include 1_non_incremental/c_non_incremental_context.rs}}
+{{#include c_non_incremental_context.rs}}
 ```
 
 This `NonIncrementalContext` is extremely simple: in `require_task` we unconditionally execute the task, and pass `self` along so the task we're calling can require additional tasks.
@@ -157,12 +66,12 @@ The last expression of a function – in this case `task.execute(self)` in `requ
 We could also write that as `return task.execute(self);`, but that is more verbose.
 ```
 
-### Simple Test
+## Simple Test
 
 Add the following test to `pie/src/context/non_incremental.rs`:
 
 ```rust,
-{{#include 1_non_incremental/d_test.rs}}
+{{#include d_test.rs}}
 ```
 
 In this test, we create a struct `ReturnHelloWorld` which is the "hello world" of the build system.
@@ -178,7 +87,7 @@ Run the test by running `cargo test`.
 The output should look something like:
 
 ```shell,
-{{#include ../../gen/1_api/1_non_incremental/d_cargo.txt}}
+{{#include ../../../gen/1_programmability/2_non_incremental/d_cargo.txt}}
 ```
 
 Which indicates that the test indeed succeeds!
@@ -205,13 +114,13 @@ If not, it [panics](https://doc.rust-lang.org/book/ch09-01-unrecoverable-errors-
 This macro is typically [used in tests](https://doc.rust-lang.org/book/ch11-01-writing-tests.html) for assertions, as a panic marks a test as failed.
 ```
 
-### Test with Multiple Tasks
+## Test with Multiple Tasks
 
 Our first test only tests a single task that does not use the context, so let's write a test with two tasks where one requires the other to increase our test coverage.
 Add the following test:
 
 ```rust,customdiff
-{{#include ../../gen/1_api/1_non_incremental/e_test_problematic.rs.diff:4:}}
+{{#include ../../../gen/1_programmability/2_non_incremental/e_test_problematic.rs.diff:4:}}
 ```
 
 We use the same `ReturnHelloWorld` task as before, but now also have a `ToLowerCase` task which requires `ReturnHelloWorld` and then turn its string lowercase.
@@ -219,7 +128,7 @@ However, due to the way we've set up the types between `Task` and `Context`, we 
 Running `cargo test`, you should get these errors:
 
 ```shell,
-{{#include ../../gen/1_api/1_non_incremental/e_cargo.txt}}
+{{#include ../../../gen/1_programmability/2_non_incremental/e_cargo.txt}}
 ```
 
 The problem is that `execute` of `ToLowerCase` takes a `Context<Self>`, so in `impl Task for ToLowerCase` it takes a `Context<ToLowerCase>`, while we're trying to require `&ReturnHelloWorld` through the context.
@@ -228,13 +137,13 @@ This doesn't work as `Context<ToLowerCase>::require_task` only takes a `&ToLower
 We could change `execute` of `ToLowerCase` to take `Context<ReturnHelloWorld>`:
 
 ```rust,customdiff
-{{#include ../../gen/1_api/1_non_incremental/f_test_incompatible.rs.diff:4:}}
+{{#include ../../../gen/1_programmability/2_non_incremental/f_test_incompatible.rs.diff:4:}}
 ```
 
 But that is not allowed:
 
 ```shell,
-{{#include ../../gen/1_api/1_non_incremental/f_cargo.txt}}
+{{#include ../../../gen/1_programmability/2_non_incremental/f_cargo.txt}}
 ```
 
 This is because the `Task` trait defines `execute` to take a `Context<Self>`, thus every implementation of `Task` must adhere to this, so we can't solve it this way.
@@ -268,7 +177,7 @@ For now, we will solve this by just using a single task type which is an enumera
 Replace the test with the following:
 
 ```rust,customdiff
-{{#include 1_non_incremental/g_test_correct.rs.diff:4:}}
+{{#include g_test_correct.rs.diff:4:}}
 ```
 
 Here, we instead define a single task `Test` which is an `enum` with two variants.

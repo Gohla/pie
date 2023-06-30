@@ -1,0 +1,108 @@
+# Stamps
+
+To check whether we need to execute a task, we need to check the dependencies of that task to see if any of them are inconsistent.
+To make this consistency checking configurable, we will use stamps.
+A dependency is inconsistent if after stamping, the new stamp is different from the old stamp.
+Therefore, we will implement a `FileStamper` that stamps files and produces a `FileStamp`, and an `OutputStamper` that stamps task outputs and produces an `OutputStamp`.
+
+Add the `stamp` module to `pie/src/lib.rs`:
+
+```rust,customdiff
+{{#include ../../../gen/2_incrementality/2_stamp/a_module.rs.diff:4:}}
+```
+
+This module is public as users of the library will construct stampers.
+
+## File stamps
+
+Create the `pie/src/stamp.rs` file and add:
+
+```rust,
+{{#include b_file.rs}}
+```
+
+We're implementing `FileStamper` as an enum for simplicity.
+
+A `FileStamper` has a single method `stamp` which takes something that can be dereferenced to a path, and produces a `FileStamp` or an error if creating the stamp failed.
+For now, we implement only two kinds of file stampers: `Exists` and `Modified`.
+The `Exists` stamper just returns a boolean indicating whether a file exists.
+It can be used to create a file dependency where a task behaves differently based on whether a file exists or not.
+The `Modified` stamper returns the last modification date if the file exists, or `None` if the file does not exist.
+
+We derive `Eq` for stamps so that we can compare them.
+Equal stamps indicate a consistent dependency, unequal indicates inconsistent.
+We also derive `Eq` for stampers, because the stamper of a dependency could change, making the dependency inconsistent.
+
+## Task output stamps
+
+We implement task output stampers in a similar way.
+Add to `pie/src/stamp.rs`:
+
+```rust,
+{{#include c_output.rs}}
+```
+
+The `Inconsequential` stamper simply ignores the output and always returns the same stamp (thus is always equal).
+It can be used to create a task dependency where we are interested in some side effect of a task, but don't care about its output.
+The `Equals` stamper simply wraps the output of a task, so the stamp is equal when the output is equal.
+
+Output stamps are generic over the task output type `O`.
+
+```admonish info title="Trait bounds and derive macros" collapsible=true
+Because `O` is used in the enum, the `derive` attributes on `OutputStamp` create bounds over `O`.
+Thus, `OutputStamp` is only `Clone` when `O` is `Clone`, `OutputStamp` is only `Clone` when `O` is `Clone`, and so forth.
+Because we declared `Task::Output` with bound `Clone + Eq + Debug`, we can be sure that `OutputStamp` is always `Clone`, `Eq`, and `Debug`.
+```
+
+```admonish info title="User-defined stamps" collapsible=true
+`FileStamper` and `OutputStamper` could also be a trait which would allow users of the library to implement their own stampers.
+For simplicity, we do not explore that option in this tutorial.
+If you feel adventurous, you could try to implement this after you've finished the tutorial.
+Do note that this introduces a lot of extra generics and trait bounds everywhere, which can be a bit cumbersome.
+```
+
+## Tests
+
+Finally, we write some tests.
+Add to `pie/src/stamp.rs`:
+
+```rust,
+{{#include d_test.rs}}
+```
+
+We test file stamps by creating a stamp, changing the file, creating a new stamp, and then compare the stamps.
+We test task output stamps by just passing a different output value to the `stamp` function, and then compare the stamps.
+
+Run `cargo test` to confirm the stamp implementation.
+
+## Stamps in Context
+
+We now have a module dedicated to stamps.
+However, stampers are constructed by users of the library that author tasks, and they need to pass in these stampers when creating dependencies.
+Therefore, we need to update the `Context` trait to allow passing in these stampers.
+
+Change `Context` in `pie/src/lib.rs`:
+
+```rust,customdiff
+{{#include ../../../gen/2_incrementality/2_stamp_context/a1_context.rs.diff:4:}}
+```
+
+We add the `require_file_with_stamper` method which allow passing in a stamper.
+We add a default implementation for `require_file` that passes in a default stamper.
+The default is provided by `default_require_file_stamper` which can be overridden by context implementations.
+
+Now apply the same to tasks, changing `Context` again in `pie/src/lib.rs`:
+
+```rust,customdiff
+{{#include ../../../gen/2_incrementality/2_stamp_context/a2_context.rs.diff:4:}}
+```
+
+Update `NonIncrementalContext` in `src/context/non_incremental.rs` to implement the new methods:
+
+```rust,customdiff
+{{#include ../../../gen/2_incrementality/2_stamp_context/b_non_incremental_context.rs.diff:4:}}
+```
+
+We just ignore the stampers in `NonIncrementalContext`, as they are only needed for incrementality.
+
+Run `cargo test` to confirm everything still works.

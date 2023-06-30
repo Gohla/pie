@@ -13,30 +13,28 @@ pub fn step_all(
     "../gen/",
     ["build"],
   );
-  
+
   let pie_graph_path = PathBuf::from("../../graph").canonicalize()
     .expect("failed to get absolute path to pie_graph");
   stepper.add_substitution("%%%PIE_GRAPH_DEPENDENCY%%%", r#"pie_graph = "0.1""#, format!("pie_graph = {{ path = \"{}\" }}", pie_graph_path.display()));
 
-  stepper.with_path("0_setup", |stepper| {
-    stepper
-      .apply([
-        add("Cargo.toml", "../Cargo.toml"),
-        create("lib.rs"),
-      ])
-      .output(CargoOutput::new("cargo.txt"));
-  });
-
-  stepper.with_path("1_api", |stepper| {
-    stepper.with_path("0_api", |stepper| {
+  stepper.with_path("1_programmability", |stepper| {
+    stepper.with_path("0_setup", |stepper| {
+      stepper
+        .apply([
+          add("Cargo.toml", "../Cargo.toml"),
+          create("lib.rs"),
+        ])
+        .output(CargoOutput::new("cargo.txt"));
+    });
+    stepper.with_path("1_api", |stepper| {
       stepper
         .apply([
           add("a_api.rs", "lib.rs"),
         ])
         .output(CargoOutput::new("a_cargo.txt"));
     });
-
-    stepper.with_path("1_non_incremental", |stepper| {
+    stepper.with_path("2_non_incremental", |stepper| {
       stepper
         .apply([
           create_diff("a_context_module.rs", "lib.rs"),
@@ -59,8 +57,8 @@ pub fn step_all(
     });
   });
 
-  stepper.with_path("2_top_down", |stepper| {
-    stepper.with_path("0_require_file", |stepper| {
+  stepper.with_path("2_incrementality", |stepper| {
+    stepper.with_path("1_require_file", |stepper| {
       stepper.apply([
         create_diff_builder("a_context.rs", "lib.rs")
           .context_length(10)
@@ -72,12 +70,12 @@ pub fn step_all(
         create_diff("f_Cargo.toml", "../Cargo.toml"),
         add("g_fs_test.rs", "fs.rs"),
         create_diff_builder("h_non_incremental_context.rs", "context/non_incremental.rs")
-          .original("../../1_api/1_non_incremental/c_non_incremental_context.rs") // HACK: Explicitly set original file to the one without tests
+          .original("../../1_programmability/2_non_incremental/c_non_incremental_context.rs") // HACK: Explicitly set original file to the one without tests
           .into_modification(),
       ])
         .output(DirectoryStructure::new("../../", "e_dir.txt"));
     });
-    stepper.with_path("1_stamp", |stepper| {
+    stepper.with_path("2_stamp", |stepper| {
       stepper.apply([
         create_diff("a_module.rs", "lib.rs"),
         add("b_file.rs", "stamp.rs"),

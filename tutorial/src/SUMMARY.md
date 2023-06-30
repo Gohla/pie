@@ -1,15 +1,19 @@
-# Summary
-
 [Introduction]()
 
 # Programmability
 
 - [Setup]()
-- [Programmable Build System API](./1_api/index.md)
+- [Programmable Build System API](./1_programmability/1_api/index.md)
+- [Non-Incremental Context](./1_programmability/2_non_incremental/index.md)
 
 # Incrementality
 
-- [Incremental Top-Down Context](./2_top_down/index.md)
+- [Introduction](./2_incrementality/0_introduction/index.md)
+- [Requiring Files](./2_incrementality/1_require_file/index.md)
+- [Stamps](./2_incrementality/2_stamp/index.md)
+- [Dynamic Dependencies](./2_incrementality/3_dependency/index.md)
+- [Dependency Graph Store](./2_incrementality/4_store/index.md)
+- [Incremental Top-Down Context](./2_incrementality/5_context/index.md)
 - [Minimality]()
 
 # Soundness
@@ -21,7 +25,7 @@
 # Improvements
 
 - [Serialization]()
-- [Stamps]()
+- [More Stampers]()
 - [Configurable Hashing]()
 
 # Efficiency
