@@ -162,16 +162,22 @@ Thus, tasks and build contexts are mutually recursive.</p>
 <h3 id="api-implementation"><a class="header" href="#api-implementation">API Implementation</a></h3>
 <p>Since we want users of the build system to implement their own tasks, we will define <code>Task</code> as a trait.
 Likewise, we will also be implementing multiple contexts in this tutorial, so we will also define <code>Context</code> as a trait.
-Add the following code to your <code>src/lib.rs</code> file:</p>
+Add the following code to your <code>pie/src/lib.rs</code> file:</p>
 <pre><code class="language-rust ">use std::fmt::Debug;
 use std::hash::Hash;
 
+/// A unit of computation in a programmatic incremental build system.
 pub trait Task: Clone + Eq + Hash + Debug {
+  /// Type of output this task returns when executed.
   type Output: Clone + Eq + Debug;
+  /// Execute the task, using `context` to specify dynamic dependencies, returning `Self::Output`.
   fn execute&lt;C: Context&lt;Self&gt;&gt;(&amp;self, context: &amp;mut C) -&gt; Self::Output;
 }
 
+/// Programmatic incremental build context, enabling tasks to create dynamic dependencies that context implementations 
+/// use for incremental execution.
 pub trait Context&lt;T: Task&gt; {
+  /// Requires given `task`, recording a dependency and selectively executing it. Returns its up-to-date output.
   fn require_task(&amp;mut self, task: &amp;T) -&gt; T::Output;
 }</code></pre>
 <div id="admonition-note" class="admonition note">
@@ -202,8 +208,8 @@ Because of this, the context reference passed to <code>Task::execute</code> is a
 <p>This <code>Task</code> and <code>Context</code> API mirrors the mutually recursive definition of task and context we discussed earlier, and forms the basis for the entire build system.</p>
 <p>Build the project by running <code>cargo build</code>.
 The output should look something like:</p>
-<pre><code class="language-shell ">   Compiling pie v0.1.0 (/private/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmpKlJxLr/pie)
-    Finished dev [unoptimized + debuginfo] target(s) in 0.20s
+<pre><code class="language-shell ">   Compiling pie v0.1.0 (/private/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmpjSfMPe/pie)
+    Finished dev [unoptimized + debuginfo] target(s) in 0.12s
 </code></pre>
 <details id="admonition-rust-help" class="admonition info">
 <summary class="admonition-title">
@@ -238,21 +244,22 @@ On the other hand, <code>execute</code> accepts a <em>mutable reference</em> to 
 However, incrementality is <em>hard</em>, so let's start with an extremely simple non-incremental <code>Context</code> implementation to get a feeling for the API.</p>
 <h3 id="context-module"><a class="header" href="#context-module">Context module</a></h3>
 <p>Since we will be implementing three different contexts in this tutorial, we will separate them in different modules.
-Create the <code>context</code> module by adding a module to <code>src/lib.rs</code>:</p>
+Create the <code>context</code> module by adding a module to <code>pie/src/lib.rs</code>:</p>
 <pre><code class="language-rust customdiff"> use std::fmt::Debug;
  use std::hash::Hash;
 
-+mod context;
++pub mod context;
 +
+ /// A unit of computation in a programmatic incremental build system.
  pub trait Task: Clone + Eq + Hash + Debug {
+   /// Type of output this task returns when executed.
    type Output: Clone + Eq + Debug;
-   fn execute&lt;C: Context&lt;Self&gt;&gt;(&amp;self, context: &amp;mut C) -&gt; Self::Output;
- }
-</code></pre>
-<p>This is a diff over <code>src/lib.rs</code> where lines with a green background are additions, lines with a red background are removals, and lines with a grey background are context on where to add/remove lines, similar to diffs on source code hubs like GitHub.</p>
-<p>Create the <code>src/context</code> directory, and in it, create the <code>src/context/mod.rs</code> file with the following contents:</p>
-<pre><code class="language-rust ">pub(crate) mod non_incremental;</code></pre>
-<p>Then, create the <code>src/context/non_incremental.rs</code> file, it will be empty for now.
+   /// Execute the task, using `context` to specify dynamic dependencies, returning `Self::Output`.</code></pre>
+<p>This is a diff over <code>pie/src/lib.rs</code> where lines with a green background are additions, lines with a red background are removals, and lines with a grey background are context on where to add/remove lines, similar to diffs on source code hubs like GitHub.</p>
+<p>Create the <code>pie/src/context</code> directory, and in it, create the <code>pie/src/context/mod.rs</code> file with the following contents:</p>
+<pre><code class="language-rust ">pub mod non_incremental;</code></pre>
+<p>Both modules are public so that users of our library can access context implementations.</p>
+<p>Create the <code>pie/src/context/non_incremental.rs</code> file, it will be empty for now.
 Your project structure should now look like:</p>
 <pre><code>pie
 ├── Cargo.toml
@@ -279,7 +286,7 @@ Use the latter if you intend to nest modules, otherwise use the former.</p>
 </div>
 </details>
 <h3 id="implementation"><a class="header" href="#implementation">Implementation</a></h3>
-<p>Implement the non-incremental context in <code>src/context/non_incremental.rs</code> by adding:</p>
+<p>Implement the non-incremental context in <code>pie/src/context/non_incremental.rs</code> by adding:</p>
 <pre><code class="language-rust ">use crate::{Context, Task};
 
 pub struct NonIncrementalContext;
@@ -308,7 +315,7 @@ We could also write that as <code>return task.execute(self);</code>, but that is
 </div>
 </details>
 <h3 id="simple-test"><a class="header" href="#simple-test">Simple Test</a></h3>
-<p>Add the following test to <code>src/context/non_incremental.rs</code>:</p>
+<p>Add the following test to <code>pie/src/context/non_incremental.rs</code>:</p>
 <pre><code class="language-rust ">#[cfg(test)]
 mod test {
   use super::*;
@@ -338,9 +345,9 @@ in a reference to the task.
 It returns the output of the task, which we test with <code>assert_eq!</code>.</p>
 <p>Run the test by running <code>cargo test</code>.
 The output should look something like:</p>
-<pre><code class="language-shell ">   Compiling pie v0.1.0 (/private/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmpKlJxLr/pie)
-    Finished test [unoptimized + debuginfo] target(s) in 0.68s
-     Running unittests src/lib.rs (/private/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmpKlJxLr/pie/target/debug/deps/pie-df5bfba2a552abda)
+<pre><code class="language-shell ">   Compiling pie v0.1.0 (/private/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmpjSfMPe/pie)
+    Finished test [unoptimized + debuginfo] target(s) in 0.46s
+     Running unittests src/lib.rs (/private/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmpjSfMPe/pie/target/debug/deps/pie-daca3a31898407a4)
 
 running 1 test
 test context::non_incremental::test::test_require_task_direct ... ok
@@ -413,7 +420,7 @@ Add the following test:</p>
 <p>We use the same <code>ReturnHelloWorld</code> task as before, but now also have a <code>ToLowerCase</code> task which requires <code>ReturnHelloWorld</code> and then turn its string lowercase.
 However, due to the way we've set up the types between <code>Task</code> and <code>Context</code>, we will run into a problem.
 Running <code>cargo test</code>, you should get these errors:</p>
-<pre><code class="language-shell ">   Compiling pie v0.1.0 (/private/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmpKlJxLr/pie)
+<pre><code class="language-shell ">   Compiling pie v0.1.0 (/private/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmpjSfMPe/pie)
 error[E0308]: mismatched types
   --&gt; src/context/non_incremental.rs:48:30
    |
@@ -425,13 +432,13 @@ error[E0308]: mismatched types
    = note: expected reference `&amp;ToLowerCase`
               found reference `&amp;non_incremental::test::test_require_task_problematic::ReturnHelloWorld`
 note: method defined here
-  --&gt; src/lib.rs:12:6
+  --&gt; src/lib.rs:18:6
    |
-12 |   fn require_task(&amp;mut self, task: &amp;T) -&gt; T::Output;
+18 |   fn require_task(&amp;mut self, task: &amp;T) -&gt; T::Output;
    |      ^^^^^^^^^^^^
 
 For more information about this error, try `rustc --explain E0308`.
-error: could not compile `pie` due to previous error
+error: could not compile `pie` (lib test) due to previous error
 </code></pre>
 <p>The problem is that <code>execute</code> of <code>ToLowerCase</code> takes a <code>Context&lt;Self&gt;</code>, so in <code>impl Task for ToLowerCase</code> it takes a <code>Context&lt;ToLowerCase&gt;</code>, while we're trying to require <code>&amp;ReturnHelloWorld</code> through the context.
 This doesn't work as <code>Context&lt;ToLowerCase&gt;::require_task</code> only takes a <code>&amp;ToLowerCase</code> as input.</p>
@@ -449,20 +456,20 @@ This doesn't work as <code>Context&lt;ToLowerCase&gt;::require_task</code> only 
 
      let mut context = NonIncrementalContext;</code></pre>
 <p>But that is not allowed:</p>
-<pre><code class="language-shell ">   Compiling pie v0.1.0 (/private/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmpKlJxLr/pie)
+<pre><code class="language-shell ">   Compiling pie v0.1.0 (/private/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmpjSfMPe/pie)
 error[E0276]: impl has stricter requirements than trait
   --&gt; src/context/non_incremental.rs:47:21
    |
 47 |       fn execute&lt;C: Context&lt;ReturnHelloWorld&gt;&gt;(&amp;self, context: &amp;mut C) -&gt; Self::Output {
    |                     ^^^^^^^^^^^^^^^^^^^^^^^^^ impl has extra requirement `C: Context&lt;non_incremental::test::test_require_task_problematic::ReturnHelloWorld&gt;`
    |
-  ::: src/lib.rs:8:3
+  ::: src/lib.rs:11:3
    |
-8  |   fn execute&lt;C: Context&lt;Self&gt;&gt;(&amp;self, context: &amp;mut C) -&gt; Self::Output;
+11 |   fn execute&lt;C: Context&lt;Self&gt;&gt;(&amp;self, context: &amp;mut C) -&gt; Self::Output;
    |   --------------------------------------------------------------------- definition of `execute` from trait
 
 For more information about this error, try `rustc --explain E0276`.
-error: could not compile `pie` due to previous error
+error: could not compile `pie` (lib test) due to previous error
 </code></pre>
 <p>This is because the <code>Task</code> trait defines <code>execute</code> to take a <code>Context&lt;Self&gt;</code>, thus every implementation of <code>Task</code> must adhere to this, so we can't solve it this way.</p>
 <p>Effectively, due to the way we defined <code>Task</code> and <code>Context</code>, we can only use <em>a single task implementation</em>.
@@ -473,14 +480,23 @@ However, there is a good reason for this which will become more apparent once we
 <p><a class="admonition-anchor-link" href="#admonition-why-only-a-single-task-type"></a></p>
 </summary>
 <div>
-<p>The gist of it is that an incremental context wants to build a dependency graph and cache task outputs, so that we can figure out from the dependency graph whether a task is affected by a change, and just return its output if it is not affected.
-For that, a context implementation will have a <code>Store&lt;T&gt;</code>.</p>
-<p>A <code>Context&lt;ReturnHelloWorld&gt;</code> and <code>Context&lt;ToLowerCase&gt;</code> would have to be implemented by different types, which would have different <code>Store</code>s, which would then have completely separate dependency graphs.
-That won't work, as we need a single (global) dependency graph over all tasks to figure out what is affected.</p>
+<p>The gist of it is that an incremental context wants to build a <em>single dependency graph</em> and cache task outputs, so that we can figure out from the graph whether a task is affected by a change, and just return its output if it is not affected.
+Therefore, a context implementation will maintain a <code>Store&lt;T&gt;</code>.</p>
+<p>A <code>Context&lt;ReturnHelloWorld&gt;</code> and <code>Context&lt;ToLowerCase&gt;</code> would then have a <code>Store&lt;ReturnHelloWorld&gt;</code> and <code>Store&lt;ToLowerCase&gt;</code> respectively.
+These two stores would then maintain two different dependency graphs, one where the nodes in the graph are <code>ReturnHelloWorld</code> and one where the nodes are <code>ToLowerCase</code>.
+But that won't work, as we need a single dependency graph over all tasks to figure out what is affected.</p>
+<p>There are several solutions to this problem.
+For example, we could use <a href="https://doc.rust-lang.org/book/ch17-02-trait-objects.html" title="" target="_blank">trait objects</a>.
+However, this introduces a whole slew of problems because many traits that we use are not trait-object safe. 
+<code>Clone</code> is not object safe because it requires <code>Sized</code>. 
+<code>Eq</code> is not object safe because it uses <code>Self</code>. 
+Serializing trait-objects is problematic.
+There are workarounds for all these things, but it is not pretty and very complicated.</p>
+<p>Another solution would be to encapsulate different tasks into a single type, using (procedural) macros to automatically generate this single task type.
+This solution is more feasible, but still introduces a lot of complexity which is not worth it in this tutorial.</p>
+<p>Therefore, in this tutorial we will keep it simple.</p>
 </div>
 </details>
-<p>There is a much more complicated way to actually solve this problem, but it introduces too much complexity into the tutorial, so we will be going with a much simpler solution.
-In chapter <em>TODO</em>, we will describe this solution which does support multiple task types.</p>
 <p>For now, we will solve this by just using a single task type which is an enumeration of the different possible tasks.
 Replace the test with the following:</p>
 <pre><code class="language-rust customdiff">     let mut context = NonIncrementalContext;

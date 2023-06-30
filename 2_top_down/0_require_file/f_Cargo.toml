@@ -1,0 +1,7 @@
+[package]
+name = "pie"
+version = "0.1.0"
+edition = "2021"
+
+[dev-dependencies]
+dev_shared = { path = "../dev_shared" }
