@@ -1,6 +1,6 @@
 use std::fmt::Debug;
 
-use crate::task::CommonOutput;
+use crate::task::{CommonOutput, F};
 
 pub trait CheckErrorExt<T> {
   fn check(self) -> T;
@@ -19,6 +19,12 @@ impl<T: Debug> CheckErrorExt<T> for Result<T, std::io::ErrorKind> {
 }
 
 impl<T: Debug> CheckErrorExt<T> for Result<T, ()> {
+  fn check(self) -> T {
+    self.expect("something failed")
+  }
+}
+
+impl<T: Debug> CheckErrorExt<T> for Result<T, F> {
   fn check(self) -> T {
     self.expect("something failed")
   }

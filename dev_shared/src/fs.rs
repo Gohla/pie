@@ -1,4 +1,4 @@
-use std::fs;
+use std::fs::{metadata, write};
 use std::path::Path;
 use std::time::SystemTime;
 
@@ -25,7 +25,7 @@ pub fn write_until_modified(path: impl AsRef<Path>, contents: impl AsRef<[u8]>) 
   let path = path.as_ref();
   let contents = contents.as_ref();
   fn get_modified(path: impl AsRef<Path>) -> Result<SystemTime, std::io::Error> {
-    let modified = match fs::metadata(path) {
+    let modified = match metadata(path) {
       Err(e) if e.kind() == std::io::ErrorKind::NotFound => SystemTime::UNIX_EPOCH,
       Err(e) => Err(e)?,
       Ok(m) => m.modified()?
@@ -36,16 +36,16 @@ pub fn write_until_modified(path: impl AsRef<Path>, contents: impl AsRef<[u8]>) 
   // Keep writing to file until its modified time changes, because some modified time implementations have low precision 
   // and do not change after writing in quick succession.
   loop {
-    fs::write(path, contents)?;
+    write(path, contents)?;
     if modified != get_modified(path)? { break; }
   }
   Ok(modified)
 }
 
-/// First writes `"123"` to file at `path`, and then keeps writing `"123"` to file at `path` until it's last modified 
-/// time changes, ensuring that the OS last modified time has changed.
-pub fn wait_until_modified(path: impl AsRef<Path>) -> Result<SystemTime, std::io::Error> {
-  let path = path.as_ref();
-  fs::write(path, "123")?;
-  write_until_modified(path, "123")
+/// First writes to a temporary file, and then keeps writing to it until it's last modified time changes, ensuring that
+/// the OS last modified time has changed.
+pub fn wait_until_modified_time_changes() -> Result<SystemTime, std::io::Error> {
+  let file = create_temp_file();
+  write(&file, "123")?;
+  write_until_modified(&file, "123")
 }
