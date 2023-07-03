@@ -1,16 +1,9 @@
-use rstest::{fixture, rstest};
+use rstest::rstest;
 use tempfile::TempDir;
 
-use dev_shared::task::CommonTask;
-use dev_shared::TestPie;
 use ::pie::stamp::{FileStamp, FileStamper};
-
-#[fixture]
-fn pie() -> TestPie<CommonTask> { dev_shared::create_test_pie() }
-
-#[fixture]
-fn temp_dir() -> TempDir { dev_shared::fs::create_temp_dir() }
-
+use dev_shared::task::CommonTask;
+use dev_shared::test::{pie, temp_dir, TestPie};
 
 #[rstest]
 fn test_dependencies_to_non_existent_file(mut pie: TestPie<CommonTask>, temp_dir: TempDir) {

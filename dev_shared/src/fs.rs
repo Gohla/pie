@@ -5,16 +5,22 @@ use std::time::SystemTime;
 use tempfile::{NamedTempFile, TempDir};
 
 /// Creates a new temporary file that gets cleaned up when dropped.
+#[inline]
 pub fn create_temp_file() -> NamedTempFile {
   NamedTempFile::new().expect("failed to create temporary file")
 }
 
 /// Creates a new temporary directory that gets cleaned up when dropped.
+#[inline]
 pub fn create_temp_dir() -> TempDir {
   TempDir::new().expect("failed to create temporary directory")
 }
 
 /// Keeps writing `contents` to file at `path` until it's last modified time changes, then returns the modified time.
+///
+/// # Errors
+///
+/// Returns an error when any file operation fails.
 pub fn write_until_modified(path: impl AsRef<Path>, contents: impl AsRef<[u8]>) -> Result<SystemTime, std::io::Error> {
   let path = path.as_ref();
   let contents = contents.as_ref();
@@ -34,4 +40,12 @@ pub fn write_until_modified(path: impl AsRef<Path>, contents: impl AsRef<[u8]>) 
     if modified != get_modified(path)? { break; }
   }
   Ok(modified)
+}
+
+/// First writes `"123"` to file at `path`, and then keeps writing `"123"` to file at `path` until it's last modified 
+/// time changes, ensuring that the OS last modified time has changed.
+pub fn wait_until_modified(path: impl AsRef<Path>) -> Result<SystemTime, std::io::Error> {
+  let path = path.as_ref();
+  fs::write(path, "123")?;
+  write_until_modified(path, "123")
 }

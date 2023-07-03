@@ -1,20 +1,13 @@
 use std::fs::{create_dir_all, remove_file, write};
 
-use rstest::{fixture, rstest};
+use rstest::rstest;
 use tempfile::TempDir;
 
 use ::pie::stamp::FileStamper;
 use dev_shared::check::CheckErrorExt;
-use dev_shared::fs::write_until_modified;
+use dev_shared::fs::{wait_until_modified, write_until_modified};
 use dev_shared::task::CommonTask;
-use dev_shared::TestPie;
-
-#[fixture]
-fn pie() -> TestPie<CommonTask> { dev_shared::create_test_pie() }
-
-#[fixture]
-fn temp_dir() -> TempDir { dev_shared::fs::create_temp_dir() }
-
+use dev_shared::test::{pie, temp_dir, TestPie};
 
 #[rstest]
 fn test_modified_stamp_on_file(mut pie: TestPie<CommonTask>, temp_dir: TempDir) {
@@ -26,7 +19,7 @@ fn test_modified_stamp_on_file(mut pie: TestPie<CommonTask>, temp_dir: TempDir) 
   // New task: execute
   pie.run_in_session(|mut session| {
     session.require(&task).check();
-    assert_eq!(session.dependency_check_errors().len(), 0);
+    assert!(session.dependency_check_errors().is_empty());
 
     let tracker = &mut session.tracker_mut().0;
     assert!(tracker.contains_one_execute_start_of(&task));
@@ -80,13 +73,20 @@ fn test_modified_stamp_on_directory(mut pie: TestPie<CommonTask>, temp_dir: Temp
   create_dir_all(&dir_path).check();
   let file_path_1 = dir_path.join("test1.txt");
 
+  // On some OSs, the modified time has low precision and therefore two subsequent writes can result in the same
+  // modified time. Therefore, we will write to an unrelated file until its modified time changes, which signals that
+  // the OS modified time has changed.
+  let unrelated_dir_path = temp_dir.path().join("unrelated");
+  create_dir_all(&unrelated_dir_path).check();
+  let unrelated_file_path = unrelated_dir_path.join("unrelated.txt");
+
   // Modified stamper
   let task = CommonTask::list_directory(&dir_path, FileStamper::Modified);
   write(&file_path_1, "hello world!").check();
   // New task: execute
   pie.run_in_session(|mut session| {
     session.require(&task).check();
-    assert_eq!(session.dependency_check_errors().len(), 0);
+    assert!(session.dependency_check_errors().is_empty());
 
     let tracker = &mut session.tracker_mut().0;
     assert!(tracker.contains_one_execute_start_of(&task));
@@ -116,9 +116,8 @@ fn test_modified_stamp_on_directory(mut pie: TestPie<CommonTask>, temp_dir: Temp
     assert!(tracker.contains_one_execute_start_of(&task));
   });
   // File was removed and this changes directory modified time: execution
-  // Write until modified first to ensure the modified time has changed, then remove the file which should then change
-  // the modified time on the directory.
-  write_until_modified(&file_path_2, "hello world!").check();
+  write(&unrelated_file_path, "unrelated").check();
+  wait_until_modified(&unrelated_file_path).check();
   remove_file(&file_path_2).check();
   pie.run_in_session(|mut session| {
     session.require(&task).check();
@@ -133,7 +132,7 @@ fn test_modified_stamp_on_directory(mut pie: TestPie<CommonTask>, temp_dir: Temp
   // New task: execute
   pie.run_in_session(|mut session| {
     session.require(&task).check();
-    assert_eq!(session.dependency_check_errors().len(), 0);
+    assert!(session.dependency_check_errors().is_empty());
 
     let tracker = &mut session.tracker_mut().0;
     assert!(tracker.contains_one_execute_start_of(&task));
@@ -146,7 +145,7 @@ fn test_modified_stamp_on_directory(mut pie: TestPie<CommonTask>, temp_dir: Temp
     assert!(tracker.contains_no_execute_start());
   });
   // File was changed and this affects the latest modified date: execute
-  write(&file_path_1, "hello world!").check();
+  write_until_modified(&file_path_1, "hello world!").check();
   pie.run_in_session(|mut session| {
     session.require(&task).check();
 
@@ -154,6 +153,7 @@ fn test_modified_stamp_on_directory(mut pie: TestPie<CommonTask>, temp_dir: Temp
     assert!(tracker.contains_one_execute_start_of(&task));
   });
   // File was added and this changes directory modified time: execution
+  wait_until_modified(&unrelated_file_path).check();
   let file_path_2 = dir_path.join("test2.txt");
   write(&file_path_2, "hello world!").check();
   pie.run_in_session(|mut session| {
@@ -163,6 +163,7 @@ fn test_modified_stamp_on_directory(mut pie: TestPie<CommonTask>, temp_dir: Temp
     assert!(tracker.contains_one_execute_start_of(&task));
   });
   // File was removed and this changes directory modified time: execution
+  wait_until_modified(&unrelated_file_path).check();
   remove_file(&file_path_2).check();
   pie.run_in_session(|mut session| {
     session.require(&task).check();
@@ -182,7 +183,7 @@ fn test_hash_stamp_on_file(mut pie: TestPie<CommonTask>, temp_dir: TempDir) {
   // New task: execute
   pie.run_in_session(|mut session| {
     session.require(&task).check();
-    assert_eq!(session.dependency_check_errors().len(), 0);
+    assert!(session.dependency_check_errors().is_empty());
 
     let tracker = &mut session.tracker_mut().0;
     assert!(tracker.contains_one_execute_start_of(&task));
@@ -217,7 +218,7 @@ fn test_hash_stamp_on_file(mut pie: TestPie<CommonTask>, temp_dir: TempDir) {
   // New task: execute
   pie.run_in_session(|mut session| {
     session.require(&task).check();
-    assert_eq!(session.dependency_check_errors().len(), 0);
+    assert!(session.dependency_check_errors().is_empty());
 
     let tracker = &mut session.tracker_mut().0;
     assert!(tracker.contains_one_execute_start_of(&task));
@@ -259,7 +260,7 @@ fn test_hash_stamp_on_directory(mut pie: TestPie<CommonTask>, temp_dir: TempDir)
   // New task: execute
   pie.run_in_session(|mut session| {
     session.require(&task).check();
-    assert_eq!(session.dependency_check_errors().len(), 0);
+    assert!(session.dependency_check_errors().is_empty());
 
     let tracker = &mut session.tracker_mut().0;
     assert!(tracker.contains_one_execute_start_of(&task));
@@ -311,7 +312,7 @@ fn test_hash_stamp_on_directory(mut pie: TestPie<CommonTask>, temp_dir: TempDir)
   // New task: execute
   pie.run_in_session(|mut session| {
     session.require(&task).check();
-    assert_eq!(session.dependency_check_errors().len(), 0);
+    assert!(session.dependency_check_errors().is_empty());
 
     let tracker = &mut session.tracker_mut().0;
     assert!(tracker.contains_one_execute_start_of(&task));

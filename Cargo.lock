@@ -253,6 +253,7 @@ name = "dev_shared"
 version = "0.1.0"
 dependencies = [
  "pie",
+ "rstest",
  "rustc-hash",
  "serde",
  "tempfile",

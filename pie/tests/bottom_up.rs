@@ -1,21 +1,14 @@
 use std::fs::{read_to_string, write};
 
 use assert_matches::assert_matches;
-use rstest::{fixture, rstest};
+use rstest::rstest;
 use tempfile::TempDir;
 
 use ::pie::stamp::FileStamper;
 use dev_shared::check::CheckErrorExt;
 use dev_shared::fs::write_until_modified;
 use dev_shared::task::{CommonOutput, CommonTask};
-use dev_shared::TestPie;
-
-#[fixture]
-fn pie() -> TestPie<CommonTask> { dev_shared::create_test_pie() }
-
-#[fixture]
-fn temp_dir() -> TempDir { dev_shared::fs::create_temp_dir() }
-
+use dev_shared::test::{pie, temp_dir, TestPie};
 
 #[rstest]
 fn test_nothing_affected(mut pie: TestPie<CommonTask>) {

@@ -10,3 +10,4 @@ pie = { path = "../pie" }
 serde = "1"
 tempfile = "3"
 rustc-hash = "1"
+rstest = "0.16"
