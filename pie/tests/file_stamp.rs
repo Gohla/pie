@@ -116,6 +116,9 @@ fn test_modified_stamp_on_directory(mut pie: TestPie<CommonTask>, temp_dir: Temp
     assert!(tracker.contains_one_execute_start_of(&task));
   });
   // File was removed and this changes directory modified time: execution
+  // Write until modified first to ensure the modified time has changed, then remove the file which should then change
+  // the modified time on the directory.
+  write_until_modified(&file_path_2, "hello world!").check();
   remove_file(&file_path_2).check();
   pie.run_in_session(|mut session| {
     session.require(&task).check();
