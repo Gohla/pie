@@ -323,8 +323,8 @@ mod test {
     let dependency: Dependency<ReadStringFromFile, String> = Dependency::RequireFile(file_dependency.clone());
     assert!(file_dependency.is_inconsistent().expect("failed to check for inconsistency").is_none());
     assert!(dependency.is_inconsistent(&mut context).expect("failed to check for inconsistency").is_none());
-    
-    write_until_modified(&temp_file, "test2");
+
+    write_until_modified(&temp_file, "test2").expect("failed to write to temporary file");
     assert!(file_dependency.is_inconsistent().expect("failed to check for inconsistency").is_some());
     assert!(dependency.is_inconsistent(&mut context).expect("failed to check for inconsistency").is_some());
   }
@@ -344,7 +344,7 @@ mod test {
     assert!(task_dependency.is_inconsistent(&mut context).is_none());
     assert!(dependency.is_inconsistent(&mut context).expect("failed to check for inconsistency").is_none());
 
-    write_until_modified(&temp_file, "test2");
+    write_until_modified(&temp_file, "test2").expect("failed to write to temporary file");
     assert!(task_dependency.is_inconsistent(&mut context).is_some());
     assert!(dependency.is_inconsistent(&mut context).expect("failed to check for inconsistency").is_some());
   }

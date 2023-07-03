@@ -8,13 +8,13 @@ pub trait CheckErrorExt<T> {
 
 impl<T: Debug> CheckErrorExt<T> for Result<T, std::io::Error> {
   fn check(self) -> T {
-    self.expect("failed io operation on file")
+    self.expect("failed to perform io operation")
   }
 }
 
 impl<T: Debug> CheckErrorExt<T> for Result<T, std::io::ErrorKind> {
   fn check(self) -> T {
-    self.expect("failed io operation on file")
+    self.expect("failed to perform io operation")
   }
 }
 

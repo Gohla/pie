@@ -1,3 +1,4 @@
+use fs::write;
 use std::fs;
 
 use assert_matches::assert_matches;
@@ -7,6 +8,7 @@ use tempfile::TempDir;
 use ::pie::stamp::FileStamper;
 use ::pie::tracker::event::Event::*;
 use dev_shared::check::CheckErrorExt;
+use dev_shared::fs::write_until_modified;
 use dev_shared::task::{CommonOutput, CommonTask};
 use dev_shared::TestPie;
 
@@ -23,7 +25,7 @@ fn test_exec(mut pie: TestPie<CommonTask>) {
 
   pie.run_in_session(|mut session| {
     assert_eq!(session.require(&task), CommonOutput::string_constant("string"));
-    assert_eq!(session.dependency_check_errors().len(), 0);
+    assert!(session.dependency_check_errors().is_empty());
 
     let tracker = &mut session.tracker_mut().0;
     assert_matches!(tracker.get_from_end(0), Some(ExecuteTaskEnd(t, _)) => {
@@ -44,7 +46,7 @@ fn test_reuse(mut pie: TestPie<CommonTask>) {
 
   pie.run_in_session(|mut session| {
     assert_eq!(session.require(&task), CommonOutput::string_constant("string"));
-    assert_eq!(session.dependency_check_errors().len(), 0);
+    assert!(session.dependency_check_errors().is_empty());
 
     let tracker = &mut session.tracker_mut().0;
     assert_matches!(tracker.get_from_end(0), Some(ExecuteTaskEnd(t, _)) => {
@@ -60,7 +62,7 @@ fn test_reuse(mut pie: TestPie<CommonTask>) {
 
   pie.run_in_session(|mut session| {
     assert_eq!(session.require(&task), CommonOutput::string_constant("string"));
-    assert_eq!(session.dependency_check_errors().len(), 0);
+    assert!(session.dependency_check_errors().is_empty());
 
     let tracker = &mut session.tracker_mut().0;
     assert!(tracker.contains_no_execute_start());
@@ -70,7 +72,7 @@ fn test_reuse(mut pie: TestPie<CommonTask>) {
 #[rstest]
 fn test_require_task(mut pie: TestPie<CommonTask>, temp_dir: TempDir) {
   let path = temp_dir.path().join("in.txt");
-  fs::write(&path, "HELLO WORLD!").check();
+  write(&path, "HELLO WORLD!").check();
 
   let read_task = CommonTask::read_string_from_file(&path, FileStamper::Modified);
   let task = CommonTask::to_lower_case(read_task.clone());
@@ -106,7 +108,7 @@ fn test_require_task(mut pie: TestPie<CommonTask>, temp_dir: TempDir) {
   });
 
   // Change required file such that the task is affected.
-  fs::write(&path, "!DLROW OLLEH").check();
+  write_until_modified(&path, "!DLROW OLLEH").check();
 
   // Require task and observe that all tasks are re-executed in reverse dependency order
   pie.run_in_session(|mut session| {
@@ -130,7 +132,7 @@ fn test_require_task(mut pie: TestPie<CommonTask>, temp_dir: TempDir) {
 #[rstest]
 fn test_require_file(mut pie: TestPie<CommonTask>, temp_dir: TempDir) {
   let path = temp_dir.path().join("in.txt");
-  fs::write(&path, "HELLO WORLD!").check();
+  write(&path, "HELLO WORLD!").check();
   let task = CommonTask::read_string_from_file(&path, FileStamper::Modified);
 
   // Require task and observe that it is executed.
@@ -150,7 +152,7 @@ fn test_require_file(mut pie: TestPie<CommonTask>, temp_dir: TempDir) {
   });
 
   // Change required file such that the task is affected.
-  fs::write(&path, "!DLROW OLLEH").check();
+  write_until_modified(&path, "!DLROW OLLEH").check();
 
   // Require task again and observe that it re-executed since it affected.
   pie.run_in_session(|mut session| {
@@ -185,7 +187,7 @@ fn test_provide_file(mut pie: TestPie<CommonTask>, temp_dir: TempDir) {
   });
 
   // Change provided file such that the task is affected.
-  fs::write(&path, "!DLROW OLLEH").check();
+  write_until_modified(&path, "!DLROW OLLEH").check();
 
   // Require task again and observe that it re-executed since it affected.
   pie.run_in_session(|mut session| {
@@ -221,10 +223,10 @@ fn overlapping_provided_file_panics(mut pie: TestPie<CommonTask>, temp_dir: Temp
   pie.run_in_session(|mut session| {
     let task_1 = CommonTask::write_constant_string_to_file("Test 1", &path, FileStamper::Modified);
     session.require(&task_1).check();
-    assert_eq!(session.dependency_check_errors().len(), 0);
+    assert!(session.dependency_check_errors().is_empty());
     let task_2 = CommonTask::write_constant_string_to_file("Test 2", &path, FileStamper::Modified);
     session.require(&task_2).check();
-    assert_eq!(session.dependency_check_errors().len(), 0);
+    assert!(session.dependency_check_errors().is_empty());
   });
 }
 
@@ -235,10 +237,10 @@ fn hidden_dependency_during_require_panics(mut pie: TestPie<CommonTask>, temp_di
   pie.run_in_session(|mut session| {
     let providing_task = CommonTask::write_constant_string_to_file("Test 1", &path, FileStamper::Modified);
     session.require(&providing_task).check();
-    assert_eq!(session.dependency_check_errors().len(), 0);
+    assert!(session.dependency_check_errors().is_empty());
     let requiring_task = CommonTask::read_string_from_file(&path, FileStamper::Modified);
     session.require(&requiring_task).check();
-    assert_eq!(session.dependency_check_errors().len(), 0);
+    assert!(session.dependency_check_errors().is_empty());
   });
 }
 
@@ -246,13 +248,13 @@ fn hidden_dependency_during_require_panics(mut pie: TestPie<CommonTask>, temp_di
 #[should_panic(expected = "Hidden dependency")]
 fn hidden_dependency_during_provide_panics(mut pie: TestPie<CommonTask>, temp_dir: TempDir) {
   let path = temp_dir.path().join("inout.txt");
-  fs::write(&path, "test").check();
+  write(&path, "test").check();
   pie.run_in_session(|mut session| {
     let requiring_task = CommonTask::read_string_from_file(&path, FileStamper::Modified);
     session.require(&requiring_task).check();
-    assert_eq!(session.dependency_check_errors().len(), 0);
+    assert!(session.dependency_check_errors().is_empty());
     let providing_task = CommonTask::write_constant_string_to_file("Test 1", &path, FileStamper::Modified);
     session.require(&providing_task).check();
-    assert_eq!(session.dependency_check_errors().len(), 0);
+    assert!(session.dependency_check_errors().is_empty());
   });
 }

@@ -183,8 +183,8 @@ mod test {
     let temp_file = create_temp_file();
     let stamp = stamper.stamp(&temp_file).expect("failed to stamp");
     assert_eq!(stamp, stamper.stamp(&temp_file).expect("failed to stamp"));
-    
-    write_until_modified(&temp_file, format!("{:?}", stamp));
+
+    write_until_modified(&temp_file, format!("{:?}", stamp)).expect("failed to write to temporary file");
     assert_ne!(stamp, stamper.stamp(&temp_file).expect("failed to stamp"), "modified stamp is equal after modifying file");
 
     fs::remove_file(&temp_file).expect("failed to delete temporary file");
