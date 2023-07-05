@@ -9,24 +9,47 @@ use serde::{Deserialize, Serialize};
 use pie::{Context, Task};
 use pie::stamp::FileStamper;
 
-// File exists
-
+/// String constant
 #[derive(Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Serialize, Deserialize, Debug)]
-pub struct FileExists(pub PathBuf);
+pub struct StringConstant(String);
+
+impl StringConstant {
+  #[inline]
+  pub fn new(string: impl Into<String>) -> CommonTask {
+    CommonTask::StringConstant(Self(string.into()))
+  }
+  #[inline]
+  fn execute(&self) -> String {
+    self.0.clone()
+  }
+}
+
+/// File exists
+#[derive(Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Serialize, Deserialize, Debug)]
+pub struct FileExists(PathBuf);
 
 impl FileExists {
+  #[inline]
+  pub fn new(path: impl Into<PathBuf>) -> CommonTask {
+    CommonTask::FileExists(Self(path.into()))
+  }
+  #[inline]
   fn execute<T: Task, C: Context<T>>(&self, context: &mut C) -> Result<bool, F> {
     let result = context.require_file_with_stamper(&self.0, FileStamper::Exists).map_err(|_| F)?;
     Ok(result.is_some())
   }
 }
 
-// Read string from file task
-
+/// Read string from file
 #[derive(Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Serialize, Deserialize, Debug)]
-pub struct ReadStringFromFile(pub PathBuf, pub FileStamper);
+pub struct ReadStringFromFile(PathBuf, FileStamper);
 
 impl ReadStringFromFile {
+  #[inline]
+  pub fn new(path: impl Into<PathBuf>, stamper: FileStamper) -> CommonTask {
+    CommonTask::ReadStringFromFile(Self(path.into(), stamper))
+  }
+  #[inline]
   fn execute<T: Task, C: Context<T>>(&self, context: &mut C) -> Result<String, F> {
     let mut string = String::new();
     if let Some(mut file) = context.require_file_with_stamper(&self.0, self.1).map_err(|_| F)? {
@@ -36,12 +59,16 @@ impl ReadStringFromFile {
   }
 }
 
-// Write string to file task
-
+/// Write string to file
 #[derive(Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Serialize, Deserialize, Debug)]
-pub struct WriteStringToFile(pub Box<CommonTask>, pub PathBuf, pub FileStamper);
+pub struct WriteStringToFile(Box<CommonTask>, PathBuf, FileStamper);
 
 impl WriteStringToFile {
+  #[inline]
+  pub fn new(string_provider: impl Into<Box<CommonTask>>, path: impl Into<PathBuf>, stamper: FileStamper) -> CommonTask {
+    CommonTask::WriteStringToFile(Self(string_provider.into(), path.into(), stamper))
+  }
+  #[inline]
   fn execute<C: Context<CommonTask>>(&self, context: &mut C) -> Result<(), F> {
     let string = context.require_task(&self.0)?.into_string();
     let mut file = File::create(&self.1).map_err(|_| F)?;
@@ -51,12 +78,16 @@ impl WriteStringToFile {
   }
 }
 
-// List directory
-
+/// List directory
 #[derive(Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Serialize, Deserialize, Debug)]
-pub struct ListDirectory(pub PathBuf, pub FileStamper);
+pub struct ListDirectory(PathBuf, FileStamper);
 
 impl ListDirectory {
+  #[inline]
+  pub fn new(path: impl Into<PathBuf>, stamper: FileStamper) -> CommonTask {
+    CommonTask::ListDirectory(Self(path.into(), stamper))
+  }
+  #[inline]
   fn execute<T: Task, C: Context<T>>(&self, context: &mut C) -> Result<String, F> {
     context.require_file_with_stamper(&self.0, self.1).map_err(|_| F)?;
     let paths = std::fs::read_dir(&self.0).map_err(|_| F)?;
@@ -68,36 +99,48 @@ impl ListDirectory {
   }
 }
 
-// Make string lowercase
-
+/// Make string lowercase
 #[derive(Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Serialize, Deserialize, Debug)]
-pub struct ToLowerCase(pub Box<CommonTask>);
+pub struct ToLowerCase(Box<CommonTask>);
 
 impl ToLowerCase {
+  #[inline]
+  pub fn new(string_provider: impl Into<Box<CommonTask>>) -> CommonTask {
+    CommonTask::ToLowerCase(Self(string_provider.into()))
+  }
+  #[inline]
   fn execute<C: Context<CommonTask>>(&self, context: &mut C) -> Result<String, F> {
     let string = context.require_task(self.0.as_ref())?.into_string();
     Ok(string.to_lowercase())
   }
 }
 
-// Make string uppercase
-
+/// Make string uppercase
 #[derive(Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Serialize, Deserialize, Debug)]
-pub struct ToUpperCase(pub Box<CommonTask>);
+pub struct ToUpperCase(Box<CommonTask>);
 
 impl ToUpperCase {
+  #[inline]
+  pub fn new(string_provider: impl Into<Box<CommonTask>>) -> CommonTask {
+    CommonTask::ToUpperCase(Self(string_provider.into()))
+  }
+  #[inline]
   fn execute<C: Context<CommonTask>>(&self, context: &mut C) -> Result<String, F> {
     let string = context.require_task(self.0.as_ref())?.into_string();
     Ok(string.to_uppercase())
   }
 }
 
-// Require a task when a file exists
-
+/// Require a task when a file exists
 #[derive(Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Serialize, Deserialize, Debug)]
-pub struct RequireTaskOnFileExists(pub Box<CommonTask>, pub PathBuf);
+pub struct RequireTaskOnFileExists(Box<CommonTask>, PathBuf);
 
 impl RequireTaskOnFileExists {
+  #[inline]
+  pub fn new(task: impl Into<Box<CommonTask>>, path: impl Into<PathBuf>) -> CommonTask {
+    CommonTask::RequireTaskOnFileExists(Self(task.into(), path.into()))
+  }
+  #[inline]
   fn execute<C: Context<CommonTask>>(&self, context: &mut C) -> Result<(), F> {
     if let Some(_) = context.require_file_with_stamper(&self.1, FileStamper::Exists).map_err(|_| F)? {
       context.require_task(&self.0)?;
@@ -106,12 +149,16 @@ impl RequireTaskOnFileExists {
   }
 }
 
-// Sequence
-
+/// Sequence
 #[derive(Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Serialize, Deserialize, Debug)]
-pub struct Sequence(pub Vec<Box<CommonTask>>);
+pub struct Sequence(Vec<CommonTask>);
 
 impl Sequence {
+  #[inline]
+  pub fn new(tasks: impl Into<Vec<CommonTask>>) -> CommonTask {
+    CommonTask::Sequence(Self(tasks.into()))
+  }
+  #[inline]
   fn execute<C: Context<CommonTask>>(&self, context: &mut C) -> Result<(), F> {
     for task in &self.0 {
       context.require_task(task)?;
@@ -121,11 +168,10 @@ impl Sequence {
 }
 
 
-// Common task
-
+/// Common task enumeration
 #[derive(Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Serialize, Deserialize, Debug)]
 pub enum CommonTask {
-  StringConstant(String),
+  StringConstant(StringConstant),
   FileExists(FileExists),
   ReadStringFromFile(ReadStringFromFile),
   WriteStringToFile(WriteStringToFile),
@@ -136,65 +182,31 @@ pub enum CommonTask {
   Sequence(Sequence),
 }
 
-#[allow(clippy::wrong_self_convention)]
-#[allow(dead_code)]
-impl CommonTask {
-  pub fn string_constant(string: impl Into<String>) -> Self {
-    Self::StringConstant(string.into())
-  }
-  pub fn file_exists(path: impl Into<PathBuf>) -> Self {
-    Self::FileExists(FileExists(path.into()))
-  }
-  pub fn read_string_from_file(path: impl Into<PathBuf>, stamper: FileStamper) -> Self {
-    Self::ReadStringFromFile(ReadStringFromFile(path.into(), stamper))
-  }
-  pub fn write_string_to_file(string_provider: impl Into<Box<CommonTask>>, path: impl Into<PathBuf>, stamper: FileStamper) -> Self {
-    Self::WriteStringToFile(WriteStringToFile(string_provider.into(), path.into(), stamper))
-  }
-  pub fn write_constant_string_to_file(string: impl Into<String>, path: impl Into<PathBuf>, stamper: FileStamper) -> Self {
-    Self::WriteStringToFile(WriteStringToFile(Box::new(CommonTask::string_constant(string)), path.into(), stamper))
-  }
-  pub fn list_directory(path: impl Into<PathBuf>, stamper: FileStamper) -> Self {
-    Self::ListDirectory(ListDirectory(path.into(), stamper))
-  }
-  pub fn to_lower_case(string_provider: impl Into<Box<CommonTask>>) -> Self {
-    Self::ToLowerCase(ToLowerCase(string_provider.into()))
-  }
-  pub fn to_upper_case(string_provider: impl Into<Box<CommonTask>>) -> Self {
-    Self::ToUpperCase(ToUpperCase(string_provider.into()))
-  }
-  pub fn require_task_on_file_exists(task: impl Into<Box<CommonTask>>, path: impl Into<PathBuf>) -> Self {
-    Self::RequireTaskOnFileExists(RequireTaskOnFileExists(task.into(), path.into()))
-  }
-  pub fn sequence(tasks: impl Into<Vec<CommonTask>>) -> Self {
-    let tasks: Vec<Box<CommonTask>> = tasks.into().into_iter().map(|t| Box::new(t)).collect();
-    Self::Sequence(Sequence(tasks))
-  }
-}
-
 impl Task for CommonTask {
   type Output = Result<CommonOutput, F>;
-
+  #[inline]
   fn execute<C: Context<Self>>(&self, context: &mut C) -> Self::Output {
     use CommonTask::*;
-    use CommonOutput::*;
     match self {
-      StringConstant(s) => Ok(String(s.clone())),
-      FileExists(task) => task.execute(context).map(Into::into),
-      ReadStringFromFile(task) => task.execute(context).map(Into::into),
-      WriteStringToFile(task) => task.execute(context).map(Into::into),
-      ListDirectory(task) => task.execute(context).map(Into::into),
-      ToLowerCase(task) => task.execute(context).map(Into::into),
-      ToUpperCase(task) => task.execute(context).map(Into::into),
-      RequireTaskOnFileExists(task) => task.execute(context).map(Into::into),
-      Sequence(task) => task.execute(context).map(Into::into),
+      StringConstant(t) => Ok(t.execute().into()),
+      FileExists(t) => t.execute(context).map(Into::into),
+      ReadStringFromFile(t) => t.execute(context).map(Into::into),
+      WriteStringToFile(t) => t.execute(context).map(Into::into),
+      ListDirectory(t) => t.execute(context).map(Into::into),
+      ToLowerCase(t) => t.execute(context).map(Into::into),
+      ToUpperCase(t) => t.execute(context).map(Into::into),
+      RequireTaskOnFileExists(t) => t.execute(context).map(Into::into),
+      Sequence(t) => t.execute(context).map(Into::into),
     }
   }
 }
 
+impl From<&CommonTask> for Box<CommonTask> {
+  fn from(t: &CommonTask) -> Self { Box::new(t.clone()) }
+}
 
-// Common output
 
+/// Common output enumeration
 #[derive(Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Serialize, Deserialize, Debug)]
 pub enum CommonOutput {
   String(String),
@@ -202,19 +214,18 @@ pub enum CommonOutput {
   Unit,
 }
 
-#[allow(dead_code)]
 impl CommonOutput {
   #[inline]
   pub fn as_str(&self) -> &str {
     match self {
-      CommonOutput::String(s) => &s,
+      Self::String(s) => &s,
       o => panic!("Output {:?} does not contain a string", o),
     }
   }
   #[inline]
   pub fn into_string(self) -> String {
     match self {
-      CommonOutput::String(s) => s,
+      Self::String(s) => s,
       o => panic!("Output {:?} does not contain a string", o),
     }
   }

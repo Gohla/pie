@@ -7,7 +7,7 @@ use tempfile::TempDir;
 
 use ::pie::stamp::FileStamper;
 use dev_shared::fs::write_until_modified;
-use dev_shared::task::CommonTask;
+use dev_shared::task::*;
 use dev_shared::test::{pie, temp_dir, TestPie, TestPieExt};
 
 #[rstest]
@@ -21,8 +21,7 @@ fn test_nothing_affected(mut pie: TestPie<CommonTask>) {
 fn test_directly_affected_task(mut pie: TestPie<CommonTask>, temp_dir: TempDir) -> Result<(), Box<dyn Error>> {
   let path = temp_dir.path().join("test.txt");
   write(&path, "HELLO WORLD!")?;
-
-  let task = CommonTask::read_string_from_file(&path, FileStamper::Modified);
+  let task = ReadStringFromFile::new(&path, FileStamper::Modified);
 
   // Initially require the task.
   let output = pie.require(&task)?;
@@ -43,9 +42,8 @@ fn test_directly_affected_task(mut pie: TestPie<CommonTask>, temp_dir: TempDir) 
 fn test_indirectly_affected_tasks(mut pie: TestPie<CommonTask>, temp_dir: TempDir) -> Result<(), Box<dyn Error>> {
   let path = temp_dir.path().join("in.txt");
   write(&path, "HELLO WORLD!")?;
-
-  let read_task = CommonTask::read_string_from_file(&path, FileStamper::Modified);
-  let to_lowercase_task = CommonTask::to_lower_case(read_task.clone());
+  let read_task = ReadStringFromFile::new(&path, FileStamper::Modified);
+  let to_lowercase_task = ToLowerCase::new(&read_task);
 
   // Initially require the tasks.
   let output = pie.require(&to_lowercase_task)?;
@@ -76,10 +74,9 @@ fn test_indirectly_affected_tasks_early_cutoff(mut pie: TestPie<CommonTask>, tem
   let read_path = temp_dir.path().join("in.txt");
   write(&read_path, "HELLO WORLD!")?;
   let write_path = temp_dir.path().join("out.txt");
-
-  let read_task = CommonTask::read_string_from_file(&read_path, FileStamper::Modified);
-  let to_lowercase_task = CommonTask::to_lower_case(read_task.clone());
-  let write_task = CommonTask::write_string_to_file(to_lowercase_task.clone(), write_path, FileStamper::Modified);
+  let read_task = ReadStringFromFile::new(&read_path, FileStamper::Modified);
+  let to_lowercase_task = ToLowerCase::new(&read_task);
+  let write_task = WriteStringToFile::new(&to_lowercase_task, &write_path, FileStamper::Modified);
 
   // Initially require the tasks.
   pie.require(&write_task)?;
@@ -112,12 +109,11 @@ fn test_indirectly_affected_multiple_tasks(mut pie: TestPie<CommonTask>, temp_di
   write(&read_path, "HELLO WORLD!")?;
   let write_lower_path = temp_dir.path().join("out_lower.txt");
   let write_upper_path = temp_dir.path().join("out_upper.txt");
-
-  let read_task = CommonTask::read_string_from_file(&read_path, FileStamper::Modified);
-  let to_lowercase_task = CommonTask::to_lower_case(read_task.clone());
-  let to_uppercase_task = CommonTask::to_upper_case(read_task.clone());
-  let write_lowercase_task = CommonTask::write_string_to_file(to_lowercase_task.clone(), write_lower_path.clone(), FileStamper::Modified);
-  let write_uppercase_task = CommonTask::write_string_to_file(to_uppercase_task.clone(), write_upper_path.clone(), FileStamper::Modified);
+  let read_task = ReadStringFromFile::new(&read_path, FileStamper::Modified);
+  let to_lowercase_task = ToLowerCase::new(&read_task);
+  let to_uppercase_task = ToUpperCase::new(&read_task);
+  let write_lowercase_task = WriteStringToFile::new(&to_lowercase_task, &write_lower_path, FileStamper::Modified);
+  let write_uppercase_task = WriteStringToFile::new(&to_uppercase_task, &write_upper_path, FileStamper::Modified);
 
   // Initially require the tasks.
   pie.assert_in_session(|session| {
@@ -190,9 +186,8 @@ fn test_require_now(mut pie: TestPie<CommonTask>, temp_dir: TempDir) -> Result<(
   let marker_path = temp_dir.path().join("marker.txt");
   let read_path = temp_dir.path().join("in.txt");
   write(&read_path, "hello world!")?;
-
-  let to_lower_task = CommonTask::to_lower_case(CommonTask::read_string_from_file(read_path.clone(), FileStamper::Modified));
-  let task = CommonTask::require_task_on_file_exists(to_lower_task.clone(), marker_path.clone());
+  let to_lower_task = ToLowerCase::new(ReadStringFromFile::new(&read_path, FileStamper::Modified));
+  let task = RequireTaskOnFileExists::new(&to_lower_task, &marker_path);
 
   // Initially require the tasks.
   pie.assert_in_session(|session| {

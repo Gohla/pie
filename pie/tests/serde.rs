@@ -7,14 +7,14 @@ use rstest::rstest;
 use tempfile::TempDir;
 
 use ::pie::stamp::FileStamper;
-use dev_shared::task::CommonTask;
+use dev_shared::task::*;
 use dev_shared::test::{pie, temp_dir, TestPie, TestPieExt};
 
 #[rstest]
 fn test_serde_round_trip_one_task(mut pie: TestPie<CommonTask>, temp_dir: TempDir) -> Result<(), Box<dyn Error>> {
   let path = temp_dir.path().join("test.txt");
   fs::write(&path, "HELLO WORLD!")?;
-  let task = CommonTask::to_lower_case(CommonTask::read_string_from_file(&path, FileStamper::Modified));
+  let task = ToLowerCase::new(ReadStringFromFile::new(&path, FileStamper::Modified));
   pie.require(&task)?;
 
   let mut buffer = Vec::new();

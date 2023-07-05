@@ -9,28 +9,28 @@ use ::pie::{Context, Task};
 use ::pie::stamp::FileStamper;
 use ::pie::tracker::event::Event::*;
 use dev_shared::fs::write_until_modified;
-use dev_shared::task::CommonTask;
+use dev_shared::task::*;
 use dev_shared::test::{pie, temp_dir, TestPie, TestPieExt};
 
 #[rstest]
 fn test_exec(mut pie: TestPie<CommonTask>) -> Result<(), Box<dyn Error>> {
-  let task = CommonTask::string_constant("string");
+  let task = StringConstant::new("Hello, World!");
   let output = pie.require_then_assert(&task, |tracker| {
     let events = tracker.slice();
     assert_matches!(events.get(0), Some(RequireTask(t)) if t == &task);
     assert_matches!(events.get(1), Some(ExecuteTaskStart(t)) if t == &task);
     assert_matches!(events.get(2), Some(ExecuteTaskEnd(t, _)) if t == &task);
   })?;
-  assert_eq!(output.as_str(), "string");
+  assert_eq!(output.as_str(), "Hello, World!");
   Ok(())
 }
 
 #[rstest]
 fn test_reuse(mut pie: TestPie<CommonTask>) -> Result<(), Box<dyn Error>> {
-  let task = CommonTask::string_constant("string");
+  let task = StringConstant::new("Hello world");
   // New task: execute.
   let output = pie.require(&task)?;
-  assert_eq!(output.as_str(), "string");
+  assert_eq!(output.as_str(), "Hello world");
   // Nothing changed: no execute
   pie.require_then_assert_no_execute(&task)?;
   Ok(())
@@ -40,9 +40,8 @@ fn test_reuse(mut pie: TestPie<CommonTask>) -> Result<(), Box<dyn Error>> {
 fn test_require_task(mut pie: TestPie<CommonTask>, temp_dir: TempDir) -> Result<(), Box<dyn Error>> {
   let path = temp_dir.path().join("in.txt");
   write(&path, "HELLO WORLD!")?;
-
-  let read_task = CommonTask::read_string_from_file(&path, FileStamper::Modified);
-  let task = CommonTask::to_lower_case(read_task.clone());
+  let read_task = ReadStringFromFile::new(&path, FileStamper::Modified);
+  let task = ToLowerCase::new(&read_task);
 
   // Require task and observe that the tasks are executed in dependency order.
   let output = pie.require_then_assert(&task, |tracker| {
@@ -82,8 +81,7 @@ fn test_require_task(mut pie: TestPie<CommonTask>, temp_dir: TempDir) -> Result<
 fn test_require_file(mut pie: TestPie<CommonTask>, temp_dir: TempDir) -> Result<(), Box<dyn Error>> {
   let path = temp_dir.path().join("in.txt");
   write(&path, "HELLO WORLD!")?;
-
-  let task = CommonTask::read_string_from_file(&path, FileStamper::Modified);
+  let task = ReadStringFromFile::new(&path, FileStamper::Modified);
 
   // Require task and observe that it is executed.
   let output = pie.require_then_assert_one_execute(&task)?;
@@ -106,7 +104,7 @@ fn test_require_file(mut pie: TestPie<CommonTask>, temp_dir: TempDir) -> Result<
 #[rstest]
 fn test_provide_file(mut pie: TestPie<CommonTask>, temp_dir: TempDir) -> Result<(), Box<dyn Error>> {
   let path = temp_dir.path().join("out.txt");
-  let task = CommonTask::write_constant_string_to_file("HELLO WORLD!", &path, FileStamper::Modified);
+  let task = WriteStringToFile::new(StringConstant::new("HELLO WORLD!"), &path, FileStamper::Modified);
 
   // Require task and observe that it is executed.
   pie.require_then_assert_one_execute(&task)?;
@@ -129,7 +127,7 @@ fn test_provide_file(mut pie: TestPie<CommonTask>, temp_dir: TempDir) -> Result<
 
 // Cycle detection tests.
 
-#[derive(Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Debug)]
+#[derive(Clone, Eq, PartialEq, Hash, Debug)]
 enum Cycle {
   RequireSelf,
   RequireA,
@@ -138,7 +136,6 @@ enum Cycle {
 
 impl Task for Cycle {
   type Output = ();
-
   fn execute<C: Context<Self>>(&self, context: &mut C) -> Self::Output {
     match self {
       Self::RequireSelf => context.require_task(&Self::RequireSelf),
@@ -175,10 +172,9 @@ fn overlapping_provided_file_panics(mut pie: TestPie<CommonTask>, temp_dir: Temp
   let path = temp_dir.path().join("out.txt");
 
   pie.run_in_session(|mut session| {
-    let task_1 = CommonTask::write_constant_string_to_file("Test 1", &path, FileStamper::Modified);
+    let task_1 = WriteStringToFile::new(StringConstant::new("Test 1"), &path, FileStamper::Modified);
     session.require(&task_1).unwrap();
-
-    let task_2 = CommonTask::write_constant_string_to_file("Test 2", &path, FileStamper::Modified);
+    let task_2 = WriteStringToFile::new(StringConstant::new("Test 2"), &path, FileStamper::Modified);
     session.require(&task_2).unwrap();
   });
 }
@@ -186,13 +182,12 @@ fn overlapping_provided_file_panics(mut pie: TestPie<CommonTask>, temp_dir: Temp
 #[rstest]
 #[should_panic(expected = "Hidden dependency")]
 fn hidden_dependency_during_require_panics(mut pie: TestPie<CommonTask>, temp_dir: TempDir) {
-  let path = temp_dir.path().join("inout.txt");
+  let path = temp_dir.path().join("in_out.txt");
 
   pie.run_in_session(|mut session| {
-    let providing_task = CommonTask::write_constant_string_to_file("Test 1", &path, FileStamper::Modified);
+    let providing_task = WriteStringToFile::new(StringConstant::new("Test 1"), &path, FileStamper::Modified);
     session.require(&providing_task).unwrap();
-
-    let requiring_task = CommonTask::read_string_from_file(&path, FileStamper::Modified);
+    let requiring_task = ReadStringFromFile::new(&path, FileStamper::Modified);
     session.require(&requiring_task).unwrap();
   });
 }
@@ -200,14 +195,13 @@ fn hidden_dependency_during_require_panics(mut pie: TestPie<CommonTask>, temp_di
 #[rstest]
 #[should_panic(expected = "Hidden dependency")]
 fn hidden_dependency_during_provide_panics(mut pie: TestPie<CommonTask>, temp_dir: TempDir) {
-  let path = temp_dir.path().join("inout.txt");
+  let path = temp_dir.path().join("in_out.txt");
   write(&path, "test").expect("failed to write to file");
 
   pie.run_in_session(|mut session| {
-    let requiring_task = CommonTask::read_string_from_file(&path, FileStamper::Modified);
+    let requiring_task = ReadStringFromFile::new(&path, FileStamper::Modified);
     session.require(&requiring_task).unwrap();
-
-    let providing_task = CommonTask::write_constant_string_to_file("Test 1", &path, FileStamper::Modified);
+    let providing_task = WriteStringToFile::new(StringConstant::new("Test 1"), &path, FileStamper::Modified);
     session.require(&providing_task).unwrap();
   });
 }

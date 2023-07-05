@@ -6,7 +6,7 @@ use tempfile::TempDir;
 
 use dev_shared::bench::create_bench_pie;
 use dev_shared::fs::create_temp_dir;
-use dev_shared::task::CommonTask;
+use dev_shared::task::*;
 
 /// Show that bottom-up builds scale better than top-down builds due to bottom-up builds only checking the affected
 /// region of the dependency graph.
@@ -16,10 +16,10 @@ pub fn top_down_vs_bottom_up_scalability(c: &mut Criterion) {
     let mut paths = Vec::with_capacity(size);
     for i in 0..size {
       let path = temp_dir.path().join(format!("in{}.txt", i));
-      tasks.push(CommonTask::file_exists(&path));
+      tasks.push(FileExists::new(&path));
       paths.push(path);
     }
-    (CommonTask::sequence(tasks), paths)
+    (Sequence::new(tasks), paths)
   }
 
   fn change_file<P: AsRef<Path>>(path: P) {
@@ -63,10 +63,12 @@ pub fn top_down_vs_bottom_up_scalability(c: &mut Criterion) {
     // Top-down builds
     g.bench_function(BenchmarkId::new("top-down & no changes", num_dependencies), |b| {
       let mut pie = create_bench_pie();
-      pie.run_in_session(|mut session| { session.require(&task); });
+      pie.run_in_session(|mut session| {
+        let _ = session.require(&task);
+      });
       b.iter(|| {
         pie.run_in_session(|mut session| {
-          black_box(session.require(&task));
+          let _ = black_box(session.require(&task));
         });
       });
     });
@@ -74,14 +76,16 @@ pub fn top_down_vs_bottom_up_scalability(c: &mut Criterion) {
       let percentage = (ratio * 100.0) as u64;
       g.bench_function(BenchmarkId::new(format!("top-down & {}% changes", percentage), num_dependencies), |b| {
         let mut pie = create_bench_pie();
-        pie.run_in_session(|mut session| { session.require(&task); });
+        pie.run_in_session(|mut session| {
+          let _ = session.require(&task);
+        });
         b.iter_batched(
           || {
             change_files_percentage(&paths, size, ratio);
           },
           |_| {
             pie.run_in_session(|mut session| {
-              black_box(session.require(&task));
+              let _ = black_box(session.require(&task));
             });
           },
           BatchSize::PerIteration,
@@ -99,7 +103,9 @@ pub fn top_down_vs_bottom_up_scalability(c: &mut Criterion) {
     // Bottom-up builds
     g.bench_function(BenchmarkId::new("bottom-up & no changes", num_dependencies), |b| {
       let mut pie = create_bench_pie();
-      pie.run_in_session(|mut session| { session.require(&task); });
+      pie.run_in_session(|mut session| {
+        let _ = session.require(&task);
+      });
       b.iter(|| {
         pie.run_in_session(|mut session| {
           session.update_affected_by([]);
@@ -110,7 +116,9 @@ pub fn top_down_vs_bottom_up_scalability(c: &mut Criterion) {
       let percentage = (ratio * 100.0) as u64;
       g.bench_function(BenchmarkId::new(format!("bottom-up & {}% changes", percentage), num_dependencies), |b| {
         let mut pie = create_bench_pie();
-        pie.run_in_session(|mut session| { session.require(&task); });
+        pie.run_in_session(|mut session| {
+          let _ = session.require(&task);
+        });
         b.iter_batched(
           || {
             change_files_percentage(&paths, size, ratio)

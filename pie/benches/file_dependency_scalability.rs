@@ -3,7 +3,7 @@ use tempfile::TempDir;
 
 use dev_shared::bench::create_bench_pie;
 use dev_shared::fs::create_temp_dir;
-use dev_shared::task::CommonTask;
+use dev_shared::task::*;
 use pie::stamp::FileStamper;
 
 /// Show that file dependencies are slower than task dependencies (if task outputs are simple), due to system calls 
@@ -13,17 +13,17 @@ pub fn file_dependency_scalability(c: &mut Criterion) {
     let mut tasks = Vec::with_capacity(size);
     for i in 0..size {
       let path = temp_dir.path().join(format!("in{}.txt", i));
-      tasks.push(CommonTask::to_lower_case(CommonTask::read_string_from_file(path.clone(), FileStamper::Modified)));
+      tasks.push(ToLowerCase::new(ReadStringFromFile::new(path, FileStamper::Modified)));
     }
-    CommonTask::sequence(tasks)
+    Sequence::new(tasks)
   }
 
   fn create_task_without_file_deps(size: usize) -> CommonTask {
     let mut tasks = Vec::with_capacity(size);
     for i in 0..size {
-      tasks.push(CommonTask::to_lower_case(CommonTask::string_constant(format!("constant{}", i))));
+      tasks.push(ToLowerCase::new(StringConstant::new(format!("constant{}", i))));
     }
-    CommonTask::sequence(tasks)
+    Sequence::new(tasks)
   }
 
   let mut g = c.benchmark_group("task dependencies vs file dependencies");
@@ -42,12 +42,12 @@ pub fn file_dependency_scalability(c: &mut Criterion) {
     // Require the task once, so all tasks are executed and cached.
     let mut pie = create_bench_pie();
     pie.run_in_session(|mut session| {
-      session.require(&task_without_file_deps)
+      let _ = session.require(&task_without_file_deps);
     });
 
     b.iter(|| {
       pie.run_in_session(|mut session| {
-        black_box(session.require(&task_without_file_deps));
+        let _ = black_box(session.require(&task_without_file_deps));
       });
     });
   });
@@ -56,12 +56,12 @@ pub fn file_dependency_scalability(c: &mut Criterion) {
     // Require the task once, so all tasks are executed and cached.
     let mut pie = create_bench_pie();
     pie.run_in_session(|mut session| {
-      session.require(&task_with_file_deps)
+      let _ = session.require(&task_with_file_deps);
     });
 
     b.iter(|| {
       pie.run_in_session(|mut session| {
-        black_box(session.require(&task_with_file_deps));
+        let _ = black_box(session.require(&task_with_file_deps));
       });
     });
   });

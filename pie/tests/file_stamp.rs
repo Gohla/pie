@@ -6,7 +6,7 @@ use tempfile::TempDir;
 
 use ::pie::stamp::FileStamper;
 use dev_shared::fs::{wait_until_modified_time_changes, write_until_modified};
-use dev_shared::task::CommonTask;
+use dev_shared::task::*;
 use dev_shared::test::{pie, temp_dir, TestPie, TestPieExt};
 
 #[rstest]
@@ -14,7 +14,7 @@ fn test_modified_stamp_on_file(mut pie: TestPie<CommonTask>, temp_dir: TempDir) 
   let path = temp_dir.path().join("test.txt");
 
   // Modified stamper
-  let task = CommonTask::read_string_from_file(&path, FileStamper::Modified);
+  let task = ReadStringFromFile::new(&path, FileStamper::Modified);
   write(&path, "hello world!")?;
   // New task: execute
   pie.require_then_assert_one_execute(&task)?;
@@ -25,7 +25,7 @@ fn test_modified_stamp_on_file(mut pie: TestPie<CommonTask>, temp_dir: TempDir) 
   pie.require_then_assert_one_execute(&task)?;
 
   // Modified recursive stamper; should work exactly the same as modified stamper when used on a file.
-  let task = CommonTask::read_string_from_file(&path, FileStamper::ModifiedRecursive);
+  let task = ReadStringFromFile::new(&path, FileStamper::ModifiedRecursive);
   write(&path, "hello world!")?;
   // New task: execute
   pie.require_then_assert_one_execute(&task)?;
@@ -42,10 +42,10 @@ fn test_modified_stamp_on_file(mut pie: TestPie<CommonTask>, temp_dir: TempDir) 
 fn test_modified_stamp_on_directory(mut pie: TestPie<CommonTask>, temp_dir: TempDir) -> Result<(), Box<dyn Error>> {
   let dir_path = temp_dir.path().join("dir");
   create_dir_all(&dir_path)?;
-  let file_path_1 = dir_path.join("test1.txt");
+  let file_path_1 = dir_path.join("test_1.txt");
 
   // Modified stamper
-  let task = CommonTask::list_directory(&dir_path, FileStamper::Modified);
+  let task = ListDirectory::new(&dir_path, FileStamper::Modified);
   write(&file_path_1, "hello world!")?;
   // New task: execute
   pie.require_then_assert_one_execute(&task)?;
@@ -64,7 +64,7 @@ fn test_modified_stamp_on_directory(mut pie: TestPie<CommonTask>, temp_dir: Temp
   pie.require_then_assert_one_execute(&task)?;
 
   // Modified recursive stamper
-  let task = CommonTask::list_directory(&dir_path, FileStamper::ModifiedRecursive);
+  let task = ListDirectory::new(&dir_path, FileStamper::ModifiedRecursive);
   write(&file_path_1, "hello world!")?;
   // New task: execute
   pie.require_then_assert_one_execute(&task)?;
@@ -75,7 +75,7 @@ fn test_modified_stamp_on_directory(mut pie: TestPie<CommonTask>, temp_dir: Temp
   pie.require_then_assert_one_execute(&task)?;
   // File was added and this changes directory modified time: execute
   wait_until_modified_time_changes()?;
-  let file_path_2 = dir_path.join("test2.txt");
+  let file_path_2 = dir_path.join("test_2.txt");
   write(&file_path_2, "hello world!")?;
   pie.require_then_assert_one_execute(&task)?;
   // File was removed and this changes directory modified time: execute
@@ -91,7 +91,7 @@ fn test_hash_stamp_on_file(mut pie: TestPie<CommonTask>, temp_dir: TempDir) -> R
   let path = temp_dir.path().join("test.txt");
 
   // Hash stamper
-  let task = CommonTask::read_string_from_file(&path, FileStamper::Hash);
+  let task = ReadStringFromFile::new(&path, FileStamper::Hash);
   write(&path, "hello world!")?;
   // New task: execute
   pie.require_then_assert_one_execute(&task)?;
@@ -105,7 +105,7 @@ fn test_hash_stamp_on_file(mut pie: TestPie<CommonTask>, temp_dir: TempDir) -> R
   pie.require_then_assert_one_execute(&task)?;
 
   // Hash recursive stamper; should work exactly the same as hash stamper when used on a file.
-  let task = CommonTask::read_string_from_file(&path, FileStamper::HashRecursive);
+  let task = ReadStringFromFile::new(&path, FileStamper::HashRecursive);
   write(&path, "hello world!")?;
   // New task: execute
   pie.require_then_assert_one_execute(&task)?;
@@ -125,10 +125,10 @@ fn test_hash_stamp_on_file(mut pie: TestPie<CommonTask>, temp_dir: TempDir) -> R
 fn test_hash_stamp_on_directory(mut pie: TestPie<CommonTask>, temp_dir: TempDir) -> Result<(), Box<dyn Error>> {
   let dir_path = temp_dir.path().join("dir");
   create_dir_all(&dir_path)?;
-  let file_path_1 = dir_path.join("test1.txt");
+  let file_path_1 = dir_path.join("test_1.txt");
 
   // Hash stamper
-  let task = CommonTask::list_directory(&dir_path, FileStamper::Hash);
+  let task = ListDirectory::new(&dir_path, FileStamper::Hash);
   write(&file_path_1, "hello world!")?;
   // New task: execute
   pie.require_then_assert_one_execute(&task)?;
@@ -141,7 +141,7 @@ fn test_hash_stamp_on_directory(mut pie: TestPie<CommonTask>, temp_dir: TempDir)
   write(&file_path_1, "hello world!!")?;
   pie.require_then_assert_no_execute(&task)?;
   // File was added and this changes directory hash: execute
-  let file_path_2 = dir_path.join("test2.txt");
+  let file_path_2 = dir_path.join("test_2.txt");
   write(&file_path_2, "hello world!")?;
   pie.require_then_assert_one_execute(&task)?;
   // File was removed and this changes directory hash: execute
@@ -149,7 +149,7 @@ fn test_hash_stamp_on_directory(mut pie: TestPie<CommonTask>, temp_dir: TempDir)
   pie.require_then_assert_one_execute(&task)?;
 
   // Hash recursive stamper
-  let task = CommonTask::list_directory(&dir_path, FileStamper::HashRecursive);
+  let task = ListDirectory::new(&dir_path, FileStamper::HashRecursive);
   write(&file_path_1, "hello world!")?;
   // New task: execute
   pie.require_then_assert_one_execute(&task)?;
