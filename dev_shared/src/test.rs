@@ -1,5 +1,6 @@
 use std::hash::BuildHasher;
 use std::io::Stdout;
+use std::path::PathBuf;
 
 use rstest::fixture;
 use tempfile::TempDir;
@@ -42,84 +43,67 @@ pub fn create_test_pie<T: Task>() -> TestPie<T> {
 
 /// Testing extensions for [`TestPie`].
 pub trait TestPieExt<T: Task, H: BuildHasher + Default> {
-  /// Runs `run_func` in a new session, asserts that there are no dependency check errors, then runs `test_func` on the 
-  /// event tracker for testing purposes.
-  fn test_in_session<R, E>(
+  /// Runs `run_func` in a new session, asserts that there are no dependency check errors, then runs `test_assert_func`
+  /// on the event tracker for test assertion purposes.
+  fn assert_in_session<R>(
     &mut self,
-    run_func: impl FnOnce(&mut Session<T, T::Output, TestTracker<T>, H>) -> Result<R, E>,
-    test_func: impl FnOnce(&EventTracker<T>) -> Result<(), E>,
-  ) -> Result<R, E>;
+    run_func: impl FnOnce(&mut Session<T, T::Output, TestTracker<T>, H>) -> R,
+    test_assert_func: impl FnOnce(&EventTracker<T>),
+  ) -> R;
+
   /// Require `task` in a new session, asserts that there are no dependency check errors.
-  fn require(&mut self, task: &T) -> T::Output;
-
-  /// Runs `run_func` in a new session, asserts that there are no dependency check errors, then runs `test_func` on the 
-  /// event tracker for test assertion purposes.
   #[inline]
-  fn assert_in_session<R, E>(
-    &mut self,
-    run_func: impl FnOnce(&mut Session<T, T::Output, TestTracker<T>, H>) -> Result<R, E>,
-    test_func: impl FnOnce(&EventTracker<T>),
-  ) -> Result<R, E> {
-    self.test_in_session(run_func, |t| {
-      test_func(t);
-      Ok(())
-    })
+  fn require(&mut self, task: &T) -> T::Output {
+    self.assert_in_session(|s| s.require(task), |_| {})
   }
-
-  /// Require `task` in a new session, asserts that there are no dependency check errors, then runs `test_func` on 
-  /// the event tracker for testing purposes.
+  /// Require `task` in a new session, asserts that there are no dependency check errors, then runs `test_assert_func`
+  /// on the event tracker for test assertion purposes.
   #[inline]
-  fn require_then_test<R, E, O: Into<Result<R, E>>>(
+  fn require_then_assert(
     &mut self,
     task: &T,
-    test_func: impl FnOnce(&EventTracker<T>) -> Result<(), E>,
-  ) -> Result<R, E> where T: Task<Output=O> {
-    self.test_in_session(|s| s.require(task).into(), test_func)
+    test_assert_func: impl FnOnce(&EventTracker<T>),
+  ) -> T::Output {
+    self.assert_in_session(|s| s.require(task), test_assert_func)
   }
-  /// Require `task` in a new session, asserts that there are no dependency check errors, then runs `test_func` on 
-  /// the event tracker for test assertion purposes.
+  /// Require `task` in a new session, then assert that it is not executed.
   #[inline]
-  fn require_then_assert<R, E, O: Into<Result<R, E>>>(
-    &mut self,
-    task: &T,
-    test_func: impl FnOnce(&EventTracker<T>),
-  ) -> Result<R, E> where T: Task<Output=O> {
-    self.assert_in_session(|s| s.require(task).into(), test_func)
+  fn require_then_assert_no_execute(&mut self, task: &T) -> T::Output {
+    self.require_then_assert(task, |t|
+      assert!(!t.any_execute_of(task), "expected no execution of task {:?}, but it was executed", task),
+    )
+  }
+  /// Require `task` in a new session, then assert that it is executed.
+  #[inline]
+  fn require_then_assert_one_execute(&mut self, task: &T) -> T::Output {
+    self.require_then_assert(task, |t|
+      assert!(t.any_execute_of(task), "expected execution of task {:?}, but it was not executed", task),
+    )
   }
 
-  /// Require `task` in a new session, assert that it is executed.
+  /// Make up-to-date all tasks affected by `changed_files` in a new session, asserts that there are no dependency check
+  /// errors, then runs `test_assert_func` on the event tracker for test assertion purposes.
   #[inline]
-  fn assert_one_execute<R, E, O: Into<Result<R, E>>>(&mut self, task: &T) -> Result<R, E> where T: Task<Output=O> {
-    self.require_then_assert(task, |t|
-      assert!(t.contains_one_execute_start_of(task), "expected execution of task {:?}, but it was not executed", task)
-    )
-  }
-  /// Require `task` in a new session, assert that it is not executed.
-  #[inline]
-  fn assert_no_execute<R, E>(&mut self, task: &T) -> Result<R, E> where T: Task<Output=Result<R, E>> {
-    self.require_then_assert(task, |t|
-      assert!(t.contains_no_execute_start_of(task), "expected no execution of task {:?}, but it was executed", task)
-    )
+  fn update_affected_by_then_assert<'a, I: IntoIterator<Item=&'a PathBuf> + Clone>(
+    &mut self,
+    changed_files: I,
+    test_assert_func: impl FnOnce(&EventTracker<T>),
+  ) {
+    self.assert_in_session(|s| s.update_affected_by(changed_files), test_assert_func)
   }
 }
 
 impl<T: Task, H: BuildHasher + Default> TestPieExt<T, H> for Pie<T, T::Output, TestTracker<T>, H> {
   #[inline]
-  fn test_in_session<R, E>(
+  fn assert_in_session<R>(
     &mut self,
-    run_func: impl FnOnce(&mut Session<T, T::Output, TestTracker<T>, H>) -> Result<R, E>,
-    test_func: impl FnOnce(&EventTracker<T>) -> Result<(), E>
-  ) -> Result<R, E> {
+    run_func: impl FnOnce(&mut Session<T, T::Output, TestTracker<T>, H>) -> R,
+    test_func: impl FnOnce(&EventTracker<T>),
+  ) -> R {
     let mut session = self.new_session();
-    let output = run_func(&mut session)?;
+    let output = run_func(&mut session);
     assert!(session.dependency_check_errors().is_empty());
-    test_func(&self.tracker().0)?;
-    Ok(output)
-  }
-
-  #[inline]
-  fn require(&mut self, task: &T) -> T::Output {
-    let mut session = self.new_session();
-    session.require(task)
+    test_func(&self.tracker().0);
+    output
   }
 }

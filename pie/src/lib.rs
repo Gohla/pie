@@ -186,7 +186,7 @@ impl<'p, T: Task, A: Tracker<T>, H: BuildHasher + Default> Session<'p, T, T::Out
     context.require_initial(task)
   }
 
-  /// Make up-to-date all tasks (transitively) affected by changed files.
+  /// Make up-to-date all tasks (transitively) affected by `changed_files`.
   #[inline]
   pub fn update_affected_by<'a, I: IntoIterator<Item=&'a PathBuf> + Clone>(&mut self, changed_files: I) {
     let mut context = BottomUpContext::new(self);

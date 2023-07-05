@@ -25,8 +25,8 @@ fn test_serde_roundtrip_one_task(mut pie: TestPie<CommonTask>, temp_dir: TempDir
   let mut deserializer = Deserializer::from_bytes(&buffer)?;
   let mut pie = pie.deserialize(&mut deserializer)?;
 
-  // After serialize-deserialize roundtrip, no task should be executed because nothing changed.
-  pie.assert_no_execute(&task)?;
+  // After serialize-deserialize round-trip, no task should be executed because nothing changed.
+  pie.require_then_assert_no_execute(&task)?;
 
   Ok(())
 }

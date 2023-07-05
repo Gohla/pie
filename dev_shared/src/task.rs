@@ -251,9 +251,9 @@ impl CommonOutput {
   #[inline]
   pub fn new_string(string: impl Into<String>) -> Self { Self::String(string.into()) }
   #[inline]
-  pub fn new_bool(bool: bool) -> Self { Self::Bool(bool) }
+  pub const fn new_bool(bool: bool) -> Self { Self::Bool(bool) }
   #[inline]
-  pub fn new_unit() -> Self { Self::Unit }
+  pub const fn new_unit() -> Self { Self::Unit }
 
   #[inline]
   pub fn as_str(&self) -> &str {

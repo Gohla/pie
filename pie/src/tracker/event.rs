@@ -24,13 +24,60 @@ pub enum Event<T: Task> {
   ExecuteTaskEnd(T, T::Output),
 }
 
+impl<T: Task> Event<T> {
+  #[inline]
+  pub fn match_require_file(&self, path: &PathBuf) -> Option<&FileStamp> {
+    match self {
+      Event::RequireFile(d) if d.path() == path => Some(d.stamp()),
+      _ => None,
+    }
+  }
+
+  #[inline]
+  pub fn is_execute(&self) -> bool {
+    match self {
+      Event::ExecuteTaskStart(_) => true,
+      Event::ExecuteTaskEnd(_, _) => true,
+      _ => false,
+    }
+  }
+  #[inline]
+  pub fn is_execute_of(&self, task: &T) -> bool {
+    match self {
+      Event::ExecuteTaskStart(t) if t == task => true,
+      Event::ExecuteTaskEnd(t, _) if t == task => true,
+      _ => false,
+    }
+  }
+  #[inline]
+  pub fn is_execute_start_of(&self, task: &T) -> bool {
+    match self {
+      Event::ExecuteTaskStart(t) if t == task => true,
+      _ => false,
+    }
+  }
+  #[inline]
+  pub fn is_execute_end_of(&self, task: &T) -> bool {
+    match self {
+      Event::ExecuteTaskEnd(t, _) if t == task => true,
+      _ => false,
+    }
+  }
+  #[inline]
+  pub fn match_execute_end(&self, task: &T) -> Option<&T::Output> {
+    match self {
+      Event::ExecuteTaskEnd(t, o) if t == task => Some(o),
+      _ => None,
+    }
+  }
+}
+
 impl<T: Task> Default for EventTracker<T> {
   fn default() -> Self {
     Self { events: Vec::new(), clear_on_build_start: true }
   }
 }
 
-#[allow(dead_code)]
 impl<T: Task> EventTracker<T> {
   #[inline]
   pub fn new(clear_on_build_start: bool) -> Self {
@@ -41,228 +88,67 @@ impl<T: Task> EventTracker<T> {
   }
 
 
+  /// Returns an iterator over all events.
   #[inline]
-  pub fn first(&self) -> Option<&Event<T>> { self.events.first() }
-  #[inline]
-  pub fn last(&self) -> Option<&Event<T>> { self.events.last() }
-  #[inline]
-  pub fn get(&self, index: usize) -> Option<&Event<T>> { self.events.get(index) }
-  #[inline]
-  pub fn get_from_end(&self, offset: usize) -> Option<&Event<T>> { self.events.get(self.events.len() - 1 - offset) }
+  pub fn iter(&self) -> impl Iterator<Item=&Event<T>> { self.events.iter() }
 
+  /// Returns `true` if `predicate` returns `true` for any event.
   #[inline]
-  pub fn contains(&self, f: impl FnMut(&Event<T>) -> bool) -> bool { self.events.iter().any(f) }
+  pub fn any(&self, predicate: impl FnMut(&Event<T>) -> bool) -> bool { self.iter().any(predicate) }
+  /// Returns the number of times `predicate` returns `true` for one event.
   #[inline]
-  pub fn contains_no(&self, f: impl FnMut(&Event<T>) -> bool) -> bool { !self.contains(f) }
+  pub fn count(&self, predicate: impl FnMut(&&Event<T>) -> bool) -> usize { self.iter().filter(predicate).count() }
+  /// Returns `true` if `predicate` returns `true` for one event.
   #[inline]
-  pub fn contains_one(&self, f: impl FnMut(&&Event<T>) -> bool) -> bool { self.contains_n(1, f) }
-  #[inline]
-  pub fn contains_n(&self, n: usize, f: impl FnMut(&&Event<T>) -> bool) -> bool { self.events.iter().filter(f).count() == n }
+  pub fn one(&self, predicate: impl FnMut(&&Event<T>) -> bool) -> bool { self.count(predicate) == 1 }
 
+  /// Returns `Some(index)` for the first event where `predicate` returns `true`, or `None` otherwise.
   #[inline]
-  pub fn get_index_of(&self, f: impl FnMut(&Event<T>) -> bool) -> Option<usize> {
-    self.events.iter().position(f)
+  pub fn index(&self, predicate: impl FnMut(&Event<T>) -> bool) -> Option<usize> {
+    self.iter().position(predicate)
   }
-
-
+  /// Returns the event at given `index`, or `None` if `index` is out of bounds.
   #[inline]
-  pub fn contains_no_require_file_start(&self) -> bool {
-    self.contains_no(|e| Self::match_require_file(e))
+  pub fn get(&self, index: usize) -> Option<&Event<T>> {
+    self.events.get(index)
   }
+  /// Returns the event at given `offset` from the end, or `None` if `offset` is out of bounds.
   #[inline]
-  pub fn contains_one_require_file_start(&self) -> bool {
-    self.contains_one(|e| Self::match_require_file(e))
-  }
-  #[inline]
-  pub fn contains_require_file_starts(&self, n: usize) -> bool {
-    self.contains_n(n, |e| Self::match_require_file(e))
-  }
-  #[inline]
-  pub fn contains_no_require_file_start_of(&self, path: &PathBuf) -> bool {
-    self.contains_no(|e| Self::match_require_file_of(e, path))
-  }
-  #[inline]
-  pub fn contains_one_require_file_start_of(&self, path: &PathBuf) -> bool {
-    self.contains_one(|e| Self::match_require_file_of(e, path))
-  }
-  #[inline]
-  pub fn contains_require_file_start_of(&self, n: usize, path: &PathBuf) -> bool {
-    self.contains_n(n, |e| Self::match_require_file_of(e, path))
-  }
-  #[inline]
-  pub fn contains_no_require_file_start_of_with(&self, path: &PathBuf, stamp_fn: impl Fn(&FileStamp) -> bool) -> bool {
-    self.contains_no(|e| Self::match_require_file_of_with(e, path, &stamp_fn))
-  }
-  #[inline]
-  pub fn contains_one_require_file_start_of_with(&self, path: &PathBuf, stamp_fn: impl Fn(&FileStamp) -> bool) -> bool {
-    self.contains_one(|e| Self::match_require_file_of_with(e, path, &stamp_fn))
-  }
-  #[inline]
-  pub fn contains_require_file_start_of_with(&self, n: usize, path: &PathBuf, stamp_fn: impl Fn(&FileStamp) -> bool) -> bool {
-    self.contains_n(n, |e| Self::match_require_file_of_with(e, path, &stamp_fn))
+  pub fn get_from_end(&self, offset: usize) -> Option<&Event<T>> {
+    self.get(self.events.len() - 1 - offset)
   }
 
+  /// Returns `Some(v)` for the first event where `f` returns `Some(v)`, or `None` otherwise.
   #[inline]
-  pub fn contains_no_execute_start(&self) -> bool {
-    self.contains_no(|e| Self::match_execute_start(e))
-  }
-  #[inline]
-  pub fn contains_one_execute_start(&self) -> bool {
-    self.contains_one(|e| Self::match_execute_start(e))
-  }
-  #[inline]
-  pub fn contains_execute_starts(&self, n: usize) -> bool {
-    self.contains_n(n, |e| Self::match_execute_start(e))
-  }
-  #[inline]
-  pub fn contains_no_execute_start_of(&self, task: &T) -> bool {
-    self.contains_no(|e| Self::match_execute_start_of(e, task))
-  }
-  #[inline]
-  pub fn contains_one_execute_start_of(&self, task: &T) -> bool {
-    self.contains_one(|e| Self::match_execute_start_of(e, task))
-  }
-  #[inline]
-  pub fn contains_executes_start_of(&self, n: usize, task: &T) -> bool {
-    self.contains_n(n, |e| Self::match_execute_start_of(e, task))
-  }
+  pub fn find<R>(&self, f: impl FnMut(&Event<T>) -> Option<&R>) -> Option<&R> { self.iter().find_map(f) }
+
 
   #[inline]
-  pub fn contains_execute_ends(&self, n: usize) -> bool {
-    self.contains_n(n, |e| Self::match_execute_end(e))
-  }
-  #[inline]
-  pub fn contains_no_execute_end(&self) -> bool {
-    self.contains_no(|e| Self::match_execute_end(e))
-  }
-  #[inline]
-  pub fn contains_one_execute_end(&self) -> bool {
-    self.contains_one(|e| Self::match_execute_end(e))
-  }
-  #[inline]
-  pub fn contains_execute_ends_of(&self, n: usize, task: &T) -> bool {
-    self.contains_n(n, |e| Self::match_execute_end_of(e, task))
-  }
-  #[inline]
-  pub fn contains_no_execute_end_of(&self, task: &T) -> bool {
-    self.contains_no(|e| Self::match_execute_end_of(e, task))
-  }
-  #[inline]
-  pub fn contains_one_execute_end_of(&self, task: &T) -> bool {
-    self.contains_one(|e| Self::match_execute_end_of(e, task))
-  }
-  #[inline]
-  pub fn contains_no_execute_end_of_with(&self, task: &T, output: &T::Output) -> bool {
-    self.contains_no(|e| Self::match_execute_end_of_with(e, task, output))
-  }
-  #[inline]
-  pub fn contains_one_execute_end_of_with(&self, task: &T, output: &T::Output) -> bool {
-    self.contains_one(|e| Self::match_execute_end_of_with(e, task, output))
-  }
-  #[inline]
-  pub fn contains_execute_ends_of_with(&self, n: usize, task: &T, output: &T::Output) -> bool {
-    self.contains_n(n, |e| Self::match_execute_end_of_with(e, task, output))
+  pub fn find_require_file(&self, path: &PathBuf) -> Option<&FileStamp> {
+    self.find(|e| e.match_require_file(path))
   }
 
 
   #[inline]
-  pub fn get_index_of_execute_start_of(&self, task: &T) -> Option<usize> {
-    self.get_index_of(|e| Self::match_execute_start_of(e, task))
+  pub fn any_execute(&self) -> bool { self.any(|e| e.is_execute()) }
+  #[inline]
+  pub fn any_execute_of(&self, task: &T) -> bool { self.any(|e| e.is_execute_of(task)) }
+  #[inline]
+  pub fn index_execute_start(&self, task: &T) -> Option<usize> {
+    self.index(|e| e.is_execute_start_of(task))
   }
   #[inline]
-  pub fn get_index_of_execute_end_of(&self, task: &T) -> Option<usize> {
-    self.get_index_of(|e| Self::match_execute_end_of(e, task))
+  pub fn index_execute_end(&self, task: &T) -> Option<usize> {
+    self.index(|e| e.is_execute_end_of(task))
   }
   #[inline]
-  pub fn get_index_of_execute_end_of_with(&self, task: &T, output: &T::Output) -> Option<usize> {
-    self.get_index_of(|e| Self::match_execute_end_of_with(e, task, output))
-  }
-
-
-  #[inline]
-  fn match_require_file(e: &Event<T>) -> bool {
-    match e {
-      Event::RequireFile(_) => true,
-      _ => false,
-    }
-  }
-  #[inline]
-  fn match_require_file_of(e: &Event<T>, path: &PathBuf) -> bool {
-    match e {
-      Event::RequireFile(d) if d.path() == path => true,
-      _ => false,
-    }
-  }
-  #[inline]
-  fn match_require_file_of_with(e: &Event<T>, path: &PathBuf, stamp_fn: &impl Fn(&FileStamp) -> bool) -> bool {
-    match e {
-      Event::RequireFile(d) if d.path() == path && stamp_fn(d.stamp()) => true,
-      _ => false,
-    }
+  pub fn find_execute_end(&self, task: &T) -> Option<&T::Output> {
+    self.find(|e| e.match_execute_end(task))
   }
 
-  #[inline]
-  fn match_provide_file(e: &Event<T>) -> bool {
-    match e {
-      Event::ProvideFile(_) => true,
-      _ => false,
-    }
-  }
-  #[inline]
-  fn match_provide_file_of(e: &Event<T>, path: &PathBuf) -> bool {
-    match e {
-      Event::ProvideFile(d) if d.path() == path => true,
-      _ => false,
-    }
-  }
-  #[inline]
-  fn match_provide_file_of_with(e: &Event<T>, path: &PathBuf, stamp: &FileStamp) -> bool {
-    match e {
-      Event::ProvideFile(d) if d.path() == path && d.stamp() == stamp => true,
-      _ => false,
-    }
-  }
 
   #[inline]
-  fn match_execute_start(e: &Event<T>) -> bool {
-    match e {
-      Event::ExecuteTaskStart(_) => true,
-      _ => false,
-    }
-  }
-  #[inline]
-  fn match_execute_start_of(e: &Event<T>, task: &T) -> bool {
-    match e {
-      Event::ExecuteTaskStart(t) if t == task => true,
-      _ => false,
-    }
-  }
-  #[inline]
-  fn match_execute_end(e: &Event<T>) -> bool {
-    match e {
-      Event::ExecuteTaskEnd(_, _) => true,
-      _ => false,
-    }
-  }
-  #[inline]
-  fn match_execute_end_of(e: &Event<T>, task: &T) -> bool {
-    match e {
-      Event::ExecuteTaskEnd(t, _) if t == task => true,
-      _ => false,
-    }
-  }
-  #[inline]
-  fn match_execute_end_of_with(e: &Event<T>, task: &T, output: &T::Output) -> bool {
-    match e {
-      Event::ExecuteTaskEnd(t, o) if t == task && o == output => true,
-      _ => false,
-    }
-  }
-
-  #[inline]
-  pub fn iter_events(&self) -> impl Iterator<Item=&Event<T>> { self.events.iter() }
-  #[inline]
-  pub fn take_events(&mut self) -> Vec<Event<T>> { std::mem::take(&mut self.events) }
+  pub fn take(&mut self) -> Vec<Event<T>> { std::mem::take(&mut self.events) }
   #[inline]
   pub fn clear(&mut self) { self.events.clear(); }
 }
