@@ -63,7 +63,7 @@ pub struct WriteStringToFile(pub Box<CommonTask>, pub PathBuf, pub FileStamper);
 
 impl WriteStringToFile {
   fn execute<C: Context<CommonTask>>(&self, context: &mut C) -> Result<(), F> {
-    let string = context.require_task(&self.0).into_string()?;
+    let string = context.require_task(&self.0)?.into_string();
     let mut file = File::create(&self.1).map_err(|_| F)?;
     file.write_all(string.as_bytes()).map_err(|_| F)?;
     context.provide_file_with_stamper(&self.1, self.2).map_err(|_| F)?;
@@ -95,7 +95,7 @@ pub struct ToLowerCase(pub Box<CommonTask>);
 
 impl ToLowerCase {
   fn execute<C: Context<CommonTask>>(&self, context: &mut C) -> Result<String, F> {
-    let string = context.require_task(self.0.as_ref()).into_string()?;
+    let string = context.require_task(self.0.as_ref())?.into_string();
     Ok(string.to_lowercase())
   }
 }
@@ -107,7 +107,7 @@ pub struct ToUpperCase(pub Box<CommonTask>);
 
 impl ToUpperCase {
   fn execute<C: Context<CommonTask>>(&self, context: &mut C) -> Result<String, F> {
-    let string = context.require_task(self.0.as_ref()).into_string()?;
+    let string = context.require_task(self.0.as_ref())?.into_string();
     Ok(string.to_uppercase())
   }
 }
@@ -120,7 +120,7 @@ pub struct RequireTaskOnFileExists(pub Box<CommonTask>, pub PathBuf);
 impl RequireTaskOnFileExists {
   fn execute<C: Context<CommonTask>>(&self, context: &mut C) -> Result<(), F> {
     if let Some(_) = context.require_file_with_stamper(&self.1, FileStamper::Exists).map_err(|_| F)? {
-      context.require_task(&self.0).into_result()?;
+      context.require_task(&self.0)?;
     }
     Ok(())
   }
@@ -134,7 +134,7 @@ pub struct Sequence(pub Vec<Box<CommonTask>>);
 impl Sequence {
   fn execute<C: Context<CommonTask>>(&self, context: &mut C) -> Result<(), F> {
     for task in &self.0 {
-      context.require_task(task).into_result()?;
+      context.require_task(task)?;
     }
     Ok(())
   }
@@ -212,96 +212,86 @@ impl CommonTask {
   }
 }
 
-#[derive(Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Serialize, Deserialize, Debug)]
-pub enum CommonOutput {
-  StringConstant(String),
-  FileExists(Result<bool, F>),
-  ReadStringFromFile(Result<String, F>),
-  WriteStringToFile(Result<(), F>),
-  ListDirectory(Result<String, F>),
-  ToLowerCase(Result<String, F>),
-  ToUpperCase(Result<String, F>),
-  RequireTaskOnFileExists(Result<(), F>),
-  Sequence(Result<(), F>),
-}
-
-#[allow(clippy::wrong_self_convention)]
-#[allow(dead_code)]
-impl CommonOutput {
-  pub fn string_constant(string: impl Into<String>) -> Self { Self::StringConstant(string.into()) }
-  pub fn file_exists(result: Result<bool, F>) -> Self { Self::FileExists(result) }
-  pub fn file_exists_ok(result: bool) -> Self { Self::FileExists(Ok(result)) }
-  pub fn read_string_from_file(result: Result<String, F>) -> Self { Self::ReadStringFromFile(result) }
-  pub fn read_string_from_file_ok(string: impl Into<String>) -> Self { Self::read_string_from_file(Ok(string.into())) }
-  pub fn write_string_to_file(result: Result<(), F>) -> Self { Self::WriteStringToFile(result) }
-  pub fn write_string_to_file_ok() -> Self { Self::WriteStringToFile(Ok(())) }
-  pub fn list_directory(result: Result<String, F>) -> Self { Self::ListDirectory(result) }
-  pub fn list_directory_ok(string: impl Into<String>) -> Self { Self::list_directory(Ok(string.into())) }
-  pub fn to_lower_case(result: impl Into<Result<String, F>>) -> Self { Self::ToLowerCase(result.into()) }
-  pub fn to_lower_case_ok(string: impl Into<String>) -> Self { Self::ToLowerCase(Ok(string.into())) }
-  pub fn to_upper_case(result: impl Into<Result<String, F>>) -> Self { Self::ToUpperCase(result.into()) }
-  pub fn to_upper_case_ok(string: impl Into<String>) -> Self { Self::ToUpperCase(Ok(string.into())) }
-  pub fn require_task_on_file_exists(result: Result<(), F>) -> Self { Self::RequireTaskOnFileExists(result) }
-  pub fn require_task_on_file_exists_ok() -> Self { Self::RequireTaskOnFileExists(Ok(())) }
-  pub fn sequence(result: Result<(), F>) -> Self { Self::Sequence(result) }
-  pub fn sequence_ok() -> Self { Self::Sequence(Ok(())) }
-
-  #[inline]
-  pub fn into_string(self) -> Result<String, F> {
-    use CommonOutput::*;
-    let string = match self {
-      StringConstant(s) => s,
-      ReadStringFromFile(r) => r?,
-      ListDirectory(r) => r?,
-      ToLowerCase(r) => r?,
-      ToUpperCase(r) => r?,
-      o => panic!("Output {:?} does not contain a string", o),
-    };
-    Ok(string)
-  }
-  #[inline]
-  pub fn into_result(self) -> Result<(), F> {
-    use CommonOutput::*;
-    match self {
-      StringConstant(_) => Ok(()),
-      FileExists(r) => r.map(|_| ()),
-      ReadStringFromFile(r) => r.map(|_| ()),
-      WriteStringToFile(r) => r,
-      ListDirectory(r) => r.map(|_| ()),
-      ToLowerCase(r) => r.map(|_| ()),
-      ToUpperCase(r) => r.map(|_| ()),
-      RequireTaskOnFileExists(r) => r,
-      Sequence(r) => r,
-    }
-  }
-}
-
-impl From<CommonOutput> for Result<(), F> {
-  #[inline]
-  fn from(output: CommonOutput) -> Self { output.into_result() }
-}
-
 impl Task for CommonTask {
-  type Output = CommonOutput;
+  type Output = Result<CommonOutput, F>;
 
   fn execute<C: Context<Self>>(&self, context: &mut C) -> Self::Output {
+    use CommonTask::*;
+    use CommonOutput::*;
     match self {
-      CommonTask::StringConstant(s) => CommonOutput::StringConstant(s.clone()),
-      CommonTask::FileExists(task) => CommonOutput::FileExists(task.execute(context)),
-      CommonTask::ReadStringFromFile(task) => CommonOutput::ReadStringFromFile(task.execute(context)),
-      CommonTask::ReadIndirectStringFromFile(task) => CommonOutput::ReadStringFromFile(task.execute(context)),
-      CommonTask::WriteStringToFile(task) => CommonOutput::WriteStringToFile(task.execute(context)),
-      CommonTask::ListDirectory(task) => CommonOutput::ListDirectory(task.execute(context)),
-      CommonTask::ToLowerCase(task) => CommonOutput::ToLowerCase(task.execute(context)),
-      CommonTask::ToUpperCase(task) => CommonOutput::ToUpperCase(task.execute(context)),
-      CommonTask::RequireTaskOnFileExists(task) => CommonOutput::RequireTaskOnFileExists(task.execute(context)),
-      CommonTask::Sequence(task) => CommonOutput::Sequence(task.execute(context)),
-      CommonTask::RequireSelf => context.require_task(&CommonTask::RequireSelf),
-      CommonTask::RequireCycleA => context.require_task(&CommonTask::RequireCycleB),
-      CommonTask::RequireCycleB => context.require_task(&CommonTask::RequireCycleA),
+      StringConstant(s) => Ok(String(s.clone())),
+      FileExists(task) => task.execute(context).map(|b| Bool(b)),
+      ReadStringFromFile(task) => task.execute(context).map(|s| String(s)),
+      ReadIndirectStringFromFile(task) => task.execute(context).map(|s| String(s)),
+      WriteStringToFile(task) => task.execute(context).map(|_| Unit),
+      ListDirectory(task) => task.execute(context).map(|s| String(s)),
+      ToLowerCase(task) => task.execute(context).map(|s| String(s)),
+      ToUpperCase(task) => task.execute(context).map(|s| String(s)),
+      RequireTaskOnFileExists(task) => task.execute(context).map(|_| Unit),
+      Sequence(task) => task.execute(context).map(|_| Unit),
+      RequireSelf => context.require_task(&RequireSelf),
+      RequireCycleA => context.require_task(&RequireCycleB),
+      RequireCycleB => context.require_task(&RequireCycleA),
     }
   }
 }
+
+
+// Common output
+
+#[derive(Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Serialize, Deserialize, Debug)]
+pub enum CommonOutput {
+  String(String),
+  Bool(bool),
+  Unit,
+}
+
+#[allow(dead_code)]
+impl CommonOutput {
+  #[inline]
+  pub fn new_string(string: impl Into<String>) -> Self { Self::String(string.into()) }
+  #[inline]
+  pub fn new_bool(bool: bool) -> Self { Self::Bool(bool) }
+  #[inline]
+  pub fn new_unit() -> Self { Self::Unit }
+
+  #[inline]
+  pub fn as_str(&self) -> &str {
+    match self {
+      CommonOutput::String(s) => &s,
+      o => panic!("Output {:?} does not contain a string", o),
+    }
+  }
+
+  #[inline]
+  pub fn into_string(self) -> String {
+    match self {
+      CommonOutput::String(s) => s,
+      o => panic!("Output {:?} does not contain a string", o),
+    }
+  }
+}
+
+impl From<String> for CommonOutput {
+  #[inline]
+  fn from(value: String) -> Self { Self::String(value) }
+}
+
+impl From<bool> for CommonOutput {
+  #[inline]
+  fn from(value: bool) -> Self { Self::Bool(value) }
+}
+
+impl From<()> for CommonOutput {
+  #[inline]
+  fn from(_: ()) -> Self { Self::Unit }
+}
+
+impl AsRef<str> for CommonOutput {
+  #[inline]
+  fn as_ref(&self) -> &str { self.as_str() }
+}
+
 
 /// Serializable failure type. We can't use [`std::io::ErrorKind`] because that is not serializable and we cannot
 /// implement serialization for it due to the orphan rule. We can't use `()` because that cannot be converted to 

@@ -1,7 +1,5 @@
 use std::fmt::Debug;
 
-use crate::task::{CommonOutput, F};
-
 pub trait CheckErrorExt<T> {
   fn check(self) -> T;
 }
@@ -21,25 +19,5 @@ impl<T: Debug> CheckErrorExt<T> for Result<T, std::io::ErrorKind> {
 impl<T: Debug> CheckErrorExt<T> for Result<T, ()> {
   fn check(self) -> T {
     self.expect("something failed")
-  }
-}
-
-impl<T: Debug> CheckErrorExt<T> for Result<T, F> {
-  fn check(self) -> T {
-    self.expect("something failed")
-  }
-}
-
-impl CheckErrorExt<()> for CommonOutput {
-  fn check(self) -> () {
-    match self {
-      CommonOutput::ReadStringFromFile(r) => { r.check(); }
-      CommonOutput::WriteStringToFile(r) => { r.check(); }
-      CommonOutput::ListDirectory(r) => { r.check(); }
-      CommonOutput::ToLowerCase(r) => { r.check(); }
-      CommonOutput::ToUpperCase(r) => { r.check(); }
-      _ => {}
-    };
-    ()
   }
 }
