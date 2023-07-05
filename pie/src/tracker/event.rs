@@ -24,6 +24,79 @@ pub enum Event<T: Task> {
   ExecuteTaskEnd(T, T::Output),
 }
 
+impl<T: Task> Default for EventTracker<T> {
+  fn default() -> Self {
+    Self { events: Vec::new(), clear_on_build_start: true }
+  }
+}
+
+impl<T: Task> EventTracker<T> {
+  #[inline]
+  pub fn new(clear_on_build_start: bool) -> Self {
+    Self {
+      clear_on_build_start,
+      ..Self::default()
+    }
+  }
+
+  /// Returns a slice over all events.
+  #[inline]
+  pub fn slice(&self) -> &[Event<T>] { &self.events }
+  /// Returns an iterator over all events.
+  #[inline]
+  pub fn iter(&self) -> impl Iterator<Item=&Event<T>> { self.events.iter() }
+
+  /// Returns `true` if `predicate` returns `true` for any event.
+  #[inline]
+  pub fn any(&self, predicate: impl FnMut(&Event<T>) -> bool) -> bool { self.iter().any(predicate) }
+  /// Returns the number of times `predicate` returns `true` for one event.
+  #[inline]
+  pub fn count(&self, predicate: impl FnMut(&&Event<T>) -> bool) -> usize { self.iter().filter(predicate).count() }
+  /// Returns `true` if `predicate` returns `true` for one event.
+  #[inline]
+  pub fn one(&self, predicate: impl FnMut(&&Event<T>) -> bool) -> bool { self.count(predicate) == 1 }
+
+  /// Returns `Some(index)` for the first event where `predicate` returns `true`, or `None` otherwise.
+  #[inline]
+  pub fn index(&self, predicate: impl FnMut(&Event<T>) -> bool) -> Option<usize> {
+    self.iter().position(predicate)
+  }
+  /// Returns `Some(v)` for the first event where `f` returns `Some(v)`, or `None` otherwise.
+  #[inline]
+  pub fn find<R>(&self, f: impl FnMut(&Event<T>) -> Option<&R>) -> Option<&R> {
+    self.iter().find_map(f)
+  }
+  /// Returns `Some((index, v))` for the first event where `f` returns `Some(v)`, or `None` otherwise.
+  #[inline]
+  pub fn index_find<R>(&self, mut f: impl FnMut(&Event<T>) -> Option<&R>) -> Option<(usize, &R)> {
+    self.iter().enumerate().find_map(|(i, e)| f(e).map(|o| (i, o)))
+  }
+
+  #[inline]
+  pub fn find_require_file(&self, path: &PathBuf) -> Option<&FileStamp> {
+    self.find(|e| e.match_require_file(path))
+  }
+
+  #[inline]
+  pub fn any_execute(&self) -> bool { self.any(|e| e.is_execute()) }
+  #[inline]
+  pub fn any_execute_of(&self, task: &T) -> bool { self.any(|e| e.is_execute_of(task)) }
+  #[inline]
+  pub fn one_execute_of(&self, task: &T) -> bool { self.one(|e| e.is_execute_start(task)) }
+  #[inline]
+  pub fn index_execute_start(&self, task: &T) -> Option<usize> {
+    self.index(|e| e.is_execute_start(task))
+  }
+  #[inline]
+  pub fn index_execute_end(&self, task: &T) -> Option<usize> {
+    self.index(|e| e.match_execute_end(task).is_some())
+  }
+  #[inline]
+  pub fn index_find_execute_end(&self, task: &T) -> Option<(usize, &T::Output)> {
+    self.index_find(|e| e.match_execute_end(task))
+  }
+}
+
 impl<T: Task> Event<T> {
   #[inline]
   pub fn match_require_file(&self, path: &PathBuf) -> Option<&FileStamp> {
@@ -50,16 +123,9 @@ impl<T: Task> Event<T> {
     }
   }
   #[inline]
-  pub fn is_execute_start_of(&self, task: &T) -> bool {
+  pub fn is_execute_start(&self, task: &T) -> bool {
     match self {
       Event::ExecuteTaskStart(t) if t == task => true,
-      _ => false,
-    }
-  }
-  #[inline]
-  pub fn is_execute_end_of(&self, task: &T) -> bool {
-    match self {
-      Event::ExecuteTaskEnd(t, _) if t == task => true,
       _ => false,
     }
   }
@@ -70,87 +136,6 @@ impl<T: Task> Event<T> {
       _ => None,
     }
   }
-}
-
-impl<T: Task> Default for EventTracker<T> {
-  fn default() -> Self {
-    Self { events: Vec::new(), clear_on_build_start: true }
-  }
-}
-
-impl<T: Task> EventTracker<T> {
-  #[inline]
-  pub fn new(clear_on_build_start: bool) -> Self {
-    Self {
-      clear_on_build_start,
-      ..Self::default()
-    }
-  }
-
-
-  /// Returns an iterator over all events.
-  #[inline]
-  pub fn iter(&self) -> impl Iterator<Item=&Event<T>> { self.events.iter() }
-
-  /// Returns `true` if `predicate` returns `true` for any event.
-  #[inline]
-  pub fn any(&self, predicate: impl FnMut(&Event<T>) -> bool) -> bool { self.iter().any(predicate) }
-  /// Returns the number of times `predicate` returns `true` for one event.
-  #[inline]
-  pub fn count(&self, predicate: impl FnMut(&&Event<T>) -> bool) -> usize { self.iter().filter(predicate).count() }
-  /// Returns `true` if `predicate` returns `true` for one event.
-  #[inline]
-  pub fn one(&self, predicate: impl FnMut(&&Event<T>) -> bool) -> bool { self.count(predicate) == 1 }
-
-  /// Returns `Some(index)` for the first event where `predicate` returns `true`, or `None` otherwise.
-  #[inline]
-  pub fn index(&self, predicate: impl FnMut(&Event<T>) -> bool) -> Option<usize> {
-    self.iter().position(predicate)
-  }
-  /// Returns the event at given `index`, or `None` if `index` is out of bounds.
-  #[inline]
-  pub fn get(&self, index: usize) -> Option<&Event<T>> {
-    self.events.get(index)
-  }
-  /// Returns the event at given `offset` from the end, or `None` if `offset` is out of bounds.
-  #[inline]
-  pub fn get_from_end(&self, offset: usize) -> Option<&Event<T>> {
-    self.get(self.events.len() - 1 - offset)
-  }
-
-  /// Returns `Some(v)` for the first event where `f` returns `Some(v)`, or `None` otherwise.
-  #[inline]
-  pub fn find<R>(&self, f: impl FnMut(&Event<T>) -> Option<&R>) -> Option<&R> { self.iter().find_map(f) }
-
-
-  #[inline]
-  pub fn find_require_file(&self, path: &PathBuf) -> Option<&FileStamp> {
-    self.find(|e| e.match_require_file(path))
-  }
-
-
-  #[inline]
-  pub fn any_execute(&self) -> bool { self.any(|e| e.is_execute()) }
-  #[inline]
-  pub fn any_execute_of(&self, task: &T) -> bool { self.any(|e| e.is_execute_of(task)) }
-  #[inline]
-  pub fn index_execute_start(&self, task: &T) -> Option<usize> {
-    self.index(|e| e.is_execute_start_of(task))
-  }
-  #[inline]
-  pub fn index_execute_end(&self, task: &T) -> Option<usize> {
-    self.index(|e| e.is_execute_end_of(task))
-  }
-  #[inline]
-  pub fn find_execute_end(&self, task: &T) -> Option<&T::Output> {
-    self.find(|e| e.match_execute_end(task))
-  }
-
-
-  #[inline]
-  pub fn take(&mut self) -> Vec<Event<T>> { std::mem::take(&mut self.events) }
-  #[inline]
-  pub fn clear(&mut self) { self.events.clear(); }
 }
 
 impl<T: Task> Tracker<T> for EventTracker<T> {
@@ -210,13 +195,11 @@ impl<T: Task> Tracker<T> for EventTracker<T> {
     }
   }
   #[inline]
-  fn update_affected_by_end(&mut self) {}
-  #[inline]
   fn schedule_affected_by_file_start(&mut self, _file: &PathBuf) {}
   #[inline]
-  fn check_affected_by_file_end(&mut self, _requiring_task: &T, _dependency: &FileDependency, _inconsistent: Result<Option<&FileStamp>, &io::Error>) {}
-  #[inline]
   fn check_affected_by_file_start(&mut self, _requiring_task: &T, _dependency: &FileDependency) {}
+  #[inline]
+  fn check_affected_by_file_end(&mut self, _requiring_task: &T, _dependency: &FileDependency, _inconsistent: Result<Option<&FileStamp>, &io::Error>) {}
   #[inline]
   fn schedule_affected_by_file_end(&mut self, _file: &PathBuf) {}
   #[inline]
@@ -229,4 +212,6 @@ impl<T: Task> Tracker<T> for EventTracker<T> {
   fn schedule_affected_by_task_end(&mut self, _task: &T) {}
   #[inline]
   fn schedule_task(&mut self, _task: &T) {}
+  #[inline]
+  fn update_affected_by_end(&mut self) {}
 }

@@ -16,7 +16,7 @@ pub fn top_down_vs_bottom_up_scalability(c: &mut Criterion) {
     let mut paths = Vec::with_capacity(size);
     for i in 0..size {
       let path = temp_dir.path().join(format!("in{}.txt", i));
-      tasks.push(CommonTask::file_exists(path.clone()));
+      tasks.push(CommonTask::file_exists(&path));
       paths.push(path);
     }
     (CommonTask::sequence(tasks), paths)

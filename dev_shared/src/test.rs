@@ -73,11 +73,11 @@ pub trait TestPieExt<T: Task, H: BuildHasher + Default> {
       assert!(!t.any_execute_of(task), "expected no execution of task {:?}, but it was executed", task),
     )
   }
-  /// Require `task` in a new session, then assert that it is executed.
+  /// Require `task` in a new session, then assert that it is executed exactly once.
   #[inline]
   fn require_then_assert_one_execute(&mut self, task: &T) -> T::Output {
     self.require_then_assert(task, |t|
-      assert!(t.any_execute_of(task), "expected execution of task {:?}, but it was not executed", task),
+      assert!(t.one_execute_of(task), "expected one execution of task {:?}, but it was not executed, or was executed more than once", task),
     )
   }
 

@@ -36,26 +36,6 @@ impl ReadStringFromFile {
   }
 }
 
-// Read indirect string from file task
-
-#[derive(Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Serialize, Deserialize, Debug)]
-pub struct ReadIndirectStringFromFile(pub PathBuf, pub FileStamper);
-
-impl ReadIndirectStringFromFile {
-  fn execute<T: Task, C: Context<T>>(&self, context: &mut C) -> Result<String, F> {
-    let mut string = String::new();
-    if let Some(mut file) = context.require_file_with_stamper(&self.0, self.1).map_err(|_| F)? {
-      let mut indirect_path = String::new();
-      file.read_to_string(&mut indirect_path).map_err(|_| F)?;
-      let indirect_path = PathBuf::from(indirect_path);
-      if let Some(mut file) = context.require_file_with_stamper(&indirect_path, self.1).map_err(|_| F)? {
-        file.read_to_string(&mut string).map_err(|_| F)?;
-      }
-    }
-    Ok(string)
-  }
-}
-
 // Write string to file task
 
 #[derive(Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Serialize, Deserialize, Debug)]
@@ -148,16 +128,12 @@ pub enum CommonTask {
   StringConstant(String),
   FileExists(FileExists),
   ReadStringFromFile(ReadStringFromFile),
-  ReadIndirectStringFromFile(ReadIndirectStringFromFile),
   WriteStringToFile(WriteStringToFile),
   ListDirectory(ListDirectory),
   ToLowerCase(ToLowerCase),
   ToUpperCase(ToUpperCase),
   RequireTaskOnFileExists(RequireTaskOnFileExists),
   Sequence(Sequence),
-  RequireSelf,
-  RequireCycleA,
-  RequireCycleB,
 }
 
 #[allow(clippy::wrong_self_convention)]
@@ -172,9 +148,6 @@ impl CommonTask {
   pub fn read_string_from_file(path: impl Into<PathBuf>, stamper: FileStamper) -> Self {
     Self::ReadStringFromFile(ReadStringFromFile(path.into(), stamper))
   }
-  pub fn read_indirect_string_from_file(path: impl Into<PathBuf>, stamper: FileStamper) -> Self {
-    Self::ReadIndirectStringFromFile(ReadIndirectStringFromFile(path.into(), stamper))
-  }
   pub fn write_string_to_file(string_provider: impl Into<Box<CommonTask>>, path: impl Into<PathBuf>, stamper: FileStamper) -> Self {
     Self::WriteStringToFile(WriteStringToFile(string_provider.into(), path.into(), stamper))
   }
@@ -187,9 +160,6 @@ impl CommonTask {
   pub fn to_lower_case(string_provider: impl Into<Box<CommonTask>>) -> Self {
     Self::ToLowerCase(ToLowerCase(string_provider.into()))
   }
-  pub fn to_lower_case_constant(string: impl Into<String>) -> Self {
-    Self::ToLowerCase(ToLowerCase(Box::new(Self::string_constant(string))))
-  }
   pub fn to_upper_case(string_provider: impl Into<Box<CommonTask>>) -> Self {
     Self::ToUpperCase(ToUpperCase(string_provider.into()))
   }
@@ -199,16 +169,6 @@ impl CommonTask {
   pub fn sequence(tasks: impl Into<Vec<CommonTask>>) -> Self {
     let tasks: Vec<Box<CommonTask>> = tasks.into().into_iter().map(|t| Box::new(t)).collect();
     Self::Sequence(Sequence(tasks))
-  }
-
-  pub fn require_self() -> Self {
-    Self::RequireSelf
-  }
-  pub fn require_cycle_a() -> Self {
-    Self::RequireCycleA
-  }
-  pub fn require_cycle_b() -> Self {
-    Self::RequireCycleB
   }
 }
 
@@ -220,18 +180,14 @@ impl Task for CommonTask {
     use CommonOutput::*;
     match self {
       StringConstant(s) => Ok(String(s.clone())),
-      FileExists(task) => task.execute(context).map(|b| Bool(b)),
-      ReadStringFromFile(task) => task.execute(context).map(|s| String(s)),
-      ReadIndirectStringFromFile(task) => task.execute(context).map(|s| String(s)),
-      WriteStringToFile(task) => task.execute(context).map(|_| Unit),
-      ListDirectory(task) => task.execute(context).map(|s| String(s)),
-      ToLowerCase(task) => task.execute(context).map(|s| String(s)),
-      ToUpperCase(task) => task.execute(context).map(|s| String(s)),
-      RequireTaskOnFileExists(task) => task.execute(context).map(|_| Unit),
-      Sequence(task) => task.execute(context).map(|_| Unit),
-      RequireSelf => context.require_task(&RequireSelf),
-      RequireCycleA => context.require_task(&RequireCycleB),
-      RequireCycleB => context.require_task(&RequireCycleA),
+      FileExists(task) => task.execute(context).map(Into::into),
+      ReadStringFromFile(task) => task.execute(context).map(Into::into),
+      WriteStringToFile(task) => task.execute(context).map(Into::into),
+      ListDirectory(task) => task.execute(context).map(Into::into),
+      ToLowerCase(task) => task.execute(context).map(Into::into),
+      ToUpperCase(task) => task.execute(context).map(Into::into),
+      RequireTaskOnFileExists(task) => task.execute(context).map(Into::into),
+      Sequence(task) => task.execute(context).map(Into::into),
     }
   }
 }
@@ -249,20 +205,12 @@ pub enum CommonOutput {
 #[allow(dead_code)]
 impl CommonOutput {
   #[inline]
-  pub fn new_string(string: impl Into<String>) -> Self { Self::String(string.into()) }
-  #[inline]
-  pub const fn new_bool(bool: bool) -> Self { Self::Bool(bool) }
-  #[inline]
-  pub const fn new_unit() -> Self { Self::Unit }
-
-  #[inline]
   pub fn as_str(&self) -> &str {
     match self {
       CommonOutput::String(s) => &s,
       o => panic!("Output {:?} does not contain a string", o),
     }
   }
-
   #[inline]
   pub fn into_string(self) -> String {
     match self {
@@ -285,11 +233,6 @@ impl From<bool> for CommonOutput {
 impl From<()> for CommonOutput {
   #[inline]
   fn from(_: ()) -> Self { Self::Unit }
-}
-
-impl AsRef<str> for CommonOutput {
-  #[inline]
-  fn as_ref(&self) -> &str { self.as_str() }
 }
 
 

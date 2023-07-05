@@ -31,7 +31,7 @@ fn test_directly_affected_task(mut pie: TestPie<CommonTask>, temp_dir: TempDir) 
   // Change the file that the task requires, directly affecting it.
   write_until_modified(&path, "hello world!")?;
   pie.update_affected_by_then_assert([&path], |tracker| {
-    assert_matches!(tracker.find_execute_end(&task), Some(Ok(output)) => {
+    assert_matches!(tracker.index_find_execute_end(&task), Some((_, Ok(output))) => {
       assert_eq!(output.as_str(), "hello world!");  
     });
   });
@@ -56,15 +56,15 @@ fn test_indirectly_affected_tasks(mut pie: TestPie<CommonTask>, temp_dir: TempDi
   write_until_modified(&path, "HELLO WORLD!!")?;
   pie.update_affected_by_then_assert([&path], |tracker| {
     // ReadStringFromFile
-    assert_matches!(tracker.find_execute_end(&read_task), Some(Ok(output)) => {
-      assert_eq!(output.as_str(), "HELLO WORLD!!");  
+    let read_task_end = assert_matches!(tracker.index_find_execute_end(&read_task), Some((i, Ok(output))) => {
+      assert_eq!(output.as_str(), "HELLO WORLD!!");
+      i
     });
-    let read_task_end = assert_matches!(tracker.index_execute_end(&read_task), Some(p) => p);
     // ToLowerCase
-    assert_matches!(tracker.find_execute_end(&to_lowercase_task), Some(Ok(output)) => {
-      assert_eq!(output.as_str(), "hello world!!");  
+    let to_lowercase_task_end = assert_matches!(tracker.index_find_execute_end(&to_lowercase_task), Some((i, Ok(output))) => {
+      assert_eq!(output.as_str(), "hello world!!");
+      i
     });
-    let to_lowercase_task_end = assert_matches!(tracker.index_execute_end(&to_lowercase_task), Some(p) => p);
     assert!(to_lowercase_task_end > read_task_end);
   });
 
@@ -89,15 +89,15 @@ fn test_indirectly_affected_tasks_early_cutoff(mut pie: TestPie<CommonTask>, tem
   write_until_modified(&read_path, "hello world!")?;
   pie.update_affected_by_then_assert([&read_path], |tracker| {
     // ReadStringFromFile
-    assert_matches!(tracker.find_execute_end(&read_task), Some(Ok(output)) => {
-      assert_eq!(output.as_str(), "hello world!");  
+    let read_task_end = assert_matches!(tracker.index_find_execute_end(&read_task), Some((i, Ok(output))) => {
+      assert_eq!(output.as_str(), "hello world!");
+      i
     });
-    let read_task_end = assert_matches!(tracker.index_execute_end(&read_task), Some(p) => p);
     // ToLowerCase
-    assert_matches!(tracker.find_execute_end(&to_lowercase_task), Some(Ok(output)) => {
-      assert_eq!(output.as_str(), "hello world!");  
+    let to_lowercase_task_end = assert_matches!(tracker.index_find_execute_end(&to_lowercase_task), Some((i, Ok(output))) => {
+      assert_eq!(output.as_str(), "hello world!");
+      i
     });
-    let to_lowercase_task_end = assert_matches!(tracker.index_execute_end(&to_lowercase_task), Some(p) => p);
     assert!(to_lowercase_task_end > read_task_end);
     // WriteStringToFile
     assert!(!tracker.any_execute_of(&write_task));
@@ -130,23 +130,23 @@ fn test_indirectly_affected_multiple_tasks(mut pie: TestPie<CommonTask>, temp_di
   write_until_modified(&read_path, "hello world!")?;
   pie.update_affected_by_then_assert([&read_path], |tracker| {
     // ReadStringFromFile
-    assert_matches!(tracker.find_execute_end(&read_task), Some(Ok(output)) => {
-      assert_eq!(output.as_str(), "hello world!");  
+    let read_task_end = assert_matches!(tracker.index_find_execute_end(&read_task), Some((i, Ok(output))) => {
+      assert_eq!(output.as_str(), "hello world!");
+      i
     });
-    let read_task_end = assert_matches!(tracker.index_execute_end(&read_task), Some(p) => p);
     // ToLowerCase
-    assert_matches!(tracker.find_execute_end(&to_lowercase_task), Some(Ok(output)) => {
-      assert_eq!(output.as_str(), "hello world!");  
+    let to_lowercase_task_end = assert_matches!(tracker.index_find_execute_end(&to_lowercase_task), Some((i, Ok(output))) => {
+      assert_eq!(output.as_str(), "hello world!");
+      i
     });
-    let to_lowercase_task_end = assert_matches!(tracker.index_execute_end(&to_lowercase_task), Some(p) => p);
     assert!(to_lowercase_task_end > read_task_end);
     // WriteStringToFile(ToLowerCase)
     assert!(!tracker.any_execute_of(&write_lowercase_task));
     // ToUpperCase
-    assert_matches!(tracker.find_execute_end(&to_uppercase_task), Some(Ok(output)) => {
-      assert_eq!(output.as_str(), "HELLO WORLD!");  
+    let to_uppercase_task_end = assert_matches!(tracker.index_find_execute_end(&to_uppercase_task), Some((i, Ok(output))) => {
+      assert_eq!(output.as_str(), "HELLO WORLD!");
+      i
     });
-    let to_uppercase_task_end = assert_matches!(tracker.index_execute_end(&to_uppercase_task), Some(p) => p);
     assert!(to_uppercase_task_end > read_task_end);
     // WriteStringToFile(ToUpperCase)
     assert!(!tracker.any_execute_of(&write_uppercase_task));
@@ -156,27 +156,27 @@ fn test_indirectly_affected_multiple_tasks(mut pie: TestPie<CommonTask>, temp_di
   write_until_modified(&read_path, "hello world!!")?;
   pie.update_affected_by_then_assert([&read_path], |tracker| {
     // ReadStringFromFile
-    assert_matches!(tracker.find_execute_end(&read_task), Some(Ok(output)) => {
-      assert_eq!(output.as_str(), "hello world!!");  
+    let read_task_end = assert_matches!(tracker.index_find_execute_end(&read_task), Some((i, Ok(output))) => {
+      assert_eq!(output.as_str(), "hello world!!");
+      i
     });
-    let read_task_end = assert_matches!(tracker.index_execute_end(&read_task), Some(p) => p);
     // ToLowerCase
-    assert_matches!(tracker.find_execute_end(&to_lowercase_task), Some(Ok(output)) => {
-      assert_eq!(output.as_str(), "hello world!!");  
+    let to_lowercase_task_end = assert_matches!(tracker.index_find_execute_end(&to_lowercase_task), Some((i, Ok(output))) => {
+      assert_eq!(output.as_str(), "hello world!!");
+      i
     });
-    let to_lowercase_task_end = assert_matches!(tracker.index_execute_end(&to_lowercase_task), Some(p) => p);
     assert!(to_lowercase_task_end > read_task_end);
     // WriteStringToFile(ToLowerCase)
-    let write_lowercase_task_end = assert_matches!(tracker.index_execute_end(&write_lowercase_task), Some(p) => p);
+    let write_lowercase_task_end = assert_matches!(tracker.index_execute_end(&write_lowercase_task), Some(i) => i);
     assert!(write_lowercase_task_end > to_lowercase_task_end);
     // ToUpperCase
-    assert_matches!(tracker.find_execute_end(&to_uppercase_task), Some(Ok(output)) => {
-      assert_eq!(output.as_str(), "HELLO WORLD!!");  
+    let to_uppercase_task_end = assert_matches!(tracker.index_find_execute_end(&to_uppercase_task), Some((i, Ok(output))) => {
+      assert_eq!(output.as_str(), "HELLO WORLD!!");
+      i
     });
-    let to_uppercase_task_end = assert_matches!(tracker.index_execute_end(&to_uppercase_task), Some(p) => p);
     assert!(to_uppercase_task_end > read_task_end);
     // WriteStringToFile(ToUpperCase)
-    let write_uppercase_task_end = assert_matches!(tracker.index_execute_end(&write_uppercase_task), Some(p) => p);
+    let write_uppercase_task_end = assert_matches!(tracker.index_execute_end(&write_uppercase_task), Some(i) => i);
     assert!(write_uppercase_task_end > to_uppercase_task_end);
   });
   assert_eq!(read_to_string(&write_lower_path)?.as_str(), "hello world!!");
@@ -205,8 +205,8 @@ fn test_require_now(mut pie: TestPie<CommonTask>, temp_dir: TempDir) -> Result<(
   // Change the file that ReadStringFromFile reads, which `to_lower_task` depends on, thus `to_lower_task` is affected and should be executed.
   write_until_modified(&read_path, "hello world!!")?;
   pie.update_affected_by_then_assert(&[read_path, marker_path], |tracker| {
-    let task_end = assert_matches!(tracker.index_execute_end(&task), Some(p) => p);
-    let to_lower_task_end = assert_matches!(tracker.index_execute_end(&to_lower_task), Some(p) => p);
+    let task_end = assert_matches!(tracker.index_execute_end(&task), Some(i) => i);
+    let to_lower_task_end = assert_matches!(tracker.index_execute_end(&to_lower_task), Some(i) => i);
     assert!(task_end > to_lower_task_end); // Ensure that `to_lower_task` finishes execution before `task`.
   });
 

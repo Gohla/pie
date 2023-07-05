@@ -5,6 +5,7 @@ use assert_matches::assert_matches;
 use rstest::rstest;
 use tempfile::TempDir;
 
+use ::pie::{Context, Task};
 use ::pie::stamp::FileStamper;
 use ::pie::tracker::event::Event::*;
 use dev_shared::fs::write_until_modified;
@@ -15,15 +16,10 @@ use dev_shared::test::{pie, temp_dir, TestPie, TestPieExt};
 fn test_exec(mut pie: TestPie<CommonTask>) -> Result<(), Box<dyn Error>> {
   let task = CommonTask::string_constant("string");
   let output = pie.require_then_assert(&task, |tracker| {
-    assert_matches!(tracker.get_from_end(0), Some(ExecuteTaskEnd(t, _)) => {
-      assert_eq!(t, &task);
-    });
-    assert_matches!(tracker.get_from_end(1), Some(ExecuteTaskStart(t)) => {
-      assert_eq!(t, &task);
-    });
-    assert_matches!(tracker.get_from_end(2), Some(RequireTask(t)) => {
-      assert_eq!(t, &task);
-    });
+    let events = tracker.slice();
+    assert_matches!(events.get(0), Some(RequireTask(t)) if t == &task);
+    assert_matches!(events.get(1), Some(ExecuteTaskStart(t)) if t == &task);
+    assert_matches!(events.get(2), Some(ExecuteTaskEnd(t, _)) if t == &task);
   })?;
   assert_eq!(output.as_str(), "string");
   Ok(())
@@ -32,24 +28,11 @@ fn test_exec(mut pie: TestPie<CommonTask>) -> Result<(), Box<dyn Error>> {
 #[rstest]
 fn test_reuse(mut pie: TestPie<CommonTask>) -> Result<(), Box<dyn Error>> {
   let task = CommonTask::string_constant("string");
-
   // New task: execute.
-  let output = pie.require_then_assert(&task, |tracker| {
-    assert_matches!(tracker.get_from_end(0), Some(ExecuteTaskEnd(t, _)) => {
-      assert_eq!(t, &task);
-    });
-    assert_matches!(tracker.get_from_end(1), Some(ExecuteTaskStart(t)) => {
-      assert_eq!(t, &task);
-    });
-    assert_matches!(tracker.get_from_end(2), Some(RequireTask(t)) => {
-      assert_eq!(t, &task);
-    });
-  })?;
+  let output = pie.require(&task)?;
   assert_eq!(output.as_str(), "string");
-
   // Nothing changed: no execute
   pie.require_then_assert_no_execute(&task)?;
-
   Ok(())
 }
 
@@ -63,19 +46,13 @@ fn test_require_task(mut pie: TestPie<CommonTask>, temp_dir: TempDir) -> Result<
 
   // Require task and observe that the tasks are executed in dependency order.
   let output = pie.require_then_assert(&task, |tracker| {
-    let task_start = tracker.index_execute_start(&task);
-    assert_matches!(task_start, Some(_));
-    let task_end = tracker.index_execute_end(&task);
-    assert_matches!(task_end, Some(_));
-    assert!(task_start < task_end);
-
-    let read_task_start = tracker.index_execute_start(&read_task);
-    assert_matches!(read_task_start, Some(_));
-    let read_task_end = tracker.index_execute_end(&read_task);
-    assert_matches!(read_task_end, Some(_));
+    let task_start = assert_matches!(tracker.index_execute_start(&task), Some(i) => i);
+    let read_task_start = assert_matches!(tracker.index_execute_start(&read_task), Some(i) => i);
+    let read_task_end = assert_matches!(tracker.index_execute_end(&read_task), Some(i) => i);
+    assert!(read_task_end > read_task_start);
     assert!(read_task_start > task_start);
-    assert!(read_task_start > task_start);
-
+    let task_end = assert_matches!(tracker.index_execute_end(&task), Some(i) => i);
+    assert!(task_end > task_start);
     assert!(task_end > read_task_end);
   })?;
   assert_eq!(output.as_str(), "hello world!");
@@ -89,15 +66,11 @@ fn test_require_task(mut pie: TestPie<CommonTask>, temp_dir: TempDir) -> Result<
 
   // Require task and observe that all tasks are re-executed in reverse dependency order.
   let output = pie.require_then_assert(&task, |tracker| {
-    let read_task_start = tracker.index_execute_start(&read_task);
-    assert_matches!(read_task_start, Some(_));
-    let read_task_end = tracker.index_execute_end(&read_task);
-    assert_matches!(read_task_end, Some(_));
-
-    let task_start = tracker.index_execute_start(&task);
-    assert_matches!(task_start, Some(_));
-    let task_end = tracker.index_execute_end(&task);
-    assert_matches!(task_end, Some(_));
+    let read_task_start = assert_matches!(tracker.index_execute_start(&read_task), Some(i) => i);
+    let read_task_end = assert_matches!(tracker.index_execute_end(&read_task), Some(i) => i);
+    let task_start = assert_matches!(tracker.index_execute_start(&task), Some(i) => i);
+    let task_end = assert_matches!(tracker.index_execute_end(&task), Some(i) => i);
+    assert!(task_start > read_task_start);
     assert!(task_end > read_task_end);
   })?;
   assert_eq!(output.as_str(), "!dlrow olleh");
@@ -153,18 +126,48 @@ fn test_provide_file(mut pie: TestPie<CommonTask>, temp_dir: TempDir) -> Result<
   Ok(())
 }
 
-#[rstest]
-#[should_panic(expected = "Cyclic task dependency")]
-fn require_self_cycle_panics(mut pie: TestPie<CommonTask>) {
-  pie.require(&CommonTask::require_self()).unwrap();
+
+// Cycle detection tests.
+
+#[derive(Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Debug)]
+enum Cycle {
+  RequireSelf,
+  RequireA,
+  RequireB,
+}
+
+impl Task for Cycle {
+  type Output = ();
+
+  fn execute<C: Context<Self>>(&self, context: &mut C) -> Self::Output {
+    match self {
+      Self::RequireSelf => context.require_task(&Self::RequireSelf),
+      Self::RequireA => context.require_task(&Self::RequireB),
+      Self::RequireB => context.require_task(&Self::RequireA),
+    }
+  }
 }
 
 #[rstest]
 #[should_panic(expected = "Cyclic task dependency")]
-fn require_cycle_panics(mut pie: TestPie<CommonTask>) {
-  pie.require(&CommonTask::require_cycle_a()).unwrap();
+fn require_self_panics(mut pie: TestPie<Cycle>) {
+  pie.require(&Cycle::RequireSelf);
 }
 
+#[rstest]
+#[should_panic(expected = "Cyclic task dependency")]
+fn require_cycle_a_panics(mut pie: TestPie<Cycle>) {
+  pie.require(&Cycle::RequireA);
+}
+
+#[rstest]
+#[should_panic(expected = "Cyclic task dependency")]
+fn require_cycle_b_panics(mut pie: TestPie<Cycle>) {
+  pie.require(&Cycle::RequireB);
+}
+
+
+// Overlapping and hidden dependency detection tests.
 
 #[rstest]
 #[should_panic(expected = "Overlapping provided file")]
