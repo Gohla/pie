@@ -280,7 +280,7 @@ The <code>r?</code> operator applied to a <code>Result</code> <code>r</code> doe
 Furthermore, we will be writing more unit tests, integration tests, and even benchmarks in this tutorial, so we will set up these utilities in such a way that they are reachable by all these use cases.
 The only way to do that in Rust right now, is to create a separate crate and have the <code>pie</code> crate depend on it.</p>
 <p>And yes, we went from adding file dependencies, to creating file system utilities, to testing those file system utilities, to creating testing utilities, and now to making a crate for those testing utilities.
-We will start unwinding this stack soon!</p>
+Sorry about that 😅, we will start unwinding this stack soon!</p>
 <p>Next to the <code>pie</code> directory, create a directory named <code>dev_shared</code>.
 Create the <code>dev_shared/Cargo.toml</code> file with the following contents:</p>
 <pre><code class="language-toml ">[package]
