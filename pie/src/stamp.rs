@@ -160,35 +160,48 @@ impl<O> OutputStamp<O> {
 
 #[cfg(test)]
 mod test {
-  use std::fs;
+  use std::error::Error;
+  use std::fs::remove_file;
 
-  use dev_shared::{create_temp_file, write_until_modified};
+  use dev_shared::{create_temp_file, wait_until_modified_time_changes, write_until_modified};
 
   use super::*;
 
   #[test]
-  fn test_exists_file_stamper() {
+  fn test_exists_file_stamper() -> Result<(), Box<dyn Error>> {
     let stamper = FileStamper::Exists;
-    let temp_file = create_temp_file();
-    let stamp = stamper.stamp(&temp_file).expect("failed to stamp");
-    assert_eq!(stamp, stamper.stamp(&temp_file).expect("failed to stamp"));
+    let temp_file = create_temp_file()?;
+    let stamp = stamper.stamp(&temp_file)?;
+    assert_eq!(stamp, stamper.stamp(&temp_file)?);
 
-    fs::remove_file(&temp_file).expect("failed to delete temporary file");
-    assert_ne!(stamp, stamper.stamp(&temp_file).expect("failed to stamp"));
+    remove_file(&temp_file)?;
+    assert_ne!(stamp, stamper.stamp(&temp_file)?);
+
+    Ok(())
   }
 
   #[test]
-  fn test_modified_file_stamper() {
+  fn test_modified_file_stamper() -> Result<(), Box<dyn Error>> {
     let stamper = FileStamper::Modified;
-    let temp_file = create_temp_file();
-    let stamp = stamper.stamp(&temp_file).expect("failed to stamp");
-    assert_eq!(stamp, stamper.stamp(&temp_file).expect("failed to stamp"));
+    let temp_file = create_temp_file()?;
+    let stamp = stamper.stamp(&temp_file)?;
+    assert_eq!(stamp, stamper.stamp(&temp_file)?);
 
-    write_until_modified(&temp_file, format!("{:?}", stamp)).expect("failed to write to temporary file");
-    assert_ne!(stamp, stamper.stamp(&temp_file).expect("failed to stamp"), "modified stamp is equal after modifying file");
+    // Write until file modified time changes. Required on some OSs due to imprecise modified timer causing the modified 
+    // stamp to be the same after fast consecutive writes.
+    write_until_modified(&temp_file, format!("{:?}", stamp))?;
+    let new_stamp = stamper.stamp(&temp_file)?;
+    assert_ne!(stamp, new_stamp);
+    let stamp = new_stamp;
 
-    fs::remove_file(&temp_file).expect("failed to delete temporary file");
-    assert_ne!(stamp, stamper.stamp(&temp_file).expect("failed to stamp"), "modified stamp is equal after removing file");
+    // We want to test that removing a file changes the stamp, so we don't want to write to `temp_file` as that will 
+    // change its modified stamp (this is pedantic, but it's important to test the right thing). Therefore, we use a 
+    // different method here that waits until the OS modified timer changes by writing to an unrelated file.
+    wait_until_modified_time_changes()?;
+    remove_file(&temp_file)?;
+    assert_ne!(stamp, stamper.stamp(&temp_file)?);
+
+    Ok(())
   }
 
   #[test]

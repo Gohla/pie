@@ -294,7 +294,7 @@ mod test {
 
   /// Task that returns its owned string. Never executed, just used for testing the store.
   #[derive(Clone, PartialEq, Eq, Hash, Debug)]
-  pub struct StringConstant(String);
+  struct StringConstant(String);
 
   impl StringConstant {
     pub fn new(string: impl Into<String>) -> Self { Self(string.into()) }
@@ -468,7 +468,7 @@ mod test {
     let result = store.add_task_require_dependency(&node_a, &node_b, task_dependency_a2b);
     assert_eq!(result, Err(())); // Creates a cycle: error
   }
-  
+
   #[test]
   #[should_panic]
   fn test_get_dependencies_of_task_panics() {

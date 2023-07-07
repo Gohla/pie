@@ -1,4 +1,5 @@
 use std::fs::{metadata, write};
+use std::io;
 use std::path::Path;
 use std::time::SystemTime;
 
@@ -6,27 +7,23 @@ use tempfile::{NamedTempFile, TempDir};
 
 /// Creates a new temporary file that gets cleaned up when dropped.
 #[inline]
-pub fn create_temp_file() -> NamedTempFile {
-  NamedTempFile::new().expect("failed to create temporary file")
-}
+pub fn create_temp_file() -> Result<NamedTempFile, io::Error> { NamedTempFile::new() }
 
 /// Creates a new temporary directory that gets cleaned up when dropped.
 #[inline]
-pub fn create_temp_dir() -> TempDir {
-  TempDir::new().expect("failed to create temporary directory")
-}
+pub fn create_temp_dir() -> Result<TempDir, io::Error> { TempDir::new() }
 
 /// Keeps writing `contents` to file at `path` until it's last modified time changes, then returns the modified time.
 ///
 /// # Errors
 ///
 /// Returns an error when any file operation fails.
-pub fn write_until_modified(path: impl AsRef<Path>, contents: impl AsRef<[u8]>) -> Result<SystemTime, std::io::Error> {
+pub fn write_until_modified(path: impl AsRef<Path>, contents: impl AsRef<[u8]>) -> Result<SystemTime, io::Error> {
   let path = path.as_ref();
   let contents = contents.as_ref();
-  fn get_modified(path: impl AsRef<Path>) -> Result<SystemTime, std::io::Error> {
+  fn get_modified(path: impl AsRef<Path>) -> Result<SystemTime, io::Error> {
     let modified = match metadata(path) {
-      Err(e) if e.kind() == std::io::ErrorKind::NotFound => SystemTime::UNIX_EPOCH,
+      Err(e) if e.kind() == io::ErrorKind::NotFound => SystemTime::UNIX_EPOCH,
       Err(e) => Err(e)?,
       Ok(m) => m.modified()?
     };
@@ -48,8 +45,8 @@ pub fn write_until_modified(path: impl AsRef<Path>, contents: impl AsRef<[u8]>) 
 /// # Errors
 ///
 /// Returns an error when any file operation fails.
-pub fn wait_until_modified_time_changes() -> Result<SystemTime, std::io::Error> {
-  let file = create_temp_file();
+pub fn wait_until_modified_time_changes() -> Result<SystemTime, io::Error> {
+  let file = create_temp_file()?;
   write(&file, "123")?;
   write_until_modified(&file, "123")
 }
