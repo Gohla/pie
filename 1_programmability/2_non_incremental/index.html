@@ -252,9 +252,9 @@ in a reference to the task.
 It returns the output of the task, which we test with <code>assert_eq!</code>.</p>
 <p>Run the test by running <code>cargo test</code>.
 The output should look something like:</p>
-<pre><code class="language-shell ">   Compiling pie v0.1.0 (/private/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmppv22mf/pie)
+<pre><code class="language-shell ">   Compiling pie v0.1.0 (/private/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmpEcTQzE/pie)
     Finished test [unoptimized + debuginfo] target(s) in 0.37s
-     Running unittests src/lib.rs (/private/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmppv22mf/pie/target/debug/deps/pie-daca3a31898407a4)
+     Running unittests src/lib.rs (/private/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmpEcTQzE/pie/target/debug/deps/pie-daca3a31898407a4)
 
 running 1 test
 test context::non_incremental::test::test_require_task_direct ... ok
@@ -327,7 +327,7 @@ Add the following test:</p>
 <p>We use the same <code>ReturnHelloWorld</code> task as before, but now also have a <code>ToLowerCase</code> task which requires <code>ReturnHelloWorld</code> and then turn its string lowercase.
 However, due to the way we've set up the types between <code>Task</code> and <code>Context</code>, we will run into a problem.
 Running <code>cargo test</code>, you should get these errors:</p>
-<pre><code class="language-shell ">   Compiling pie v0.1.0 (/private/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmppv22mf/pie)
+<pre><code class="language-shell ">   Compiling pie v0.1.0 (/private/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmpEcTQzE/pie)
 error[E0308]: mismatched types
   --&gt; src/context/non_incremental.rs:48:30
    |
@@ -363,7 +363,7 @@ This doesn't work as <code>Context&lt;ToLowerCase&gt;::require_task</code> only 
 
      let mut context = NonIncrementalContext;</code></pre>
 <p>But that is not allowed:</p>
-<pre><code class="language-shell ">   Compiling pie v0.1.0 (/private/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmppv22mf/pie)
+<pre><code class="language-shell ">   Compiling pie v0.1.0 (/private/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmpEcTQzE/pie)
 error[E0276]: impl has stricter requirements than trait
   --&gt; src/context/non_incremental.rs:47:21
    |
