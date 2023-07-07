@@ -101,8 +101,8 @@ To access these utility functions in the `pie` crate, add a dependency to `dev_s
 ```
 
 We've also added the [assert_matches](https://crates.io/crates/assert_matches) crate, which is a handy library for asserting that a value matches a pattern.
-Note that these dependencies is added under `dev-dependencies`, indicating that this dependency is only available when running tests, benchmarks, and examples.
-Therefore, users of our library will not depend on these crates, which is good, because temporary file management and assertions are not necessary to users of our library.
+Note that these dependencies are added under `dev-dependencies`, indicating that these dependencies are only available when running tests, benchmarks, and examples.
+Therefore, users of our library will not depend on these crates, which is good, because temporary file management and assertions are not necessary to users of the library.
 
 Back to testing our filesystem utilities.
 Add the following tests to `pie/src/fs.rs`:
@@ -118,7 +118,7 @@ We use our `create_temp_file` and `create_temp_dir` utility functions to create 
 The `tempfile` library takes care of deleting temporary files when they go out of scope (at the end of the test).
 
 We use `assert_matches!` to assert that `metadata` is `Some(metadata)`, binding `metadata` in the ` => { ... }` block in which we assert that the metadata describes a file.
-We will use this macro more in future tests.
+We will use this macro more in future integration tests.
 
 ```admonish info title="Rust Help" collapsible=true
 Tests can [return `Result`](https://doc.rust-lang.org/book/ch11-01-writing-tests.html#using-resultt-e-in-tests).
