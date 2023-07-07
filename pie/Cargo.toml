@@ -13,6 +13,7 @@ walkdir = { version = "2", optional = true }
 
 [dev-dependencies]
 dev_shared = { path = "../dev_shared" }
+dev_shared_external = { path = "../dev_shared_external" }
 serde = "1"
 rstest = "0.18"
 tempfile = "3"

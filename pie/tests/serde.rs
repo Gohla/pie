@@ -7,8 +7,8 @@ use rstest::rstest;
 use tempfile::TempDir;
 
 use ::pie::stamp::FileStamper;
-use dev_shared::task::*;
-use dev_shared::test::{pie, temp_dir, TestPie, TestPieExt};
+use dev_shared_external::task::*;
+use dev_shared_external::test::{pie, temp_dir, TestPie, TestPieExt};
 
 #[rstest]
 fn test_serde_round_trip_one_task(mut pie: TestPie<CommonTask>, temp_dir: TempDir) -> Result<(), Box<dyn Error>> {

@@ -84,7 +84,7 @@ Therefore, we need to update the `Context` trait to allow passing in these stamp
 Change `Context` in `pie/src/lib.rs`:
 
 ```rust,customdiff
-{{#include ../../../gen/2_incrementality/2_stamp_context/a1_context.rs.diff:4:}}
+{{#include ../../../gen/2_incrementality/2_stamp/e_context_file.rs.diff:4:}}
 ```
 
 We add the `require_file_with_stamper` method which allow passing in a stamper.
@@ -94,13 +94,13 @@ The default is provided by `default_require_file_stamper` which can be overridde
 Now apply the same to tasks, changing `Context` again in `pie/src/lib.rs`:
 
 ```rust,customdiff
-{{#include ../../../gen/2_incrementality/2_stamp_context/a2_context.rs.diff:4:}}
+{{#include ../../../gen/2_incrementality/2_stamp/f_context_task.rs.diff:4:}}
 ```
 
 Update `NonIncrementalContext` in `src/context/non_incremental.rs` to implement the new methods:
 
 ```rust,customdiff
-{{#include ../../../gen/2_incrementality/2_stamp_context/b_non_incremental_context.rs.diff:4:}}
+{{#include ../../../gen/2_incrementality/2_stamp/g_non_incremental_context.rs.diff:4:}}
 ```
 
 We just ignore the stampers in `NonIncrementalContext`, as they are only needed for incrementality.

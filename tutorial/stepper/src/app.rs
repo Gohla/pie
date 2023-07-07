@@ -82,15 +82,13 @@ pub fn step_all(
         add("c_output.rs", "stamp.rs"),
         add("d_test.rs", "stamp.rs"),
       ]);
-    });
-    stepper.with_path("2_stamp_context", |stepper| {
       stepper.apply([
-        create_diff_builder("a1_context.rs", "lib.rs")
+        create_diff_builder("e_context_file.rs", "lib.rs")
           .context_length(20)
           .into_modification(),
-        create_diff_builder("a2_context.rs", "lib.rs")
+        create_diff_builder("f_context_task.rs", "lib.rs")
           .into_modification(),
-        create_diff("b_non_incremental_context.rs", "context/non_incremental.rs"),
+        create_diff("g_non_incremental_context.rs", "context/non_incremental.rs"),
       ]);
     });
     stepper.with_path("3_dependency", |stepper| {

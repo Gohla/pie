@@ -8,9 +8,9 @@ use tempfile::TempDir;
 use ::pie::{Context, Task};
 use ::pie::stamp::FileStamper;
 use ::pie::tracker::event::Event::*;
-use dev_shared::fs::write_until_modified;
-use dev_shared::task::*;
-use dev_shared::test::{pie, temp_dir, TestPie, TestPieExt};
+use dev_shared::write_until_modified;
+use dev_shared_external::task::*;
+use dev_shared_external::test::*;
 
 #[rstest]
 fn test_exec(mut pie: TestPie<CommonTask>) -> Result<(), Box<dyn Error>> {

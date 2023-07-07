@@ -33,7 +33,7 @@ pub fn open_if_file(path: impl AsRef<Path>) -> Result<Option<File>, io::Error> {
 mod test {
   use std::fs::remove_file;
 
-  use dev_shared::fs::{create_temp_dir, create_temp_file};
+  use dev_shared::{create_temp_dir, create_temp_file};
 
   use super::*;
 

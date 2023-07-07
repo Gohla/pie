@@ -6,9 +6,9 @@ use rstest::rstest;
 use tempfile::TempDir;
 
 use ::pie::stamp::FileStamper;
-use dev_shared::fs::write_until_modified;
-use dev_shared::task::*;
-use dev_shared::test::{pie, temp_dir, TestPie, TestPieExt};
+use dev_shared::write_until_modified;
+use dev_shared_external::task::*;
+use dev_shared_external::test::*;
 
 #[rstest]
 fn test_nothing_affected(mut pie: TestPie<CommonTask>) {

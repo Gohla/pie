@@ -162,7 +162,7 @@ impl<O> OutputStamp<O> {
 mod test {
   use std::fs;
 
-  use dev_shared::fs::{create_temp_file, write_until_modified};
+  use dev_shared::{create_temp_file, write_until_modified};
 
   use super::*;
 

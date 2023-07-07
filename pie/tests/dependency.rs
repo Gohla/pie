@@ -5,8 +5,8 @@ use rstest::rstest;
 use tempfile::TempDir;
 
 use ::pie::stamp::{FileStamp, FileStamper};
-use dev_shared::task::*;
-use dev_shared::test::{pie, temp_dir, TestPie, TestPieExt};
+use dev_shared_external::task::*;
+use dev_shared_external::test::{pie, temp_dir, TestPie, TestPieExt};
 
 #[rstest]
 fn test_dependencies_to_non_existent_file(mut pie: TestPie<CommonTask>, temp_dir: TempDir) -> Result<(), Box<dyn Error>> {

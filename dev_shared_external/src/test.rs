@@ -23,7 +23,7 @@ pub fn pie<T: Task>() -> TestPie<T> {
 #[fixture]
 #[inline]
 pub fn temp_dir() -> TempDir {
-  crate::fs::create_temp_dir()
+  dev_shared::create_temp_dir()
 }
 
 

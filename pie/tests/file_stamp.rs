@@ -5,9 +5,9 @@ use rstest::rstest;
 use tempfile::TempDir;
 
 use ::pie::stamp::FileStamper;
-use dev_shared::fs::{wait_until_modified_time_changes, write_until_modified};
-use dev_shared::task::*;
-use dev_shared::test::{pie, temp_dir, TestPie, TestPieExt};
+use dev_shared::{wait_until_modified_time_changes, write_until_modified};
+use dev_shared_external::task::*;
+use dev_shared_external::test::*;
 
 #[rstest]
 fn test_modified_stamp_on_file(mut pie: TestPie<CommonTask>, temp_dir: TempDir) -> Result<(), Box<dyn Error>> {

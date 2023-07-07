@@ -66,7 +66,7 @@ Furthermore, we will be writing more unit tests, integration tests, and even ben
 The only way to do that in Rust right now, is to create a separate crate and have the `pie` crate depend on it.
 
 And yes, we went from adding file dependencies, to creating file system utilities, to testing those file system utilities, to creating testing utilities, and now to making a crate for those testing utilities.
-We will start unwinding this stack soon!
+Sorry about that 😅, we will start unwinding this stack soon!
 
 Next to the `pie` directory, create a directory named `dev_shared`.
 Create the `dev_shared/Cargo.toml` file with the following contents:

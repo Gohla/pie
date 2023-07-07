@@ -3,13 +3,15 @@ cargo-features = ["named-profiles", "profile-overrides"]
 [workspace]
 members = [
   "pie",
-  "dev_shared",
   "graph",
+  "dev_shared",
+  "dev_shared_external",
 ]
 default-members = [
   "pie",
-  "dev_shared",
   "graph",
+  "dev_shared",
+  "dev_shared_external",
 ]
 resolver = "2"
 

@@ -284,7 +284,7 @@ mod test {
   use std::io::Read;
   use std::path::Path;
 
-  use dev_shared::fs::{create_temp_file, write_until_modified};
+  use dev_shared::{create_temp_file, write_until_modified};
 
   use crate::context::non_incremental::NonIncrementalContext;
 
