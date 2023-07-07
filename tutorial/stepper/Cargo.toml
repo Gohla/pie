@@ -8,6 +8,7 @@ publish = false
 tempfile = "3"
 duct = "0.13"
 diffy = "0.3"
+dunce = "1"
 termtree = "0.4"
 anyhow = "1"
 clap = { version = "4", features = ["derive"] }
