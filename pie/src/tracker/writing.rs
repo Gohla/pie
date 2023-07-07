@@ -64,9 +64,18 @@ impl<W: io::Write, T: Task> Tracker<T> for WritingTracker<W, T> {
     }
   }
   #[inline]
-  fn require_task(&mut self, task: &T) {
+  fn require_task_start(&mut self, task: &T) {
     if let Some(metrics) = &mut self.metrics_tracker {
-      metrics.require_task(task);
+      metrics.require_task_start(task);
+    }
+  }
+  #[inline]
+  fn require_task_end(&mut self, task: &T, output: &T::Output, was_executed: bool) {
+    if let Some(metrics) = &mut self.metrics_tracker {
+      metrics.require_task_end(task, output, was_executed);
+    }
+    if !was_executed {
+      self.writeln(format_args!("✓ {:?}", task))
     }
   }
 
@@ -82,13 +91,6 @@ impl<W: io::Write, T: Task> Tracker<T> for WritingTracker<W, T> {
   fn execute_task_end(&mut self, _task: &T, output: &T::Output) {
     self.unindent();
     self.writeln(format_args!("← {:?}", output));
-  }
-  #[inline]
-  fn up_to_date(&mut self, task: &T) {
-    if let Some(metrics) = &mut self.metrics_tracker {
-      metrics.up_to_date(task);
-    }
-    self.writeln(format_args!("✓ {:?}", task))
   }
 
   #[inline]

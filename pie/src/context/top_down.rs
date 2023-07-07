@@ -42,19 +42,19 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> Context<T> for To
   }
 
   fn require_task_with_stamper(&mut self, task: &T, stamper: OutputStamper) -> T::Output {
-    self.session.tracker.require_task(task);
+    self.session.tracker.require_task_start(task);
     let node = self.session.store.get_or_create_task_node(task);
 
     let dependency = TaskDependency::new_reserved(task.clone(), stamper);
     self.session.reserve_task_require_dependency(&node, task, dependency);
 
-    let output = if !self.session.visited.contains(&node) && self.should_execute_task(&node, task) { // Execute the task, cache and return up-to-date output.
+    let should_execute = !self.session.visited.contains(&node) && self.should_execute_task(&node, task);
+    let output = if should_execute { // Execute the task, cache and return up-to-date output.
       let previous_executing_task = self.session.pre_execute(node, task);
       let output = task.execute(self);
       self.session.post_execute(previous_executing_task, node, task, output.clone());
       output
     } else { // Return already up-to-date output.
-      self.session.tracker.up_to_date(task);
       // No panic: if we should not execute the task, it must have been executed before, and therefore it has an output.
       let output = self.session.store.get_task_output(&node).clone();
       output
@@ -63,6 +63,7 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> Context<T> for To
     self.session.update_reserved_task_require_dependency(&node, output.clone());
     self.session.visited.insert(node);
 
+    self.session.tracker.require_task_end(task, &output, should_execute);
     output
   }
 }

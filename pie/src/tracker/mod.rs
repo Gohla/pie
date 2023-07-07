@@ -10,15 +10,15 @@ pub mod writing;
 pub mod metrics;
 pub mod event;
 
-/// Trait for tracking build events. Can be used to implement logging, event tracing, and possibly progress tracking.
+/// Trait for tracking build events. Can be used to implement logging, event tracing, progress tracking, metrics, etc.
 pub trait Tracker<T: Task> {
   fn require_file(&mut self, dependency: &FileDependency);
   fn provide_file(&mut self, dependency: &FileDependency);
-  fn require_task(&mut self, task: &T);
-
+  fn require_task_start(&mut self, task: &T);
+  fn require_task_end(&mut self, task: &T, output: &T::Output, was_executed: bool);
+  
   fn execute_task_start(&mut self, task: &T);
   fn execute_task_end(&mut self, task: &T, output: &T::Output);
-  fn up_to_date(&mut self, task: &T);
 
   fn require_top_down_initial_start(&mut self, task: &T);
   fn check_top_down_start(&mut self, task: &T);
@@ -84,14 +84,14 @@ impl<T: Task> Tracker<T> for NoopTracker<T> {
   #[inline]
   fn provide_file(&mut self, _dependency: &FileDependency) {}
   #[inline]
-  fn require_task(&mut self, _task: &T) {}
-
+  fn require_task_start(&mut self, _task: &T) {}
+  #[inline]
+  fn require_task_end(&mut self, _task: &T, _output: &T::Output, _was_executed: bool) {}
+  
   #[inline]
   fn execute_task_start(&mut self, _task: &T) {}
   #[inline]
   fn execute_task_end(&mut self, _task: &T, _output: &T::Output) {}
-  #[inline]
-  fn up_to_date(&mut self, _task: &T) {}
 
   #[inline]
   fn require_top_down_initial_start(&mut self, _task: &T) {}
@@ -155,9 +155,9 @@ impl<T: Task, T1: Tracker<T>, T2: Tracker<T>> Tracker<T> for CompositeTracker<T1
     self.1.provide_file(dependency);
   }
   #[inline]
-  fn require_task(&mut self, task: &T) {
-    self.0.require_task(task);
-    self.1.require_task(task);
+  fn require_task_start(&mut self, task: &T) {
+    self.0.require_task_start(task);
+    self.1.require_task_start(task);
   }
 
   #[inline]
@@ -171,9 +171,9 @@ impl<T: Task, T1: Tracker<T>, T2: Tracker<T>> Tracker<T> for CompositeTracker<T1
     self.1.execute_task_end(task, output);
   }
   #[inline]
-  fn up_to_date(&mut self, task: &T) {
-    self.0.up_to_date(task);
-    self.1.up_to_date(task);
+  fn require_task_end(&mut self, task: &T, output: &T::Output, was_executed: bool) {
+    self.0.require_task_end(task, output, was_executed);
+    self.1.require_task_end(task, output, was_executed);
   }
 
   #[inline]

@@ -166,27 +166,27 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> BottomUpContext<'
     None
   }
 
-  /// Make given `task` consistent and return its output.
+  /// Make given `task` consistent and return its output and whether it was executed
   #[inline]
-  fn make_consistent(&mut self, task: &T, node: TaskNode) -> T::Output {
+  fn make_consistent(&mut self, task: &T, node: TaskNode) -> (T::Output, bool) {
     if self.session.visited.contains(&node) {
       // No panic: if we have already visited the task this session, it must have an output.
       let output = self.session.store.get_task_output(&node).clone();
-      return output;
+      return (output, false);
     }
 
     if !self.session.store.task_has_output(&node) {
       // Have not executed the task before, so we just execute it.
-      return self.execute(node, task);
+      let output = self.execute(node, task);
+      return (output, true);
     }
 
     // Task has an output, thus it has been executed before, therefore it has been scheduled if affected, or not 
     // scheduled if not affected.
-
     if let Some(output) = self.require_scheduled_now(&node) {
       // Task was scheduled. That is, it was either directly or indirectly affected. Therefore, it has been
       // executed, and we return the result of that execution.
-      output
+      (output, true)
     } else {
       // Task was not scheduled. That is, it was not directly affected by resource changes, and not indirectly
       // affected by other tasks. 
@@ -204,11 +204,9 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> BottomUpContext<'
       //    the task and all its (indirect) dependencies consistent.
       // 
       // All case cannot occur, thus the task cannot be affected. Therefore, we don't have to execute the task.
-      self.session.tracker.up_to_date(task);
-
       // No panic: we don't have to execute the task and an output exists.
       let output = self.session.store.get_task_output(&node).clone();
-      output
+      (output, false)
     }
   }
 }
@@ -225,17 +223,18 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> Context<T> for Bo
   }
 
   fn require_task_with_stamper(&mut self, task: &T, stamper: OutputStamper) -> T::Output {
-    self.session.tracker.require_task(task);
+    self.session.tracker.require_task_start(task);
     let node = self.session.store.get_or_create_task_node(task);
 
     let dependency = TaskDependency::new_reserved(task.clone(), stamper);
     self.session.reserve_task_require_dependency(&node, task, dependency);
 
-    let output = self.make_consistent(task, node);
+    let (output, was_executed) = self.make_consistent(task, node);
 
     self.session.update_reserved_task_require_dependency(&node, output.clone());
     self.session.visited.insert(node);
 
+    self.session.tracker.require_task_end(task, &output, was_executed);
     output
   }
 }

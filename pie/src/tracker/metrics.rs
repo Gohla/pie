@@ -39,7 +39,7 @@ pub struct Report {
   pub total_required_tasks: u32,
 
   pub total_executed_tasks: u32,
-  pub total_up_to_date_tasks: u32,
+  pub total_required_tasks_up_to_date: u32,
 
   pub build_duration: Duration,
 }
@@ -51,7 +51,7 @@ impl Report {
     self.total_required_tasks = 0;
 
     self.total_executed_tasks = 0;
-    self.total_up_to_date_tasks = 0;
+    self.total_required_tasks_up_to_date = 0;
 
     self.build_duration = Duration::default();
   }
@@ -67,8 +67,14 @@ impl<T: Task> Tracker<T> for MetricsTracker<T> {
     self.report.total_provided_files += 1;
   }
   #[inline]
-  fn require_task(&mut self, _task: &T) {
+  fn require_task_start(&mut self, _task: &T) {
     self.report.total_required_tasks += 1;
+  }
+  #[inline]
+  fn require_task_end(&mut self, _task: &T, _output: &T::Output, was_executed: bool) {
+    if !was_executed {
+      self.report.total_required_tasks_up_to_date += 1;
+    }
   }
 
   #[inline]
@@ -77,10 +83,6 @@ impl<T: Task> Tracker<T> for MetricsTracker<T> {
   }
   #[inline]
   fn execute_task_end(&mut self, _task: &T, _output: &T::Output) {}
-  #[inline]
-  fn up_to_date(&mut self, _task: &T) {
-    self.report.total_up_to_date_tasks += 1;
-  }
 
   #[inline]
   fn require_top_down_initial_start(&mut self, _task: &T) {

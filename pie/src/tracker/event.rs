@@ -14,14 +14,20 @@ pub struct EventTracker<T: Task> {
   clear_on_build_start: bool,
 }
 
+/// Enumeration representing important build events.
 #[derive(Debug, Clone)]
 pub enum Event<T: Task> {
-  RequireFile(FileDependency),
-  ProvideFile(FileDependency),
-  RequireTask(T),
+  /// A require file `dependency` was created.
+  RequireFile { dependency: FileDependency },
+  /// A provide file`dependency` was created.
+  ProvideFile { dependency: FileDependency },
+  /// A task `dependency` was required.
+  RequireTask { task: T },
 
-  ExecuteTaskStart(T),
-  ExecuteTaskEnd(T, T::Output),
+  /// Start of `task` execution.
+  ExecuteTaskStart { task: T },
+  /// End of `task` execution, which produced `output`.
+  ExecuteTaskEnd { task: T, output: T::Output },
 }
 
 impl<T: Task> Default for EventTracker<T> {
@@ -72,11 +78,14 @@ impl<T: Task> EventTracker<T> {
     self.iter().enumerate().find_map(|(i, e)| f(e).map(|o| (i, o)))
   }
 
+  /// Finds the first [`Event::RequireFile`] event that requires `path` and returns `Some(stamp)`, or `None` if no event
+  /// could be found.
   #[inline]
   pub fn find_require_file(&self, path: &PathBuf) -> Option<&FileStamp> {
     self.find(|e| e.match_require_file(path))
   }
 
+  /// Returns `true` if any task was executed.
   #[inline]
   pub fn any_execute(&self) -> bool { self.any(|e| e.is_execute()) }
   #[inline]
@@ -101,7 +110,7 @@ impl<T: Task> Event<T> {
   #[inline]
   pub fn match_require_file(&self, path: &PathBuf) -> Option<&FileStamp> {
     match self {
-      Event::RequireFile(d) if d.path() == path => Some(d.stamp()),
+      Event::RequireFile { dependency: d } if d.path() == path => Some(d.stamp()),
       _ => None,
     }
   }
@@ -109,30 +118,30 @@ impl<T: Task> Event<T> {
   #[inline]
   pub fn is_execute(&self) -> bool {
     match self {
-      Event::ExecuteTaskStart(_) => true,
-      Event::ExecuteTaskEnd(_, _) => true,
+      Event::ExecuteTaskStart { .. } => true,
+      Event::ExecuteTaskEnd { .. } => true,
       _ => false,
     }
   }
   #[inline]
   pub fn is_execute_of(&self, task: &T) -> bool {
     match self {
-      Event::ExecuteTaskStart(t) if t == task => true,
-      Event::ExecuteTaskEnd(t, _) if t == task => true,
+      Event::ExecuteTaskStart { task: t } if t == task => true,
+      Event::ExecuteTaskEnd { task: t, .. } if t == task => true,
       _ => false,
     }
   }
   #[inline]
   pub fn is_execute_start(&self, task: &T) -> bool {
     match self {
-      Event::ExecuteTaskStart(t) if t == task => true,
+      Event::ExecuteTaskStart { task: t } if t == task => true,
       _ => false,
     }
   }
   #[inline]
   pub fn match_execute_end(&self, task: &T) -> Option<&T::Output> {
     match self {
-      Event::ExecuteTaskEnd(t, o) if t == task => Some(o),
+      Event::ExecuteTaskEnd { task: t, output: o } if t == task => Some(o),
       _ => None,
     }
   }
@@ -141,27 +150,30 @@ impl<T: Task> Event<T> {
 impl<T: Task> Tracker<T> for EventTracker<T> {
   #[inline]
   fn require_file(&mut self, dependency: &FileDependency) {
-    self.events.push(Event::RequireFile(dependency.clone()));
+    self.events.push(Event::RequireFile { dependency: dependency.clone() });
   }
   #[inline]
   fn provide_file(&mut self, dependency: &FileDependency) {
-    self.events.push(Event::ProvideFile(dependency.clone()));
+    self.events.push(Event::ProvideFile { dependency: dependency.clone() });
   }
   #[inline]
-  fn require_task(&mut self, task: &T) {
-    self.events.push(Event::RequireTask(task.clone()));
+  fn require_task_start(&mut self, task: &T) {
+    self.events.push(Event::RequireTask { task: task.clone() });
   }
+  #[inline]
+  fn require_task_end(&mut self, _task: &T, _output: &T::Output, _was_executed: bool) {}
 
   #[inline]
   fn execute_task_start(&mut self, task: &T) {
-    self.events.push(Event::ExecuteTaskStart(task.clone()));
+    self.events.push(Event::ExecuteTaskStart { task: task.clone() });
   }
   #[inline]
   fn execute_task_end(&mut self, task: &T, output: &T::Output) {
-    self.events.push(Event::ExecuteTaskEnd(task.clone(), output.clone()));
+    self.events.push(Event::ExecuteTaskEnd {
+      task: task.clone(),
+      output: output.clone()
+    });
   }
-  #[inline]
-  fn up_to_date(&mut self, _task: &T) {}
 
   #[inline]
   fn require_top_down_initial_start(&mut self, _task: &T) {
