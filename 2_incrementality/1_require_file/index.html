@@ -303,17 +303,15 @@ Because basically every Rust library adheres to <a href="https://semver.org/" ti
 </div>
 </details>
 <p>Create the main library file <code>dev_shared/src/lib.rs</code>, with functions for creating temporary files and directories:</p>
-<pre><code class="language-rust ">use tempfile::{NamedTempFile, TempDir};
+<pre><code class="language-rust ">use std::io;
 
-// Filesystem utilities
+use tempfile::{NamedTempFile, TempDir};
 
-pub fn create_temp_file() -&gt; NamedTempFile {
-  NamedTempFile::new().expect(&quot;failed to create temporary file&quot;)
-}
+/// Creates a new temporary file that gets cleaned up when dropped.
+pub fn create_temp_file() -&gt; Result&lt;NamedTempFile, io::Error&gt; { NamedTempFile::new() }
 
-pub fn create_temp_dir() -&gt; TempDir {
-  TempDir::new().expect(&quot;failed to create temporary directory&quot;)
-}</code></pre>
+/// Creates a new temporary directory that gets cleaned up when dropped.
+pub fn create_temp_dir() -&gt; Result&lt;TempDir, io::Error&gt; { TempDir::new() }</code></pre>
 <p>Your directory structure should now look like this:</p>
 <pre><code>├── pie
 │   ├── Cargo.toml
@@ -330,7 +328,7 @@ pub fn create_temp_dir() -&gt; TempDir {
     └── src
         └── lib.rs
 </code></pre>
-<p>To access these utility functions in the <code>pie</code> crate, add a dependency to <code>dev_shared</code> in <code>pie/Cargo.toml</code>:</p>
+<p>To access these utility functions in the <code>pie</code> crate, add a dependency to <code>dev_shared</code> in <code>pie/Cargo.toml</code> along with another create that will help testing:</p>
 <pre><code class="language-toml customdiff "> [package]
  name = &quot;pie&quot;
  version = &quot;0.1.0&quot;
@@ -338,72 +336,85 @@ pub fn create_temp_dir() -&gt; TempDir {
 +
 +[dev-dependencies]
 +dev_shared = { path = &quot;../dev_shared&quot; }
++assert_matches = &quot;1&quot;
 </code></pre>
-<p>Note that this is dependency is added under <code>dev-dependencies</code>, indicating that this dependency is only available when running tests, benchmarks, and examples.
-Therefore, users of our library will not depend on this library, which is good, because temporary file management is not necessary to users of our library.</p>
+<p>We've also added the <a href="https://crates.io/crates/assert_matches" title="" target="_blank">assert_matches</a> crate, which is a handy library for asserting that a value matches a pattern.
+Note that these dependencies is added under <code>dev-dependencies</code>, indicating that this dependency is only available when running tests, benchmarks, and examples.
+Therefore, users of our library will not depend on these crates, which is good, because temporary file management and assertions are not necessary to users of our library.</p>
 <p>Back to testing our filesystem utilities.
 Add the following tests to <code>pie/src/fs.rs</code>:</p>
 <pre><code class="language-rust ">#[cfg(test)]
 mod test {
   use std::fs::remove_file;
+  use std::io;
+
+  use assert_matches::assert_matches;
 
   use dev_shared::{create_temp_dir, create_temp_file};
 
   use super::*;
 
   #[test]
-  fn test_metadata_ok() {
-    let temp_file = create_temp_file();
-    let metadata = metadata(temp_file);
-    assert!(metadata.is_ok());
-    let metadata = metadata.unwrap();
-    assert!(metadata.is_some());
-    let metadata = metadata.unwrap();
-    assert!(metadata.is_file());
+  fn test_metadata_ok() -&gt; Result&lt;(), io::Error&gt; {
+    let temp_file = create_temp_file()?;
+    let metadata = metadata(temp_file)?;
+    assert_matches!(metadata, Some(metadata) =&gt; {
+      assert!(metadata.is_file());  
+    });
+    Ok(())
   }
 
   #[test]
-  fn test_metadata_none() {
-    let temp_file = create_temp_file();
-    remove_file(&amp;temp_file).expect(&quot;failed to delete temporary file&quot;);
-    let metadata = metadata(&amp;temp_file);
-    assert!(metadata.is_ok());
-    let metadata = metadata.unwrap();
+  fn test_metadata_none() -&gt; Result&lt;(), io::Error&gt; {
+    let temp_file = create_temp_file()?;
+    remove_file(&amp;temp_file)?;
+    let metadata = metadata(&amp;temp_file)?;
     assert!(metadata.is_none());
+    Ok(())
   }
 
   #[test]
-  fn test_open_if_file() {
-    let temp_file = create_temp_file();
-    let file = open_if_file(&amp;temp_file);
-    assert!(file.is_ok());
-    let file = file.unwrap();
+  fn test_open_if_file() -&gt; Result&lt;(), io::Error&gt; {
+    let temp_file = create_temp_file()?;
+    let file = open_if_file(&amp;temp_file)?;
     assert!(file.is_some());
+    Ok(())
   }
 
   #[test]
-  fn test_open_if_file_non_existent() {
-    let temp_file = create_temp_file();
-    remove_file(&amp;temp_file).expect(&quot;failed to delete temporary file&quot;);
-    let file = open_if_file(&amp;temp_file);
-    assert!(file.is_ok());
-    let file = file.unwrap();
+  fn test_open_if_file_non_existent() -&gt; Result&lt;(), io::Error&gt; {
+    let temp_file = create_temp_file()?;
+    remove_file(&amp;temp_file)?;
+    let file = open_if_file(&amp;temp_file)?;
     assert!(file.is_none());
+    Ok(())
   }
 
   #[test]
-  fn test_open_if_file_on_directory() {
-    let temp_dir = create_temp_dir();
-    let file = open_if_file(temp_dir);
-    assert!(file.is_ok());
-    let file = file.unwrap();
+  fn test_open_if_file_on_directory() -&gt; Result&lt;(), io::Error&gt; {
+    let temp_dir = create_temp_dir()?;
+    let file = open_if_file(temp_dir)?;
     assert!(file.is_none());
+    Ok(())
   }
 }</code></pre>
 <p>We test whether the functions conform to the specified behaviour.
 Unfortunately, we can't easily test when <code>metadata</code> and <code>open_if_file</code> should return an error, because we cannot disable read permissions on files via the Rust standard library.</p>
 <p>We use our <code>create_temp_file</code> and <code>create_temp_dir</code> utility functions to create temporary files and directories.
 The <code>tempfile</code> library takes care of deleting temporary files when they go out of scope (at the end of the test).</p>
+<p>We use <code>assert_matches!</code> to assert that <code>metadata</code> is <code>Some(metadata)</code>, binding <code>metadata</code> in the <code> =&gt; { ... }</code> block in which we assert that the metadata describes a file.
+We will use this macro more in future tests.</p>
+<details id="admonition-rust-help-3" class="admonition info">
+<summary class="admonition-title">
+<p>Rust Help</p>
+<p><a class="admonition-anchor-link" href="#admonition-rust-help-3"></a></p>
+</summary>
+<div>
+<p>Tests can <a href="https://doc.rust-lang.org/book/ch11-01-writing-tests.html#using-resultt-e-in-tests" title="" target="_blank">return <code>Result</code></a>.
+When a test returns an <code>Err</code>, the test fails.
+This allows us to write more concise tests using error propagation.</p>
+</div>
+</details>
 <p>Now we are done unwinding our stack and have filesystem and testing utilities.
 Make the non-incremental context compatible by changing <code>pie/src/context/non_incremental.rs</code>:</p>
 <pre><code class="language-rust customdiff">+use std::fs::File;
@@ -417,21 +428,14 @@ Make the non-incremental context compatible by changing <code>pie/src/context/no
 
  impl&lt;T: Task&gt; Context&lt;T&gt; for NonIncrementalContext {
 +  fn require_file&lt;P: AsRef&lt;Path&gt;&gt;(&amp;mut self, path: P) -&gt; Result&lt;Option&lt;File&gt;, io::Error&gt; {
-+    let file = open_if_file(&amp;path)?;
-+    Ok(file)
++    open_if_file(&amp;path)
 +  }
 +
    fn require_task(&amp;mut self, task: &amp;T) -&gt; T::Output {
      task.execute(self)
    }
  }</code></pre>
-<p>Since the non-incremental context does not track anything, we simply try to open the file and return it.
-This implements the description we made earlier:</p>
-<ul>
-<li>If opening the file results in an error, the <code>?</code> operator returns <code>Err(...)</code> immediately.</li>
-<li>If the file does not exist or is a directory, <code>open_if_file</code> returns <code>None</code> and <code>file</code> is <code>None</code>.</li>
-<li>Otherwise, <code>file</code> is <code>Some(file)</code>.</li>
-</ul>
+<p>Since the non-incremental context does not track anything, we only try to open the file and return it, matching the contract in the documentation comment of the <code>Context::require_file</code> trait method.</p>
 <p>Confirm everything works with <code>cargo test</code>.</p>
 
                     </main>

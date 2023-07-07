@@ -217,8 +217,8 @@ Because of this, the context reference passed to <code>Task::execute</code> is a
 <p>This <code>Task</code> and <code>Context</code> API mirrors the mutually recursive definition of task and context we discussed earlier, and forms the basis for the entire build system.</p>
 <p>Build the project by running <code>cargo build</code>.
 The output should look something like:</p>
-<pre><code class="language-shell ">   Compiling pie v0.1.0 (/private/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmpzsDqao/pie)
-    Finished dev [unoptimized + debuginfo] target(s) in 0.12s
+<pre><code class="language-shell ">   Compiling pie v0.1.0 (/private/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmpz0amHo/pie)
+    Finished dev [unoptimized + debuginfo] target(s) in 0.13s
 </code></pre>
 <details id="admonition-rust-help" class="admonition info">
 <summary class="admonition-title">
@@ -354,9 +354,9 @@ in a reference to the task.
 It returns the output of the task, which we test with <code>assert_eq!</code>.</p>
 <p>Run the test by running <code>cargo test</code>.
 The output should look something like:</p>
-<pre><code class="language-shell ">   Compiling pie v0.1.0 (/private/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmpzsDqao/pie)
-    Finished test [unoptimized + debuginfo] target(s) in 0.37s
-     Running unittests src/lib.rs (/private/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmpzsDqao/pie/target/debug/deps/pie-daca3a31898407a4)
+<pre><code class="language-shell ">   Compiling pie v0.1.0 (/private/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmpz0amHo/pie)
+    Finished test [unoptimized + debuginfo] target(s) in 0.51s
+     Running unittests src/lib.rs (/private/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmpz0amHo/pie/target/debug/deps/pie-daca3a31898407a4)
 
 running 1 test
 test context::non_incremental::test::test_require_task_direct ... ok
@@ -429,7 +429,7 @@ Add the following test:</p>
 <p>We use the same <code>ReturnHelloWorld</code> task as before, but now also have a <code>ToLowerCase</code> task which requires <code>ReturnHelloWorld</code> and then turn its string lowercase.
 However, due to the way we've set up the types between <code>Task</code> and <code>Context</code>, we will run into a problem.
 Running <code>cargo test</code>, you should get these errors:</p>
-<pre><code class="language-shell ">   Compiling pie v0.1.0 (/private/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmpzsDqao/pie)
+<pre><code class="language-shell ">   Compiling pie v0.1.0 (/private/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmpz0amHo/pie)
 error[E0308]: mismatched types
   --&gt; src/context/non_incremental.rs:48:30
    |
@@ -465,7 +465,7 @@ This doesn't work as <code>Context&lt;ToLowerCase&gt;::require_task</code> only 
 
      let mut context = NonIncrementalContext;</code></pre>
 <p>But that is not allowed:</p>
-<pre><code class="language-shell ">   Compiling pie v0.1.0 (/private/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmpzsDqao/pie)
+<pre><code class="language-shell ">   Compiling pie v0.1.0 (/private/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmpz0amHo/pie)
 error[E0276]: impl has stricter requirements than trait
   --&gt; src/context/non_incremental.rs:47:21
    |
@@ -758,17 +758,15 @@ Because basically every Rust library adheres to <a href="https://semver.org/" ti
 </div>
 </details>
 <p>Create the main library file <code>dev_shared/src/lib.rs</code>, with functions for creating temporary files and directories:</p>
-<pre><code class="language-rust ">use tempfile::{NamedTempFile, TempDir};
+<pre><code class="language-rust ">use std::io;
 
-// Filesystem utilities
+use tempfile::{NamedTempFile, TempDir};
 
-pub fn create_temp_file() -&gt; NamedTempFile {
-  NamedTempFile::new().expect(&quot;failed to create temporary file&quot;)
-}
+/// Creates a new temporary file that gets cleaned up when dropped.
+pub fn create_temp_file() -&gt; Result&lt;NamedTempFile, io::Error&gt; { NamedTempFile::new() }
 
-pub fn create_temp_dir() -&gt; TempDir {
-  TempDir::new().expect(&quot;failed to create temporary directory&quot;)
-}</code></pre>
+/// Creates a new temporary directory that gets cleaned up when dropped.
+pub fn create_temp_dir() -&gt; Result&lt;TempDir, io::Error&gt; { TempDir::new() }</code></pre>
 <p>Your directory structure should now look like this:</p>
 <pre><code>├── pie
 │   ├── Cargo.toml
@@ -785,7 +783,7 @@ pub fn create_temp_dir() -&gt; TempDir {
     └── src
         └── lib.rs
 </code></pre>
-<p>To access these utility functions in the <code>pie</code> crate, add a dependency to <code>dev_shared</code> in <code>pie/Cargo.toml</code>:</p>
+<p>To access these utility functions in the <code>pie</code> crate, add a dependency to <code>dev_shared</code> in <code>pie/Cargo.toml</code> along with another create that will help testing:</p>
 <pre><code class="language-toml customdiff "> [package]
  name = &quot;pie&quot;
  version = &quot;0.1.0&quot;
@@ -793,72 +791,85 @@ pub fn create_temp_dir() -&gt; TempDir {
 +
 +[dev-dependencies]
 +dev_shared = { path = &quot;../dev_shared&quot; }
++assert_matches = &quot;1&quot;
 </code></pre>
-<p>Note that this is dependency is added under <code>dev-dependencies</code>, indicating that this dependency is only available when running tests, benchmarks, and examples.
-Therefore, users of our library will not depend on this library, which is good, because temporary file management is not necessary to users of our library.</p>
+<p>We've also added the <a href="https://crates.io/crates/assert_matches" title="" target="_blank">assert_matches</a> crate, which is a handy library for asserting that a value matches a pattern.
+Note that these dependencies is added under <code>dev-dependencies</code>, indicating that this dependency is only available when running tests, benchmarks, and examples.
+Therefore, users of our library will not depend on these crates, which is good, because temporary file management and assertions are not necessary to users of our library.</p>
 <p>Back to testing our filesystem utilities.
 Add the following tests to <code>pie/src/fs.rs</code>:</p>
 <pre><code class="language-rust ">#[cfg(test)]
 mod test {
   use std::fs::remove_file;
+  use std::io;
+
+  use assert_matches::assert_matches;
 
   use dev_shared::{create_temp_dir, create_temp_file};
 
   use super::*;
 
   #[test]
-  fn test_metadata_ok() {
-    let temp_file = create_temp_file();
-    let metadata = metadata(temp_file);
-    assert!(metadata.is_ok());
-    let metadata = metadata.unwrap();
-    assert!(metadata.is_some());
-    let metadata = metadata.unwrap();
-    assert!(metadata.is_file());
+  fn test_metadata_ok() -&gt; Result&lt;(), io::Error&gt; {
+    let temp_file = create_temp_file()?;
+    let metadata = metadata(temp_file)?;
+    assert_matches!(metadata, Some(metadata) =&gt; {
+      assert!(metadata.is_file());  
+    });
+    Ok(())
   }
 
   #[test]
-  fn test_metadata_none() {
-    let temp_file = create_temp_file();
-    remove_file(&amp;temp_file).expect(&quot;failed to delete temporary file&quot;);
-    let metadata = metadata(&amp;temp_file);
-    assert!(metadata.is_ok());
-    let metadata = metadata.unwrap();
+  fn test_metadata_none() -&gt; Result&lt;(), io::Error&gt; {
+    let temp_file = create_temp_file()?;
+    remove_file(&amp;temp_file)?;
+    let metadata = metadata(&amp;temp_file)?;
     assert!(metadata.is_none());
+    Ok(())
   }
 
   #[test]
-  fn test_open_if_file() {
-    let temp_file = create_temp_file();
-    let file = open_if_file(&amp;temp_file);
-    assert!(file.is_ok());
-    let file = file.unwrap();
+  fn test_open_if_file() -&gt; Result&lt;(), io::Error&gt; {
+    let temp_file = create_temp_file()?;
+    let file = open_if_file(&amp;temp_file)?;
     assert!(file.is_some());
+    Ok(())
   }
 
   #[test]
-  fn test_open_if_file_non_existent() {
-    let temp_file = create_temp_file();
-    remove_file(&amp;temp_file).expect(&quot;failed to delete temporary file&quot;);
-    let file = open_if_file(&amp;temp_file);
-    assert!(file.is_ok());
-    let file = file.unwrap();
+  fn test_open_if_file_non_existent() -&gt; Result&lt;(), io::Error&gt; {
+    let temp_file = create_temp_file()?;
+    remove_file(&amp;temp_file)?;
+    let file = open_if_file(&amp;temp_file)?;
     assert!(file.is_none());
+    Ok(())
   }
 
   #[test]
-  fn test_open_if_file_on_directory() {
-    let temp_dir = create_temp_dir();
-    let file = open_if_file(temp_dir);
-    assert!(file.is_ok());
-    let file = file.unwrap();
+  fn test_open_if_file_on_directory() -&gt; Result&lt;(), io::Error&gt; {
+    let temp_dir = create_temp_dir()?;
+    let file = open_if_file(temp_dir)?;
     assert!(file.is_none());
+    Ok(())
   }
 }</code></pre>
 <p>We test whether the functions conform to the specified behaviour.
 Unfortunately, we can't easily test when <code>metadata</code> and <code>open_if_file</code> should return an error, because we cannot disable read permissions on files via the Rust standard library.</p>
 <p>We use our <code>create_temp_file</code> and <code>create_temp_dir</code> utility functions to create temporary files and directories.
 The <code>tempfile</code> library takes care of deleting temporary files when they go out of scope (at the end of the test).</p>
+<p>We use <code>assert_matches!</code> to assert that <code>metadata</code> is <code>Some(metadata)</code>, binding <code>metadata</code> in the <code> =&gt; { ... }</code> block in which we assert that the metadata describes a file.
+We will use this macro more in future tests.</p>
+<details id="admonition-rust-help-3" class="admonition info">
+<summary class="admonition-title">
+<p>Rust Help</p>
+<p><a class="admonition-anchor-link" href="2_incrementality/1_require_file/index.html#admonition-rust-help-3"></a></p>
+</summary>
+<div>
+<p>Tests can <a href="https://doc.rust-lang.org/book/ch11-01-writing-tests.html#using-resultt-e-in-tests" title="" target="_blank">return <code>Result</code></a>.
+When a test returns an <code>Err</code>, the test fails.
+This allows us to write more concise tests using error propagation.</p>
+</div>
+</details>
 <p>Now we are done unwinding our stack and have filesystem and testing utilities.
 Make the non-incremental context compatible by changing <code>pie/src/context/non_incremental.rs</code>:</p>
 <pre><code class="language-rust customdiff">+use std::fs::File;
@@ -872,21 +883,14 @@ Make the non-incremental context compatible by changing <code>pie/src/context/no
 
  impl&lt;T: Task&gt; Context&lt;T&gt; for NonIncrementalContext {
 +  fn require_file&lt;P: AsRef&lt;Path&gt;&gt;(&amp;mut self, path: P) -&gt; Result&lt;Option&lt;File&gt;, io::Error&gt; {
-+    let file = open_if_file(&amp;path)?;
-+    Ok(file)
++    open_if_file(&amp;path)
 +  }
 +
    fn require_task(&amp;mut self, task: &amp;T) -&gt; T::Output {
      task.execute(self)
    }
  }</code></pre>
-<p>Since the non-incremental context does not track anything, we simply try to open the file and return it.
-This implements the description we made earlier:</p>
-<ul>
-<li>If opening the file results in an error, the <code>?</code> operator returns <code>Err(...)</code> immediately.</li>
-<li>If the file does not exist or is a directory, <code>open_if_file</code> returns <code>None</code> and <code>file</code> is <code>None</code>.</li>
-<li>Otherwise, <code>file</code> is <code>Some(file)</code>.</li>
-</ul>
+<p>Since the non-incremental context does not track anything, we only try to open the file and return it, matching the contract in the documentation comment of the <code>Context::require_file</code> trait method.</p>
 <p>Confirm everything works with <code>cargo test</code>.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="stamps"><a class="header" href="#stamps">Stamps</a></h1>
 <p>To check whether we need to execute a task, we need to check the dependencies of that task to see if any of them are inconsistent.
@@ -1025,35 +1029,42 @@ Do note that this introduces a lot of extra generics and trait bounds everywhere
 Add to <code>pie/src/stamp.rs</code>:</p>
 <pre><code class="language-rust ">#[cfg(test)]
 mod test {
-  use std::fs;
+  use std::fs::{remove_file, write};
+  use std::io;
 
   use dev_shared::create_temp_file;
 
   use super::*;
 
   #[test]
-  fn test_exists_file_stamper() {
+  fn test_exists_file_stamper() -&gt; Result&lt;(), io::Error&gt; {
     let stamper = FileStamper::Exists;
-    let temp_file = create_temp_file();
-    let stamp = stamper.stamp(&amp;temp_file).expect(&quot;failed to stamp&quot;);
-    assert_eq!(stamp, stamper.stamp(&amp;temp_file).expect(&quot;failed to stamp&quot;));
+    let temp_file = create_temp_file()?;
+    let stamp = stamper.stamp(&amp;temp_file)?;
+    assert_eq!(stamp, stamper.stamp(&amp;temp_file)?);
 
-    fs::remove_file(&amp;temp_file).expect(&quot;failed to delete temporary file&quot;);
-    assert_ne!(stamp, stamper.stamp(&amp;temp_file).expect(&quot;failed to stamp&quot;));
+    remove_file(&amp;temp_file)?;
+    assert_ne!(stamp, stamper.stamp(&amp;temp_file)?);
+
+    Ok(())
   }
 
   #[test]
-  fn test_modified_file_stamper() {
+  fn test_modified_file_stamper() -&gt; Result&lt;(), io::Error&gt; {
     let stamper = FileStamper::Modified;
-    let temp_file = create_temp_file();
-    let stamp = stamper.stamp(&amp;temp_file).expect(&quot;failed to stamp&quot;);
-    assert_eq!(stamp, stamper.stamp(&amp;temp_file).expect(&quot;failed to stamp&quot;));
+    let temp_file = create_temp_file()?;
+    let stamp = stamper.stamp(&amp;temp_file)?;
+    assert_eq!(stamp, stamper.stamp(&amp;temp_file)?);
 
-    fs::write(&amp;temp_file, format!(&quot;{:?}&quot;, stamp)).expect(&quot;failed to write to temporary file&quot;);
-    assert_ne!(stamp, stamper.stamp(&amp;temp_file).expect(&quot;failed to stamp&quot;), &quot;modified stamp is equal after modifying file&quot;);
+    write(&amp;temp_file, format!(&quot;{:?}&quot;, stamp))?;
+    let new_stamp = stamper.stamp(&amp;temp_file)?;
+    assert_ne!(stamp, new_stamp);
+    let stamp = new_stamp;
 
-    fs::remove_file(&amp;temp_file).expect(&quot;failed to delete temporary file&quot;);
-    assert_ne!(stamp, stamper.stamp(&amp;temp_file).expect(&quot;failed to stamp&quot;), &quot;modified stamp is equal after removing file&quot;);
+    remove_file(&amp;temp_file)?;
+    assert_ne!(stamp, stamper.stamp(&amp;temp_file)?);
+
+    Ok(())
   }
 
   #[test]
@@ -1074,7 +1085,113 @@ mod test {
 }</code></pre>
 <p>We test file stamps by creating a stamp, changing the file, creating a new stamp, and then compare the stamps.
 We test task output stamps by just passing a different output value to the <code>stamp</code> function, and then compare the stamps.</p>
-<p>Run <code>cargo test</code> to confirm the stamp implementation.</p>
+<p>Run <code>cargo test</code> to confirm the stamp implementation.
+If test <code>test_modified_file_stamper</code> fails, do continue to the next section, because we're going to fix it!</p>
+<h2 id="testing-with-file-modified-time-correctly"><a class="header" href="#testing-with-file-modified-time-correctly">Testing with file modified time, correctly</a></h2>
+<p>Unfortunately, these tests may fail on some operating systems (Linux and Windows in my testing), due to an imprecise file last modified timer.
+What can happen is that we write to a file, making the OS update its modified time to <code>1000</code> (as an example, not a real timestamp), then very quickly write to the file again, making the OS update its modified time to <code>1000</code> again.
+Then, our test will fail because the stamp didn't change even though we expect it to change.</p>
+<p>This can happen with an imprecise timer that only increases once every millisecond (again, an example, not a real number) when we perform writes in between that millisecond.
+Even worse, our test can be flaky, sometimes succeeding if we write in between those milliseconds, sometimes failing if we write within a millisecond.</p>
+<p>To solve this, add a function to the filesystem testing utility crate.
+Change <code>dev_shared/src/lib.rs</code>:</p>
+<pre><code class="language-rust customdiff ">+use std::fs::{metadata, write};
+ use std::io;
++use std::path::Path;
++use std::time::SystemTime;
+
+ use tempfile::{NamedTempFile, TempDir};
+
+ /// Creates a new temporary file that gets cleaned up when dropped.
+ pub fn create_temp_file() -&gt; Result&lt;NamedTempFile, io::Error&gt; { NamedTempFile::new() }
+
+ /// Creates a new temporary directory that gets cleaned up when dropped.
+ pub fn create_temp_dir() -&gt; Result&lt;TempDir, io::Error&gt; { TempDir::new() }
++
++/// Keeps writing `contents` to file at `path` until its last modified time changes, then returns the modified time.
++/// This is required because some OSs have imprecise modified timers, where the file modified time does not change when 
++/// writing in quick succession.
++///
++/// # Errors
++///
++/// Returns an error when any file operation fails.
++pub fn write_until_modified(path: impl AsRef&lt;Path&gt;, contents: impl AsRef&lt;[u8]&gt;) -&gt; Result&lt;SystemTime, io::Error&gt; {
++  let path = path.as_ref();
++  let contents = contents.as_ref();
++  fn get_modified(path: impl AsRef&lt;Path&gt;) -&gt; Result&lt;SystemTime, io::Error&gt; {
++    let modified = match metadata(path) {
++      Err(e) if e.kind() == io::ErrorKind::NotFound =&gt; SystemTime::UNIX_EPOCH,
++      Err(e) =&gt; Err(e)?,
++      Ok(m) =&gt; m.modified()?
++    };
++    Ok(modified)
++  }
++  let modified = get_modified(path)?;
++  loop {
++    write(path, contents)?;
++    if modified != get_modified(path)? { break; }
++  }
++  Ok(modified)
++}</code></pre>
+<p>The <code>write_until_modified</code> function writes to the file, but ensures its modified time will change.
+Now change the tests in <code>pie/src/stamp.rs</code> to use this function:</p>
+<pre><code class="language-rust customdiff "> #[cfg(test)]
+ mod test {
+-  use std::fs::{remove_file, write};
++  use std::fs::remove_file;
+   use std::io;
+
+-  use dev_shared::create_temp_file;
++  use dev_shared::{create_temp_file, write_until_modified};
+
+   use super::*;
+
+   #[test]
+   fn test_exists_file_stamper() -&gt; Result&lt;(), io::Error&gt; {
+     let stamper = FileStamper::Exists;
+     let temp_file = create_temp_file()?;
+     let stamp = stamper.stamp(&amp;temp_file)?;
+     assert_eq!(stamp, stamper.stamp(&amp;temp_file)?);
+
+     remove_file(&amp;temp_file)?;
+     assert_ne!(stamp, stamper.stamp(&amp;temp_file)?);
+
+     Ok(())
+   }
+
+   #[test]
+   fn test_modified_file_stamper() -&gt; Result&lt;(), io::Error&gt; {
+     let stamper = FileStamper::Modified;
+     let temp_file = create_temp_file()?;
+     let stamp = stamper.stamp(&amp;temp_file)?;
+     assert_eq!(stamp, stamper.stamp(&amp;temp_file)?);
+
+-    write(&amp;temp_file, format!(&quot;{:?}&quot;, stamp))?;
++    // Write until file modified time changes. Required on some OSs due to imprecise modified timer causing the modified 
++    // stamp to be the same after fast consecutive writes.
++    write_until_modified(&amp;temp_file, format!(&quot;{:?}&quot;, stamp))?;
+     let new_stamp = stamper.stamp(&amp;temp_file)?;
+     assert_ne!(stamp, new_stamp);
+     let stamp = new_stamp;
+
+     remove_file(&amp;temp_file)?;
+     assert_ne!(stamp, stamper.stamp(&amp;temp_file)?);
+
+     Ok(())
+   }
+
+   #[test]
+   fn test_inconsequential_output_stamper() {
+     let stamper = OutputStamper::Inconsequential;
+     let stamp = stamper.stamp(&amp;1);
+     assert_eq!(stamp, stamper.stamp(&amp;1));
+     assert_eq!(stamp, stamper.stamp(&amp;2));
+   }
+
+   #[test]
+   fn test_equals_output_stamper() {</code></pre>
+<p>Now we use <code>write_until_modified</code> to write to the file, ensuring its modified time will change, ensuring the stamp will change when it should.
+Run <code>cargo test</code> to confirm the stamp implementation, which should succeed now.</p>
 <h2 id="stamps-in-context"><a class="header" href="#stamps-in-context">Stamps in Context</a></h2>
 <p>We now have a module dedicated to stamps.
 However, stampers are constructed by users of the library that author tasks, and they need to pass in these stampers when creating dependencies.
@@ -1164,9 +1281,10 @@ The default is provided by <code>default_require_file_stamper</code> which can b
 
  impl&lt;T: Task&gt; Context&lt;T&gt; for NonIncrementalContext {
 -  fn require_file&lt;P: AsRef&lt;Path&gt;&gt;(&amp;mut self, path: P) -&gt; Result&lt;Option&lt;File&gt;, io::Error&gt; {
+-    open_if_file(&amp;path)
 +  fn require_file_with_stamper&lt;P: AsRef&lt;Path&gt;&gt;(&amp;mut self, path: P, _stamper: FileStamper) -&gt; Result&lt;Option&lt;File&gt;, io::Error&gt; {
-     let file = open_if_file(&amp;path)?;
-     Ok(file)
++    let file = open_if_file(&amp;path)?;
++    Ok(file)
    }
 
 -  fn require_task(&amp;mut self, task: &amp;T) -&gt; T::Output {
@@ -1369,11 +1487,10 @@ But, if you have an idea on how to this nicely (after you've completed this tuto
 Add tests to <code>pie/src/dependency.rs</code>:</p>
 <pre><code class="language-rust ">#[cfg(test)]
 mod test {
-  use std::fs;
-  use std::io::Read;
-  use std::path::Path;
+  use std::fs::write;
+  use std::io::{self, Read};
 
-  use dev_shared::create_temp_file;
+  use dev_shared::{create_temp_file, write_until_modified};
 
   use crate::context::non_incremental::NonIncrementalContext;
 
@@ -1381,11 +1498,7 @@ mod test {
 
   /// Task that reads file at given path and returns it contents as a string.
   #[derive(Clone, PartialEq, Eq, Hash, Debug)]
-  pub struct ReadStringFromFile(PathBuf);
-
-  impl ReadStringFromFile {
-    pub fn new(path: impl AsRef&lt;Path&gt;) -&gt; Self { Self(path.as_ref().to_path_buf()) }
-  }
+  struct ReadStringFromFile(PathBuf);
 
   impl Task for ReadStringFromFile {
     type Output = String;
@@ -1400,44 +1513,46 @@ mod test {
   }
 
   #[test]
-  fn test_file_dependency_consistency() {
+  fn test_file_dependency_consistency() -&gt; Result&lt;(), io::Error&gt; {
     let mut context = NonIncrementalContext;
 
-    let temp_file = create_temp_file();
-    fs::write(&amp;temp_file, &quot;test1&quot;)
-      .expect(&quot;failed to write to file&quot;);
+    let temp_file = create_temp_file()?;
+    write(&amp;temp_file, &quot;test1&quot;)?;
 
-    let file_dependency = FileDependency::new(temp_file.path(), FileStamper::Modified)
-      .expect(&quot;failed to create file dependency&quot;);
+    let file_dependency = FileDependency::new(temp_file.path(), FileStamper::Modified)?;
     let dependency: Dependency&lt;ReadStringFromFile, String&gt; = Dependency::RequireFile(file_dependency.clone());
-    assert!(file_dependency.is_inconsistent().expect(&quot;failed to check for inconsistency&quot;).is_none());
-    assert!(dependency.is_inconsistent(&amp;mut context).expect(&quot;failed to check for inconsistency&quot;).is_none());
+    assert!(file_dependency.is_inconsistent()?.is_none());
+    assert!(dependency.is_inconsistent(&amp;mut context)?.is_none());
 
-    fs::write(&amp;temp_file, &quot;test2&quot;)
-      .expect(&quot;failed to write to file&quot;);
-    assert!(file_dependency.is_inconsistent().expect(&quot;failed to check for inconsistency&quot;).is_some());
-    assert!(dependency.is_inconsistent(&amp;mut context).expect(&quot;failed to check for inconsistency&quot;).is_some());
+    // Change the file, changing the stamp the stamper will create next time, making the file dependency inconsistent.
+    write_until_modified(&amp;temp_file, &quot;test2&quot;)?;
+    assert!(file_dependency.is_inconsistent()?.is_some());
+    assert!(dependency.is_inconsistent(&amp;mut context)?.is_some());
+
+    Ok(())
   }
 
   #[test]
-  fn test_task_dependency_consistency() {
+  fn test_task_dependency_consistency() -&gt; Result&lt;(), io::Error&gt; {
     let mut context = NonIncrementalContext;
 
-    let temp_file = create_temp_file();
-    fs::write(&amp;temp_file, &quot;test1&quot;)
-      .expect(&quot;failed to write to file&quot;);
-    let task = ReadStringFromFile::new(&amp;temp_file);
+    let temp_file = create_temp_file()?;
+    write(&amp;temp_file, &quot;test1&quot;)?;
+    let task = ReadStringFromFile(temp_file.path().to_path_buf());
     let output = context.require_task(&amp;task);
 
     let task_dependency = TaskDependency::new(task.clone(), OutputStamper::Equals, output);
     let dependency = Dependency::RequireTask(task_dependency.clone());
     assert!(task_dependency.is_inconsistent(&amp;mut context).is_none());
-    assert!(dependency.is_inconsistent(&amp;mut context).expect(&quot;failed to check for inconsistency&quot;).is_none());
+    assert!(dependency.is_inconsistent(&amp;mut context)?.is_none());
 
-    fs::write(&amp;temp_file, &quot;test2&quot;)
-      .expect(&quot;failed to write to file&quot;);
+    // Change the file, causing the task to return a different output, changing the stamp the stamper will create next 
+    // time, making the task dependency inconsistent.
+    write_until_modified(&amp;temp_file, &quot;test2&quot;)?;
     assert!(task_dependency.is_inconsistent(&amp;mut context).is_some());
-    assert!(dependency.is_inconsistent(&amp;mut context).expect(&quot;failed to check for inconsistency&quot;).is_some());
+    assert!(dependency.is_inconsistent(&amp;mut context)?.is_some());
+
+    Ok(())
   }
 }</code></pre>
 <p>We test a file dependency by asserting that <code>is_inconsistent</code> returns <code>Some</code> after changing the file.</p>
@@ -1490,7 +1605,8 @@ The implementation in the <code>incremental-topo</code> library is based on a <a
 +pie_graph = &quot;0.1&quot;
 +
  [dev-dependencies]
- dev_shared = { path = &quot;../dev_shared&quot; }</code></pre>
+ dev_shared = { path = &quot;../dev_shared&quot; }
+ assert_matches = &quot;1&quot;</code></pre>
 <h2 id="store-basics"><a class="header" href="#store-basics">Store basics</a></h2>
 <p>Add the <code>store</code> module to <code>pie/src/lib.rs</code>:</p>
 <pre><code class="language-rust customdiff">
@@ -1894,10 +2010,9 @@ mod test {
 
   use super::*;
 
-
   /// Task that returns its owned string. Never executed, just used for testing the store.
   #[derive(Clone, PartialEq, Eq, Hash, Debug)]
-  pub struct StringConstant(String);
+  struct StringConstant(String);
 
   impl StringConstant {
     pub fn new(string: impl Into&lt;String&gt;) -&gt; Self { Self(string.into()) }
@@ -2197,6 +2312,7 @@ Later on we will also see that this is important for soundness of the incrementa
     store.reset_task(&amp;fake_node);
   }</code></pre>
 <p>Here, we ensure that a task with an output and dependencies, does not have an output and dependencies after a reset, while leaving another task untouched.</p>
+<p>Confirm that the store implementation works with <code>cargo test</code>.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="top-down-context"><a class="header" href="#top-down-context">Top-down Context</a></h1>
 <p>We've implemented all the prerequisites for incremental top-down building.
 Now we will create the <code>TopDownContext</code> type which implements the <code>Context</code> trait in an incremental way. </p>
@@ -2553,9 +2669,7 @@ When dependency checking result in an error, we should store the error for the u
      }
      // Task has no dependencies or all dependencies are consistent. Should only execute if it has no output, meaning
      // that it has never been executed before.</code></pre>
-<p>It took us a while, but now we've implemented an incremental build system with dynamic dependencies!
-Instead of throwing a party, we should first write tests to see if it is indeed incremental, but also to check that it is correct.</p>
-<h2 id="tests-3"><a class="header" href="#tests-3">Tests</a></h2>
+<p>It took us a while, but now we've implemented an incremental build system with dynamic dependencies 🎉.</p>
 
                     </main>
 

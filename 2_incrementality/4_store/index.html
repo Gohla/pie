@@ -175,7 +175,8 @@ The implementation in the <code>incremental-topo</code> library is based on a <a
 +pie_graph = &quot;0.1&quot;
 +
  [dev-dependencies]
- dev_shared = { path = &quot;../dev_shared&quot; }</code></pre>
+ dev_shared = { path = &quot;../dev_shared&quot; }
+ assert_matches = &quot;1&quot;</code></pre>
 <h2 id="store-basics"><a class="header" href="#store-basics">Store basics</a></h2>
 <p>Add the <code>store</code> module to <code>pie/src/lib.rs</code>:</p>
 <pre><code class="language-rust customdiff">
@@ -579,10 +580,9 @@ mod test {
 
   use super::*;
 
-
   /// Task that returns its owned string. Never executed, just used for testing the store.
   #[derive(Clone, PartialEq, Eq, Hash, Debug)]
-  pub struct StringConstant(String);
+  struct StringConstant(String);
 
   impl StringConstant {
     pub fn new(string: impl Into&lt;String&gt;) -&gt; Self { Self(string.into()) }
@@ -882,6 +882,7 @@ Later on we will also see that this is important for soundness of the incrementa
     store.reset_task(&amp;fake_node);
   }</code></pre>
 <p>Here, we ensure that a task with an output and dependencies, does not have an output and dependencies after a reset, while leaving another task untouched.</p>
+<p>Confirm that the store implementation works with <code>cargo test</code>.</p>
 
                     </main>
 

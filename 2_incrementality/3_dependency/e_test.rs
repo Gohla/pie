@@ -1,10 +1,9 @@
 #[cfg(test)]
 mod test {
-  use std::fs;
-  use std::io::Read;
-  use std::path::Path;
+  use std::fs::write;
+  use std::io::{self, Read};
 
-  use dev_shared::create_temp_file;
+  use dev_shared::{create_temp_file, write_until_modified};
 
   use crate::context::non_incremental::NonIncrementalContext;
 
@@ -12,11 +11,7 @@ mod test {
 
   /// Task that reads file at given path and returns it contents as a string.
   #[derive(Clone, PartialEq, Eq, Hash, Debug)]
-  pub struct ReadStringFromFile(PathBuf);
-
-  impl ReadStringFromFile {
-    pub fn new(path: impl AsRef<Path>) -> Self { Self(path.as_ref().to_path_buf()) }
-  }
+  struct ReadStringFromFile(PathBuf);
 
   impl Task for ReadStringFromFile {
     type Output = String;
@@ -31,43 +26,45 @@ mod test {
   }
 
   #[test]
-  fn test_file_dependency_consistency() {
+  fn test_file_dependency_consistency() -> Result<(), io::Error> {
     let mut context = NonIncrementalContext;
 
-    let temp_file = create_temp_file();
-    fs::write(&temp_file, "test1")
-      .expect("failed to write to file");
+    let temp_file = create_temp_file()?;
+    write(&temp_file, "test1")?;
 
-    let file_dependency = FileDependency::new(temp_file.path(), FileStamper::Modified)
-      .expect("failed to create file dependency");
+    let file_dependency = FileDependency::new(temp_file.path(), FileStamper::Modified)?;
     let dependency: Dependency<ReadStringFromFile, String> = Dependency::RequireFile(file_dependency.clone());
-    assert!(file_dependency.is_inconsistent().expect("failed to check for inconsistency").is_none());
-    assert!(dependency.is_inconsistent(&mut context).expect("failed to check for inconsistency").is_none());
+    assert!(file_dependency.is_inconsistent()?.is_none());
+    assert!(dependency.is_inconsistent(&mut context)?.is_none());
 
-    fs::write(&temp_file, "test2")
-      .expect("failed to write to file");
-    assert!(file_dependency.is_inconsistent().expect("failed to check for inconsistency").is_some());
-    assert!(dependency.is_inconsistent(&mut context).expect("failed to check for inconsistency").is_some());
+    // Change the file, changing the stamp the stamper will create next time, making the file dependency inconsistent.
+    write_until_modified(&temp_file, "test2")?;
+    assert!(file_dependency.is_inconsistent()?.is_some());
+    assert!(dependency.is_inconsistent(&mut context)?.is_some());
+
+    Ok(())
   }
 
   #[test]
-  fn test_task_dependency_consistency() {
+  fn test_task_dependency_consistency() -> Result<(), io::Error> {
     let mut context = NonIncrementalContext;
 
-    let temp_file = create_temp_file();
-    fs::write(&temp_file, "test1")
-      .expect("failed to write to file");
-    let task = ReadStringFromFile::new(&temp_file);
+    let temp_file = create_temp_file()?;
+    write(&temp_file, "test1")?;
+    let task = ReadStringFromFile(temp_file.path().to_path_buf());
     let output = context.require_task(&task);
 
     let task_dependency = TaskDependency::new(task.clone(), OutputStamper::Equals, output);
     let dependency = Dependency::RequireTask(task_dependency.clone());
     assert!(task_dependency.is_inconsistent(&mut context).is_none());
-    assert!(dependency.is_inconsistent(&mut context).expect("failed to check for inconsistency").is_none());
+    assert!(dependency.is_inconsistent(&mut context)?.is_none());
 
-    fs::write(&temp_file, "test2")
-      .expect("failed to write to file");
+    // Change the file, causing the task to return a different output, changing the stamp the stamper will create next 
+    // time, making the task dependency inconsistent.
+    write_until_modified(&temp_file, "test2")?;
     assert!(task_dependency.is_inconsistent(&mut context).is_some());
-    assert!(dependency.is_inconsistent(&mut context).expect("failed to check for inconsistency").is_some());
+    assert!(dependency.is_inconsistent(&mut context)?.is_some());
+
+    Ok(())
   }
 }

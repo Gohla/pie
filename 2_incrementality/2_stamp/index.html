@@ -283,35 +283,42 @@ Do note that this introduces a lot of extra generics and trait bounds everywhere
 Add to <code>pie/src/stamp.rs</code>:</p>
 <pre><code class="language-rust ">#[cfg(test)]
 mod test {
-  use std::fs;
+  use std::fs::{remove_file, write};
+  use std::io;
 
   use dev_shared::create_temp_file;
 
   use super::*;
 
   #[test]
-  fn test_exists_file_stamper() {
+  fn test_exists_file_stamper() -&gt; Result&lt;(), io::Error&gt; {
     let stamper = FileStamper::Exists;
-    let temp_file = create_temp_file();
-    let stamp = stamper.stamp(&amp;temp_file).expect(&quot;failed to stamp&quot;);
-    assert_eq!(stamp, stamper.stamp(&amp;temp_file).expect(&quot;failed to stamp&quot;));
+    let temp_file = create_temp_file()?;
+    let stamp = stamper.stamp(&amp;temp_file)?;
+    assert_eq!(stamp, stamper.stamp(&amp;temp_file)?);
 
-    fs::remove_file(&amp;temp_file).expect(&quot;failed to delete temporary file&quot;);
-    assert_ne!(stamp, stamper.stamp(&amp;temp_file).expect(&quot;failed to stamp&quot;));
+    remove_file(&amp;temp_file)?;
+    assert_ne!(stamp, stamper.stamp(&amp;temp_file)?);
+
+    Ok(())
   }
 
   #[test]
-  fn test_modified_file_stamper() {
+  fn test_modified_file_stamper() -&gt; Result&lt;(), io::Error&gt; {
     let stamper = FileStamper::Modified;
-    let temp_file = create_temp_file();
-    let stamp = stamper.stamp(&amp;temp_file).expect(&quot;failed to stamp&quot;);
-    assert_eq!(stamp, stamper.stamp(&amp;temp_file).expect(&quot;failed to stamp&quot;));
+    let temp_file = create_temp_file()?;
+    let stamp = stamper.stamp(&amp;temp_file)?;
+    assert_eq!(stamp, stamper.stamp(&amp;temp_file)?);
 
-    fs::write(&amp;temp_file, format!(&quot;{:?}&quot;, stamp)).expect(&quot;failed to write to temporary file&quot;);
-    assert_ne!(stamp, stamper.stamp(&amp;temp_file).expect(&quot;failed to stamp&quot;), &quot;modified stamp is equal after modifying file&quot;);
+    write(&amp;temp_file, format!(&quot;{:?}&quot;, stamp))?;
+    let new_stamp = stamper.stamp(&amp;temp_file)?;
+    assert_ne!(stamp, new_stamp);
+    let stamp = new_stamp;
 
-    fs::remove_file(&amp;temp_file).expect(&quot;failed to delete temporary file&quot;);
-    assert_ne!(stamp, stamper.stamp(&amp;temp_file).expect(&quot;failed to stamp&quot;), &quot;modified stamp is equal after removing file&quot;);
+    remove_file(&amp;temp_file)?;
+    assert_ne!(stamp, stamper.stamp(&amp;temp_file)?);
+
+    Ok(())
   }
 
   #[test]
@@ -332,7 +339,113 @@ mod test {
 }</code></pre>
 <p>We test file stamps by creating a stamp, changing the file, creating a new stamp, and then compare the stamps.
 We test task output stamps by just passing a different output value to the <code>stamp</code> function, and then compare the stamps.</p>
-<p>Run <code>cargo test</code> to confirm the stamp implementation.</p>
+<p>Run <code>cargo test</code> to confirm the stamp implementation.
+If test <code>test_modified_file_stamper</code> fails, do continue to the next section, because we're going to fix it!</p>
+<h2 id="testing-with-file-modified-time-correctly"><a class="header" href="#testing-with-file-modified-time-correctly">Testing with file modified time, correctly</a></h2>
+<p>Unfortunately, these tests may fail on some operating systems (Linux and Windows in my testing), due to an imprecise file last modified timer.
+What can happen is that we write to a file, making the OS update its modified time to <code>1000</code> (as an example, not a real timestamp), then very quickly write to the file again, making the OS update its modified time to <code>1000</code> again.
+Then, our test will fail because the stamp didn't change even though we expect it to change.</p>
+<p>This can happen with an imprecise timer that only increases once every millisecond (again, an example, not a real number) when we perform writes in between that millisecond.
+Even worse, our test can be flaky, sometimes succeeding if we write in between those milliseconds, sometimes failing if we write within a millisecond.</p>
+<p>To solve this, add a function to the filesystem testing utility crate.
+Change <code>dev_shared/src/lib.rs</code>:</p>
+<pre><code class="language-rust customdiff ">+use std::fs::{metadata, write};
+ use std::io;
++use std::path::Path;
++use std::time::SystemTime;
+
+ use tempfile::{NamedTempFile, TempDir};
+
+ /// Creates a new temporary file that gets cleaned up when dropped.
+ pub fn create_temp_file() -&gt; Result&lt;NamedTempFile, io::Error&gt; { NamedTempFile::new() }
+
+ /// Creates a new temporary directory that gets cleaned up when dropped.
+ pub fn create_temp_dir() -&gt; Result&lt;TempDir, io::Error&gt; { TempDir::new() }
++
++/// Keeps writing `contents` to file at `path` until its last modified time changes, then returns the modified time.
++/// This is required because some OSs have imprecise modified timers, where the file modified time does not change when 
++/// writing in quick succession.
++///
++/// # Errors
++///
++/// Returns an error when any file operation fails.
++pub fn write_until_modified(path: impl AsRef&lt;Path&gt;, contents: impl AsRef&lt;[u8]&gt;) -&gt; Result&lt;SystemTime, io::Error&gt; {
++  let path = path.as_ref();
++  let contents = contents.as_ref();
++  fn get_modified(path: impl AsRef&lt;Path&gt;) -&gt; Result&lt;SystemTime, io::Error&gt; {
++    let modified = match metadata(path) {
++      Err(e) if e.kind() == io::ErrorKind::NotFound =&gt; SystemTime::UNIX_EPOCH,
++      Err(e) =&gt; Err(e)?,
++      Ok(m) =&gt; m.modified()?
++    };
++    Ok(modified)
++  }
++  let modified = get_modified(path)?;
++  loop {
++    write(path, contents)?;
++    if modified != get_modified(path)? { break; }
++  }
++  Ok(modified)
++}</code></pre>
+<p>The <code>write_until_modified</code> function writes to the file, but ensures its modified time will change.
+Now change the tests in <code>pie/src/stamp.rs</code> to use this function:</p>
+<pre><code class="language-rust customdiff "> #[cfg(test)]
+ mod test {
+-  use std::fs::{remove_file, write};
++  use std::fs::remove_file;
+   use std::io;
+
+-  use dev_shared::create_temp_file;
++  use dev_shared::{create_temp_file, write_until_modified};
+
+   use super::*;
+
+   #[test]
+   fn test_exists_file_stamper() -&gt; Result&lt;(), io::Error&gt; {
+     let stamper = FileStamper::Exists;
+     let temp_file = create_temp_file()?;
+     let stamp = stamper.stamp(&amp;temp_file)?;
+     assert_eq!(stamp, stamper.stamp(&amp;temp_file)?);
+
+     remove_file(&amp;temp_file)?;
+     assert_ne!(stamp, stamper.stamp(&amp;temp_file)?);
+
+     Ok(())
+   }
+
+   #[test]
+   fn test_modified_file_stamper() -&gt; Result&lt;(), io::Error&gt; {
+     let stamper = FileStamper::Modified;
+     let temp_file = create_temp_file()?;
+     let stamp = stamper.stamp(&amp;temp_file)?;
+     assert_eq!(stamp, stamper.stamp(&amp;temp_file)?);
+
+-    write(&amp;temp_file, format!(&quot;{:?}&quot;, stamp))?;
++    // Write until file modified time changes. Required on some OSs due to imprecise modified timer causing the modified 
++    // stamp to be the same after fast consecutive writes.
++    write_until_modified(&amp;temp_file, format!(&quot;{:?}&quot;, stamp))?;
+     let new_stamp = stamper.stamp(&amp;temp_file)?;
+     assert_ne!(stamp, new_stamp);
+     let stamp = new_stamp;
+
+     remove_file(&amp;temp_file)?;
+     assert_ne!(stamp, stamper.stamp(&amp;temp_file)?);
+
+     Ok(())
+   }
+
+   #[test]
+   fn test_inconsequential_output_stamper() {
+     let stamper = OutputStamper::Inconsequential;
+     let stamp = stamper.stamp(&amp;1);
+     assert_eq!(stamp, stamper.stamp(&amp;1));
+     assert_eq!(stamp, stamper.stamp(&amp;2));
+   }
+
+   #[test]
+   fn test_equals_output_stamper() {</code></pre>
+<p>Now we use <code>write_until_modified</code> to write to the file, ensuring its modified time will change, ensuring the stamp will change when it should.
+Run <code>cargo test</code> to confirm the stamp implementation, which should succeed now.</p>
 <h2 id="stamps-in-context"><a class="header" href="#stamps-in-context">Stamps in Context</a></h2>
 <p>We now have a module dedicated to stamps.
 However, stampers are constructed by users of the library that author tasks, and they need to pass in these stampers when creating dependencies.
@@ -422,9 +535,10 @@ The default is provided by <code>default_require_file_stamper</code> which can b
 
  impl&lt;T: Task&gt; Context&lt;T&gt; for NonIncrementalContext {
 -  fn require_file&lt;P: AsRef&lt;Path&gt;&gt;(&amp;mut self, path: P) -&gt; Result&lt;Option&lt;File&gt;, io::Error&gt; {
+-    open_if_file(&amp;path)
 +  fn require_file_with_stamper&lt;P: AsRef&lt;Path&gt;&gt;(&amp;mut self, path: P, _stamper: FileStamper) -&gt; Result&lt;Option&lt;File&gt;, io::Error&gt; {
-     let file = open_if_file(&amp;path)?;
-     Ok(file)
++    let file = open_if_file(&amp;path)?;
++    Ok(file)
    }
 
 -  fn require_task(&amp;mut self, task: &amp;T) -&gt; T::Output {
