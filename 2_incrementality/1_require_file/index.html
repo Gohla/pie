@@ -339,8 +339,8 @@ pub fn create_temp_dir() -&gt; Result&lt;TempDir, io::Error&gt; { TempDir::new()
 +assert_matches = &quot;1&quot;
 </code></pre>
 <p>We've also added the <a href="https://crates.io/crates/assert_matches" title="" target="_blank">assert_matches</a> crate, which is a handy library for asserting that a value matches a pattern.
-Note that these dependencies is added under <code>dev-dependencies</code>, indicating that this dependency is only available when running tests, benchmarks, and examples.
-Therefore, users of our library will not depend on these crates, which is good, because temporary file management and assertions are not necessary to users of our library.</p>
+Note that these dependencies are added under <code>dev-dependencies</code>, indicating that these dependencies are only available when running tests, benchmarks, and examples.
+Therefore, users of our library will not depend on these crates, which is good, because temporary file management and assertions are not necessary to users of the library.</p>
 <p>Back to testing our filesystem utilities.
 Add the following tests to <code>pie/src/fs.rs</code>:</p>
 <pre><code class="language-rust ">#[cfg(test)]
@@ -403,7 +403,7 @@ Unfortunately, we can't easily test when <code>metadata</code> and <code>open_if
 <p>We use our <code>create_temp_file</code> and <code>create_temp_dir</code> utility functions to create temporary files and directories.
 The <code>tempfile</code> library takes care of deleting temporary files when they go out of scope (at the end of the test).</p>
 <p>We use <code>assert_matches!</code> to assert that <code>metadata</code> is <code>Some(metadata)</code>, binding <code>metadata</code> in the <code> =&gt; { ... }</code> block in which we assert that the metadata describes a file.
-We will use this macro more in future tests.</p>
+We will use this macro more in future integration tests.</p>
 <details id="admonition-rust-help-3" class="admonition info">
 <summary class="admonition-title">
 <p>Rust Help</p>
