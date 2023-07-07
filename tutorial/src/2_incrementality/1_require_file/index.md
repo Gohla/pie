@@ -94,14 +94,15 @@ Your directory structure should now look like this:
 {{#include ../../../gen/2_incrementality/1_require_file/e_dir.txt:2:}}
 ```
 
-To access these utility functions in the `pie` crate, add a dependency to `dev_shared` in `pie/Cargo.toml`:
+To access these utility functions in the `pie` crate, add a dependency to `dev_shared` in `pie/Cargo.toml` along with another create that will help testing:
 
 ```toml,customdiff,
 {{#include ../../../gen/2_incrementality/1_require_file/f_Cargo.toml.diff:4:}}
 ```
 
-Note that this is dependency is added under `dev-dependencies`, indicating that this dependency is only available when running tests, benchmarks, and examples.
-Therefore, users of our library will not depend on this library, which is good, because temporary file management is not necessary to users of our library.
+We've also added the [assert_matches](https://crates.io/crates/assert_matches) crate, which is a handy library for asserting that a value matches a pattern.
+Note that these dependencies is added under `dev-dependencies`, indicating that this dependency is only available when running tests, benchmarks, and examples.
+Therefore, users of our library will not depend on these crates, which is good, because temporary file management and assertions are not necessary to users of our library.
 
 Back to testing our filesystem utilities.
 Add the following tests to `pie/src/fs.rs`:
@@ -116,6 +117,15 @@ Unfortunately, we can't easily test when `metadata` and `open_if_file` should re
 We use our `create_temp_file` and `create_temp_dir` utility functions to create temporary files and directories.
 The `tempfile` library takes care of deleting temporary files when they go out of scope (at the end of the test).
 
+We use `assert_matches!` to assert that `metadata` is `Some(metadata)`, binding `metadata` in the ` => { ... }` block in which we assert that the metadata describes a file.
+We will use this macro more in future tests.
+
+```admonish info title="Rust Help" collapsible=true
+Tests can [return `Result`](https://doc.rust-lang.org/book/ch11-01-writing-tests.html#using-resultt-e-in-tests).
+When a test returns an `Err`, the test fails.
+This allows us to write more concise tests using error propagation.
+```
+
 Now we are done unwinding our stack and have filesystem and testing utilities.
 Make the non-incremental context compatible by changing `pie/src/context/non_incremental.rs`:
 
@@ -123,11 +133,6 @@ Make the non-incremental context compatible by changing `pie/src/context/non_inc
 {{#include ../../../gen/2_incrementality/1_require_file/h_non_incremental_context.rs.diff:4:}}
 ```
 
-Since the non-incremental context does not track anything, we simply try to open the file and return it.
-This implements the description we made earlier:
-
-* If opening the file results in an error, the `?` operator returns `Err(...)` immediately.
-* If the file does not exist or is a directory, `open_if_file` returns `None` and `file` is `None`.
-* Otherwise, `file` is `Some(file)`.
+Since the non-incremental context does not track anything, we only try to open the file and return it, matching the contract in the documentation comment of the `Context::require_file` trait method.
 
 Confirm everything works with `cargo test`.

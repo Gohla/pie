@@ -93,14 +93,18 @@ pub struct Applied<'a> {
 
 impl Stepper {
   pub fn apply(&mut self, into_modifications: impl IntoModifications) -> Applied {
-    self.apply_expect(into_modifications, true)
+    self.apply_expect(into_modifications, Some(true))
   }
 
   pub fn apply_failure(&mut self, into_modifications: impl IntoModifications) -> Applied {
-    self.apply_expect(into_modifications, false)
+    self.apply_expect(into_modifications, Some(false))
   }
 
-  fn apply_expect(&mut self, into_modifications: impl IntoModifications, expect_success: bool) -> Applied {
+  pub fn apply_may_fail(&mut self, into_modifications: impl IntoModifications) -> Applied {
+    self.apply_expect(into_modifications, None)
+  }
+
+  fn apply_expect(&mut self, into_modifications: impl IntoModifications, expect_success: Option<bool>) -> Applied {
     for modification in into_modifications.into() {
       debug!("Resolve: {}", modification);
       let resolved = modification.clone().resolve(&self);

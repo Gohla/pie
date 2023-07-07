@@ -218,7 +218,8 @@ And then change `pie/src/context/mod.rs` to store these errors:
 {{#include ../../../gen/2_incrementality/5_context/i_error_store.rs.diff:4:}}
 ```
 
-It took us a while, but now we've implemented an incremental build system with dynamic dependencies!
-Instead of throwing a party, we should first write tests to see if it is indeed incremental, but also to check that it is correct.
+It took us a while, but now we've implemented an incremental build system with dynamic dependencies 🎉.
 
-## Tests
+[//]: # (Instead of throwing a party, we should first write tests to see if it is indeed incremental, but also to check that it is correct.)
+
+[//]: # (Unfortunately, testing both incrementality and correctness is not easy, so we need to devote an entire chapter to creating the infrastructure for testing this.)

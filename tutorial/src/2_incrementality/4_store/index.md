@@ -281,3 +281,5 @@ Finally, test task reset by inserting the following code into the `test` module:
 ```
 
 Here, we ensure that a task with an output and dependencies, does not have an output and dependencies after a reset, while leaving another task untouched.
+
+Confirm that the store implementation works with `cargo test`.

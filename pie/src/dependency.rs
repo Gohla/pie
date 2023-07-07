@@ -280,9 +280,8 @@ impl<T: Task> Dependency<T, T::Output> {
 
 #[cfg(test)]
 mod test {
-  use std::error::Error;
   use std::fs::write;
-  use std::io::Read;
+  use std::io::{self, Read};
 
   use dev_shared::{create_temp_file, write_until_modified};
 
@@ -307,7 +306,7 @@ mod test {
   }
 
   #[test]
-  fn test_file_dependency_consistency() -> Result<(), Box<dyn Error>> {
+  fn test_file_dependency_consistency() -> Result<(), io::Error> {
     let mut context = NonIncrementalContext;
 
     let temp_file = create_temp_file()?;
@@ -327,7 +326,7 @@ mod test {
   }
 
   #[test]
-  fn test_task_dependency_consistency() -> Result<(), Box<dyn Error>> {
+  fn test_task_dependency_consistency() -> Result<(), io::Error> {
     let mut context = NonIncrementalContext;
 
     let temp_file = create_temp_file()?;

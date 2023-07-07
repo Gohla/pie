@@ -32,12 +32,13 @@ impl RunCargo {
     Ok(Self { cmd, cmd_joined })
   }
 
-  pub fn run(&self, expect_success: bool) -> anyhow::Result<(String, bool)> {
+  pub fn run(&self, expect_success: Option<bool>) -> anyhow::Result<(String, bool)> {
     let cmd_output = self.cmd.run()
       .context("failed to run cargo")?;
     let output = String::from_utf8(cmd_output.stdout)
       .context("failed to convert stdout to utf8")?;
-    let success = cmd_output.status.success();
-    Ok((output, success == expect_success))
+    let cargo_success = cmd_output.status.success();
+    let success = expect_success.map(|e| e == cargo_success).unwrap_or(true);
+    Ok((output, success))
   }
 }

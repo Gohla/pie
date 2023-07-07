@@ -1,11 +1,9 @@
+use std::io;
+
 use tempfile::{NamedTempFile, TempDir};
 
-// Filesystem utilities
+/// Creates a new temporary file that gets cleaned up when dropped.
+pub fn create_temp_file() -> Result<NamedTempFile, io::Error> { NamedTempFile::new() }
 
-pub fn create_temp_file() -> NamedTempFile {
-  NamedTempFile::new().expect("failed to create temporary file")
-}
-
-pub fn create_temp_dir() -> TempDir {
-  TempDir::new().expect("failed to create temporary directory")
-}
+/// Creates a new temporary directory that gets cleaned up when dropped.
+pub fn create_temp_dir() -> Result<TempDir, io::Error> { TempDir::new() }

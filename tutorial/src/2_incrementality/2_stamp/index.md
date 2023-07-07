@@ -67,13 +67,40 @@ Finally, we write some tests.
 Add to `pie/src/stamp.rs`:
 
 ```rust,
-{{#include d_test.rs}}
+{{#include d1_test.rs}}
 ```
 
 We test file stamps by creating a stamp, changing the file, creating a new stamp, and then compare the stamps.
 We test task output stamps by just passing a different output value to the `stamp` function, and then compare the stamps.
 
 Run `cargo test` to confirm the stamp implementation.
+If test `test_modified_file_stamper` fails, do continue to the next section, because we're going to fix it!
+
+## Testing with file modified time, correctly
+
+Unfortunately, these tests may fail on some operating systems (Linux and Windows in my testing), due to an imprecise file last modified timer.
+What can happen is that we write to a file, making the OS update its modified time to `1000` (as an example, not a real timestamp), then very quickly write to the file again, making the OS update its modified time to `1000` again.
+Then, our test will fail because the stamp didn't change even though we expect it to change.
+
+This can happen with an imprecise timer that only increases once every millisecond (again, an example, not a real number) when we perform writes in between that millisecond.
+Even worse, our test can be flaky, sometimes succeeding if we write in between those milliseconds, sometimes failing if we write within a millisecond.
+
+To solve this, add a function to the filesystem testing utility crate.
+Change `dev_shared/src/lib.rs`:
+
+```rust,customdiff,
+{{#include ../../../gen/2_incrementality/2_stamp/d2_test_utilities.rs.diff:4:}}
+```
+
+The `write_until_modified` function writes to the file, but ensures its modified time will change.
+Now change the tests in `pie/src/stamp.rs` to use this function:
+
+```rust,customdiff,
+{{#include ../../../gen/2_incrementality/2_stamp/d3_test_correct.rs.diff:4:}}
+```
+
+Now we use `write_until_modified` to write to the file, ensuring its modified time will change, ensuring the stamp will change when it should.
+Run `cargo test` to confirm the stamp implementation, which should succeed now.
 
 ## Stamps in Context
 

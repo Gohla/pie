@@ -80,7 +80,17 @@ pub fn step_all(
         create_diff("a_module.rs", "lib.rs"),
         add("b_file.rs", "stamp.rs"),
         add("c_output.rs", "stamp.rs"),
-        add("d_test.rs", "stamp.rs"),
+      ]);
+      stepper.apply_may_fail([
+        add("d1_test.rs", "stamp.rs"),
+      ]);
+      stepper.apply([
+        create_diff_builder("d2_test_utilities.rs", "../../dev_shared/src/lib.rs")
+          .context_length(10)
+          .into_modification(),
+        create_diff_builder("d3_test_correct.rs", "stamp.rs")
+          .context_length(20)
+          .into_modification(),
       ]);
       stepper.apply([
         create_diff_builder("e_context_file.rs", "lib.rs")

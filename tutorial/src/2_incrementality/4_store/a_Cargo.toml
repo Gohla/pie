@@ -8,3 +8,4 @@ edition = "2021"
 
 [dev-dependencies]
 dev_shared = { path = "../dev_shared" }
+assert_matches = "1"

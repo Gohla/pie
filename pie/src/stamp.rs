@@ -160,15 +160,15 @@ impl<O> OutputStamp<O> {
 
 #[cfg(test)]
 mod test {
-  use std::error::Error;
   use std::fs::remove_file;
+  use std::io;
 
-  use dev_shared::{create_temp_file, wait_until_modified_time_changes, write_until_modified};
+  use dev_shared::{create_temp_file, write_until_modified};
 
   use super::*;
 
   #[test]
-  fn test_exists_file_stamper() -> Result<(), Box<dyn Error>> {
+  fn test_exists_file_stamper() -> Result<(), io::Error> {
     let stamper = FileStamper::Exists;
     let temp_file = create_temp_file()?;
     let stamp = stamper.stamp(&temp_file)?;
@@ -181,7 +181,7 @@ mod test {
   }
 
   #[test]
-  fn test_modified_file_stamper() -> Result<(), Box<dyn Error>> {
+  fn test_modified_file_stamper() -> Result<(), io::Error> {
     let stamper = FileStamper::Modified;
     let temp_file = create_temp_file()?;
     let stamp = stamper.stamp(&temp_file)?;
@@ -194,10 +194,6 @@ mod test {
     assert_ne!(stamp, new_stamp);
     let stamp = new_stamp;
 
-    // We want to test that removing a file changes the stamp, so we don't want to write to `temp_file` as that will 
-    // change its modified stamp (this is pedantic, but it's important to test the right thing). Therefore, we use a 
-    // different method here that waits until the OS modified timer changes by writing to an unrelated file.
-    wait_until_modified_time_changes()?;
     remove_file(&temp_file)?;
     assert_ne!(stamp, stamper.stamp(&temp_file)?);
 
