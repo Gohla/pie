@@ -402,7 +402,9 @@ impl ApplyDiff {
 
   fn apply(&self, stepper: &Stepper) -> anyhow::Result<()> {
     let diff = read_to_string(&self.diff_file_path)
-      .context("failed to read diff to string")?;
+      .context("failed to read diff to string")?
+      .replace("\r\n", "\n") // Convert to Unix line endings, as diffy does not support Windows line endings.
+      ;
     let diff = stepper.apply_substitutions(&diff).external;
     let patch = diffy::Patch::from_str(&diff)
       .context("failed to create patch from diff string")?;
