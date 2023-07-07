@@ -17,9 +17,9 @@ fn test_exec(mut pie: TestPie<CommonTask>) -> Result<(), Box<dyn Error>> {
   let task = StringConstant::new("Hello, World!");
   let output = pie.require_then_assert(&task, |tracker| {
     let events = tracker.slice();
-    assert_matches!(events.get(0), Some(RequireTask { task: t }) if t == &task);
-    assert_matches!(events.get(1), Some(ExecuteTaskStart { task: t }) if t == &task);
-    assert_matches!(events.get(2), Some(ExecuteTaskEnd { task: t, .. }) if t == &task);
+    assert_matches!(events.get(0), Some(RequireTaskStart { task: t }) if t == &task);
+    assert_matches!(events.get(1), Some(ExecuteStart { task: t }) if t == &task);
+    assert_matches!(events.get(2), Some(ExecuteEnd { task: t, .. }) if t == &task);
   })?;
   assert_eq!(output.as_str(), "Hello, World!");
   Ok(())

@@ -77,6 +77,7 @@ impl<T: Task> Tracker<T> for MetricsTracker<T> {
     }
   }
 
+  
   #[inline]
   fn execute_task_start(&mut self, _task: &T) {
     self.report.total_executed_tasks += 1;
@@ -84,6 +85,7 @@ impl<T: Task> Tracker<T> for MetricsTracker<T> {
   #[inline]
   fn execute_task_end(&mut self, _task: &T, _output: &T::Output) {}
 
+  
   #[inline]
   fn require_top_down_initial_start(&mut self, _task: &T) {
     if self.clear_on_build_start {
@@ -114,6 +116,7 @@ impl<T: Task> Tracker<T> for MetricsTracker<T> {
     }
   }
 
+  
   #[inline]
   fn update_affected_by_start<'a, I: IntoIterator<Item=&'a PathBuf>>(&mut self, _changed_files: I) {
     if self.clear_on_build_start {

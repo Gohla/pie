@@ -12,16 +12,23 @@ pub mod event;
 
 /// Trait for tracking build events. Can be used to implement logging, event tracing, progress tracking, metrics, etc.
 pub trait Tracker<T: Task> {
+  // Dependencies
   fn require_file(&mut self, dependency: &FileDependency);
   fn provide_file(&mut self, dependency: &FileDependency);
   fn require_task_start(&mut self, task: &T);
   fn require_task_end(&mut self, task: &T, output: &T::Output, was_executed: bool);
-  
+
+
+  // Task execution
   fn execute_task_start(&mut self, task: &T);
   fn execute_task_end(&mut self, task: &T, output: &T::Output);
 
+
+  // Top-down builds
   fn require_top_down_initial_start(&mut self, task: &T);
+
   fn check_top_down_start(&mut self, task: &T);
+
   fn check_dependency_start(&mut self, dependency: &Dependency<T, T::Output>) {
     match dependency {
       Dependency::RequireFile(d) => self.check_require_file_start(d),
@@ -52,19 +59,27 @@ pub trait Tracker<T: Task> {
   fn check_provide_file_end(&mut self, dependency: &FileDependency, inconsistent: Result<Option<&FileStamp>, &io::Error>);
   fn check_require_task_start(&mut self, dependency: &TaskDependency<T, T::Output>);
   fn check_require_task_end(&mut self, dependency: &TaskDependency<T, T::Output>, inconsistent: Option<&OutputStamp<T::Output>>);
+
   fn check_top_down_end(&mut self, task: &T);
+
   fn require_top_down_initial_end(&mut self, task: &T, output: &T::Output);
 
+
+  // Bottom-up builds
   fn update_affected_by_start<'a, I: IntoIterator<Item=&'a PathBuf> + Clone>(&mut self, changed_files: I);
+
   fn schedule_affected_by_file_start(&mut self, path: &PathBuf);
   fn check_affected_by_file_start(&mut self, requiring_task: &T, dependency: &FileDependency);
   fn check_affected_by_file_end(&mut self, requiring_task: &T, dependency: &FileDependency, inconsistent: Result<Option<&FileStamp>, &io::Error>);
   fn schedule_affected_by_file_end(&mut self, path: &PathBuf);
+
   fn schedule_affected_by_task_start(&mut self, task: &T);
   fn check_affected_by_required_task_start(&mut self, requiring_task: &T, dependency: &TaskDependency<T, T::Output>);
   fn check_affected_by_required_task_end(&mut self, requiring_task: &T, dependency: &TaskDependency<T, T::Output>, inconsistent: Option<OutputStamp<&T::Output>>);
   fn schedule_affected_by_task_end(&mut self, task: &T);
+
   fn schedule_task(&mut self, task: &T);
+
   fn update_affected_by_end(&mut self);
 }
 
@@ -87,11 +102,13 @@ impl<T: Task> Tracker<T> for NoopTracker<T> {
   fn require_task_start(&mut self, _task: &T) {}
   #[inline]
   fn require_task_end(&mut self, _task: &T, _output: &T::Output, _was_executed: bool) {}
-  
+
+
   #[inline]
   fn execute_task_start(&mut self, _task: &T) {}
   #[inline]
   fn execute_task_end(&mut self, _task: &T, _output: &T::Output) {}
+
 
   #[inline]
   fn require_top_down_initial_start(&mut self, _task: &T) {}
@@ -113,6 +130,7 @@ impl<T: Task> Tracker<T> for NoopTracker<T> {
   fn check_top_down_end(&mut self, _task: &T) {}
   #[inline]
   fn require_top_down_initial_end(&mut self, _task: &T, _output: &T::Output) {}
+
 
   #[inline]
   fn update_affected_by_start<'a, I: IntoIterator<Item=&'a PathBuf>>(&mut self, _changed_files: I) {}
@@ -160,6 +178,7 @@ impl<T: Task, T1: Tracker<T>, T2: Tracker<T>> Tracker<T> for CompositeTracker<T1
     self.1.require_task_start(task);
   }
 
+
   #[inline]
   fn execute_task_start(&mut self, task: &T) {
     self.0.execute_task_start(task);
@@ -175,6 +194,7 @@ impl<T: Task, T1: Tracker<T>, T2: Tracker<T>> Tracker<T> for CompositeTracker<T1
     self.0.require_task_end(task, output, was_executed);
     self.1.require_task_end(task, output, was_executed);
   }
+
 
   #[inline]
   fn require_top_down_initial_start(&mut self, task: &T) {
@@ -227,6 +247,7 @@ impl<T: Task, T1: Tracker<T>, T2: Tracker<T>> Tracker<T> for CompositeTracker<T1
     self.1.require_top_down_initial_end(task, output);
   }
 
+  
   #[inline]
   fn update_affected_by_start<'a, I: IntoIterator<Item=&'a PathBuf> + Clone>(&mut self, changed_files: I) {
     self.0.update_affected_by_start(changed_files.clone());

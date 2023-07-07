@@ -6,28 +6,28 @@ use crate::stamp::{FileStamp, OutputStamp};
 use crate::Task;
 use crate::tracker::Tracker;
 
-/// A [`Tracker`] that stores [`Event`]s in a [`Vec`], useful in testing situations where we check build events after
-/// building. 
+/// A [`Tracker`] that stores [`Event`]s in a [`Vec`], useful in testing to assert that a context implementation is 
+/// incremental and correct.
 #[derive(Clone, Debug)]
 pub struct EventTracker<T: Task> {
   events: Vec<Event<T>>,
   clear_on_build_start: bool,
 }
 
-/// Enumeration representing important build events.
+/// Enumeration of important build events.
 #[derive(Debug, Clone)]
 pub enum Event<T: Task> {
   /// A require file `dependency` was created.
   RequireFile { dependency: FileDependency },
-  /// A provide file`dependency` was created.
+  /// A provide file `dependency` was created.
   ProvideFile { dependency: FileDependency },
-  /// A task `dependency` was required.
-  RequireTask { task: T },
+  /// Start of `task` require.
+  RequireTaskStart { task: T },
 
   /// Start of `task` execution.
-  ExecuteTaskStart { task: T },
+  ExecuteStart { task: T },
   /// End of `task` execution, which produced `output`.
-  ExecuteTaskEnd { task: T, output: T::Output },
+  ExecuteEnd { task: T, output: T::Output },
 }
 
 impl<T: Task> Default for EventTracker<T> {
@@ -79,7 +79,7 @@ impl<T: Task> EventTracker<T> {
   }
 
   /// Finds the first [`Event::RequireFile`] event that requires `path` and returns `Some(stamp)`, or `None` if no event
-  /// could be found.
+  /// was found.
   #[inline]
   pub fn find_require_file(&self, path: &PathBuf) -> Option<&FileStamp> {
     self.find(|e| e.match_require_file(path))
@@ -88,18 +88,27 @@ impl<T: Task> EventTracker<T> {
   /// Returns `true` if any task was executed.
   #[inline]
   pub fn any_execute(&self) -> bool { self.any(|e| e.is_execute()) }
+  /// Returns `true` if `task` was executed.
   #[inline]
   pub fn any_execute_of(&self, task: &T) -> bool { self.any(|e| e.is_execute_of(task)) }
+  /// Returns `true` if `task` was executed exactly once.
   #[inline]
   pub fn one_execute_of(&self, task: &T) -> bool { self.one(|e| e.is_execute_start(task)) }
+
+  /// Finds the first [`Event::ExecuteStart`] event for `task` and returns `Some(index)`, or `None` if no event was 
+  /// found.
   #[inline]
   pub fn index_execute_start(&self, task: &T) -> Option<usize> {
     self.index(|e| e.is_execute_start(task))
   }
+  /// Finds the first [`Event::ExecuteEnd`] event for `task` and returns `Some(index)`, or `None` if no event was 
+  /// found.
   #[inline]
   pub fn index_execute_end(&self, task: &T) -> Option<usize> {
     self.index(|e| e.match_execute_end(task).is_some())
   }
+  /// Finds the first [`Event::ExecuteEnd`] event for `task` and returns `Some((index, output))`, or `None` if no 
+  /// event was found.
   #[inline]
   pub fn index_find_execute_end(&self, task: &T) -> Option<(usize, &T::Output)> {
     self.index_find(|e| e.match_execute_end(task))
@@ -107,6 +116,7 @@ impl<T: Task> EventTracker<T> {
 }
 
 impl<T: Task> Event<T> {
+  /// Returns `Some(stamp)` if this is a require file event for file at `path`, `None` otherwise.
   #[inline]
   pub fn match_require_file(&self, path: &PathBuf) -> Option<&FileStamp> {
     match self {
@@ -115,33 +125,37 @@ impl<T: Task> Event<T> {
     }
   }
 
+  /// Returns `true` if this is an execution event.
   #[inline]
   pub fn is_execute(&self) -> bool {
     match self {
-      Event::ExecuteTaskStart { .. } => true,
-      Event::ExecuteTaskEnd { .. } => true,
+      Event::ExecuteStart { .. } => true,
+      Event::ExecuteEnd { .. } => true,
       _ => false,
     }
   }
+  /// Returns `true` if this is an execution event of `task`.
   #[inline]
   pub fn is_execute_of(&self, task: &T) -> bool {
     match self {
-      Event::ExecuteTaskStart { task: t } if t == task => true,
-      Event::ExecuteTaskEnd { task: t, .. } if t == task => true,
+      Event::ExecuteStart { task: t } if t == task => true,
+      Event::ExecuteEnd { task: t, .. } if t == task => true,
       _ => false,
     }
   }
+  /// Returns `true` if this is a `task` execute start event.
   #[inline]
   pub fn is_execute_start(&self, task: &T) -> bool {
     match self {
-      Event::ExecuteTaskStart { task: t } if t == task => true,
+      Event::ExecuteStart { task: t } if t == task => true,
       _ => false,
     }
   }
+  /// Returns `Some(output)` if this is a `task` execute end event, `None` otherwise.
   #[inline]
   pub fn match_execute_end(&self, task: &T) -> Option<&T::Output> {
     match self {
-      Event::ExecuteTaskEnd { task: t, output: o } if t == task => Some(o),
+      Event::ExecuteEnd { task: t, output: o } if t == task => Some(o),
       _ => None,
     }
   }
@@ -158,22 +172,24 @@ impl<T: Task> Tracker<T> for EventTracker<T> {
   }
   #[inline]
   fn require_task_start(&mut self, task: &T) {
-    self.events.push(Event::RequireTask { task: task.clone() });
+    self.events.push(Event::RequireTaskStart { task: task.clone() });
   }
   #[inline]
   fn require_task_end(&mut self, _task: &T, _output: &T::Output, _was_executed: bool) {}
 
+
   #[inline]
   fn execute_task_start(&mut self, task: &T) {
-    self.events.push(Event::ExecuteTaskStart { task: task.clone() });
+    self.events.push(Event::ExecuteStart { task: task.clone() });
   }
   #[inline]
   fn execute_task_end(&mut self, task: &T, output: &T::Output) {
-    self.events.push(Event::ExecuteTaskEnd {
+    self.events.push(Event::ExecuteEnd {
       task: task.clone(),
       output: output.clone()
     });
   }
+
 
   #[inline]
   fn require_top_down_initial_start(&mut self, _task: &T) {
@@ -199,6 +215,7 @@ impl<T: Task> Tracker<T> for EventTracker<T> {
   fn check_top_down_end(&mut self, _task: &T) {}
   #[inline]
   fn require_top_down_initial_end(&mut self, _task: &T, _output: &T::Output) {}
+
 
   #[inline]
   fn update_affected_by_start<'a, I: IntoIterator<Item=&'a PathBuf> + Clone>(&mut self, _changed_files: I) {
