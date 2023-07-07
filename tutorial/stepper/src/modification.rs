@@ -351,8 +351,10 @@ impl CreateDiffAndApplyResolved {
   fn apply(&self, stepper: &mut Stepper) -> anyhow::Result<()> {
     let original_text = read_to_string(&self.original_file_path)
       .context("failed to read original file text")?;
+    let original_text = normalize_to_unix_line_endings(original_text); // Normalize to Unix line endings for diffy.
     let modified_text = read_to_string(&self.modified_file_path)
       .context("failed to read modified file text")?;
+    let modified_text = normalize_to_unix_line_endings(modified_text);
     let Substituted { external: modified_text_external, internal: modified_text_internal } = stepper.apply_substitutions(&modified_text);
 
     let mut diff_options = DiffOptions::default();

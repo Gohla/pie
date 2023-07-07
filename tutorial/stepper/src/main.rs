@@ -76,9 +76,7 @@ fn main() {
         .with_filter(filter)
     )
     .init();
-
-  // let temp_directory = tempfile::tempdir()
-  //   .expect("failed to create temporary directory");
+  
   let command = args.command.unwrap_or_default();
   match command {
     Command::StepAll { destination_root_directory } => {
