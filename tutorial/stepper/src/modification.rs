@@ -402,9 +402,8 @@ impl ApplyDiff {
 
   fn apply(&self, stepper: &Stepper) -> anyhow::Result<()> {
     let diff = read_to_string(&self.diff_file_path)
-      .context("failed to read diff to string")?
-      .replace("\r\n", "\n") // Convert to Unix line endings, as diffy does not support Windows line endings.
-      ;
+      .context("failed to read diff to string")?;
+    let diff = normalize_to_unix_line_endings(diff); // Normalize to Unix line endings for diffy.
     let diff = stepper.apply_substitutions(&diff).external;
     let patch = diffy::Patch::from_str(&diff)
       .context("failed to create patch from diff string")?;
@@ -414,12 +413,17 @@ impl ApplyDiff {
   }
 }
 
-fn apply_patch(patch: Patch<str>, destination_file_path: impl AsRef<Path>) -> anyhow::Result<()> {
-  let destination_text = read_to_string(destination_file_path.as_ref())
-    .context("failed to read destination file text")?;
-  let destination_text = diffy::apply(&destination_text, &patch)
+fn normalize_to_unix_line_endings(str: impl AsRef<str>) -> String {
+  str.as_ref().replace("\r\n", "\n")
+}
+
+fn apply_patch(patch: Patch<str>, file_path: impl AsRef<Path>) -> anyhow::Result<()> {
+  let text = read_to_string(file_path.as_ref())
+    .context("failed to read file text")?;
+  let text = normalize_to_unix_line_endings(text); // Normalize to Unix line endings for diffy.
+  let text = diffy::apply(&text, &patch)
     .context("failed to apply patch")?;
-  crate::util::write_to_file(destination_text.as_bytes(), destination_file_path, false)
-    .context("failed to write to destination file")?;
+  write_to_file(text.as_bytes(), file_path, false)
+    .context("failed to write patched text to file")?;
   Ok(())
 }
