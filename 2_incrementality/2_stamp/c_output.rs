@@ -1,4 +1,4 @@
-#[derive(Clone, Eq, PartialEq, Debug)]
+#[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Debug)]
 pub enum OutputStamper {
   Inconsequential,
   Equals,

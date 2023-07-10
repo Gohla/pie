@@ -28,7 +28,3 @@ impl<T: Task> Default for Store<T, T::Output> {
     }
   }
 }
-
-impl<T: Task> Store<T, T::Output> {
-  pub fn new() -> Self { Self::default() }
-}

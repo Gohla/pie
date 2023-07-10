@@ -216,8 +216,8 @@ Because of this, the context reference passed to <code>Task::execute</code> is a
 <p>This <code>Task</code> and <code>Context</code> API mirrors the mutually recursive definition of task and context we discussed earlier, and forms the basis for the entire build system.</p>
 <p>Build the project by running <code>cargo build</code>.
 The output should look something like:</p>
-<pre><code class="language-shell ">   Compiling pie v0.1.0 (/private/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmplynKyR/pie)
-    Finished dev [unoptimized + debuginfo] target(s) in 0.13s
+<pre><code class="language-shell ">   Compiling pie v0.1.0 (/private/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmpQbEgkA/pie)
+    Finished dev [unoptimized + debuginfo] target(s) in 0.18s
 </code></pre>
 <details id="admonition-rust-help" class="admonition info">
 <summary class="admonition-title">
@@ -353,9 +353,9 @@ in a reference to the task.
 It returns the output of the task, which we test with <code>assert_eq!</code>.</p>
 <p>Run the test by running <code>cargo test</code>.
 The output should look something like:</p>
-<pre><code class="language-shell ">   Compiling pie v0.1.0 (/private/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmplynKyR/pie)
-    Finished test [unoptimized + debuginfo] target(s) in 0.37s
-     Running unittests src/lib.rs (/private/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmplynKyR/pie/target/debug/deps/pie-daca3a31898407a4)
+<pre><code class="language-shell ">   Compiling pie v0.1.0 (/private/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmpQbEgkA/pie)
+    Finished test [unoptimized + debuginfo] target(s) in 0.75s
+     Running unittests src/lib.rs (/private/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmpQbEgkA/pie/target/debug/deps/pie-daca3a31898407a4)
 
 running 1 test
 test context::non_incremental::test::test_require_task_direct ... ok
@@ -428,7 +428,7 @@ Add the following test:</p>
 <p>We use the same <code>ReturnHelloWorld</code> task as before, but now also have a <code>ToLowerCase</code> task which requires <code>ReturnHelloWorld</code> and then turn its string lowercase.
 However, due to the way we've set up the types between <code>Task</code> and <code>Context</code>, we will run into a problem.
 Running <code>cargo test</code>, you should get these errors:</p>
-<pre><code class="language-shell ">   Compiling pie v0.1.0 (/private/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmplynKyR/pie)
+<pre><code class="language-shell ">   Compiling pie v0.1.0 (/private/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmpQbEgkA/pie)
 error[E0308]: mismatched types
   --&gt; src/context/non_incremental.rs:48:30
    |
@@ -464,7 +464,7 @@ This doesn't work as <code>Context&lt;ToLowerCase&gt;::require_task</code> only 
 
      let mut context = NonIncrementalContext;</code></pre>
 <p>But that is not allowed:</p>
-<pre><code class="language-shell ">   Compiling pie v0.1.0 (/private/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmplynKyR/pie)
+<pre><code class="language-shell ">   Compiling pie v0.1.0 (/private/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmpQbEgkA/pie)
 error[E0276]: impl has stricter requirements than trait
   --&gt; src/context/non_incremental.rs:47:21
    |
@@ -928,7 +928,7 @@ use std::time::SystemTime;
 
 use crate::fs::metadata;
 
-#[derive(Clone, Eq, PartialEq, Debug)]
+#[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Debug)]
 pub enum FileStamper {
   Exists,
   Modified,
@@ -950,7 +950,7 @@ impl FileStamper {
   }
 }
 
-#[derive(Clone, Eq, PartialEq, Debug)]
+#[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Debug)]
 pub enum FileStamp {
   Exists(bool),
   Modified(Option&lt;SystemTime&gt;),
@@ -962,12 +962,12 @@ The <code>Exists</code> stamper just returns a boolean indicating whether a file
 It can be used to create a file dependency where a task behaves differently based on whether a file exists or not.
 The <code>Modified</code> stamper returns the last modification date if the file exists, or <code>None</code> if the file does not exist.</p>
 <p>We derive <code>Eq</code> for stamps so that we can compare them.
-Equal stamps indicate a consistent dependency, unequal indicates inconsistent.
+Equal (same) stamps indicate a consistent dependency, unequal (different) indicates inconsistent.
 We also derive <code>Eq</code> for stampers, because the stamper of a dependency could change, making the dependency inconsistent.</p>
 <h2 id="task-output-stamps"><a class="header" href="#task-output-stamps">Task output stamps</a></h2>
 <p>We implement task output stampers in a similar way.
 Add to <code>pie/src/stamp.rs</code>:</p>
-<pre><code class="language-rust ">#[derive(Clone, Eq, PartialEq, Debug)]
+<pre><code class="language-rust ">#[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Debug)]
 pub enum OutputStamper {
   Inconsequential,
   Equals,
@@ -1007,7 +1007,7 @@ The <code>Equals</code> stamper simply wraps the output of a task, so the stamp 
 </summary>
 <div>
 <p>Because <code>O</code> is used in the enum, the <code>derive</code> attributes on <code>OutputStamp</code> create bounds over <code>O</code>.
-Thus, <code>OutputStamp</code> is only <code>Clone</code> when <code>O</code> is <code>Clone</code>, <code>OutputStamp</code> is only <code>Clone</code> when <code>O</code> is <code>Clone</code>, and so forth.
+Thus, <code>OutputStamp</code> is only <code>Clone</code> when <code>O</code> is <code>Clone</code>, <code>OutputStamp</code> is only <code>Eq</code> when <code>O</code> is <code>Eq</code>, and so forth.
 Because we declared <code>Task::Output</code> with bound <code>Clone + Eq + Debug</code>, we can be sure that <code>OutputStamp</code> is always <code>Clone</code>, <code>Eq</code>, and <code>Debug</code>.</p>
 </div>
 </details>
@@ -1335,6 +1335,7 @@ impl FileDependency {
   /// Creates a new file dependency with `path` and `stamper`, returning:
   /// - `Ok(file_dependency)` normally,
   /// - `Err(e)` if stamping failed.
+  #[allow(dead_code)]
   pub fn new(path: impl Into&lt;PathBuf&gt;, stamper: FileStamper) -&gt; Result&lt;Self, io::Error&gt; {
     let path = path.into();
     let stamp = stamper.stamp(&amp;path)?;
@@ -1651,10 +1652,6 @@ impl&lt;T: Task&gt; Default for Store&lt;T, T::Output&gt; {
       graph: DAG::default(),
     }
   }
-}
-
-impl&lt;T: Task&gt; Store&lt;T, T::Output&gt; {
-  pub fn new() -&gt; Self { Self::default() }
 }</code></pre>
 <p>The <code>Store</code> is generic over tasks <code>T</code> and their outputs <code>O</code>, like we have done before with <code>Dependency</code>.</p>
 <p>The <code>DAG</code> type from <code>pie_graph</code> represents a DAG with nodes and edges, and data attached to those nodes and edges.
@@ -1664,8 +1661,7 @@ Because nodes can be files or tasks, <code>NodeData&lt;T, O&gt;</code> enumerate
 We store file paths as <code>PathBuf</code>, which is the owned version of <code>Path</code> (similar to <code>String</code> being the owned version of <code>str</code>).
 The task output is stored as <code>Option&lt;O&gt;</code> because we can add a task to the graph without having executed it, so we don't have its output yet.</p>
 <p>The second argument is the type of data to attach to edges, which is <code>Dependency&lt;T, O&gt;</code>, using the <code>Dependency</code> enum we defined earlier.</p>
-<p>We implement <code>Default</code> for the store to initialize it.
-We also add a <code>new</code> function to initialize the store, which right now is the same as <code>default</code>, but will get a more specific meaning later.</p>
+<p>We implement <code>Default</code> for the store to initialize it.</p>
 <details id="admonition-deriving-default" class="admonition info">
 <summary class="admonition-title">
 <p>Deriving default</p>
@@ -1721,10 +1717,6 @@ This is also the reason for the <code>Eq</code> and <code>Hash</code> trait boun
 +      task_to_node: HashMap::default(),
      }
    }
- }
-
- impl&lt;T: Task&gt; Store&lt;T, T::Output&gt; {
-   pub fn new() -&gt; Self { Self::default() }
  }</code></pre>
 <p>To prevent accidentally using a file node as a task node, and vice versa, change <code>pie/src/store.rs</code> to add specific types of nodes:</p>
 <pre><code class="language-rust customdiff">+use std::borrow::Borrow;
@@ -1782,10 +1774,6 @@ This is also the reason for the <code>Eq</code> and <code>Hash</code> trait boun
        task_to_node: HashMap::default(),
      }
    }
- }
-
- impl&lt;T: Task&gt; Store&lt;T, T::Output&gt; {
-   pub fn new() -&gt; Self { Self::default() }
  }</code></pre>
 <p>The <code>FileNode</code> and <code>TaskNode</code> types are <a href="https://rust-unofficial.github.io/patterns/patterns/behavioural/newtype.html" title="" target="_blank">newtypes</a> that wrap a <code>Node</code> into a specific type of node.
 The <code>Borrow</code> implementations will make subsequent code a bit more concise by automatically converting <code>&amp;FileNode</code> and <code>&amp;TaskNode</code>s to <code>&amp;Node</code>s.</p>
@@ -1824,6 +1812,7 @@ Add the following code to <code>pie/src/store.rs</code>:</p>
   /// # Panics
   ///
   /// Panics if `node` was not found in the dependency graph.
+  #[allow(dead_code)]
   pub fn get_file_path(&amp;self, node: &amp;FileNode) -&gt; &amp;PathBuf {
     let Some(NodeData::File(path)) = self.graph.get_node_data(node) else {
       panic!(&quot;BUG: node {:?} was not found in the dependency graph&quot;, node);
@@ -2027,7 +2016,7 @@ mod test {
 
   #[test]
   fn test_file_mapping() {
-    let mut store: Store&lt;StringConstant, String&gt; = Store::new();
+    let mut store: Store&lt;StringConstant, String&gt; = Store::default();
 
     let path_a = PathBuf::from(&quot;hello.txt&quot;);
     let node_a = store.get_or_create_file_node(&amp;path_a);
@@ -2045,9 +2034,9 @@ mod test {
   #[test]
   #[should_panic]
   fn test_file_mapping_panics() {
-    let mut fake_store: Store&lt;StringConstant, String&gt; = Store::new();
+    let mut fake_store: Store&lt;StringConstant, String&gt; = Store::default();
     let fake_node = fake_store.get_or_create_file_node(&quot;hello.txt&quot;);
-    let store: Store&lt;StringConstant, String&gt; = Store::new();
+    let store: Store&lt;StringConstant, String&gt; = Store::default();
     store.get_file_path(&amp;fake_node);
   }
 }</code></pre>
@@ -2074,7 +2063,7 @@ While it is unlikely that we will make this mistake when using <code>Store</code
 <p>Test the task mapping by inserting the following code into the <code>test</code> module (before the last <code>}</code>):</p>
 <pre><code class="language-rust ">  #[test]
   fn test_task_mapping() {
-    let mut store = Store::new();
+    let mut store = Store::default();
 
     let task_a = StringConstant::new(&quot;Hello&quot;);
     let node_a = store.get_or_create_task_node(&amp;task_a);
@@ -2092,9 +2081,9 @@ While it is unlikely that we will make this mistake when using <code>Store</code
   #[test]
   #[should_panic]
   fn test_task_mapping_panics() {
-    let mut fake_store = Store::new();
+    let mut fake_store = Store::default();
     let fake_node = fake_store.get_or_create_task_node(&amp;StringConstant::new(&quot;Hello&quot;));
-    let store: Store&lt;StringConstant, String&gt; = Store::new();
+    let store: Store&lt;StringConstant, String&gt; = Store::default();
     store.get_task(&amp;fake_node);
   }</code></pre>
 <p>We test this in the same way as the file mapping.
@@ -2106,7 +2095,7 @@ Later on we will also see that this is important for soundness of the incrementa
 <p>Test task outputs by inserting the following code into the <code>test</code> module:</p>
 <pre><code class="language-rust ">  #[test]
   fn test_task_outputs() {
-    let mut store = Store::new();
+    let mut store = Store::default();
     let output_a = &quot;Hello&quot;.to_string();
     let task_a = StringConstant::new(&amp;output_a);
     let node_a = store.get_or_create_task_node(&amp;task_a);
@@ -2136,16 +2125,16 @@ Later on we will also see that this is important for soundness of the incrementa
   #[test]
   #[should_panic]
   fn test_task_has_output_panics() {
-    let mut fake_store = Store::new();
+    let mut fake_store = Store::default();
     let fake_node = fake_store.get_or_create_task_node(&amp;StringConstant::new(&quot;Hello&quot;));
-    let store: Store&lt;StringConstant, String&gt; = Store::new();
+    let store: Store&lt;StringConstant, String&gt; = Store::default();
     store.task_has_output(&amp;fake_node);
   }
 
   #[test]
   #[should_panic]
   fn test_get_task_output_panics() {
-    let mut store = Store::new();
+    let mut store = Store::default();
     let node = store.get_or_create_task_node(&amp;StringConstant::new(&quot;Hello&quot;));
     store.get_task_output(&amp;node);
   }
@@ -2153,9 +2142,9 @@ Later on we will also see that this is important for soundness of the incrementa
   #[test]
   #[should_panic]
   fn test_set_task_output_panics() {
-    let mut fake_store = Store::new();
+    let mut fake_store = Store::default();
     let fake_node = fake_store.get_or_create_task_node(&amp;StringConstant::new(&quot;Hello&quot;));
-    let mut store: Store&lt;StringConstant, String&gt; = Store::new();
+    let mut store: Store&lt;StringConstant, String&gt; = Store::default();
     store.set_task_output(&amp;fake_node, &quot;Hello&quot;.to_string());
   }</code></pre>
 <p>Test <code>test_task_outputs</code> ensures that:</p>
@@ -2168,7 +2157,7 @@ Later on we will also see that this is important for soundness of the incrementa
 <p>Test dependencies by inserting the following code into the <code>test</code> module:</p>
 <pre><code class="language-rust ">  #[test]
   fn test_dependencies() {
-    let mut store = Store::new();
+    let mut store = Store::default();
     let output_a = &quot;Hello&quot;.to_string();
     let task_a = StringConstant::new(output_a.clone());
     let node_a = store.get_or_create_task_node(&amp;task_a);
@@ -2220,19 +2209,19 @@ Later on we will also see that this is important for soundness of the incrementa
   #[test]
   #[should_panic]
   fn test_get_dependencies_of_task_panics() {
-    let mut fake_store = Store::new();
+    let mut fake_store = Store::default();
     let fake_node = fake_store.get_or_create_task_node(&amp;StringConstant::new(&quot;Hello&quot;));
-    let store: Store&lt;StringConstant, String&gt; = Store::new();
+    let store: Store&lt;StringConstant, String&gt; = Store::default();
     let _ = store.get_dependencies_of_task(&amp;fake_node);
   }
 
   #[test]
   #[should_panic]
   fn test_add_file_require_dependency_panics() {
-    let mut fake_store = Store::new();
+    let mut fake_store = Store::default();
     let fake_file_node = fake_store.get_or_create_file_node(&quot;hello.txt&quot;);
     let fake_task_node = fake_store.get_or_create_task_node(&amp;StringConstant::new(&quot;Hello&quot;));
-    let mut store: Store&lt;StringConstant, String&gt; = Store::new();
+    let mut store: Store&lt;StringConstant, String&gt; = Store::default();
     let dependency = FileDependency::new(&quot;hello.txt&quot;, FileStamper::Exists).unwrap();
     store.add_file_require_dependency(&amp;fake_task_node, &amp;fake_file_node, dependency);
   }
@@ -2240,11 +2229,11 @@ Later on we will also see that this is important for soundness of the incrementa
   #[test]
   #[should_panic]
   fn test_add_task_require_dependency_panics() {
-    let mut fake_store = Store::new();
+    let mut fake_store = Store::default();
     let output = &quot;Hello&quot;.to_string();
     let task = StringConstant::new(&amp;output);
     let fake_task_node = fake_store.get_or_create_task_node(&amp;task);
-    let mut store: Store&lt;StringConstant, String&gt; = Store::new();
+    let mut store: Store&lt;StringConstant, String&gt; = Store::default();
     let dependency = TaskDependency::new(task, OutputStamper::Equals, output);
     let _ = store.add_task_require_dependency(&amp;fake_task_node, &amp;fake_task_node, dependency);
   }</code></pre>
@@ -2260,7 +2249,7 @@ Later on we will also see that this is important for soundness of the incrementa
 <p>Finally, test task reset by inserting the following code into the <code>test</code> module:</p>
 <pre><code class="language-rust ">  #[test]
   fn test_reset() {
-    let mut store = Store::new();
+    let mut store = Store::default();
     let output_a = &quot;Hello&quot;.to_string();
     let task_a = StringConstant::new(output_a.clone());
     let task_a_node = store.get_or_create_task_node(&amp;task_a);
@@ -2305,9 +2294,9 @@ Later on we will also see that this is important for soundness of the incrementa
   #[test]
   #[should_panic]
   fn test_reset_task_panics() {
-    let mut fake_store = Store::new();
+    let mut fake_store = Store::default();
     let fake_node = fake_store.get_or_create_task_node(&amp;StringConstant::new(&quot;Hello&quot;));
-    let mut store: Store&lt;StringConstant, String&gt; = Store::new();
+    let mut store: Store&lt;StringConstant, String&gt; = Store::default();
     store.reset_task(&amp;fake_node);
   }</code></pre>
 <p>Here, we ensure that a task with an output and dependencies, does not have an output and dependencies after a reset, while leaving another task untouched.</p>
@@ -2333,16 +2322,12 @@ pub struct TopDownContext&lt;T, O&gt; {
   store: Store&lt;T, O&gt;,
 }
 
-impl&lt;T: Task&gt; Default for TopDownContext&lt;T, T::Output&gt; {
-  fn default() -&gt; Self {
+impl&lt;T: Task&gt; TopDownContext&lt;T, T::Output&gt; {
+  pub fn new() -&gt; Self {
     Self {
       store: Store::default(),
-    }
+    } 
   }
-}
-
-impl&lt;T: Task&gt; TopDownContext&lt;T, T::Output&gt; {
-  pub fn new() -&gt; Self { Self::default() }
 }
 
 
@@ -2355,7 +2340,7 @@ impl&lt;T: Task&gt; Context&lt;T&gt; for TopDownContext&lt;T, T::Output&gt; {
     todo!()
   }
 }</code></pre>
-<p>The <code>TopDownContext</code> type is generic over tasks <code>T</code> and their outputs <code>O</code>, owns a <code>Store</code>, and can be created using <code>default</code> or <code>new</code>.</p>
+<p>The <code>TopDownContext</code> type is generic over tasks <code>T</code> and their outputs <code>O</code>, owns a <code>Store</code>, and can be created using <code>new</code>.</p>
 <p><code>TopDownContext</code> implements <code>Context</code>, and the main challenge will be implementing the <code>require_file_with_stamper</code> and <code>require_task_with_stamper</code> methods <em>incrementally</em> and <em>correctly</em>.</p>
 <h2 id="requiring-files-1"><a class="header" href="#requiring-files-1">Requiring files</a></h2>
 <p>Tasks such as <code>ReadStringFromFile</code> which we've used in tests before call <code>context.require_file</code> to declare that they depend on a file in the filesystem.
@@ -2374,19 +2359,22 @@ Therefore, we will need to keep track of the current executing task.</p>
 +  current_executing_task: Option&lt;TaskNode&gt;,
  }
 
- impl&lt;T: Task&gt; Default for TopDownContext&lt;T, T::Output&gt; {
-   fn default() -&gt; Self {
+-impl&lt;T: Task&gt; TopDownContext&lt;T, T::Output&gt; {
+-  pub fn new() -&gt; Self {
++impl&lt;T: Task&gt; Default for TopDownContext&lt;T, T::Output&gt; {
++  fn default() -&gt; Self {
      Self {
        store: Store::default(),
+-    } 
 +      current_executing_task: None,
-     }
++    }
    }
  }
 
- impl&lt;T: Task&gt; TopDownContext&lt;T, T::Output&gt; {
-   pub fn new() -&gt; Self { Self::default() }
- }
-
++impl&lt;T: Task&gt; TopDownContext&lt;T, T::Output&gt; {
++  pub fn new() -&gt; Self { Self::default() }
++}
++
 
  impl&lt;T: Task&gt; Context&lt;T&gt; for TopDownContext&lt;T, T::Output&gt; {
    fn require_file_with_stamper&lt;P: AsRef&lt;Path&gt;&gt;(&amp;mut self, path: P, stamper: FileStamper) -&gt; Result&lt;Option&lt;File&gt;, io::Error&gt; {
@@ -2668,12 +2656,145 @@ When dependency checking result in an error, we should store the error for the u
      }
      // Task has no dependencies or all dependencies are consistent. Should only execute if it has no output, meaning
      // that it has never been executed before.</code></pre>
-<p>It took us a while, but now we've implemented an incremental build system with dynamic dependencies 🎉.</p>
-<p>Normally we would write tests to confirm the behaviour, but it turns out that testing both minimality (incrementality) and correctness is not easy, as it requires a lot of testing infrastructure.
-Therefore, we will define minimality and correctness in the next chapter, set up this infrastructure, test these properties, and fix any issues that pop up.</p>
-<p>But before we do that, let's set up an example to see the fruits of our labour. </p>
+<p>It took us a while, but now we've implemented an incremental build system with dynamic dependencies 🎉.
+Let's set up an example to see the fruits of our labour.</p>
 <h2 id="incrementality-example"><a class="header" href="#incrementality-example">Incrementality Example</a></h2>
-<p>TODO</p>
+<p>In this example, we will show off incrementality using two tasks: a task that reads a string from a file, and a task that writes a string to a file.
+The writing task gets the string by requiring another task.
+Therefore, we will have a read task with a file dependency, and a write task with a task and file dependency.
+Because we only support one type of task, we will wrap these tasks in an enum.</p>
+<p>Create the <code>pie/examples</code> directory, and create the <code>pie/examples/incrementality.rs</code> file with the following contents:</p>
+<pre><code class="language-rust ">#![allow(unused_imports, unused_variables)]
+
+use std::fs::{File, read_to_string, remove_file, write};
+use std::io::{self, Read, Write};
+use std::path::{Path, PathBuf};
+
+use dev_shared::{create_temp_dir, write_until_modified};
+use pie::{Context, Task};
+use pie::context::top_down::TopDownContext;
+use pie::stamp::FileStamper;
+
+/// Enumeration over file pseudo-tasks.
+#[derive(Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Debug)]
+enum FileTask {
+  ReadStringFromFile(ReadStringFromFile),
+  WriteStringToFile(WriteStringToFile),
+}
+
+/// [`Task`] implementation for [`FileTask`], forwarding execute to the execute functions of the pseudo-tasks.
+impl Task for FileTask {
+  type Output = Result&lt;String, io::ErrorKind&gt;;
+  fn execute&lt;C: Context&lt;Self&gt;&gt;(&amp;self, context: &amp;mut C) -&gt; Self::Output {
+    match self {
+      FileTask::ReadStringFromFile(t) =&gt; t.execute(context),
+      FileTask::WriteStringToFile(t) =&gt; t.execute(context).map(|_| String::new())
+    }
+  }
+}</code></pre>
+<p><code>FileTask</code> is the enum over the <code>ReadStringFromFile</code> and <code>WriteStringToFile</code> &quot;pseudo-tasks&quot; that we still need to define.
+We call these types pseudo-tasks, because they behave like tasks, but do not actually implement <code>Task</code>.
+We implement <code>Task</code> on <code>FileTask</code> instead, which forwards the <code>execute</code> method to the pseudo-tasks.</p>
+<p>Both tasks can fail due to using filesystem operations, so the output is a <code>Result</code>.
+We cannot use <code>std::io::Error</code> as the error in the <code>Result</code>, because it does not implement <code>Clone</code> nor <code>Eq</code>, which need to be implemented for task outputs.
+Therefore, we use <code>std::io::ErrorKind</code> which does implement these traits.</p>
+<p>On success, we return a <code>String</code>.
+Because <code>WriteStringToFile</code> will not return a value (i.e., <code>()</code>) on success, we return an empty string with <code>String::new()</code>.
+It would be cleaner to define an <code>FileOutput</code> enum that enumerates the possible outputs of file tasks, which would include a variant for <code>WriteStringToFile</code> returning <code>()</code>.
+But to keep this example simple we don't do that.</p>
+<p>Now add <code>ReadStringFromFile</code> to <code>pie/examples/incrementality.rs</code>:</p>
+<pre><code class="language-rust ">/// Pseudo-task that reads a string from a file.
+#[derive(Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Debug)]
+struct ReadStringFromFile(PathBuf, FileStamper);
+
+impl ReadStringFromFile {
+  fn new(path: impl AsRef&lt;Path&gt;, stamper: FileStamper) -&gt; FileTask {
+    FileTask::ReadStringFromFile(Self(path.as_ref().to_path_buf(), stamper))
+  }
+  fn execute&lt;C: Context&lt;FileTask&gt;&gt;(&amp;self, context: &amp;mut C) -&gt; Result&lt;String, io::ErrorKind&gt; {
+    println!(&quot;Reading from {} with {:?} stamper&quot;, self.0.display(), self.1);
+    let file = context.require_file_with_stamper(&amp;self.0, self.1).map_err(|e| e.kind())?;
+    if let Some(mut file) = file {
+      let mut string = String::new();
+      file.read_to_string(&amp;mut string).map_err(|e| e.kind())?;
+      Ok(string)
+    } else {
+      Err(io::ErrorKind::NotFound)
+    }
+  }
+}</code></pre>
+<p>We've already defined a task like this before, but now it accepts a <code>FileStamper</code>, prints something when it gets executed, and propagates errors.</p>
+<p>Add <code>WriteStringToFile</code> to <code>pie/examples/incrementality.rs</code>:</p>
+<pre><code class="language-rust ">/// Pseudo-task that writes a string to a file, where the string is provided by another task. The string provider is 
+/// boxed to prevent a cyclic definition of infinite size, due to this type being used in [`FileTask`].
+#[derive(Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Debug)]
+struct WriteStringToFile(Box&lt;FileTask&gt;, PathBuf, FileStamper);
+
+impl WriteStringToFile {
+  fn new(string_provider: impl Into&lt;Box&lt;FileTask&gt;&gt;, path: impl Into&lt;PathBuf&gt;, stamper: FileStamper) -&gt; FileTask {
+    FileTask::WriteStringToFile(Self(string_provider.into(), path.into(), stamper))
+  }
+  fn execute&lt;C: Context&lt;FileTask&gt;&gt;(&amp;self, context: &amp;mut C) -&gt; Result&lt;(), io::ErrorKind&gt; {
+    println!(&quot;Writing output of {:?} to {} with {:?} stamper&quot;, self.0, self.1.display(), self.2);
+    let string = context.require_task(&amp;self.0)?;
+    let mut file = File::create(&amp;self.1).map_err(|e| e.kind())?;
+    file.write_all(string.as_bytes()).map_err(|e| e.kind())?;
+    context.require_file_with_stamper(&amp;self.1, self.2).map_err(|e| e.kind())?;
+    Ok(())
+  }
+}</code></pre>
+<p>What is special about this task, is that it takes another task as input!
+Tasks in a programmatic incremental build system are first-class, meaning that they are just values that can be passed around.</p>
+<p>This is similar to closures in Rust and other programming languages, which are functions (with some values captured from the environment), but are also values that can be passed around.
+Tasks can therefore be seen as a form of incremental closures, although they need to be executed under a <code>Context</code> for incrementality, whereas closures are more free-form.</p>
+<details id="admonition-boxing-to-prevent-cyclic-definition" class="admonition info">
+<summary class="admonition-title">
+<p>Boxing to prevent cyclic definition</p>
+<p><a class="admonition-anchor-link" href="2_incrementality/5_context/index.html#admonition-boxing-to-prevent-cyclic-definition"></a></p>
+</summary>
+<div>
+<p>We store the task as <code>Box&lt;FileTask&gt;</code> in order to prevent a cyclic definition, which would cause <code>FileTask</code> to have an undetermined size.
+This is due to several reasons:</p>
+<ul>
+<li>In Rust, values are stored on the stack by default. To store something on the stack, Rust needs to know its size <em>at compile-time</em>.</li>
+<li>The size of an <code>enum</code> is the size of the largest variant.</li>
+<li>The size of a struct is the sum of the size of the fields.</li>
+</ul>
+<p>If we don't box the task, to calculate the size of <code>WriteStringToFile</code>, we need to calculate the size of <code>FileTask</code>, which would require calculating the size of <code>WriteStringToFile</code>, and so forth.
+Therefore, we can't calulate the size of <code>WriteStringToFile</code> and <code>FileTask</code>, which is an error.</p>
+<p>Boxing solves this because <code>Box&lt;FileTask&gt;</code> allocates a <code>FileTask</code> on the heap, and then creates a pointer to it.
+Therefore, the size of <code>Box&lt;FileTask&gt;</code> is the size of one pointer, and the infinite recursive definition of the size of <code>FileTask</code> is broken.</p>
+<p>Note that this explanation <a href="https://doc.rust-lang.org/nomicon/exotic-sizes.html" title="" target="_blank">simplifies many aspects of Rust's size calculation</a>.</p>
+</div>
+</details>
+<p>We implemented the tasks, now add a <code>main</code> to <code>pie/examples/incrementality.rs</code>:</p>
+<pre><code class="language-rust ">fn main() -&gt; Result&lt;(), io::Error&gt; {
+  let temp_dir = create_temp_dir()?;
+  let input_file = temp_dir.path().join(&quot;input.txt&quot;);
+  write(&amp;input_file, &quot;&quot;)?;
+  let output_file = temp_dir.path().join(&quot;output.txt&quot;);
+
+  let mut context = TopDownContext::new();
+  let read_task = ReadStringFromFile::new(&amp;input_file, FileStamper::Modified);
+  let write_task = WriteStringToFile::new(read_task.clone(), &amp;output_file, FileStamper::Modified);
+
+  println!(&quot;A) New task: expect `read_task` to execute&quot;);
+  // `read_task` is new, meaning that we have no cached output for it, thus it must be executed.
+  let output = context.require_task(&amp;read_task)?;
+  assert_eq!(&amp;output, &quot;&quot;);
+  
+  Ok(())
+}</code></pre>
+<p>We create some temporary files, create our tasks, create a context, and require our first task!
+Run this example with <code>cargo run --example incremental</code>.
+You should see the <code>println!</code> in <code>ReadStringFromFile</code> appear in your console as the incremental context correctly determines that this task is new (i.e., has no output) and must be executed.
+It should look something like:</p>
+<pre><code>   Compiling pie v0.1.0 (/private/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmpQbEgkA/pie)
+    Finished dev [unoptimized + debuginfo] target(s) in 1.53s
+     Running `/private/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmpQbEgkA/pie/target/debug/examples/incremental`
+A) New task: expect `read_task` to execute
+Reading from /var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmpcPB7eo/input.txt with Modified stamper
+</code></pre>
 
                     </main>
 

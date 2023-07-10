@@ -222,10 +222,6 @@ impl&lt;T: Task&gt; Default for Store&lt;T, T::Output&gt; {
       graph: DAG::default(),
     }
   }
-}
-
-impl&lt;T: Task&gt; Store&lt;T, T::Output&gt; {
-  pub fn new() -&gt; Self { Self::default() }
 }</code></pre>
 <p>The <code>Store</code> is generic over tasks <code>T</code> and their outputs <code>O</code>, like we have done before with <code>Dependency</code>.</p>
 <p>The <code>DAG</code> type from <code>pie_graph</code> represents a DAG with nodes and edges, and data attached to those nodes and edges.
@@ -235,8 +231,7 @@ Because nodes can be files or tasks, <code>NodeData&lt;T, O&gt;</code> enumerate
 We store file paths as <code>PathBuf</code>, which is the owned version of <code>Path</code> (similar to <code>String</code> being the owned version of <code>str</code>).
 The task output is stored as <code>Option&lt;O&gt;</code> because we can add a task to the graph without having executed it, so we don't have its output yet.</p>
 <p>The second argument is the type of data to attach to edges, which is <code>Dependency&lt;T, O&gt;</code>, using the <code>Dependency</code> enum we defined earlier.</p>
-<p>We implement <code>Default</code> for the store to initialize it.
-We also add a <code>new</code> function to initialize the store, which right now is the same as <code>default</code>, but will get a more specific meaning later.</p>
+<p>We implement <code>Default</code> for the store to initialize it.</p>
 <details id="admonition-deriving-default" class="admonition info">
 <summary class="admonition-title">
 <p>Deriving default</p>
@@ -292,10 +287,6 @@ This is also the reason for the <code>Eq</code> and <code>Hash</code> trait boun
 +      task_to_node: HashMap::default(),
      }
    }
- }
-
- impl&lt;T: Task&gt; Store&lt;T, T::Output&gt; {
-   pub fn new() -&gt; Self { Self::default() }
  }</code></pre>
 <p>To prevent accidentally using a file node as a task node, and vice versa, change <code>pie/src/store.rs</code> to add specific types of nodes:</p>
 <pre><code class="language-rust customdiff">+use std::borrow::Borrow;
@@ -353,10 +344,6 @@ This is also the reason for the <code>Eq</code> and <code>Hash</code> trait boun
        task_to_node: HashMap::default(),
      }
    }
- }
-
- impl&lt;T: Task&gt; Store&lt;T, T::Output&gt; {
-   pub fn new() -&gt; Self { Self::default() }
  }</code></pre>
 <p>The <code>FileNode</code> and <code>TaskNode</code> types are <a href="https://rust-unofficial.github.io/patterns/patterns/behavioural/newtype.html" title="" target="_blank">newtypes</a> that wrap a <code>Node</code> into a specific type of node.
 The <code>Borrow</code> implementations will make subsequent code a bit more concise by automatically converting <code>&amp;FileNode</code> and <code>&amp;TaskNode</code>s to <code>&amp;Node</code>s.</p>
@@ -395,6 +382,7 @@ Add the following code to <code>pie/src/store.rs</code>:</p>
   /// # Panics
   ///
   /// Panics if `node` was not found in the dependency graph.
+  #[allow(dead_code)]
   pub fn get_file_path(&amp;self, node: &amp;FileNode) -&gt; &amp;PathBuf {
     let Some(NodeData::File(path)) = self.graph.get_node_data(node) else {
       panic!(&quot;BUG: node {:?} was not found in the dependency graph&quot;, node);
@@ -598,7 +586,7 @@ mod test {
 
   #[test]
   fn test_file_mapping() {
-    let mut store: Store&lt;StringConstant, String&gt; = Store::new();
+    let mut store: Store&lt;StringConstant, String&gt; = Store::default();
 
     let path_a = PathBuf::from(&quot;hello.txt&quot;);
     let node_a = store.get_or_create_file_node(&amp;path_a);
@@ -616,9 +604,9 @@ mod test {
   #[test]
   #[should_panic]
   fn test_file_mapping_panics() {
-    let mut fake_store: Store&lt;StringConstant, String&gt; = Store::new();
+    let mut fake_store: Store&lt;StringConstant, String&gt; = Store::default();
     let fake_node = fake_store.get_or_create_file_node(&quot;hello.txt&quot;);
-    let store: Store&lt;StringConstant, String&gt; = Store::new();
+    let store: Store&lt;StringConstant, String&gt; = Store::default();
     store.get_file_path(&amp;fake_node);
   }
 }</code></pre>
@@ -645,7 +633,7 @@ While it is unlikely that we will make this mistake when using <code>Store</code
 <p>Test the task mapping by inserting the following code into the <code>test</code> module (before the last <code>}</code>):</p>
 <pre><code class="language-rust ">  #[test]
   fn test_task_mapping() {
-    let mut store = Store::new();
+    let mut store = Store::default();
 
     let task_a = StringConstant::new(&quot;Hello&quot;);
     let node_a = store.get_or_create_task_node(&amp;task_a);
@@ -663,9 +651,9 @@ While it is unlikely that we will make this mistake when using <code>Store</code
   #[test]
   #[should_panic]
   fn test_task_mapping_panics() {
-    let mut fake_store = Store::new();
+    let mut fake_store = Store::default();
     let fake_node = fake_store.get_or_create_task_node(&amp;StringConstant::new(&quot;Hello&quot;));
-    let store: Store&lt;StringConstant, String&gt; = Store::new();
+    let store: Store&lt;StringConstant, String&gt; = Store::default();
     store.get_task(&amp;fake_node);
   }</code></pre>
 <p>We test this in the same way as the file mapping.
@@ -677,7 +665,7 @@ Later on we will also see that this is important for soundness of the incrementa
 <p>Test task outputs by inserting the following code into the <code>test</code> module:</p>
 <pre><code class="language-rust ">  #[test]
   fn test_task_outputs() {
-    let mut store = Store::new();
+    let mut store = Store::default();
     let output_a = &quot;Hello&quot;.to_string();
     let task_a = StringConstant::new(&amp;output_a);
     let node_a = store.get_or_create_task_node(&amp;task_a);
@@ -707,16 +695,16 @@ Later on we will also see that this is important for soundness of the incrementa
   #[test]
   #[should_panic]
   fn test_task_has_output_panics() {
-    let mut fake_store = Store::new();
+    let mut fake_store = Store::default();
     let fake_node = fake_store.get_or_create_task_node(&amp;StringConstant::new(&quot;Hello&quot;));
-    let store: Store&lt;StringConstant, String&gt; = Store::new();
+    let store: Store&lt;StringConstant, String&gt; = Store::default();
     store.task_has_output(&amp;fake_node);
   }
 
   #[test]
   #[should_panic]
   fn test_get_task_output_panics() {
-    let mut store = Store::new();
+    let mut store = Store::default();
     let node = store.get_or_create_task_node(&amp;StringConstant::new(&quot;Hello&quot;));
     store.get_task_output(&amp;node);
   }
@@ -724,9 +712,9 @@ Later on we will also see that this is important for soundness of the incrementa
   #[test]
   #[should_panic]
   fn test_set_task_output_panics() {
-    let mut fake_store = Store::new();
+    let mut fake_store = Store::default();
     let fake_node = fake_store.get_or_create_task_node(&amp;StringConstant::new(&quot;Hello&quot;));
-    let mut store: Store&lt;StringConstant, String&gt; = Store::new();
+    let mut store: Store&lt;StringConstant, String&gt; = Store::default();
     store.set_task_output(&amp;fake_node, &quot;Hello&quot;.to_string());
   }</code></pre>
 <p>Test <code>test_task_outputs</code> ensures that:</p>
@@ -739,7 +727,7 @@ Later on we will also see that this is important for soundness of the incrementa
 <p>Test dependencies by inserting the following code into the <code>test</code> module:</p>
 <pre><code class="language-rust ">  #[test]
   fn test_dependencies() {
-    let mut store = Store::new();
+    let mut store = Store::default();
     let output_a = &quot;Hello&quot;.to_string();
     let task_a = StringConstant::new(output_a.clone());
     let node_a = store.get_or_create_task_node(&amp;task_a);
@@ -791,19 +779,19 @@ Later on we will also see that this is important for soundness of the incrementa
   #[test]
   #[should_panic]
   fn test_get_dependencies_of_task_panics() {
-    let mut fake_store = Store::new();
+    let mut fake_store = Store::default();
     let fake_node = fake_store.get_or_create_task_node(&amp;StringConstant::new(&quot;Hello&quot;));
-    let store: Store&lt;StringConstant, String&gt; = Store::new();
+    let store: Store&lt;StringConstant, String&gt; = Store::default();
     let _ = store.get_dependencies_of_task(&amp;fake_node);
   }
 
   #[test]
   #[should_panic]
   fn test_add_file_require_dependency_panics() {
-    let mut fake_store = Store::new();
+    let mut fake_store = Store::default();
     let fake_file_node = fake_store.get_or_create_file_node(&quot;hello.txt&quot;);
     let fake_task_node = fake_store.get_or_create_task_node(&amp;StringConstant::new(&quot;Hello&quot;));
-    let mut store: Store&lt;StringConstant, String&gt; = Store::new();
+    let mut store: Store&lt;StringConstant, String&gt; = Store::default();
     let dependency = FileDependency::new(&quot;hello.txt&quot;, FileStamper::Exists).unwrap();
     store.add_file_require_dependency(&amp;fake_task_node, &amp;fake_file_node, dependency);
   }
@@ -811,11 +799,11 @@ Later on we will also see that this is important for soundness of the incrementa
   #[test]
   #[should_panic]
   fn test_add_task_require_dependency_panics() {
-    let mut fake_store = Store::new();
+    let mut fake_store = Store::default();
     let output = &quot;Hello&quot;.to_string();
     let task = StringConstant::new(&amp;output);
     let fake_task_node = fake_store.get_or_create_task_node(&amp;task);
-    let mut store: Store&lt;StringConstant, String&gt; = Store::new();
+    let mut store: Store&lt;StringConstant, String&gt; = Store::default();
     let dependency = TaskDependency::new(task, OutputStamper::Equals, output);
     let _ = store.add_task_require_dependency(&amp;fake_task_node, &amp;fake_task_node, dependency);
   }</code></pre>
@@ -831,7 +819,7 @@ Later on we will also see that this is important for soundness of the incrementa
 <p>Finally, test task reset by inserting the following code into the <code>test</code> module:</p>
 <pre><code class="language-rust ">  #[test]
   fn test_reset() {
-    let mut store = Store::new();
+    let mut store = Store::default();
     let output_a = &quot;Hello&quot;.to_string();
     let task_a = StringConstant::new(output_a.clone());
     let task_a_node = store.get_or_create_task_node(&amp;task_a);
@@ -876,9 +864,9 @@ Later on we will also see that this is important for soundness of the incrementa
   #[test]
   #[should_panic]
   fn test_reset_task_panics() {
-    let mut fake_store = Store::new();
+    let mut fake_store = Store::default();
     let fake_node = fake_store.get_or_create_task_node(&amp;StringConstant::new(&quot;Hello&quot;));
-    let mut store: Store&lt;StringConstant, String&gt; = Store::new();
+    let mut store: Store&lt;StringConstant, String&gt; = Store::default();
     store.reset_task(&amp;fake_node);
   }</code></pre>
 <p>Here, we ensure that a task with an output and dependencies, does not have an output and dependencies after a reset, while leaving another task untouched.</p>

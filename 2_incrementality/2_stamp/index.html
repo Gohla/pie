@@ -183,7 +183,7 @@ use std::time::SystemTime;
 
 use crate::fs::metadata;
 
-#[derive(Clone, Eq, PartialEq, Debug)]
+#[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Debug)]
 pub enum FileStamper {
   Exists,
   Modified,
@@ -205,7 +205,7 @@ impl FileStamper {
   }
 }
 
-#[derive(Clone, Eq, PartialEq, Debug)]
+#[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Debug)]
 pub enum FileStamp {
   Exists(bool),
   Modified(Option&lt;SystemTime&gt;),
@@ -217,12 +217,12 @@ The <code>Exists</code> stamper just returns a boolean indicating whether a file
 It can be used to create a file dependency where a task behaves differently based on whether a file exists or not.
 The <code>Modified</code> stamper returns the last modification date if the file exists, or <code>None</code> if the file does not exist.</p>
 <p>We derive <code>Eq</code> for stamps so that we can compare them.
-Equal stamps indicate a consistent dependency, unequal indicates inconsistent.
+Equal (same) stamps indicate a consistent dependency, unequal (different) indicates inconsistent.
 We also derive <code>Eq</code> for stampers, because the stamper of a dependency could change, making the dependency inconsistent.</p>
 <h2 id="task-output-stamps"><a class="header" href="#task-output-stamps">Task output stamps</a></h2>
 <p>We implement task output stampers in a similar way.
 Add to <code>pie/src/stamp.rs</code>:</p>
-<pre><code class="language-rust ">#[derive(Clone, Eq, PartialEq, Debug)]
+<pre><code class="language-rust ">#[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Debug)]
 pub enum OutputStamper {
   Inconsequential,
   Equals,
@@ -262,7 +262,7 @@ The <code>Equals</code> stamper simply wraps the output of a task, so the stamp 
 </summary>
 <div>
 <p>Because <code>O</code> is used in the enum, the <code>derive</code> attributes on <code>OutputStamp</code> create bounds over <code>O</code>.
-Thus, <code>OutputStamp</code> is only <code>Clone</code> when <code>O</code> is <code>Clone</code>, <code>OutputStamp</code> is only <code>Clone</code> when <code>O</code> is <code>Clone</code>, and so forth.
+Thus, <code>OutputStamp</code> is only <code>Clone</code> when <code>O</code> is <code>Clone</code>, <code>OutputStamp</code> is only <code>Eq</code> when <code>O</code> is <code>Eq</code>, and so forth.
 Because we declared <code>Task::Output</code> with bound <code>Clone + Eq + Debug</code>, we can be sure that <code>OutputStamp</code> is always <code>Clone</code>, <code>Eq</code>, and <code>Debug</code>.</p>
 </div>
 </details>

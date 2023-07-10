@@ -18,6 +18,7 @@ impl FileDependency {
   /// Creates a new file dependency with `path` and `stamper`, returning:
   /// - `Ok(file_dependency)` normally,
   /// - `Err(e)` if stamping failed.
+  #[allow(dead_code)]
   pub fn new(path: impl Into<PathBuf>, stamper: FileStamper) -> Result<Self, io::Error> {
     let path = path.into();
     let stamp = stamper.stamp(&path)?;

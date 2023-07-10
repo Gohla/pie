@@ -1,6 +1,6 @@
   #[test]
   fn test_task_outputs() {
-    let mut store = Store::new();
+    let mut store = Store::default();
     let output_a = "Hello".to_string();
     let task_a = StringConstant::new(&output_a);
     let node_a = store.get_or_create_task_node(&task_a);
@@ -30,16 +30,16 @@
   #[test]
   #[should_panic]
   fn test_task_has_output_panics() {
-    let mut fake_store = Store::new();
+    let mut fake_store = Store::default();
     let fake_node = fake_store.get_or_create_task_node(&StringConstant::new("Hello"));
-    let store: Store<StringConstant, String> = Store::new();
+    let store: Store<StringConstant, String> = Store::default();
     store.task_has_output(&fake_node);
   }
 
   #[test]
   #[should_panic]
   fn test_get_task_output_panics() {
-    let mut store = Store::new();
+    let mut store = Store::default();
     let node = store.get_or_create_task_node(&StringConstant::new("Hello"));
     store.get_task_output(&node);
   }
@@ -47,8 +47,8 @@
   #[test]
   #[should_panic]
   fn test_set_task_output_panics() {
-    let mut fake_store = Store::new();
+    let mut fake_store = Store::default();
     let fake_node = fake_store.get_or_create_task_node(&StringConstant::new("Hello"));
-    let mut store: Store<StringConstant, String> = Store::new();
+    let mut store: Store<StringConstant, String> = Store::default();
     store.set_task_output(&fake_node, "Hello".to_string());
   }

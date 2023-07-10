@@ -167,16 +167,12 @@ pub struct TopDownContext&lt;T, O&gt; {
   store: Store&lt;T, O&gt;,
 }
 
-impl&lt;T: Task&gt; Default for TopDownContext&lt;T, T::Output&gt; {
-  fn default() -&gt; Self {
+impl&lt;T: Task&gt; TopDownContext&lt;T, T::Output&gt; {
+  pub fn new() -&gt; Self {
     Self {
       store: Store::default(),
-    }
+    } 
   }
-}
-
-impl&lt;T: Task&gt; TopDownContext&lt;T, T::Output&gt; {
-  pub fn new() -&gt; Self { Self::default() }
 }
 
 
@@ -189,7 +185,7 @@ impl&lt;T: Task&gt; Context&lt;T&gt; for TopDownContext&lt;T, T::Output&gt; {
     todo!()
   }
 }</code></pre>
-<p>The <code>TopDownContext</code> type is generic over tasks <code>T</code> and their outputs <code>O</code>, owns a <code>Store</code>, and can be created using <code>default</code> or <code>new</code>.</p>
+<p>The <code>TopDownContext</code> type is generic over tasks <code>T</code> and their outputs <code>O</code>, owns a <code>Store</code>, and can be created using <code>new</code>.</p>
 <p><code>TopDownContext</code> implements <code>Context</code>, and the main challenge will be implementing the <code>require_file_with_stamper</code> and <code>require_task_with_stamper</code> methods <em>incrementally</em> and <em>correctly</em>.</p>
 <h2 id="requiring-files"><a class="header" href="#requiring-files">Requiring files</a></h2>
 <p>Tasks such as <code>ReadStringFromFile</code> which we've used in tests before call <code>context.require_file</code> to declare that they depend on a file in the filesystem.
@@ -208,19 +204,22 @@ Therefore, we will need to keep track of the current executing task.</p>
 +  current_executing_task: Option&lt;TaskNode&gt;,
  }
 
- impl&lt;T: Task&gt; Default for TopDownContext&lt;T, T::Output&gt; {
-   fn default() -&gt; Self {
+-impl&lt;T: Task&gt; TopDownContext&lt;T, T::Output&gt; {
+-  pub fn new() -&gt; Self {
++impl&lt;T: Task&gt; Default for TopDownContext&lt;T, T::Output&gt; {
++  fn default() -&gt; Self {
      Self {
        store: Store::default(),
+-    } 
 +      current_executing_task: None,
-     }
++    }
    }
  }
 
- impl&lt;T: Task&gt; TopDownContext&lt;T, T::Output&gt; {
-   pub fn new() -&gt; Self { Self::default() }
- }
-
++impl&lt;T: Task&gt; TopDownContext&lt;T, T::Output&gt; {
++  pub fn new() -&gt; Self { Self::default() }
++}
++
 
  impl&lt;T: Task&gt; Context&lt;T&gt; for TopDownContext&lt;T, T::Output&gt; {
    fn require_file_with_stamper&lt;P: AsRef&lt;Path&gt;&gt;(&amp;mut self, path: P, stamper: FileStamper) -&gt; Result&lt;Option&lt;File&gt;, io::Error&gt; {
@@ -502,12 +501,145 @@ When dependency checking result in an error, we should store the error for the u
      }
      // Task has no dependencies or all dependencies are consistent. Should only execute if it has no output, meaning
      // that it has never been executed before.</code></pre>
-<p>It took us a while, but now we've implemented an incremental build system with dynamic dependencies 🎉.</p>
-<p>Normally we would write tests to confirm the behaviour, but it turns out that testing both minimality (incrementality) and correctness is not easy, as it requires a lot of testing infrastructure.
-Therefore, we will define minimality and correctness in the next chapter, set up this infrastructure, test these properties, and fix any issues that pop up.</p>
-<p>But before we do that, let's set up an example to see the fruits of our labour. </p>
+<p>It took us a while, but now we've implemented an incremental build system with dynamic dependencies 🎉.
+Let's set up an example to see the fruits of our labour.</p>
 <h2 id="incrementality-example"><a class="header" href="#incrementality-example">Incrementality Example</a></h2>
-<p>TODO</p>
+<p>In this example, we will show off incrementality using two tasks: a task that reads a string from a file, and a task that writes a string to a file.
+The writing task gets the string by requiring another task.
+Therefore, we will have a read task with a file dependency, and a write task with a task and file dependency.
+Because we only support one type of task, we will wrap these tasks in an enum.</p>
+<p>Create the <code>pie/examples</code> directory, and create the <code>pie/examples/incrementality.rs</code> file with the following contents:</p>
+<pre><code class="language-rust ">#![allow(unused_imports, unused_variables)]
+
+use std::fs::{File, read_to_string, remove_file, write};
+use std::io::{self, Read, Write};
+use std::path::{Path, PathBuf};
+
+use dev_shared::{create_temp_dir, write_until_modified};
+use pie::{Context, Task};
+use pie::context::top_down::TopDownContext;
+use pie::stamp::FileStamper;
+
+/// Enumeration over file pseudo-tasks.
+#[derive(Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Debug)]
+enum FileTask {
+  ReadStringFromFile(ReadStringFromFile),
+  WriteStringToFile(WriteStringToFile),
+}
+
+/// [`Task`] implementation for [`FileTask`], forwarding execute to the execute functions of the pseudo-tasks.
+impl Task for FileTask {
+  type Output = Result&lt;String, io::ErrorKind&gt;;
+  fn execute&lt;C: Context&lt;Self&gt;&gt;(&amp;self, context: &amp;mut C) -&gt; Self::Output {
+    match self {
+      FileTask::ReadStringFromFile(t) =&gt; t.execute(context),
+      FileTask::WriteStringToFile(t) =&gt; t.execute(context).map(|_| String::new())
+    }
+  }
+}</code></pre>
+<p><code>FileTask</code> is the enum over the <code>ReadStringFromFile</code> and <code>WriteStringToFile</code> &quot;pseudo-tasks&quot; that we still need to define.
+We call these types pseudo-tasks, because they behave like tasks, but do not actually implement <code>Task</code>.
+We implement <code>Task</code> on <code>FileTask</code> instead, which forwards the <code>execute</code> method to the pseudo-tasks.</p>
+<p>Both tasks can fail due to using filesystem operations, so the output is a <code>Result</code>.
+We cannot use <code>std::io::Error</code> as the error in the <code>Result</code>, because it does not implement <code>Clone</code> nor <code>Eq</code>, which need to be implemented for task outputs.
+Therefore, we use <code>std::io::ErrorKind</code> which does implement these traits.</p>
+<p>On success, we return a <code>String</code>.
+Because <code>WriteStringToFile</code> will not return a value (i.e., <code>()</code>) on success, we return an empty string with <code>String::new()</code>.
+It would be cleaner to define an <code>FileOutput</code> enum that enumerates the possible outputs of file tasks, which would include a variant for <code>WriteStringToFile</code> returning <code>()</code>.
+But to keep this example simple we don't do that.</p>
+<p>Now add <code>ReadStringFromFile</code> to <code>pie/examples/incrementality.rs</code>:</p>
+<pre><code class="language-rust ">/// Pseudo-task that reads a string from a file.
+#[derive(Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Debug)]
+struct ReadStringFromFile(PathBuf, FileStamper);
+
+impl ReadStringFromFile {
+  fn new(path: impl AsRef&lt;Path&gt;, stamper: FileStamper) -&gt; FileTask {
+    FileTask::ReadStringFromFile(Self(path.as_ref().to_path_buf(), stamper))
+  }
+  fn execute&lt;C: Context&lt;FileTask&gt;&gt;(&amp;self, context: &amp;mut C) -&gt; Result&lt;String, io::ErrorKind&gt; {
+    println!(&quot;Reading from {} with {:?} stamper&quot;, self.0.display(), self.1);
+    let file = context.require_file_with_stamper(&amp;self.0, self.1).map_err(|e| e.kind())?;
+    if let Some(mut file) = file {
+      let mut string = String::new();
+      file.read_to_string(&amp;mut string).map_err(|e| e.kind())?;
+      Ok(string)
+    } else {
+      Err(io::ErrorKind::NotFound)
+    }
+  }
+}</code></pre>
+<p>We've already defined a task like this before, but now it accepts a <code>FileStamper</code>, prints something when it gets executed, and propagates errors.</p>
+<p>Add <code>WriteStringToFile</code> to <code>pie/examples/incrementality.rs</code>:</p>
+<pre><code class="language-rust ">/// Pseudo-task that writes a string to a file, where the string is provided by another task. The string provider is 
+/// boxed to prevent a cyclic definition of infinite size, due to this type being used in [`FileTask`].
+#[derive(Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Debug)]
+struct WriteStringToFile(Box&lt;FileTask&gt;, PathBuf, FileStamper);
+
+impl WriteStringToFile {
+  fn new(string_provider: impl Into&lt;Box&lt;FileTask&gt;&gt;, path: impl Into&lt;PathBuf&gt;, stamper: FileStamper) -&gt; FileTask {
+    FileTask::WriteStringToFile(Self(string_provider.into(), path.into(), stamper))
+  }
+  fn execute&lt;C: Context&lt;FileTask&gt;&gt;(&amp;self, context: &amp;mut C) -&gt; Result&lt;(), io::ErrorKind&gt; {
+    println!(&quot;Writing output of {:?} to {} with {:?} stamper&quot;, self.0, self.1.display(), self.2);
+    let string = context.require_task(&amp;self.0)?;
+    let mut file = File::create(&amp;self.1).map_err(|e| e.kind())?;
+    file.write_all(string.as_bytes()).map_err(|e| e.kind())?;
+    context.require_file_with_stamper(&amp;self.1, self.2).map_err(|e| e.kind())?;
+    Ok(())
+  }
+}</code></pre>
+<p>What is special about this task, is that it takes another task as input!
+Tasks in a programmatic incremental build system are first-class, meaning that they are just values that can be passed around.</p>
+<p>This is similar to closures in Rust and other programming languages, which are functions (with some values captured from the environment), but are also values that can be passed around.
+Tasks can therefore be seen as a form of incremental closures, although they need to be executed under a <code>Context</code> for incrementality, whereas closures are more free-form.</p>
+<details id="admonition-boxing-to-prevent-cyclic-definition" class="admonition info">
+<summary class="admonition-title">
+<p>Boxing to prevent cyclic definition</p>
+<p><a class="admonition-anchor-link" href="#admonition-boxing-to-prevent-cyclic-definition"></a></p>
+</summary>
+<div>
+<p>We store the task as <code>Box&lt;FileTask&gt;</code> in order to prevent a cyclic definition, which would cause <code>FileTask</code> to have an undetermined size.
+This is due to several reasons:</p>
+<ul>
+<li>In Rust, values are stored on the stack by default. To store something on the stack, Rust needs to know its size <em>at compile-time</em>.</li>
+<li>The size of an <code>enum</code> is the size of the largest variant.</li>
+<li>The size of a struct is the sum of the size of the fields.</li>
+</ul>
+<p>If we don't box the task, to calculate the size of <code>WriteStringToFile</code>, we need to calculate the size of <code>FileTask</code>, which would require calculating the size of <code>WriteStringToFile</code>, and so forth.
+Therefore, we can't calulate the size of <code>WriteStringToFile</code> and <code>FileTask</code>, which is an error.</p>
+<p>Boxing solves this because <code>Box&lt;FileTask&gt;</code> allocates a <code>FileTask</code> on the heap, and then creates a pointer to it.
+Therefore, the size of <code>Box&lt;FileTask&gt;</code> is the size of one pointer, and the infinite recursive definition of the size of <code>FileTask</code> is broken.</p>
+<p>Note that this explanation <a href="https://doc.rust-lang.org/nomicon/exotic-sizes.html" title="" target="_blank">simplifies many aspects of Rust's size calculation</a>.</p>
+</div>
+</details>
+<p>We implemented the tasks, now add a <code>main</code> to <code>pie/examples/incrementality.rs</code>:</p>
+<pre><code class="language-rust ">fn main() -&gt; Result&lt;(), io::Error&gt; {
+  let temp_dir = create_temp_dir()?;
+  let input_file = temp_dir.path().join(&quot;input.txt&quot;);
+  write(&amp;input_file, &quot;&quot;)?;
+  let output_file = temp_dir.path().join(&quot;output.txt&quot;);
+
+  let mut context = TopDownContext::new();
+  let read_task = ReadStringFromFile::new(&amp;input_file, FileStamper::Modified);
+  let write_task = WriteStringToFile::new(read_task.clone(), &amp;output_file, FileStamper::Modified);
+
+  println!(&quot;A) New task: expect `read_task` to execute&quot;);
+  // `read_task` is new, meaning that we have no cached output for it, thus it must be executed.
+  let output = context.require_task(&amp;read_task)?;
+  assert_eq!(&amp;output, &quot;&quot;);
+  
+  Ok(())
+}</code></pre>
+<p>We create some temporary files, create our tasks, create a context, and require our first task!
+Run this example with <code>cargo run --example incremental</code>.
+You should see the <code>println!</code> in <code>ReadStringFromFile</code> appear in your console as the incremental context correctly determines that this task is new (i.e., has no output) and must be executed.
+It should look something like:</p>
+<pre><code>   Compiling pie v0.1.0 (/private/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmpQbEgkA/pie)
+    Finished dev [unoptimized + debuginfo] target(s) in 1.53s
+     Running `/private/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmpQbEgkA/pie/target/debug/examples/incremental`
+A) New task: expect `read_task` to execute
+Reading from /var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmpcPB7eo/input.txt with Modified stamper
+</code></pre>
 
                     </main>
 
