@@ -1,8 +1,6 @@
 # Programmable Build System API
 
-In this first chapter, we will program the core API of the programmatic incremental build system.
-
-## Introduction
+In this section, we will program the core API of the programmatic incremental build system.
 
 The unit of computation in a programmatic build system is a *task*.
 A task is kind of like a closure: a value that can be executed to produce their output.

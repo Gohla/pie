@@ -220,6 +220,11 @@ And then change `pie/src/context/mod.rs` to store these errors:
 
 It took us a while, but now we've implemented an incremental build system with dynamic dependencies 🎉.
 
-[//]: # (Instead of throwing a party, we should first write tests to see if it is indeed incremental, but also to check that it is correct.)
+Normally we would write tests to confirm the behaviour, but it turns out that testing both minimality (incrementality) and correctness is not easy, as it requires a lot of testing infrastructure.
+Therefore, we will define minimality and correctness in the next chapter, set up this infrastructure, test these properties, and fix any issues that pop up.
 
-[//]: # (Unfortunately, testing both incrementality and correctness is not easy, so we need to devote an entire chapter to creating the infrastructure for testing this.)
+But before we do that, let's set up an example to see the fruits of our labour. 
+
+## Incrementality Example
+
+TODO

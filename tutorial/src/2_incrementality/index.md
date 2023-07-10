@@ -1,6 +1,6 @@
 # Introduction
 
-In this part, we will implement an *incremental* build context.
+In this chapter, we will implement an *incremental* build context.
 An incremental context selectively executes tasks — only those that are affected by a change.
 In other words, an incremental context executes the *minimum number of tasks* required to make all tasks up-to-date.
 
@@ -22,7 +22,7 @@ To check if a file dependency is consistent, we just stamp the file again and co
 
 Similarly, we can employ stamps for task dependencies as well by stamping the output of a task.
 
-To achieve incrementality, we will continue with these steps in the following chapters:
+To achieve incrementality, we will continue with these steps in the following sections:
 1) Extend `Context` with a method to *require a file*, enabling tasks to specify dynamic dependencies to files.
 2) Implement *file stamps* and *task output stamps*, and extend `Context` with methods to select *stampers*, enabling tasks to specify when a dependency is consistent.
 3) Implement *dynamic dependencies* and their *consistency checking*.
