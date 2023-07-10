@@ -285,7 +285,7 @@ If we don't box the task, to calculate the size of `WriteStringToFile`, we need 
 Therefore, we can't calulate the size of `WriteStringToFile` and `FileTask`, which is an error.
 
 Boxing solves this because `Box<FileTask>` allocates a `FileTask` on the heap, and then creates a pointer to it.
-Therefore, the size of `Box<FileTask>` is the size of one pointer, and the infinite recursive definition of the size of `FileTask` is broken.
+Therefore, the size of `Box<FileTask>` is the size of one pointer, breaking the cycle in the size calculations.
 
 Note that this explanation [simplifies many aspects of Rust's size calculation](https://doc.rust-lang.org/nomicon/exotic-sizes.html).
 ```
