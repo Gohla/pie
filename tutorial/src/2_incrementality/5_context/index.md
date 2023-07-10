@@ -274,6 +274,9 @@ Tasks in a programmatic incremental build system are first-class, meaning that t
 This is similar to closures in Rust and other programming languages, which are functions (with some values captured from the environment), but are also values that can be passed around.
 Tasks can therefore be seen as a form of incremental closures, although they need to be executed under a `Context` for incrementality, whereas closures are more free-form.
 
+`WriteStringToFile` requires the task to (incrementally) get the string, creating a task dependency.
+Then it writes that string to a file, and requires that file to create a file dependency.
+
 ```admonish info title="Boxing to prevent cyclic definition" collapsible=true
 We store the task as `Box<FileTask>` in order to prevent a cyclic definition, which would cause `FileTask` to have an undetermined size.
 This is due to several reasons:
@@ -290,7 +293,7 @@ Therefore, the size of `Box<FileTask>` is the size of one pointer, breaking the 
 Note that this explanation [simplifies many aspects of Rust's size calculation](https://doc.rust-lang.org/nomicon/exotic-sizes.html).
 ```
 
-We implemented the tasks, now add a `main` to `pie/examples/incrementality.rs`:
+We've implemented the tasks, now add a `main` function to `pie/examples/incrementality.rs`:
 
 ```rust,
 {{#include ../5b_context_example/d_main.rs}}
