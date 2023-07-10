@@ -216,8 +216,8 @@ Because of this, the context reference passed to <code>Task::execute</code> is a
 <p>This <code>Task</code> and <code>Context</code> API mirrors the mutually recursive definition of task and context we discussed earlier, and forms the basis for the entire build system.</p>
 <p>Build the project by running <code>cargo build</code>.
 The output should look something like:</p>
-<pre><code class="language-shell ">   Compiling pie v0.1.0 (/private/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmpt4f2T0/pie)
-    Finished dev [unoptimized + debuginfo] target(s) in 0.12s
+<pre><code class="language-shell ">   Compiling pie v0.1.0 (/private/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmptp81Qe/pie)
+    Finished dev [unoptimized + debuginfo] target(s) in 0.13s
 </code></pre>
 <details id="admonition-rust-help" class="admonition info">
 <summary class="admonition-title">
@@ -353,9 +353,9 @@ in a reference to the task.
 It returns the output of the task, which we test with <code>assert_eq!</code>.</p>
 <p>Run the test by running <code>cargo test</code>.
 The output should look something like:</p>
-<pre><code class="language-shell ">   Compiling pie v0.1.0 (/private/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmpt4f2T0/pie)
-    Finished test [unoptimized + debuginfo] target(s) in 0.37s
-     Running unittests src/lib.rs (/private/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmpt4f2T0/pie/target/debug/deps/pie-daca3a31898407a4)
+<pre><code class="language-shell ">   Compiling pie v0.1.0 (/private/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmptp81Qe/pie)
+    Finished test [unoptimized + debuginfo] target(s) in 0.38s
+     Running unittests src/lib.rs (/private/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmptp81Qe/pie/target/debug/deps/pie-daca3a31898407a4)
 
 running 1 test
 test context::non_incremental::test::test_require_task_direct ... ok
@@ -428,7 +428,7 @@ Add the following test:</p>
 <p>We use the same <code>ReturnHelloWorld</code> task as before, but now also have a <code>ToLowerCase</code> task which requires <code>ReturnHelloWorld</code> and then turn its string lowercase.
 However, due to the way we've set up the types between <code>Task</code> and <code>Context</code>, we will run into a problem.
 Running <code>cargo test</code>, you should get these errors:</p>
-<pre><code class="language-shell ">   Compiling pie v0.1.0 (/private/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmpt4f2T0/pie)
+<pre><code class="language-shell ">   Compiling pie v0.1.0 (/private/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmptp81Qe/pie)
 error[E0308]: mismatched types
   --&gt; src/context/non_incremental.rs:48:30
    |
@@ -464,7 +464,7 @@ This doesn't work as <code>Context&lt;ToLowerCase&gt;::require_task</code> only 
 
      let mut context = NonIncrementalContext;</code></pre>
 <p>But that is not allowed:</p>
-<pre><code class="language-shell ">   Compiling pie v0.1.0 (/private/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmpt4f2T0/pie)
+<pre><code class="language-shell ">   Compiling pie v0.1.0 (/private/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmptp81Qe/pie)
 error[E0276]: impl has stricter requirements than trait
   --&gt; src/context/non_incremental.rs:47:21
    |
@@ -478,7 +478,6 @@ error[E0276]: impl has stricter requirements than trait
 
 For more information about this error, try `rustc --explain E0276`.
 error: could not compile `pie` (lib test) due to previous error
-warning: build failed, waiting for other jobs to finish...
 </code></pre>
 <p>This is because the <code>Task</code> trait defines <code>execute</code> to take a <code>Context&lt;Self&gt;</code>, thus every implementation of <code>Task</code> must adhere to this, so we can't solve it this way.</p>
 <p>Effectively, due to the way we defined <code>Task</code> and <code>Context</code>, we can only use <em>a single task implementation</em>.
@@ -2748,6 +2747,8 @@ impl WriteStringToFile {
 Tasks in a programmatic incremental build system are first-class, meaning that they are just values that can be passed around.</p>
 <p>This is similar to closures in Rust and other programming languages, which are functions (with some values captured from the environment), but are also values that can be passed around.
 Tasks can therefore be seen as a form of incremental closures, although they need to be executed under a <code>Context</code> for incrementality, whereas closures are more free-form.</p>
+<p><code>WriteStringToFile</code> requires the task to (incrementally) get the string, creating a task dependency.
+Then it writes that string to a file, and requires that file to create a file dependency.</p>
 <details id="admonition-boxing-to-prevent-cyclic-definition" class="admonition info">
 <summary class="admonition-title">
 <p>Boxing to prevent cyclic definition</p>
@@ -2768,7 +2769,7 @@ Therefore, the size of <code>Box&lt;FileTask&gt;</code> is the size of one point
 <p>Note that this explanation <a href="https://doc.rust-lang.org/nomicon/exotic-sizes.html" title="" target="_blank">simplifies many aspects of Rust's size calculation</a>.</p>
 </div>
 </details>
-<p>We implemented the tasks, now add a <code>main</code> to <code>pie/examples/incrementality.rs</code>:</p>
+<p>We've implemented the tasks, now add a <code>main</code> function to <code>pie/examples/incrementality.rs</code>:</p>
 <pre><code class="language-rust ">fn main() -&gt; Result&lt;(), io::Error&gt; {
   let temp_dir = create_temp_dir()?;
   let input_file = temp_dir.path().join(&quot;input.txt&quot;);
@@ -2790,11 +2791,11 @@ Therefore, the size of <code>Box&lt;FileTask&gt;</code> is the size of one point
 Run this example with <code>cargo run --example incremental</code>.
 You should see the <code>println!</code> in <code>ReadStringFromFile</code> appear in your console as the incremental context correctly determines that this task is new (i.e., has no output) and must be executed.
 It should look something like:</p>
-<pre><code>   Compiling pie v0.1.0 (/private/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmpt4f2T0/pie)
-    Finished dev [unoptimized + debuginfo] target(s) in 1.32s
-     Running `/private/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmpt4f2T0/pie/target/debug/examples/incremental`
+<pre><code>   Compiling pie v0.1.0 (/private/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmptp81Qe/pie)
+    Finished dev [unoptimized + debuginfo] target(s) in 1.69s
+     Running `/private/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmptp81Qe/pie/target/debug/examples/incremental`
 A) New task: expect `read_task` to execute
-Reading from /var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmp2QbeT6/input.txt with Modified stamper
+Reading from /var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmpXO1pfa/input.txt with Modified stamper
 </code></pre>
 
                     </main>

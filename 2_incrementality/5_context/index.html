@@ -592,6 +592,8 @@ impl WriteStringToFile {
 Tasks in a programmatic incremental build system are first-class, meaning that they are just values that can be passed around.</p>
 <p>This is similar to closures in Rust and other programming languages, which are functions (with some values captured from the environment), but are also values that can be passed around.
 Tasks can therefore be seen as a form of incremental closures, although they need to be executed under a <code>Context</code> for incrementality, whereas closures are more free-form.</p>
+<p><code>WriteStringToFile</code> requires the task to (incrementally) get the string, creating a task dependency.
+Then it writes that string to a file, and requires that file to create a file dependency.</p>
 <details id="admonition-boxing-to-prevent-cyclic-definition" class="admonition info">
 <summary class="admonition-title">
 <p>Boxing to prevent cyclic definition</p>
@@ -612,7 +614,7 @@ Therefore, the size of <code>Box&lt;FileTask&gt;</code> is the size of one point
 <p>Note that this explanation <a href="https://doc.rust-lang.org/nomicon/exotic-sizes.html" title="" target="_blank">simplifies many aspects of Rust's size calculation</a>.</p>
 </div>
 </details>
-<p>We implemented the tasks, now add a <code>main</code> to <code>pie/examples/incrementality.rs</code>:</p>
+<p>We've implemented the tasks, now add a <code>main</code> function to <code>pie/examples/incrementality.rs</code>:</p>
 <pre><code class="language-rust ">fn main() -&gt; Result&lt;(), io::Error&gt; {
   let temp_dir = create_temp_dir()?;
   let input_file = temp_dir.path().join(&quot;input.txt&quot;);
@@ -634,11 +636,11 @@ Therefore, the size of <code>Box&lt;FileTask&gt;</code> is the size of one point
 Run this example with <code>cargo run --example incremental</code>.
 You should see the <code>println!</code> in <code>ReadStringFromFile</code> appear in your console as the incremental context correctly determines that this task is new (i.e., has no output) and must be executed.
 It should look something like:</p>
-<pre><code>   Compiling pie v0.1.0 (/private/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmpt4f2T0/pie)
-    Finished dev [unoptimized + debuginfo] target(s) in 1.32s
-     Running `/private/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmpt4f2T0/pie/target/debug/examples/incremental`
+<pre><code>   Compiling pie v0.1.0 (/private/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmptp81Qe/pie)
+    Finished dev [unoptimized + debuginfo] target(s) in 1.69s
+     Running `/private/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmptp81Qe/pie/target/debug/examples/incremental`
 A) New task: expect `read_task` to execute
-Reading from /var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmp2QbeT6/input.txt with Modified stamper
+Reading from /var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmpXO1pfa/input.txt with Modified stamper
 </code></pre>
 
                     </main>
