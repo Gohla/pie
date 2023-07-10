@@ -608,7 +608,7 @@ This is due to several reasons:</p>
 <p>If we don't box the task, to calculate the size of <code>WriteStringToFile</code>, we need to calculate the size of <code>FileTask</code>, which would require calculating the size of <code>WriteStringToFile</code>, and so forth.
 Therefore, we can't calulate the size of <code>WriteStringToFile</code> and <code>FileTask</code>, which is an error.</p>
 <p>Boxing solves this because <code>Box&lt;FileTask&gt;</code> allocates a <code>FileTask</code> on the heap, and then creates a pointer to it.
-Therefore, the size of <code>Box&lt;FileTask&gt;</code> is the size of one pointer, and the infinite recursive definition of the size of <code>FileTask</code> is broken.</p>
+Therefore, the size of <code>Box&lt;FileTask&gt;</code> is the size of one pointer, breaking the cycle in the size calculations.</p>
 <p>Note that this explanation <a href="https://doc.rust-lang.org/nomicon/exotic-sizes.html" title="" target="_blank">simplifies many aspects of Rust's size calculation</a>.</p>
 </div>
 </details>
@@ -634,11 +634,11 @@ Therefore, the size of <code>Box&lt;FileTask&gt;</code> is the size of one point
 Run this example with <code>cargo run --example incremental</code>.
 You should see the <code>println!</code> in <code>ReadStringFromFile</code> appear in your console as the incremental context correctly determines that this task is new (i.e., has no output) and must be executed.
 It should look something like:</p>
-<pre><code>   Compiling pie v0.1.0 (/private/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmpQbEgkA/pie)
-    Finished dev [unoptimized + debuginfo] target(s) in 1.53s
-     Running `/private/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmpQbEgkA/pie/target/debug/examples/incremental`
+<pre><code>   Compiling pie v0.1.0 (/private/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmpt4f2T0/pie)
+    Finished dev [unoptimized + debuginfo] target(s) in 1.32s
+     Running `/private/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmpt4f2T0/pie/target/debug/examples/incremental`
 A) New task: expect `read_task` to execute
-Reading from /var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmpcPB7eo/input.txt with Modified stamper
+Reading from /var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmp2QbeT6/input.txt with Modified stamper
 </code></pre>
 
                     </main>
