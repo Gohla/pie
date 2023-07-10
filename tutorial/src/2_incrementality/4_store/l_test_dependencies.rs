@@ -1,6 +1,6 @@
   #[test]
   fn test_dependencies() {
-    let mut store = Store::new();
+    let mut store = Store::default();
     let output_a = "Hello".to_string();
     let task_a = StringConstant::new(output_a.clone());
     let node_a = store.get_or_create_task_node(&task_a);
@@ -52,19 +52,19 @@
   #[test]
   #[should_panic]
   fn test_get_dependencies_of_task_panics() {
-    let mut fake_store = Store::new();
+    let mut fake_store = Store::default();
     let fake_node = fake_store.get_or_create_task_node(&StringConstant::new("Hello"));
-    let store: Store<StringConstant, String> = Store::new();
+    let store: Store<StringConstant, String> = Store::default();
     let _ = store.get_dependencies_of_task(&fake_node);
   }
 
   #[test]
   #[should_panic]
   fn test_add_file_require_dependency_panics() {
-    let mut fake_store = Store::new();
+    let mut fake_store = Store::default();
     let fake_file_node = fake_store.get_or_create_file_node("hello.txt");
     let fake_task_node = fake_store.get_or_create_task_node(&StringConstant::new("Hello"));
-    let mut store: Store<StringConstant, String> = Store::new();
+    let mut store: Store<StringConstant, String> = Store::default();
     let dependency = FileDependency::new("hello.txt", FileStamper::Exists).unwrap();
     store.add_file_require_dependency(&fake_task_node, &fake_file_node, dependency);
   }
@@ -72,11 +72,11 @@
   #[test]
   #[should_panic]
   fn test_add_task_require_dependency_panics() {
-    let mut fake_store = Store::new();
+    let mut fake_store = Store::default();
     let output = "Hello".to_string();
     let task = StringConstant::new(&output);
     let fake_task_node = fake_store.get_or_create_task_node(&task);
-    let mut store: Store<StringConstant, String> = Store::new();
+    let mut store: Store<StringConstant, String> = Store::default();
     let dependency = TaskDependency::new(task, OutputStamper::Equals, output);
     let _ = store.add_task_require_dependency(&fake_task_node, &fake_task_node, dependency);
   }

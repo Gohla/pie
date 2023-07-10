@@ -17,7 +17,7 @@ Create the `pie/src/context/top_down.rs` file and add the following to get start
 {{#include b_basic.rs}}
 ```
 
-The `TopDownContext` type is generic over tasks `T` and their outputs `O`, owns a `Store`, and can be created using `default` or `new`.
+The `TopDownContext` type is generic over tasks `T` and their outputs `O`, owns a `Store`, and can be created using `new`.
 
 `TopDownContext` implements `Context`, and the main challenge will be implementing the `require_file_with_stamper` and `require_task_with_stamper` methods *incrementally* and *correctly*.
 
@@ -219,12 +219,97 @@ And then change `pie/src/context/mod.rs` to store these errors:
 ```
 
 It took us a while, but now we've implemented an incremental build system with dynamic dependencies 🎉.
+Let's set up an example to see the fruits of our labour.
 
-Normally we would write tests to confirm the behaviour, but it turns out that testing both minimality (incrementality) and correctness is not easy, as it requires a lot of testing infrastructure.
-Therefore, we will define minimality and correctness in the next chapter, set up this infrastructure, test these properties, and fix any issues that pop up.
+[//]: # (Normally we would write tests to confirm the behaviour, but it turns out that testing both minimality &#40;incrementality&#41; and correctness is not easy, as it requires a lot of testing infrastructure.)
 
-But before we do that, let's set up an example to see the fruits of our labour. 
+[//]: # (Therefore, we will define minimality and correctness in the next chapter, set up this infrastructure, test these properties, and fix any issues that pop up.)
+
+[//]: # ()
+[//]: # (But before we do that, let's set up a small example to see the fruits of our labour. )
 
 ## Incrementality Example
 
-TODO
+In this example, we will show off incrementality using two tasks: a task that reads a string from a file, and a task that writes a string to a file.
+The writing task gets the string by requiring another task.
+Therefore, we will have a read task with a file dependency, and a write task with a task and file dependency.
+Because we only support one type of task, we will wrap these tasks in an enum.
+
+Create the `pie/examples` directory, and create the `pie/examples/incrementality.rs` file with the following contents:
+
+```rust,
+{{#include ../5b_context_example/a_task.rs}}
+``` 
+
+`FileTask` is the enum over the `ReadStringFromFile` and `WriteStringToFile` "pseudo-tasks" that we still need to define.
+We call these types pseudo-tasks, because they behave like tasks, but do not actually implement `Task`.
+We implement `Task` on `FileTask` instead, which forwards the `execute` method to the pseudo-tasks.
+
+Both tasks can fail due to using filesystem operations, so the output is a `Result`.
+We cannot use `std::io::Error` as the error in the `Result`, because it does not implement `Clone` nor `Eq`, which need to be implemented for task outputs.
+Therefore, we use `std::io::ErrorKind` which does implement these traits.
+
+On success, we return a `String`.
+Because `WriteStringToFile` will not return a value (i.e., `()`) on success, we return an empty string with `String::new()`.
+It would be cleaner to define an `FileOutput` enum that enumerates the possible outputs of file tasks, which would include a variant for `WriteStringToFile` returning `()`.
+But to keep this example simple we don't do that.
+
+Now add `ReadStringFromFile` to `pie/examples/incrementality.rs`:
+
+```rust,
+{{#include ../5b_context_example/b_read_task.rs}}
+``` 
+
+We've already defined a task like this before, but now it accepts a `FileStamper`, prints something when it gets executed, and propagates errors.
+
+Add `WriteStringToFile` to `pie/examples/incrementality.rs`:
+
+```rust,
+{{#include ../5b_context_example/c_write_task.rs}}
+``` 
+
+What is special about this task, is that it takes another task as input!
+Tasks in a programmatic incremental build system are first-class, meaning that they are just values that can be passed around.
+
+This is similar to closures in Rust and other programming languages, which are functions (with some values captured from the environment), but are also values that can be passed around.
+Tasks can therefore be seen as a form of incremental closures, although they need to be executed under a `Context` for incrementality, whereas closures are more free-form.
+
+```admonish info title="Boxing to prevent cyclic definition" collapsible=true
+We store the task as `Box<FileTask>` in order to prevent a cyclic definition, which would cause `FileTask` to have an undetermined size.
+This is due to several reasons:
+- In Rust, values are stored on the stack by default. To store something on the stack, Rust needs to know its size *at compile-time*.
+- The size of an `enum` is the size of the largest variant.
+- The size of a struct is the sum of the size of the fields.
+
+If we don't box the task, to calculate the size of `WriteStringToFile`, we need to calculate the size of `FileTask`, which would require calculating the size of `WriteStringToFile`, and so forth.
+Therefore, we can't calulate the size of `WriteStringToFile` and `FileTask`, which is an error.
+
+Boxing solves this because `Box<FileTask>` allocates a `FileTask` on the heap, and then creates a pointer to it.
+Therefore, the size of `Box<FileTask>` is the size of one pointer, and the infinite recursive definition of the size of `FileTask` is broken.
+
+Note that this explanation [simplifies many aspects of Rust's size calculation](https://doc.rust-lang.org/nomicon/exotic-sizes.html).
+```
+
+We implemented the tasks, now add a `main` to `pie/examples/incrementality.rs`:
+
+```rust,
+{{#include ../5b_context_example/d_main.rs}}
+```
+
+We create some temporary files, create our tasks, create a context, and require our first task!
+Run this example with `cargo run --example incremental`.
+You should see the `println!` in `ReadStringFromFile` appear in your console as the incremental context correctly determines that this task is new (i.e., has no output) and must be executed.
+It should look something like:
+
+```
+{{#include ../../../gen/2_incrementality/5b_context_example/d_main.txt}}
+```
+
+[//]: # (If we require the task again, what should happen?)
+
+[//]: # (Insert the following code into the `main` method:)
+
+[//]: # ()
+[//]: # (```rust,)
+
+[//]: # (```)

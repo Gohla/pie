@@ -16,6 +16,7 @@ impl<T: Task> Store<T, T::Output> {
   /// # Panics
   ///
   /// Panics if `node` was not found in the dependency graph.
+  #[allow(dead_code)]
   pub fn get_file_path(&self, node: &FileNode) -> &PathBuf {
     let Some(NodeData::File(path)) = self.graph.get_node_data(node) else {
       panic!("BUG: node {:?} was not found in the dependency graph", node);

@@ -30,7 +30,7 @@ It can be used to create a file dependency where a task behaves differently base
 The `Modified` stamper returns the last modification date if the file exists, or `None` if the file does not exist.
 
 We derive `Eq` for stamps so that we can compare them.
-Equal stamps indicate a consistent dependency, unequal indicates inconsistent.
+Equal (same) stamps indicate a consistent dependency, unequal (different) indicates inconsistent.
 We also derive `Eq` for stampers, because the stamper of a dependency could change, making the dependency inconsistent.
 
 ## Task output stamps
@@ -50,7 +50,7 @@ Output stamps are generic over the task output type `O`.
 
 ```admonish info title="Trait bounds and derive macros" collapsible=true
 Because `O` is used in the enum, the `derive` attributes on `OutputStamp` create bounds over `O`.
-Thus, `OutputStamp` is only `Clone` when `O` is `Clone`, `OutputStamp` is only `Clone` when `O` is `Clone`, and so forth.
+Thus, `OutputStamp` is only `Clone` when `O` is `Clone`, `OutputStamp` is only `Eq` when `O` is `Eq`, and so forth.
 Because we declared `Task::Output` with bound `Clone + Eq + Debug`, we can be sure that `OutputStamp` is always `Clone`, `Eq`, and `Debug`.
 ```
 

@@ -23,7 +23,7 @@ mod test {
 
   #[test]
   fn test_file_mapping() {
-    let mut store: Store<StringConstant, String> = Store::new();
+    let mut store: Store<StringConstant, String> = Store::default();
 
     let path_a = PathBuf::from("hello.txt");
     let node_a = store.get_or_create_file_node(&path_a);
@@ -41,9 +41,9 @@ mod test {
   #[test]
   #[should_panic]
   fn test_file_mapping_panics() {
-    let mut fake_store: Store<StringConstant, String> = Store::new();
+    let mut fake_store: Store<StringConstant, String> = Store::default();
     let fake_node = fake_store.get_or_create_file_node("hello.txt");
-    let store: Store<StringConstant, String> = Store::new();
+    let store: Store<StringConstant, String> = Store::default();
     store.get_file_path(&fake_node);
   }
 }

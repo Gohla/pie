@@ -11,16 +11,12 @@ pub struct TopDownContext<T, O> {
   store: Store<T, O>,
 }
 
-impl<T: Task> Default for TopDownContext<T, T::Output> {
-  fn default() -> Self {
+impl<T: Task> TopDownContext<T, T::Output> {
+  pub fn new() -> Self {
     Self {
       store: Store::default(),
-    }
+    } 
   }
-}
-
-impl<T: Task> TopDownContext<T, T::Output> {
-  pub fn new() -> Self { Self::default() }
 }
 
 

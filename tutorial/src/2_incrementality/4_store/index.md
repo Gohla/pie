@@ -50,7 +50,6 @@ The task output is stored as `Option<O>` because we can add a task to the graph 
 The second argument is the type of data to attach to edges, which is `Dependency<T, O>`, using the `Dependency` enum we defined earlier.
 
 We implement `Default` for the store to initialize it.
-We also add a `new` function to initialize the store, which right now is the same as `default`, but will get a more specific meaning later.
 
 ```admonish info title="Deriving default" collapsible=true
 We cannot derive this `Default` implementation even though it seems we should be able to, because the derived implementation will require `T` and `O` to be `Default`, and this is not always the case.

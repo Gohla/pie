@@ -50,21 +50,22 @@ impl Borrow<Node> for &TaskNode {
 }
 
 
-impl<T: Task, H: BuildHasher + Default> Default for Store<T, T::Output, H> {
+impl<T: Task> Default for Store<T, T::Output> {
   #[inline]
   fn default() -> Self {
+    Self::new()
+  }
+}
+
+impl<T: Task, H: BuildHasher + Default> Store<T, T::Output, H> {
+  #[inline]
+  pub fn new() -> Self {
     Self {
       graph: DAG::default(),
       file_to_node: HashMap::default(),
       task_to_node: HashMap::default(),
     }
   }
-}
-
-impl<T: Task> Store<T, T::Output> {
-  #[inline]
-  #[allow(dead_code)]
-  pub fn new() -> Self { Self::default() }
 }
 
 
@@ -310,7 +311,7 @@ mod test {
 
   #[test]
   fn test_file_mapping() {
-    let mut store: Store<StringConstant, String> = Store::new();
+    let mut store: Store<StringConstant, String> = Store::default();
 
     let path_a = PathBuf::from("hello.txt");
     let node_a = store.get_or_create_file_node(&path_a);
@@ -328,16 +329,16 @@ mod test {
   #[test]
   #[should_panic]
   fn test_file_mapping_panics() {
-    let mut fake_store: Store<StringConstant, String> = Store::new();
+    let mut fake_store: Store<StringConstant, String> = Store::default();
     let fake_node = fake_store.get_or_create_file_node("hello.txt");
-    let store: Store<StringConstant, String> = Store::new();
+    let store: Store<StringConstant, String> = Store::default();
     store.get_file_path(&fake_node);
   }
 
 
   #[test]
   fn test_task_mapping() {
-    let mut store = Store::new();
+    let mut store = Store::default();
 
     let task_a = StringConstant::new("Hello");
     let node_a = store.get_or_create_task_node(&task_a);
@@ -355,16 +356,16 @@ mod test {
   #[test]
   #[should_panic]
   fn test_task_mapping_panics() {
-    let mut fake_store = Store::new();
+    let mut fake_store = Store::default();
     let fake_node = fake_store.get_or_create_task_node(&StringConstant::new("Hello"));
-    let store: Store<StringConstant, String> = Store::new();
+    let store: Store<StringConstant, String> = Store::default();
     store.get_task(&fake_node);
   }
 
 
   #[test]
   fn test_task_outputs() {
-    let mut store = Store::new();
+    let mut store = Store::default();
     let output_a = "Hello".to_string();
     let task_a = StringConstant::new(&output_a);
     let node_a = store.get_or_create_task_node(&task_a);
@@ -394,16 +395,16 @@ mod test {
   #[test]
   #[should_panic]
   fn test_task_has_output_panics() {
-    let mut fake_store = Store::new();
+    let mut fake_store = Store::default();
     let fake_node = fake_store.get_or_create_task_node(&StringConstant::new("Hello"));
-    let store: Store<StringConstant, String> = Store::new();
+    let store: Store<StringConstant, String> = Store::default();
     store.task_has_output(&fake_node);
   }
 
   #[test]
   #[should_panic]
   fn test_get_task_output_panics() {
-    let mut store = Store::new();
+    let mut store = Store::default();
     let node = store.get_or_create_task_node(&StringConstant::new("Hello"));
     store.get_task_output(&node);
   }
@@ -411,16 +412,16 @@ mod test {
   #[test]
   #[should_panic]
   fn test_set_task_output_panics() {
-    let mut fake_store = Store::new();
+    let mut fake_store = Store::default();
     let fake_node = fake_store.get_or_create_task_node(&StringConstant::new("Hello"));
-    let mut store: Store<StringConstant, String> = Store::new();
+    let mut store: Store<StringConstant, String> = Store::default();
     store.set_task_output(&fake_node, "Hello".to_string());
   }
 
 
   #[test]
   fn test_dependencies() {
-    let mut store = Store::new();
+    let mut store = Store::default();
     let output_a = "Hello".to_string();
     let task_a = StringConstant::new(output_a.clone());
     let node_a = store.get_or_create_task_node(&task_a);
@@ -472,19 +473,19 @@ mod test {
   #[test]
   #[should_panic]
   fn test_get_dependencies_of_task_panics() {
-    let mut fake_store = Store::new();
+    let mut fake_store = Store::default();
     let fake_node = fake_store.get_or_create_task_node(&StringConstant::new("Hello"));
-    let store: Store<StringConstant, String> = Store::new();
+    let store: Store<StringConstant, String> = Store::default();
     let _ = store.get_dependencies_of_task(&fake_node);
   }
 
   #[test]
   #[should_panic]
   fn test_add_file_require_dependency_panics() {
-    let mut fake_store = Store::new();
+    let mut fake_store = Store::default();
     let fake_file_node = fake_store.get_or_create_file_node("hello.txt");
     let fake_task_node = fake_store.get_or_create_task_node(&StringConstant::new("Hello"));
-    let mut store: Store<StringConstant, String> = Store::new();
+    let mut store: Store<StringConstant, String> = Store::default();
     let dependency = FileDependency::new("hello.txt", FileStamper::Exists).unwrap();
     store.add_file_require_dependency(&fake_task_node, &fake_file_node, dependency);
   }
@@ -492,11 +493,11 @@ mod test {
   #[test]
   #[should_panic]
   fn test_add_task_require_dependency_panics() {
-    let mut fake_store = Store::new();
+    let mut fake_store = Store::default();
     let output = "Hello".to_string();
     let task = StringConstant::new(&output);
     let fake_task_node = fake_store.get_or_create_task_node(&task);
-    let mut store: Store<StringConstant, String> = Store::new();
+    let mut store: Store<StringConstant, String> = Store::default();
     let dependency = TaskDependency::new(task, OutputStamper::Equals, output);
     let _ = store.add_task_require_dependency(&fake_task_node, &fake_task_node, dependency);
   }
@@ -504,18 +505,18 @@ mod test {
   #[test]
   #[should_panic]
   fn test_get_task_require_dependency_mut_panics() {
-    let mut fake_store = Store::new();
+    let mut fake_store = Store::default();
     let output = "Hello".to_string();
     let task = StringConstant::new(&output);
     let fake_task_node = fake_store.get_or_create_task_node(&task);
-    let mut store: Store<StringConstant, String> = Store::new();
+    let mut store: Store<StringConstant, String> = Store::default();
     store.get_task_require_dependency_mut(&fake_task_node, &fake_task_node);
   }
 
 
   #[test]
   fn test_reset() {
-    let mut store = Store::new();
+    let mut store = Store::default();
     let output_a = "Hello".to_string();
     let task_a = StringConstant::new(output_a.clone());
     let task_a_node = store.get_or_create_task_node(&task_a);
@@ -560,9 +561,9 @@ mod test {
   #[test]
   #[should_panic]
   fn test_reset_task_panics() {
-    let mut fake_store = Store::new();
+    let mut fake_store = Store::default();
     let fake_node = fake_store.get_or_create_task_node(&StringConstant::new("Hello"));
-    let mut store: Store<StringConstant, String> = Store::new();
+    let mut store: Store<StringConstant, String> = Store::default();
     store.reset_task(&fake_node);
   }
 }

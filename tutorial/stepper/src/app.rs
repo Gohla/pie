@@ -149,5 +149,16 @@ pub fn step_all(
         create_diff("i_error_store.rs", "context/top_down.rs"),
       ]);
     });
+    stepper.with_path("5b_context_example", |stepper| {
+      let dest = "../examples/incremental.rs";
+      stepper.set_cargo_args(["run", "--example", "incremental"]);
+      stepper.apply([
+        add("a_task.rs", dest),
+        add("b_read_task.rs", dest),
+        add("c_write_task.rs", dest),
+        add("d_main.rs", dest),
+      ]).output(CargoOutput::new("d_main.txt"));
+      stepper.set_cargo_args(["test"]);
+    });
   });
 }
