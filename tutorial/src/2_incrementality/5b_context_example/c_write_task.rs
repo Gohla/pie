@@ -8,7 +8,7 @@ impl WriteStringToFile {
     FileTask::WriteStringToFile(Self(string_provider.into(), path.into(), stamper))
   }
   fn execute<C: Context<FileTask>>(&self, context: &mut C) -> Result<(), io::ErrorKind> {
-    println!("Writing output of {:?} to {} with {:?} stamper", self.0, self.1.display(), self.2);
+    println!("Writing to {} with {:?} stamper", self.1.file_name().unwrap().to_string_lossy(), self.2);
     let string = context.require_task(&self.0)?;
     let mut file = File::create(&self.1).map_err(|e| e.kind())?;
     file.write_all(string.as_bytes()).map_err(|e| e.kind())?;

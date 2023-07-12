@@ -9,7 +9,7 @@
   - [Dynamic Dependencies](./2_incrementality/3_dependency/index.md)
   - [Dependency Graph Store](./2_incrementality/4_store/index.md)
   - [Incremental Top-Down Context](./2_incrementality/5_context/index.md)
-- [Minimality and Soundness]()
+- [Minimality and Soundness](./3_min_sound/index.md)
   - [Minimality with Sessions]()
   - [Tracking Build Events]()
   - [Prevent Overlapping File Writes]()
