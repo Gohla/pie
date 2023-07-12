@@ -235,6 +235,8 @@ The writing task gets the string by requiring another task.
 Therefore, we will have a read task with a file dependency, and a write task with a task and file dependency.
 Because we only support one type of task, we will wrap these tasks in an enum.
 
+### FileTask enumeration
+
 Create the `pie/examples` directory, and create the `pie/examples/incrementality.rs` file with the following contents:
 
 ```rust,
@@ -253,6 +255,8 @@ On success, we return a `String`.
 Because `WriteStringToFile` will not return a value (i.e., `()`) on success, we return an empty string with `String::new()`.
 It would be cleaner to define an `FileOutput` enum that enumerates the possible outputs of file tasks, which would include a variant for `WriteStringToFile` returning `()`.
 But to keep this example simple we don't do that.
+
+### Read/write pseudo-tasks
 
 Now add `ReadStringFromFile` to `pie/examples/incrementality.rs`:
 
@@ -293,13 +297,15 @@ Therefore, the size of `Box<FileTask>` is the size of one pointer, breaking the 
 Note that this explanation [simplifies many aspects of Rust's size calculation](https://doc.rust-lang.org/nomicon/exotic-sizes.html).
 ```
 
+### Exploring incrementality
+
 We've implemented the tasks, now add a `main` function to `pie/examples/incrementality.rs`:
 
 ```rust,
 {{#include ../5b_context_example/d_main.rs}}
 ```
 
-We create some temporary files, create our tasks, create a context, and require our first task!
+We create some temporary files, create our tasks, create a context, and require our first task.
 Run this example with `cargo run --example incremental`.
 You should see the `println!` in `ReadStringFromFile` appear in your console as the incremental context correctly determines that this task is new (i.e., has no output) and must be executed.
 It should look something like:
@@ -308,11 +314,152 @@ It should look something like:
 {{#include ../../../gen/2_incrementality/5b_context_example/d_main.txt}}
 ```
 
-[//]: # (If we require the task again, what should happen?)
+#### Reuse
 
-[//]: # (Insert the following code into the `main` method:)
+If we require the task again, what should happen?
 
-[//]: # ()
-[//]: # (```rust,)
+Insert the following code into the `main` method:
 
-[//]: # (```)
+```rust,
+{{#include ../5b_context_example/e_reuse.rs}}
+```
+
+Running with `cargo run --example incremental` should produce output like:
+
+```
+{{#include ../../../gen/2_incrementality/5b_context_example/e_reuse.txt}}
+```
+
+We don't see the `println!` from `ReadStringFromFile`, so it was not executed, so our incremental build system has correctly reused its output!
+
+Normally we would write a test to confirm that the task was executed the first time, and that it was not executed the second time.
+However, this is not trivial.
+How do we know if the task was executed?
+We could track it with a global mutable boolean that `ReadStringFromFile` keeps track of, but this quickly becomes a mess.
+Therefore, we will look into creating a proper testing infrastructure in the next chapter.
+
+For now, we will continue this example with several more interesting cases.
+The comments in the code explain in more detail why the build system behaves in this way.
+
+#### Inconsistent file dependency
+
+Insert into the `main` method:
+
+```rust,
+{{#include ../5b_context_example/f_file_dep.rs}}
+```
+
+If we change the file (using `write_until_modified` to ensure that the modified time changes to trigger the `Modified` file stamper) and require the task, it should execute, because the file dependency of the task is no longer consistent.
+
+#### New write task, reuse read task
+
+Insert into the `main` method:
+
+```rust,
+{{#include ../5b_context_example/g_new_task.rs}}
+```
+
+Now we require a new `WriteStringToFile` task, which requires the `ReadStringFromFile` task.
+However, since the read task is still consistent (its file dependency is consistent), we only expect the write task to execute. 
+We also assert that the write task wrote the correct string to the file.
+
+#### Sound incrementality with top-down building
+
+Insert into the `main` method:
+
+```rust,
+{{#include ../5b_context_example/h_file_and_task_dep.rs}}
+```
+
+We change the input file and expect both read and write tasks to execute.
+We require the write task, which checks whether it should be executed by consistency checking its dependencies.
+The write task has a task dependency to the read task, so we check that for consistency.
+That recurses into requiring the read task, where we again check whether it should be executed.
+There, we discover that its input file dependency is inconsistent, so we execute the read task, which now returns `"Hello, World!"` instead of `"Hello"`.
+
+Now we are back to the consistency check for the task dependency from the write task to the read task.
+The previous output stamp for that task dependency is `Equals("Hello")`, but the new stamp is `Equals("Hello, World!")`, so the task dependency is inconsistent!
+Therefore, we execute the write task, which correctly writes the new string to the output file.
+
+This example shows why we need top-down incremental building for sound incrementality.
+To ensure that the write task writes the up-to-date string to the output file, we first need to check (and possibly execute) the read task, ensuring it returns the up-to-date string.
+
+#### Early cutoff
+
+Insert into the `main` method:
+
+```rust,
+{{#include ../5b_context_example/i_early_cutoff.rs}}
+```
+
+This is very similar to the last operation.
+The subtle difference is that we *are* writing to the input file, but we *write the same contents*.
+This results in a file with a new modified time, but the same contents.
+
+We expect the read task to execute, because its file dependency is inconsistent.
+However, the previous output stamp of the task dependency from write to read is `Equals("Hello, World!")`, but the new one is also `Equals("Hello, World!")` because the read task still returns `"Hello, World!"`.
+Therefore, the task dependency is consistent, and we do not execute the write task.
+
+We call this *early cutoff*, because we can cut off building a task early, if we figure out its task dependency is consistent *due to having the same output stamp*.
+Early cutoff is possible due to the precise dependency tracking provided by dynamic dependencies.
+This is one of the pieces that makes this build system incremental: we don't execute the write task because it is not affected by a change.
+
+```admonish info title="Different stampers" collapsible=true
+If we want the write task to always write to the output file regardless of what the read task returns, we could implement an `Always` output stamp that is always inconsistent.
+
+In general, output (and file) stamps can be used to finetune incrementality, ensuring that tasks are only executed when they are really affected by a change.
+```
+
+#### Regenerate output files
+
+Insert into the `main` method:
+
+```rust,
+{{#include ../5b_context_example/j_regen_file.rs}}
+```
+
+The write task writes to an output file and then creates a file dependency to it.
+Therefore, if we modify or remove the output file, and require the write task, it will regenerate the output file because the file dependency is inconsistent.
+
+Many build systems do not track this dependency to output files, which can result in incrementality bugs due to output files being deleted (for example, due to a `git clean`).
+By tracking these output file dependencies, we ensure that the output files are in a consistent state after every build.
+
+```admonish info title="Don't regenerate ouput files" collapsible=true
+We can omit the file dependency in the write task to not regenerate output files when they are changed or deleted, if desired.
+However, this is not recommended due to the possibility of (incrementality) bugs.
+```
+
+#### Different tasks
+
+Insert into the `main` method:
+
+```rust,
+{{#include ../5b_context_example/k_diff_task.rs}}
+```
+
+The identity of tasks is determined by their `Eq` and `Hash` implementations, which are typically derived to compare and hash all their fields.
+Therefore, if we create read tasks for different input file `input_file_b` and different stamper `FileStamper::Exists`, these read tasks are not equal to the existing read task, and thus are *new* tasks with a different identity.
+We require `read_task_b_modified` and `read_task_b_exists`, they are new, and are therefore executed.
+
+#### Same file different stampers
+
+Insert into the `main` method:
+
+```rust,
+{{#include ../5b_context_example/l_diff_stamp.rs}}
+```
+
+Here we write to `input_file_b` and then require `read_task_b_modified` and `read_task_b_exists`.
+We expect `read_task_b_modified` to be executed, but `read_task_b_exists` to be skipped, because its file dependency only checks for the existence of the input file, which has not changed.
+This shows that tasks can depend on the same file with different stampers, which influences whether the tasks are affected by a file change individually.
+
+Of course, using an `Exists` stamper for `ReadStringFromFile` does not make a lot of sense, but this is for demonstration purposes only.
+
+Running `cargo run --example incremental` now should produce output like:
+
+```
+{{#include ../../../gen/2_incrementality/5b_context_example/l_diff_stamp.txt}}
+```
+
+Feel free to experiment more with this example (or new example files) before continuing.
+In the next chapter, we will define minimality and soundness, set up an infrastructure for testing those properties, and fix issues uncovered by testing.

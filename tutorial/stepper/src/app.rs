@@ -7,9 +7,11 @@ use crate::stepper::Stepper;
 pub fn step_all(
   destination_root_directory: impl AsRef<Path>,
 ) {
+  let destination_root_directory = destination_root_directory.as_ref();
   let mut stepper = Stepper::new(
     "../src/",
-    destination_root_directory.as_ref().join("pie").join("src"),
+    destination_root_directory,
+    destination_root_directory.join("pie").join("src"),
     "../gen/",
     ["build"],
   );
@@ -104,49 +106,52 @@ pub fn step_all(
       ]);
     });
     stepper.with_path("3_dependency", |stepper| {
+      let dest = "dependency.rs";
       stepper.apply([
         create_diff("a_module.rs", "lib.rs"),
-        add("b_file.rs", "dependency.rs"),
-        add("c_task.rs", "dependency.rs"),
-        add("d_dependency.rs", "dependency.rs"),
-        add("e_test.rs", "dependency.rs"),
+        add("b_file.rs", dest),
+        add("c_task.rs", dest),
+        add("d_dependency.rs", dest),
+        add("e_test.rs", dest),
       ]);
     });
     stepper.with_path("4_store", |stepper| {
+      let dest = "store.rs";
       stepper.apply([
         create_diff("a_Cargo.toml", "../Cargo.toml"),
         create_diff("b_module.rs", "lib.rs"),
-        add("c_basic.rs", "store.rs"),
-        create_diff_builder("d1_mapping_diff.rs", "store.rs")
+        add("c_basic.rs", dest),
+        create_diff_builder("d1_mapping_diff.rs", dest)
           .context_length(20)
           .into_modification(),
-        create_diff_builder("d2_mapping_diff.rs", "store.rs")
+        create_diff_builder("d2_mapping_diff.rs", dest)
           .context_length(20)
           .into_modification(),
-        add("e_mapping.rs", "store.rs"),
-        add("f_output.rs", "store.rs"),
-        add("g_dependency.rs", "store.rs"),
-        add("h_reset.rs", "store.rs"),
-        add("i_test_file_mapping.rs", "store.rs"),
-        insert("j_test_task_mapping.rs", "}", "store.rs"),
-        insert("k_test_task_output.rs", "}", "store.rs"),
-        insert("l_test_dependencies.rs", "}", "store.rs"),
-        insert("m_test_reset.rs", "}", "store.rs"),
+        add("e_mapping.rs", dest),
+        add("f_output.rs", dest),
+        add("g_dependency.rs", dest),
+        add("h_reset.rs", dest),
+        add("i_test_file_mapping.rs", dest),
+        insert("j_test_task_mapping.rs", "}", dest),
+        insert("k_test_task_output.rs", "}", dest),
+        insert("l_test_dependencies.rs", "}", dest),
+        insert("m_test_reset.rs", "}", dest),
       ]);
     });
     stepper.with_path("5_context", |stepper| {
+      let dest = "context/top_down.rs";
       stepper.apply([
         create_diff("a_module.rs", "context/mod.rs"),
-        add("b_basic.rs", "context/top_down.rs"),
-        create_diff_builder("c_current.rs", "context/top_down.rs")
+        add("b_basic.rs", dest),
+        create_diff_builder("c_current.rs", dest)
           .context_length(8)
           .into_modification(),
-        create_diff("d_file.rs", "context/top_down.rs"),
-        create_diff("e_task.rs", "context/top_down.rs"),
-        create_diff("f_task_dep.rs", "context/top_down.rs"),
-        create_diff("g_check.rs", "context/top_down.rs"),
-        create_diff("h_error_field.rs", "context/top_down.rs"),
-        create_diff("i_error_store.rs", "context/top_down.rs"),
+        create_diff("d_file.rs", dest),
+        create_diff("e_task.rs", dest),
+        create_diff("f_task_dep.rs", dest),
+        create_diff("g_check.rs", dest),
+        create_diff("h_error_field.rs", dest),
+        create_diff("i_error_store.rs", dest),
       ]);
     });
     stepper.with_path("5b_context_example", |stepper| {
@@ -158,6 +163,19 @@ pub fn step_all(
         add("c_write_task.rs", dest),
         add("d_main.rs", dest),
       ]).output(CargoOutput::new("d_main.txt"));
+      let insertion_place = "Ok(())";
+      stepper.apply([
+        insert("e_reuse.rs", insertion_place, dest),
+      ]).output(CargoOutput::new("e_reuse.txt"));
+      stepper.apply([
+        insert("f_file_dep.rs", insertion_place, dest),
+        insert("g_new_task.rs", insertion_place, dest),
+        insert("h_file_and_task_dep.rs", insertion_place, dest),
+        insert("i_early_cutoff.rs", insertion_place, dest),
+        insert("j_regen_file.rs", insertion_place, dest),
+        insert("k_diff_task.rs", insertion_place, dest),
+        insert("l_diff_stamp.rs", insertion_place, dest),
+      ]).output(CargoOutput::new("l_diff_stamp.txt"));
       stepper.set_cargo_args(["test"]);
     });
   });

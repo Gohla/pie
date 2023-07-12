@@ -20,7 +20,7 @@ impl Display for RunCargo {
 impl RunCargo {
   pub fn new(stepper: &Stepper) -> anyhow::Result<RunCargo> {
     let cmd = duct::cmd("cargo", &stepper.cargo_args)
-      .dir(&stepper.destination_root_directory)
+      .dir(&stepper.destination_directory)
       .unchecked()
       .stderr_to_stdout()
       .stdout_capture();

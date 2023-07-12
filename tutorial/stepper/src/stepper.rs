@@ -11,6 +11,7 @@ use crate::output::Output;
 pub struct Stepper {
   pub source_root_directory: PathBuf,
   pub destination_root_directory: PathBuf,
+  pub destination_directory: PathBuf,
   pub generated_root_directory: PathBuf,
   pub last_original_file: HashMap<PathBuf, PathBuf>,
   pub substitutions: Vec<Substitution>,
@@ -21,12 +22,14 @@ impl Stepper {
   pub fn new<CA: IntoIterator<Item=AO>, AO: AsRef<OsStr>>(
     source_root_directory: impl Into<PathBuf>,
     destination_root_directory: impl Into<PathBuf>,
+    destination_directory: impl Into<PathBuf>,
     generated_root_directory: impl Into<PathBuf>,
     cargo_args: CA,
   ) -> Self {
     Self {
       source_root_directory: source_root_directory.into(),
       destination_root_directory: destination_root_directory.into(),
+      destination_directory: destination_directory.into(),
       generated_root_directory: generated_root_directory.into(),
       last_original_file: Default::default(),
       substitutions: Default::default(),

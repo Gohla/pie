@@ -96,7 +96,7 @@ pub fn create(file_path: impl Into<PathBuf>) -> Modification {
 
 impl CreateFile {
   fn resolve(self, stepper: &Stepper) -> anyhow::Result<Self> {
-    let file_path = stepper.destination_root_directory.join(&self.file_path);
+    let file_path = stepper.destination_directory.join(&self.file_path);
     Ok(Self { file_path })
   }
 
@@ -134,7 +134,7 @@ pub fn add(
 impl AddToFile {
   fn resolve(self, stepper: &Stepper) -> anyhow::Result<AddToFile> {
     let addition_file_path = stepper.source_root_directory.join(&self.addition_file_path);
-    let destination_file_path = stepper.destination_root_directory.join(&self.destination_file_path);
+    let destination_file_path = stepper.destination_directory.join(&self.destination_file_path);
     Ok(Self { addition_file_path, destination_file_path })
   }
 
@@ -198,7 +198,7 @@ impl InsertIntoFile {
   fn resolve(self, stepper: &Stepper) -> anyhow::Result<InsertIntoFile> {
     let insertion_file_path = stepper.source_root_directory.join(&self.insertion_file_path);
     let insertion_place = self.insertion_place;
-    let destination_file_path = stepper.destination_root_directory.join(&self.destination_file_path);
+    let destination_file_path = stepper.destination_directory.join(&self.destination_file_path);
     Ok(Self { insertion_file_path, insertion_place, destination_file_path })
   }
 
@@ -286,7 +286,7 @@ impl CreateDiffAndApply {
     let modified_file_path = stepper.source_root_directory.join(&relative_modified_file_path);
     let destination_file_path = self.destination_file_path
       .context("did not set destination file path")?;
-    let destination_file_path = stepper.destination_root_directory.join(&destination_file_path);
+    let destination_file_path = stepper.destination_directory.join(&destination_file_path);
     let diff_output_file_path = if let Some(diff_output_file_path) = self.diff_output_file_path {
       diff_output_file_path
     } else {
@@ -398,7 +398,7 @@ pub fn apply_diff(
 impl ApplyDiff {
   fn resolve(self, stepper: &Stepper) -> anyhow::Result<ApplyDiff> {
     let diff_file_path = stepper.source_root_directory.join(&self.diff_file_path);
-    let destination_file_path = stepper.destination_root_directory.join(&self.destination_file_path);
+    let destination_file_path = stepper.destination_directory.join(&self.destination_file_path);
     Ok(Self { diff_file_path, destination_file_path })
   }
 
