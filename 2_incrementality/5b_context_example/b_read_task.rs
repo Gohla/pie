@@ -7,7 +7,7 @@ impl ReadStringFromFile {
     FileTask::ReadStringFromFile(Self(path.as_ref().to_path_buf(), stamper))
   }
   fn execute<C: Context<FileTask>>(&self, context: &mut C) -> Result<String, io::ErrorKind> {
-    println!("Reading from {} with {:?} stamper", self.0.display(), self.1);
+    println!("Reading from {} with {:?} stamper", self.0.file_name().unwrap().to_string_lossy(), self.1);
     let file = context.require_file_with_stamper(&self.0, self.1).map_err(|e| e.kind())?;
     if let Some(mut file) = file {
       let mut string = String::new();
