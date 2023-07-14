@@ -6,6 +6,8 @@ use crate::stepper::Stepper;
 
 pub fn step_all(
   destination_root_directory: impl AsRef<Path>,
+  run_cargo: bool,
+  create_outputs: bool,
 ) {
   let destination_root_directory = destination_root_directory.as_ref();
   let mut stepper = Stepper::new(
@@ -13,7 +15,9 @@ pub fn step_all(
     destination_root_directory,
     destination_root_directory.join("pie").join("src"),
     "../gen/",
+    run_cargo,
     ["build"],
+    create_outputs,
   );
 
   let pie_graph_path = PathBuf::from("../../graph");

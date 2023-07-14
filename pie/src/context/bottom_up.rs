@@ -1,5 +1,3 @@
-#![allow(unused_variables, dead_code)]
-
 use std::collections::HashSet;
 use std::fs::File;
 use std::hash::BuildHasher;
@@ -14,7 +12,7 @@ use crate::store::{FileNode, Store};
 use crate::tracker::Tracker;
 
 /// Context that incrementally executes tasks and checks dependencies in a bottom-up manner.
-pub(crate) struct BottomUpContext<'p, 's, T, O, A, H> {
+pub struct BottomUpContext<'p, 's, T, O, A, H> {
   session: &'s mut Session<'p, T, O, A, H>,
   scheduled: Queue<H>,
   executing: HashSet<TaskNode, H>,
@@ -22,7 +20,7 @@ pub(crate) struct BottomUpContext<'p, 's, T, O, A, H> {
 
 impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> BottomUpContext<'p, 's, T, T::Output, A, H> {
   #[inline]
-  pub(crate) fn new(session: &'s mut Session<'p, T, T::Output, A, H>) -> Self {
+  pub fn new(session: &'s mut Session<'p, T, T::Output, A, H>) -> Self {
     Self {
       session,
       scheduled: Queue::new(),
@@ -32,8 +30,7 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> BottomUpContext<'
 
   /// Execute (i.e., make up-to-date or make consistent) all tasks affected by `changed_files`.
   #[inline]
-  pub(crate) fn update_affected_by<'a, I: IntoIterator<Item=&'a PathBuf> + Clone>(&mut self, changed_files: I) {
-    self.session.reset();
+  pub fn update_affected_by<'a, I: IntoIterator<Item=&'a PathBuf> + Clone>(&mut self, changed_files: I) {
     self.session.tracker.update_affected_by_start(changed_files.clone());
 
     // Create a new queue of scheduled tasks.

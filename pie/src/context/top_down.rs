@@ -23,7 +23,6 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> TopDownContext<'p
   /// Requires given `task`, returning its up-to-date output.
   #[inline]
   pub fn require_initial(&mut self, task: &T) -> T::Output {
-    self.session.reset();
     self.session.tracker.require_top_down_initial_start(task);
     let output = self.require_task(task);
     self.session.tracker.require_top_down_initial_end(task, &output);
@@ -48,7 +47,8 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> Context<T> for To
     let dependency = TaskDependency::new_reserved(task.clone(), stamper);
     self.session.reserve_task_require_dependency(&node, task, dependency);
 
-    let should_execute = !self.session.visited.contains(&node) && self.should_execute_task(&node, task);
+    let visited = self.session.visited.contains(&node);
+    let should_execute = !visited && self.should_execute_task(&node, task);
     let output = if should_execute { // Execute the task, cache and return up-to-date output.
       let previous_executing_task = self.session.pre_execute(node, task);
       let output = task.execute(self);

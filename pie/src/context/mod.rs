@@ -15,9 +15,6 @@ pub mod bottom_up;
 
 /// Extension trait on [`Session`] for usage in [`Context`] implementations.
 pub trait SessionExt<T, O> {
-  /// Reset the session, setting the current executing task to `None`.
-  fn reset(&mut self);
-
   /// Create a require file dependency, depending from the current executing task to file `path`.
   fn require_file_with_stamper(&mut self, path: impl AsRef<Path>, stamper: FileStamper) -> Result<Option<File>, io::Error>;
   /// Create a provide file dependency, depending from the current executing task to file `path`.
@@ -38,12 +35,6 @@ pub trait SessionExt<T, O> {
 }
 
 impl<'p, T: Task, A: Tracker<T>, H: BuildHasher + Default> SessionExt<T, T::Output> for Session<'p, T, T::Output, A, H> {
-  #[inline]
-  fn reset(&mut self) {
-    self.current_executing_task = None;
-  }
-
-
   fn require_file_with_stamper(&mut self, path: impl AsRef<Path>, stamper: FileStamper) -> Result<Option<File>, io::Error> {
     let path = path.as_ref();
     let (dependency, file) = FileDependency::new_with_file(path, stamper)?;

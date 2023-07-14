@@ -1,9 +1,12 @@
 [package]
 name = "pie_graph"
-version = "0.1.0"
-authors = ["Gabriel Konat <gabrielkonat@gmail.com>"]
+version = "0.0.1"
+description = "Modified version of the incremental-topo crate for use in PIE and the PIE tutorial"
+repository = "https://github.com/Gohla/pie"
 edition = "2021"
-publish = false
+authors = ["Gabriel Konat <gabrielkonat@gmail.com>"]
+license = "Apache-2.0"
+license-file = "../LICENSE"
 
 [dependencies]
 slotmap = "1"

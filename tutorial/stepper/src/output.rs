@@ -39,11 +39,16 @@ impl CargoOutput {
 
 impl CargoOutput {
   fn apply(&self, applied: &Applied) -> anyhow::Result<()> {
+    if !applied.create_outputs { return Ok(()); }
+    let Some(cargo_output) = &applied.cargo_output else {
+      return Ok(());
+    };
+
     let output_file_path = applied.stepper.generated_root_directory.join(&self.output_file_path);
     let cargo_output = if let Some(str) = applied.stepper.destination_root_directory.to_str() {
-      applied.cargo_output.replace(str, "")
+      cargo_output.replace(str, "")
     } else {
-      applied.cargo_output.clone()
+      cargo_output.clone()
     };
     crate::util::write_to_file(cargo_output.as_bytes(), output_file_path, false)
       .context("failed to write cargo output to file")?;
@@ -72,6 +77,8 @@ impl DirectoryStructure {
 
 impl DirectoryStructure {
   fn apply(&self, applied: &Applied) -> anyhow::Result<()> {
+    if !applied.create_outputs { return Ok(()); }
+
     let destination_directory_path = applied.stepper.destination_directory.join(&self.destination_directory_path);
     let tree = Self::directory_tree(&destination_directory_path)
       .context("failed to create directory structure")?;

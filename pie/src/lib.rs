@@ -1,3 +1,61 @@
+//! PIE is a *sound* and *incremental* *programmatic build system*, a mix between an *incremental build system* and 
+//! *incremental computation* system that can be implemented and used *programmatically*.
+//!
+//! # Tasks
+//!
+//! [Tasks](Task) are the unit of computation in a programmatic incremental build system. They have an 
+//! [execute](Task::execute) function that executes the task and returns its result. Therefore, tasks can be seen as a 
+//! sort of closure, an executable function along with its input, but one that can be executed incrementally by PIE.
+//!
+//! Tasks *dynamically create dependencies while the build is running* through methods on [`Context`], enabling precise
+//! and expressive dependency tracking.
+//!
+//! The identity of a task is determined by its [`Eq`] and [`Hash`] implementations. Therefore, tasks that are 
+//! structurally different are considered different.
+//!
+//! # Soundness and Incrementality through Consistency Checking of Dynamic Dependencies
+//!
+//! PIE is sound and incremental, because it executes a task if and only if it is *inconsistent*.
+//!
+//! A task is *new* if it has *not been executed before*. New tasks are *always inconsistent*. If it is not new, it is 
+//! an already *existing task*. An existing task is *checked* for consistency. An existing task is inconsistent if 
+//! and only if any of its dependencies are inconsistent:
+//!
+//! - A file dependency is inconsistent if its [file stamp](stamp::FileStamp) changes. 
+//! - A task dependency is inconsistent if, after *recursively checking* the task, its 
+//!   [output stamp](stamp::OutputStamp) changes.
+//!
+//! Dependencies store the stamp that was created when the dependency was created. The stamp of a dependency changes when
+//! the new stamp differs from the stored stamp, using the [`Eq`] implementation of the corresponding stamp.
+//!
+//! If all dependencies of an existing task are consistent after checking, or if the existing task has no dependencies, 
+//! it is *consistent* and is not executed (at that time). The recursive nature of checking task dependencies ensures 
+//! that indirect changes can cause tasks to become inconsistent, and cause them to be correctly executed, even in the
+//! presence of dynamic dependencies.
+//!
+//! # Creating Correct Dependencies
+//!
+//! It is up to the task author to correctly create all dependencies required for a task to be considered inconsistent.
+//! Creating the wrong dependency, or forgetting to create a dependency, can cause incrementality bugs or decreased 
+//! incrementality, even if PIE is sound and incremental.
+//!
+//! # Build Sessions
+//!
+//! [Build sessions](Session) place restrictions on whether a task is checked or executed, to make builds incremental 
+//! and sound in the face of filesystem changes. The following two restrictions are in place:
+//!
+//! - A task is *checked at most once each session*.
+//! - A task is *executed at most once each session*.
+//!
+//! Therefore, once a task is checked (and deemed consistent), or once a task is executed, it will not be checked or 
+//! executed again this session, even though one of its (file) dependencies may become inconsistent later.
+//!
+//! The result of this is that *changes made to source files during a session* are *not guaranteed to be detected*. For 
+//! example, if a file dependency is consistent when the task is checked, but later becomes inconsistent, we do not 
+//! guarantee that the task will be executed.
+//!
+//! Therefore, a new session must be created in order to re-check or re-execute tasks that are consistent.
+
 use std::collections::hash_map::RandomState;
 use std::collections::HashSet;
 use std::fmt::Debug;
@@ -20,7 +78,8 @@ mod store;
 mod context;
 mod fs;
 
-/// A unit of computation in a programmatic incremental build system.
+/// The unit of computation in a programmatic incremental build system. See the [module-level documentation](index.html)
+/// for more information.
 pub trait Task: Clone + Eq + Hash + Debug {
   /// Type of output this task returns when executed.
   type Output: Clone + Eq + Debug;
@@ -28,8 +87,9 @@ pub trait Task: Clone + Eq + Hash + Debug {
   fn execute<C: Context<Self>>(&self, context: &mut C) -> Self::Output;
 }
 
+
 /// Programmatic incremental build context, enabling tasks to create dynamic dependencies that context implementations 
-/// use for incremental execution.
+/// use for incremental execution. See the [module-level documentation](index.html) for more information.
 pub trait Context<T: Task> {
   /// Requires file at given `path`, recording a read-dependency to it (using the default require file stamper). Call 
   /// this method *just before reading from the file*, so that the dependency corresponds to the data that you are 
@@ -91,7 +151,8 @@ pub trait Context<T: Task> {
 }
 
 
-/// Main entry point into the PIE build system.
+/// Main entry point into PIE, a sound and incremental programmatic build system. See the 
+/// [module-level documentation](index.html) for more information.
 pub struct Pie<T, O, A = NoopTracker<T>, H = RandomState> {
   store: Store<T, O, H>,
   tracker: A,
@@ -157,8 +218,7 @@ impl<T: Task, A: Tracker<T> + Default, H: BuildHasher + Default> Pie<T, T::Outpu
   }
 }
 
-
-/// A session in which builds are executed. A task is executed at most once each session.
+/// A session in which builds are executed. See the [module-level documentation](index.html) for more information.
 pub struct Session<'p, T, O, A, H> {
   store: &'p mut Store<T, O, H>,
   tracker: &'p mut A,
@@ -182,6 +242,8 @@ impl<'p, T: Task, A: Tracker<T>, H: BuildHasher + Default> Session<'p, T, T::Out
   /// Requires given `task`, returning its up-to-date output.
   #[inline]
   pub fn require(&mut self, task: &T) -> T::Output {
+    self.current_executing_task = None;
+
     let mut context = TopDownContext::new(self);
     context.require_initial(task)
   }
@@ -189,6 +251,8 @@ impl<'p, T: Task, A: Tracker<T>, H: BuildHasher + Default> Session<'p, T, T::Out
   /// Make up-to-date all tasks (transitively) affected by `changed_files`.
   #[inline]
   pub fn update_affected_by<'a, I: IntoIterator<Item=&'a PathBuf> + Clone>(&mut self, changed_files: I) {
+    self.current_executing_task = None;
+
     let mut context = BottomUpContext::new(self);
     context.update_affected_by(changed_files);
   }

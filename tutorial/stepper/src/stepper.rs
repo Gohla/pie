@@ -15,7 +15,9 @@ pub struct Stepper {
   pub generated_root_directory: PathBuf,
   pub last_original_file: HashMap<PathBuf, PathBuf>,
   pub substitutions: Vec<Substitution>,
+  pub run_cargo: bool,
   pub cargo_args: Vec<OsString>,
+  pub create_outputs: bool,
 }
 
 impl Stepper {
@@ -24,7 +26,9 @@ impl Stepper {
     destination_root_directory: impl Into<PathBuf>,
     destination_directory: impl Into<PathBuf>,
     generated_root_directory: impl Into<PathBuf>,
+    run_cargo: bool,
     cargo_args: CA,
+    create_outputs: bool,
   ) -> Self {
     Self {
       source_root_directory: source_root_directory.into(),
@@ -33,7 +37,9 @@ impl Stepper {
       generated_root_directory: generated_root_directory.into(),
       last_original_file: Default::default(),
       substitutions: Default::default(),
+      run_cargo,
       cargo_args: cargo_args.into_iter().map(|a| a.as_ref().to_owned()).collect(),
+      create_outputs,
     }
   }
 
@@ -91,7 +97,8 @@ impl IntoModifications for Modification {
 
 pub struct Applied<'a> {
   pub stepper: &'a Stepper,
-  pub cargo_output: String,
+  pub create_outputs: bool,
+  pub cargo_output: Option<String>,
 }
 
 impl Stepper {
@@ -124,19 +131,24 @@ impl Stepper {
       }
     }
 
-    let run_cargo = RunCargo::new(&self)
-      .expect("failed to create run cargo command");
-    info!("{}", run_cargo);
+    let cargo_output = if self.run_cargo {
+      let run_cargo = RunCargo::new(&self)
+        .expect("failed to create run cargo command");
+      info!("{}", run_cargo);
 
-    let (cargo_output, valid) = run_cargo.run(expect_success)
-      .expect("failed to run cargo command or failed to get its output");
-    if !valid {
-      error!("Cargo run did not result in expected outcome. Command:\n{}\nOutput:\n{}", run_cargo, cargo_output);
-      panic!("Cargo run did not result in expected outcome; stopping");
+      let (cargo_output, valid) = run_cargo.run(expect_success)
+        .expect("failed to run cargo command or failed to get its output");
+      if !valid {
+        error!("Cargo run did not result in expected outcome. Command:\n{}\nOutput:\n{}", run_cargo, cargo_output);
+        panic!("Cargo run did not result in expected outcome; stopping");
+      } else {
+        info!("{}", cargo_output);
+      }
+      Some(cargo_output)
     } else {
-      info!("{}", cargo_output);
-    }
-    Applied { stepper: self, cargo_output }
+      None
+    };
+    Applied { stepper: self, create_outputs: self.create_outputs, cargo_output }
   }
 }
 

@@ -33,12 +33,24 @@ enum Command {
   StepAll {
     /// Destination root directory where all source files are created and modified during stepping. Defaults to a temporary directory.
     #[arg(short, long)]
-    destination_root_directory: Option<PathBuf>
+    destination_root_directory: Option<PathBuf>,
+    /// Whether to skip cargo commands for steps, effectively disabling verification.
+    #[arg(long)]
+    skip_cargo: bool,
+    /// Whether to skip creating outputs.
+    #[arg(long)]
+    skip_outputs: bool,
   }
 }
 
 impl Default for Command {
-  fn default() -> Self { Command::StepAll { destination_root_directory: None } }
+  fn default() -> Self {
+    Command::StepAll {
+      destination_root_directory: None,
+      skip_cargo: false,
+      skip_outputs: false,
+    }
+  }
 }
 
 fn main() {
@@ -76,12 +88,12 @@ fn main() {
         .with_filter(filter)
     )
     .init();
-  
+
   let command = args.command.unwrap_or_default();
   match command {
-    Command::StepAll { destination_root_directory } => {
+    Command::StepAll { destination_root_directory, skip_cargo, skip_outputs } => {
       let destination_root_directory = destination_root_directory.unwrap_or_else(|| tempfile::tempdir().expect("failed to create temporary directory").into_path());
-      app::step_all(destination_root_directory);
+      app::step_all(destination_root_directory, !skip_cargo, !skip_outputs);
     }
   }
 }

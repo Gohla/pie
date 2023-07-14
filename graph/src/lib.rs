@@ -1,5 +1,8 @@
 #![forbid(unsafe_code, missing_docs)]
 
+//! A modified version of the `incremental-topo` crate for use in PIE and the
+//! PIE tutorial.
+//! 
 //! The purpose of this crate is to maintain an topological order in the face
 //! of single updates, like adding new nodes, adding new edges, deleting
 //! edges, and deleting nodes.
