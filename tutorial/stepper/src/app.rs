@@ -24,7 +24,7 @@ pub fn step_all(
   // Use dunce to not make an absolute path prefixed with "\\?\" (UNC path) on Windows, as Cargo does not support these.
   let pie_graph_path = dunce::canonicalize(pie_graph_path)
     .expect("failed to get absolute path to pie_graph");
-  stepper.add_substitution("%%%PIE_GRAPH_DEPENDENCY%%%", r#"pie_graph = "0.1""#, format!("pie_graph = {{ path = '{}' }}", pie_graph_path.display()));
+  stepper.add_substitution("%%%PIE_GRAPH_DEPENDENCY%%%", r#"pie_graph = "0.0.1""#, format!("pie_graph = {{ path = '{}' }}", pie_graph_path.display()));
 
   stepper.with_path("1_programmability", |stepper| {
     stepper.with_path("0_setup", |stepper| {
