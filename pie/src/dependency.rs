@@ -3,9 +3,9 @@ use std::fs::File;
 use std::io;
 use std::path::PathBuf;
 
-use crate::{Context, Task};
 use crate::fs::open_if_file;
 use crate::stamp::{FileStamp, FileStamper, OutputStamp, OutputStamper};
+use crate::Task;
 
 #[derive(Clone, Eq, PartialEq, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -114,11 +114,11 @@ impl<T: Task> TaskDependency<T, T::Output> {
   ///
   /// Panics if this is a reserved task dependency (i.e., `self.stamp` is `None`)
   #[inline]
-  pub fn is_inconsistent<C: Context<T>>(&self, context: &mut C) -> Option<OutputStamp<T::Output>> {
+  pub fn is_inconsistent<C: MakeConsistent<T>>(&self, context: &mut C) -> Option<OutputStamp<T::Output>> {
     let Some(stamp) = &self.stamp else {
       panic!("BUG: attempt to consistency check reserved task dependency: {:?}", self.task);
     };
-    let output = context.require_task(&self.task);
+    let output = context.make_task_consistent(&self.task);
     let new_stamp = self.stamper.stamp(output);
     let consistent = new_stamp == *stamp;
     if consistent {
@@ -147,6 +147,12 @@ impl<T: Task> TaskDependency<T, T::Output> {
       Some(new_stamp)
     }
   }
+}
+
+/// Make a task consistent, similar to [Context::require_task], but does not add dependencies are we are checking 
+/// existing tasks that already have dependencies.
+pub trait MakeConsistent<T: Task> {
+  fn make_task_consistent(&mut self, task: &T) -> T::Output;
 }
 
 
@@ -258,7 +264,7 @@ impl<T: Task> Dependency<T, T::Output> {
   ///
   /// Panics if this is a reserved task dependency (i.e., `self.stamp` is `None`)
   #[inline]
-  pub fn is_inconsistent<C: Context<T>>(&self, context: &mut C) -> Result<Option<InconsistentDependency<T::Output>>, io::Error> {
+  pub fn is_inconsistent<C: MakeConsistent<T>>(&self, context: &mut C) -> Result<Option<InconsistentDependency<T::Output>>, io::Error> {
     let option = match self {
       Dependency::RequireFile(d) => {
         d.is_inconsistent()?
@@ -285,6 +291,7 @@ mod test {
 
   use dev_shared::{create_temp_file, write_until_modified};
 
+  use crate::Context;
   use crate::context::non_incremental::NonIncrementalContext;
 
   use super::*;

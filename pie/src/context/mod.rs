@@ -5,7 +5,7 @@ use std::path::Path;
 
 use crate::{Session, Task};
 use crate::dependency::{FileDependency, TaskDependency};
-use crate::stamp::FileStamper;
+use crate::stamp::{FileStamper, OutputStamper};
 use crate::store::TaskNode;
 use crate::tracker::Tracker;
 
@@ -15,23 +15,23 @@ pub mod bottom_up;
 
 /// Extension trait on [`Session`] for usage in [`Context`] implementations.
 pub trait SessionExt<T, O> {
-  /// Create a require file dependency, depending from the current executing task to file `path`.
+  /// Create a require file dependency with `stamper`, depending from the current executing task to file `path`.
   fn require_file_with_stamper(&mut self, path: impl AsRef<Path>, stamper: FileStamper) -> Result<Option<File>, io::Error>;
-  /// Create a provide file dependency, depending from the current executing task to file `path`.
+  /// Create a provide file dependency with `stamper`, depending from the current executing task to file `path`.
   fn provide_file_with_stamper(&mut self, path: impl AsRef<Path>, stamper: FileStamper) -> Result<(), io::Error>;
 
-  /// Reserve a task require dependency, depending from the current executing task to `dst`, detecting cycles before we 
-  /// execute, preventing infinite recursion/loops. Does nothing if there is no current executing task.
-  fn reserve_task_require_dependency(&mut self, dst: &TaskNode, dst_task: &T, dependency: TaskDependency<T, O>);
+  /// Reserve a task require dependency, depending from the current executing task to `task` with node `dst`, detecting 
+  /// cycles before we execute, preventing infinite recursion/loops. Does nothing if there is no current executing task.
+  fn reserve_task_require_dependency(&mut self, task: &T, dst: &TaskNode, stamper: OutputStamper);
   /// Update the reserved task dependency, depending from the current executing task to `dst`, with `output`. Does 
   /// nothing if there is no current executing task.
   fn update_reserved_task_require_dependency(&mut self, dst: &TaskNode, output: O);
 
-  /// Perform common pre-execution operations for `task` and its `node`, returning the currently executing task.
-  fn pre_execute(&mut self, node: TaskNode, task: &T) -> Option<TaskNode>;
-  /// Perform common post-execution operations for `task` and its `node`, restoring the `previous_executing_task` and 
+  /// Perform common pre-execution operations for `task` with `node`, returning the currently executing task.
+  fn pre_execute(&mut self, task: &T, node: TaskNode) -> Option<TaskNode>;
+  /// Perform common post-execution operations for `task` with `node`, restoring the `previous_executing_task` and 
   /// setting the `output` of the task.
-  fn post_execute(&mut self, previous_executing_task: Option<TaskNode>, node: TaskNode, task: &T, output: O);
+  fn post_execute(&mut self, task: &T, node: &TaskNode, previous_executing_task: Option<TaskNode>, output: O);
 }
 
 impl<'p, T: Task, A: Tracker<T>, H: BuildHasher + Default> SessionExt<T, T::Output> for Session<'p, T, T::Output, A, H> {
@@ -84,13 +84,13 @@ impl<'p, T: Task, A: Tracker<T>, H: BuildHasher + Default> SessionExt<T, T::Outp
 
 
   #[inline]
-  fn reserve_task_require_dependency(&mut self, dst: &TaskNode, dst_task: &T, dependency: TaskDependency<T, T::Output>) {
+  fn reserve_task_require_dependency(&mut self, task: &T, dst: &TaskNode, stamper: OutputStamper) {
     let Some(current_executing_task_node) = &self.current_executing_task else {
       return; // No task is executing (i.e., `dst` is the initial required task), so there is no dependency to reserve.
     };
-    if let Err(()) = self.store.add_task_require_dependency(current_executing_task_node, dst, dependency) {
+    if let Err(()) = self.store.add_task_require_dependency(current_executing_task_node, dst, TaskDependency::new_reserved(task.clone(), stamper)) {
       let current_executing_task = self.store.get_task(current_executing_task_node);
-      panic!("Cyclic task dependency; current executing task '{:?}' is requiring task '{:?}' which directly or indirectly requires the current executing task", current_executing_task, dst_task);
+      panic!("Cyclic task dependency; current executing task '{:?}' is requiring task '{:?}' which directly or indirectly requires the current executing task", current_executing_task, &task);
     }
   }
   #[inline]
@@ -103,18 +103,18 @@ impl<'p, T: Task, A: Tracker<T>, H: BuildHasher + Default> SessionExt<T, T::Outp
 
 
   #[inline]
-  fn pre_execute(&mut self, node: TaskNode, task: &T) -> Option<TaskNode> {
+  fn pre_execute(&mut self, task: &T, node: TaskNode) -> Option<TaskNode> {
     // Note: pre/post execute methods are needed instead of one execute method because `&mut Context` needs to be passed 
-    // to `task.execute`, complicating borrowing.
+    //       to `task.execute`, complicating borrowing.
     self.store.reset_task(&node);
     self.tracker.execute_task_start(task);
     self.current_executing_task.replace(node)
   }
 
   #[inline]
-  fn post_execute(&mut self, previous_executing_task: Option<TaskNode>, node: TaskNode, task: &T, output: T::Output) {
+  fn post_execute(&mut self, task: &T, node: &TaskNode, previous_executing_task: Option<TaskNode>, output: T::Output) {
     self.current_executing_task = previous_executing_task;
     self.tracker.execute_task_end(task, &output);
-    self.store.set_task_output(&node, output);
+    self.store.set_task_output(node, output);
   }
 }

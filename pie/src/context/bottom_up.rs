@@ -6,7 +6,6 @@ use std::path::{Path, PathBuf};
 
 use crate::{Context, Session, Task, TaskNode};
 use crate::context::SessionExt;
-use crate::dependency::TaskDependency;
 use crate::stamp::{FileStamper, OutputStamper};
 use crate::store::{FileNode, Store};
 use crate::tracker::Tracker;
@@ -28,7 +27,7 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> BottomUpContext<'
     }
   }
 
-  /// Execute (i.e., make up-to-date or make consistent) all tasks affected by `changed_files`.
+  /// Update (make consistent) all tasks affected by `changed_files`.
   #[inline]
   pub fn update_affected_by<'a, I: IntoIterator<Item=&'a PathBuf> + Clone>(&mut self, changed_files: I) {
     self.session.tracker.update_affected_by_start(changed_files.clone());
@@ -57,7 +56,7 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> BottomUpContext<'
     self.session.tracker.update_affected_by_end();
   }
 
-  /// Schedule tasks affected by a change in the file at given `path`.
+  /// Schedule tasks affected by a change in file `path`.
   fn schedule_affected_by_file(
     node: &FileNode,
     path: &PathBuf,
@@ -95,7 +94,7 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> BottomUpContext<'
   /// Execute the task identified by `node`, and then schedule new tasks based on the dependencies of the task.
   fn execute_and_schedule(&mut self, node: TaskNode) -> T::Output {
     let task = self.session.store.get_task(&node).clone(); // TODO: get rid of clone?
-    let output = self.execute(node, &task);
+    let output = self.execute(&task, node);
 
     // Schedule affected tasks that require files provided by `task`.
     for provided_file in self.session.store.get_provided_files(&node) {
@@ -133,15 +132,14 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> BottomUpContext<'
     output
   }
 
-  /// Execute given `task`.
+  /// Execute `task` (with corresponding `node`), returning its result.
   #[inline]
-  fn execute(&mut self, node: TaskNode, task: &T) -> T::Output {
-    let previous_executing_task = self.session.pre_execute(node, task);
+  fn execute(&mut self, task: &T, node: TaskNode) -> T::Output {
+    let previous_executing_task = self.session.pre_execute(task, node);
     self.executing.insert(node);
     let output = task.execute(self);
     self.executing.remove(&node);
-    self.session.post_execute(previous_executing_task, node, task, output.clone());
-    self.session.visited.insert(node);
+    self.session.post_execute(task, &node, previous_executing_task, output.clone());
     output
   }
 
@@ -163,23 +161,20 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> BottomUpContext<'
     None
   }
 
-  /// Make given `task` consistent and return its output and whether it was executed
+  /// Make `task` (with corresponding `node`) consistent, returning its output and whether it was executed.
   #[inline]
   fn make_consistent(&mut self, task: &T, node: TaskNode) -> (T::Output, bool) {
-    if self.session.visited.contains(&node) {
-      // No panic: if we have already visited the task this session, it must have an output.
+    if self.session.consistent.contains(&node) { // Task is already consistent: return its output.
       let output = self.session.store.get_task_output(&node).clone();
       return (output, false);
     }
 
-    if !self.session.store.task_has_output(&node) {
-      // Have not executed the task before, so we just execute it.
-      let output = self.execute(node, task);
+    if !self.session.store.task_has_output(&node) { // Task is new: execute it.
+      let output = self.execute(task, node);
       return (output, true);
     }
 
-    // Task has an output, thus it has been executed before, therefore it has been scheduled if affected, or not 
-    // scheduled if not affected.
+    // Task is an existing task. Either it has been scheduled if affected, or not scheduled if not affected.
     if let Some(output) = self.require_scheduled_now(&node) {
       // Task was scheduled. That is, it was either directly or indirectly affected. Therefore, it has been
       // executed, and we return the result of that execution.
@@ -218,18 +213,15 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> Context<T> for Bo
   fn provide_file_with_stamper<P: AsRef<Path>>(&mut self, path: P, stamper: FileStamper) -> Result<(), io::Error> {
     self.session.provide_file_with_stamper(path, stamper)
   }
-
+  #[inline]
   fn require_task_with_stamper(&mut self, task: &T, stamper: OutputStamper) -> T::Output {
     self.session.tracker.require_task_start(task);
+
     let node = self.session.store.get_or_create_task_node(task);
-
-    let dependency = TaskDependency::new_reserved(task.clone(), stamper);
-    self.session.reserve_task_require_dependency(&node, task, dependency);
-
+    self.session.reserve_task_require_dependency(task, &node, stamper);
     let (output, was_executed) = self.make_consistent(task, node);
-
     self.session.update_reserved_task_require_dependency(&node, output.clone());
-    self.session.visited.insert(node);
+    self.session.consistent.insert(node);
 
     self.session.tracker.require_task_end(task, &output, was_executed);
     output

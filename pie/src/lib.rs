@@ -223,7 +223,7 @@ pub struct Session<'p, T, O, A, H> {
   store: &'p mut Store<T, O, H>,
   tracker: &'p mut A,
   current_executing_task: Option<TaskNode>,
-  visited: HashSet<TaskNode, H>,
+  consistent: HashSet<TaskNode, H>,
   dependency_check_errors: Vec<io::Error>,
 }
 
@@ -234,7 +234,7 @@ impl<'p, T: Task, A: Tracker<T>, H: BuildHasher + Default> Session<'p, T, T::Out
       store: &mut pie.store,
       tracker: &mut pie.tracker,
       current_executing_task: None,
-      visited: HashSet::default(),
+      consistent: HashSet::default(),
       dependency_check_errors: Vec::default(),
     }
   }
