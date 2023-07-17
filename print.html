@@ -121,6 +121,9 @@
                         <a href="print.html" title="Print this book" aria-label="Print this book">
                             <i id="print-button" class="fa fa-print"></i>
                         </a>
+                        <a href="https://github.com/Gohla/pie/" title="Git repository" aria-label="Git repository">
+                            <i id="git-repository-button" class="fa fa-github"></i>
+                        </a>
 
                     </div>
                 </div>
@@ -148,6 +151,15 @@
                 <div id="content" class="content">
                     <main>
                         <h1 id="setup"><a class="header" href="#setup">Setup</a></h1>
+<div id="admonition-under-construction" class="admonition warning">
+<div class="admonition-title">
+<p>Under construction</p>
+<p><a class="admonition-anchor-link" href="1_programmability/0_setup/index.html#admonition-under-construction"></a></p>
+</div>
+<div>
+<p>This page was quickly created to make setup possible, but is unfinished.</p>
+</div>
+</div>
 <p>Make sure <a href="https://www.rust-lang.org/tools/install" title="" target="_blank">Rust is installed</a>.</p>
 <p>We start by creating a new Rust crate.
 Create the <code>pie</code> directory and create the <code>pie/Cargo.toml</code> file with the following contents:</p>
@@ -160,17 +172,17 @@ edition = &quot;2021&quot;
 <p>Run <code>cargo build</code> to test if the project was set up correctly.
 The output should look something like:</p>
 <pre><code class="language-shell ">   Compiling pie v0.1.0 (/private/pie)
-    Finished dev [unoptimized + debuginfo] target(s) in 0.19s
+    Finished dev [unoptimized + debuginfo] target(s) in 0.18s
 </code></pre>
-<div id="admonition-under-construction" class="admonition warning">
-<div class="admonition-title">
-<p>Under construction</p>
-<p><a class="admonition-anchor-link" href="1_programmability/0_setup/index.html#admonition-under-construction"></a></p>
-</div>
+<details id="admonition-download-source-code" class="admonition example">
+<summary class="admonition-title">
+<p>Download source code</p>
+<p><a class="admonition-anchor-link" href="1_programmability/0_setup/index.html#admonition-download-source-code"></a></p>
+</summary>
 <div>
-<p>This page was quickly created to make setup possible, but is unfinished.</p>
+<p>You can <a href="1_programmability/0_setup/../../gen/1_programmability/0_setup/source.zip">download the source files up to this point</a>.</p>
 </div>
-</div>
+</details>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="programmable-build-system-api"><a class="header" href="#programmable-build-system-api">Programmable Build System API</a></h1>
 <p>In this section, we will program the core API of the programmatic incremental build system.</p>
 <p>The unit of computation in a programmatic build system is a <em>task</em>.
@@ -269,6 +281,15 @@ On the other hand, <code>execute</code> accepts a <em>mutable reference</em> to 
 <p><a href="https://doc.rust-lang.org/book/ch19-03-advanced-traits.html#specifying-placeholder-types-in-trait-definitions-with-associated-types" title="" target="_blank">Associated types</a> are a kind of placeholder type in a trait such that methods of traits can use that type. In <code>Task</code> this allows us to talk about the <code>Output</code> type of a task. In <code>Context</code> this allows us to refer to both the <code>Task</code> type <code>T</code> and its output type <code>T::Output</code>. The <code>::</code> syntax here is used to access associated types of traits.</p>
 <p>The <code>Self</code> type in a trait is a built-in associated type that is a placeholder for the type that is implementing the trait.</p>
 <p>The <code>Task</code> trait is defined with <code>pub</code> (public) <a href="https://doc.rust-lang.org/reference/visibility-and-privacy.html" title="" target="_blank">visibility</a>, such that users of the library can implement it. Because <code>Task</code> uses <code>Context</code> in its public API, <code>Context</code> must also be public, even though we don't intend for users to implement their own <code>Context</code>.</p>
+</div>
+</details>
+<details id="admonition-download-source-code" class="admonition example">
+<summary class="admonition-title">
+<p>Download source code</p>
+<p><a class="admonition-anchor-link" href="1_programmability/1_api/index.html#admonition-download-source-code"></a></p>
+</summary>
+<div>
+<p>You can <a href="1_programmability/1_api/../../gen/1_programmability/1_api/source.zip">download the source files up to this point</a>.</p>
 </div>
 </details>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="non-incremental-context"><a class="header" href="#non-incremental-context">Non-Incremental Context</a></h1>
@@ -378,7 +399,7 @@ It returns the output of the task, which we test with <code>assert_eq!</code>.</
 <p>Run the test by running <code>cargo test</code>.
 The output should look something like:</p>
 <pre><code class="language-shell ">   Compiling pie v0.1.0 (/private/pie)
-    Finished test [unoptimized + debuginfo] target(s) in 0.32s
+    Finished test [unoptimized + debuginfo] target(s) in 0.31s
      Running unittests src/lib.rs (/private/pie/target/debug/deps/pie-3bc98124af05b920)
 
 running 1 test
@@ -598,6 +619,15 @@ The <code>match</code> expression matches the variant and dispatches based on th
 </details>
 <p>We have defined the API for the build system and implemented a non-incremental version of it.
 We're now ready to start implementing an incremental context in the next chapter.</p>
+<details id="admonition-download-source-code" class="admonition example">
+<summary class="admonition-title">
+<p>Download source code</p>
+<p><a class="admonition-anchor-link" href="1_programmability/2_non_incremental/index.html#admonition-download-source-code"></a></p>
+</summary>
+<div>
+<p>You can <a href="1_programmability/2_non_incremental/../../gen/1_programmability/2_non_incremental/source.zip">download the source files up to this point</a>.</p>
+</div>
+</details>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="introduction"><a class="header" href="#introduction">Introduction</a></h1>
 <p>In this chapter, we will implement an <em>incremental</em> build context.
 An incremental context selectively executes tasks — only those that are affected by a change.
@@ -915,6 +945,15 @@ Make the non-incremental context compatible by changing <code>pie/src/context/no
  }</code></pre>
 <p>Since the non-incremental context does not track anything, we only try to open the file and return it, matching the contract in the documentation comment of the <code>Context::require_file</code> trait method.</p>
 <p>Confirm everything works with <code>cargo test</code>.</p>
+<details id="admonition-download-source-code" class="admonition example">
+<summary class="admonition-title">
+<p>Download source code</p>
+<p><a class="admonition-anchor-link" href="2_incrementality/1_require_file/index.html#admonition-download-source-code"></a></p>
+</summary>
+<div>
+<p>You can <a href="2_incrementality/1_require_file/../../gen/2_incrementality/1_require_file/source.zip">download the source files up to this point</a>.</p>
+</div>
+</details>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="stamps"><a class="header" href="#stamps">Stamps</a></h1>
 <p>To check whether we need to execute a task, we need to check the dependencies of that task to see if any of them are inconsistent.
 To make this consistency checking configurable, we will use stamps.
@@ -1317,6 +1356,15 @@ The default is provided by <code>default_require_file_stamper</code> which can b
  }</code></pre>
 <p>We just ignore the stampers in <code>NonIncrementalContext</code>, as they are only needed for incrementality.</p>
 <p>Run <code>cargo test</code> to confirm everything still works.</p>
+<details id="admonition-download-source-code" class="admonition example">
+<summary class="admonition-title">
+<p>Download source code</p>
+<p><a class="admonition-anchor-link" href="2_incrementality/2_stamp/index.html#admonition-download-source-code"></a></p>
+</summary>
+<div>
+<p>You can <a href="2_incrementality/2_stamp/../../gen/2_incrementality/2_stamp/source.zip">download the source files up to this point</a>.</p>
+</div>
+</details>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="dynamic-dependencies"><a class="header" href="#dynamic-dependencies">Dynamic Dependencies</a></h1>
 <p>Now that we've implemented stamps, we can implement dynamic dependencies and their consistency checking.
 A dependency is inconsistent if after stamping, the new stamp is different from the old stamp.
@@ -1600,6 +1648,15 @@ We just use <code>Dependency&lt;ReadStringFromFile, String&gt;</code> as the typ
 </div>
 <p>Run <code>cargo test</code> to confirm everything still works.
 You will get some warnings about unused things, but that is ok as we will use them in the next section.</p>
+<details id="admonition-download-source-code" class="admonition example">
+<summary class="admonition-title">
+<p>Download source code</p>
+<p><a class="admonition-anchor-link" href="2_incrementality/3_dependency/index.html#admonition-download-source-code"></a></p>
+</summary>
+<div>
+<p>You can <a href="2_incrementality/3_dependency/../../gen/2_incrementality/3_dependency/source.zip">download the source files up to this point</a>.</p>
+</div>
+</details>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="dependency-graph-store"><a class="header" href="#dependency-graph-store">Dependency Graph Store</a></h1>
 <p>To do incremental building, we need to keep track of all files, tasks, their dependencies, and task outputs, in a dependency graph.
 This will be the responsibility of the <code>Store</code> data structure.
@@ -2325,6 +2382,15 @@ Later on we will also see that this is important for soundness of the incrementa
   }</code></pre>
 <p>Here, we ensure that a task with an output and dependencies, does not have an output and dependencies after a reset, while leaving another task untouched.</p>
 <p>Confirm that the store implementation works with <code>cargo test</code>.</p>
+<details id="admonition-download-source-code" class="admonition example">
+<summary class="admonition-title">
+<p>Download source code</p>
+<p><a class="admonition-anchor-link" href="2_incrementality/4_store/index.html#admonition-download-source-code"></a></p>
+</summary>
+<div>
+<p>You can <a href="2_incrementality/4_store/../../gen/2_incrementality/4_store/source.zip">download the source files up to this point</a>.</p>
+</div>
+</details>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="top-down-context"><a class="header" href="#top-down-context">Top-down Context</a></h1>
 <p>We've implemented all the prerequisites for incremental top-down building.
 Now we will create the <code>TopDownContext</code> type which implements the <code>Context</code> trait in an incremental way. </p>
@@ -2818,7 +2884,7 @@ Run this example with <code>cargo run --example incremental</code>.
 You should see the <code>println!</code> in <code>ReadStringFromFile</code> appear in your console as the incremental context correctly determines that this task is new (i.e., has no output) and must be executed.
 It should look something like:</p>
 <pre><code>   Compiling pie v0.1.0 (/private/pie)
-    Finished dev [unoptimized + debuginfo] target(s) in 1.29s
+    Finished dev [unoptimized + debuginfo] target(s) in 1.28s
      Running `/private/pie/target/debug/examples/incremental`
 A) New task: expect `read_task` to execute
 Reading from input.txt with Modified stamper
@@ -2979,7 +3045,7 @@ This shows that tasks can depend on the same file with different stampers, which
 <p>Of course, using an <code>Exists</code> stamper for <code>ReadStringFromFile</code> does not make a lot of sense, but this is for demonstration purposes only.</p>
 <p>Running <code>cargo run --example incremental</code> now should produce output like:</p>
 <pre><code>   Compiling pie v0.1.0 (/private/pie)
-    Finished dev [unoptimized + debuginfo] target(s) in 0.75s
+    Finished dev [unoptimized + debuginfo] target(s) in 0.68s
      Running `/private/pie/target/debug/examples/incremental`
 A) New task: expect `read_task` to execute
 Reading from input.txt with Modified stamper
@@ -3014,6 +3080,15 @@ Reading from input_b.txt with Modified stamper
 </code></pre>
 <p>Feel free to experiment more with this example (or new example files) before continuing.
 In the next chapter, we will define minimality and soundness, set up an infrastructure for testing those properties, and fix issues uncovered by testing.</p>
+<details id="admonition-download-source-code" class="admonition example">
+<summary class="admonition-title">
+<p>Download source code</p>
+<p><a class="admonition-anchor-link" href="2_incrementality/5_context/index.html#admonition-download-source-code"></a></p>
+</summary>
+<div>
+<p>You can <a href="2_incrementality/5_context/../../gen/2_incrementality/5b_context_example/source.zip">download the source files up to this point</a>.</p>
+</div>
+</details>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="minimality-and-soundness"><a class="header" href="#minimality-and-soundness">Minimality and Soundness</a></h1>
 <p>So far, the definitions we've used for minimality (incrementality) and soundness (correctness) have been a bit vague.
 Let's define this more concretely and precisely.</p>

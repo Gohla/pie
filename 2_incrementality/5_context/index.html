@@ -120,6 +120,12 @@
                         <a href="../../print.html" title="Print this book" aria-label="Print this book">
                             <i id="print-button" class="fa fa-print"></i>
                         </a>
+                        <a href="https://github.com/Gohla/pie/" title="Git repository" aria-label="Git repository">
+                            <i id="git-repository-button" class="fa fa-github"></i>
+                        </a>
+                        <a href="https://github.com/Gohla/pie/edit/master/tutorial/src/2_incrementality/5_context/index.md" title="Suggest an edit" aria-label="Suggest an edit">
+                            <i id="git-edit-button" class="fa fa-edit"></i>
+                        </a>
 
                     </div>
                 </div>
@@ -639,7 +645,7 @@ Run this example with <code>cargo run --example incremental</code>.
 You should see the <code>println!</code> in <code>ReadStringFromFile</code> appear in your console as the incremental context correctly determines that this task is new (i.e., has no output) and must be executed.
 It should look something like:</p>
 <pre><code>   Compiling pie v0.1.0 (/private/pie)
-    Finished dev [unoptimized + debuginfo] target(s) in 1.29s
+    Finished dev [unoptimized + debuginfo] target(s) in 1.28s
      Running `/private/pie/target/debug/examples/incremental`
 A) New task: expect `read_task` to execute
 Reading from input.txt with Modified stamper
@@ -800,7 +806,7 @@ This shows that tasks can depend on the same file with different stampers, which
 <p>Of course, using an <code>Exists</code> stamper for <code>ReadStringFromFile</code> does not make a lot of sense, but this is for demonstration purposes only.</p>
 <p>Running <code>cargo run --example incremental</code> now should produce output like:</p>
 <pre><code>   Compiling pie v0.1.0 (/private/pie)
-    Finished dev [unoptimized + debuginfo] target(s) in 0.75s
+    Finished dev [unoptimized + debuginfo] target(s) in 0.68s
      Running `/private/pie/target/debug/examples/incremental`
 A) New task: expect `read_task` to execute
 Reading from input.txt with Modified stamper
@@ -835,6 +841,15 @@ Reading from input_b.txt with Modified stamper
 </code></pre>
 <p>Feel free to experiment more with this example (or new example files) before continuing.
 In the next chapter, we will define minimality and soundness, set up an infrastructure for testing those properties, and fix issues uncovered by testing.</p>
+<details id="admonition-download-source-code" class="admonition example">
+<summary class="admonition-title">
+<p>Download source code</p>
+<p><a class="admonition-anchor-link" href="#admonition-download-source-code"></a></p>
+</summary>
+<div>
+<p>You can <a href="../../gen/2_incrementality/5b_context_example/source.zip">download the source files up to this point</a>.</p>
+</div>
+</details>
 
                     </main>
 

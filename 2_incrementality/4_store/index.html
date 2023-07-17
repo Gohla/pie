@@ -120,6 +120,12 @@
                         <a href="../../print.html" title="Print this book" aria-label="Print this book">
                             <i id="print-button" class="fa fa-print"></i>
                         </a>
+                        <a href="https://github.com/Gohla/pie/" title="Git repository" aria-label="Git repository">
+                            <i id="git-repository-button" class="fa fa-github"></i>
+                        </a>
+                        <a href="https://github.com/Gohla/pie/edit/master/tutorial/src/2_incrementality/4_store/index.md" title="Suggest an edit" aria-label="Suggest an edit">
+                            <i id="git-edit-button" class="fa fa-edit"></i>
+                        </a>
 
                     </div>
                 </div>
@@ -871,6 +877,15 @@ Later on we will also see that this is important for soundness of the incrementa
   }</code></pre>
 <p>Here, we ensure that a task with an output and dependencies, does not have an output and dependencies after a reset, while leaving another task untouched.</p>
 <p>Confirm that the store implementation works with <code>cargo test</code>.</p>
+<details id="admonition-download-source-code" class="admonition example">
+<summary class="admonition-title">
+<p>Download source code</p>
+<p><a class="admonition-anchor-link" href="#admonition-download-source-code"></a></p>
+</summary>
+<div>
+<p>You can <a href="../../gen/2_incrementality/4_store/source.zip">download the source files up to this point</a>.</p>
+</div>
+</details>
 
                     </main>
 

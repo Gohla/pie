@@ -1,0 +1,14 @@
+--- original
++++ modified
+@@ -8,10 +8,11 @@
+
+ pub mod stamp;
+ pub mod context;
+ mod fs;
+ mod dependency;
++mod store;
+
+ /// A unit of computation in a programmatic incremental build system.
+ pub trait Task: Clone + Eq + Hash + Debug {
+   /// Type of output this task returns when executed.
+   type Output: Clone + Eq + Debug;

@@ -1,0 +1,2 @@
+   Compiling pie v0.1.0 (/private/pie)
+    Finished dev [unoptimized + debuginfo] target(s) in 0.07s

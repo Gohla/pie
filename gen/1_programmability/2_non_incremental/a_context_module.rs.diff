@@ -1,0 +1,13 @@
+--- original
++++ modified
+@@ -1,8 +1,10 @@
+ use std::fmt::Debug;
+ use std::hash::Hash;
+
++pub mod context;
++
+ /// A unit of computation in a programmatic incremental build system.
+ pub trait Task: Clone + Eq + Hash + Debug {
+   /// Type of output this task returns when executed.
+   type Output: Clone + Eq + Debug;
+   /// Execute the task, using `context` to specify dynamic dependencies, returning `Self::Output`.

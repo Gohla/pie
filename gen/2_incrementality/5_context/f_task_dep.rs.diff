@@ -1,0 +1,20 @@
+--- original
++++ modified
+@@ -48,8 +48,17 @@
+       // Correctness: when `should_execute_task` returns `true`, the above block is executed. Otherwise this block is 
+       // executed and `should_execute_task` ensures that the task has an output.
+       self.store.get_task_output(&node).clone()
+     };
+
++    // Create task require dependency if a task is currently executing (i.e., we are not requiring the initial task).
++    if let Some(current_executing_task_node) = &self.current_executing_task {
++      let dependency = TaskDependency::new(task.clone(), stamper, output.clone());
++      if self.store.add_task_require_dependency(current_executing_task_node, &node, dependency).is_err() {
++        let current_executing_task = self.store.get_task(current_executing_task_node);
++        panic!("Cyclic task dependency; current executing task '{:?}' is requiring task '{:?}' which was already required", current_executing_task, task);
++      }
++    }
++
+     output
+   }
+ }

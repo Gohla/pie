@@ -1,0 +1,14 @@
+--- original
++++ modified
+@@ -7,10 +7,11 @@
+ use stamp::{FileStamper, OutputStamper};
+
+ pub mod stamp;
+ pub mod context;
+ mod fs;
++mod dependency;
+
+ /// A unit of computation in a programmatic incremental build system.
+ pub trait Task: Clone + Eq + Hash + Debug {
+   /// Type of output this task returns when executed.
+   type Output: Clone + Eq + Debug;

@@ -120,6 +120,12 @@
                         <a href="../../print.html" title="Print this book" aria-label="Print this book">
                             <i id="print-button" class="fa fa-print"></i>
                         </a>
+                        <a href="https://github.com/Gohla/pie/" title="Git repository" aria-label="Git repository">
+                            <i id="git-repository-button" class="fa fa-github"></i>
+                        </a>
+                        <a href="https://github.com/Gohla/pie/edit/master/tutorial/src/1_programmability/2_non_incremental/index.md" title="Suggest an edit" aria-label="Suggest an edit">
+                            <i id="git-edit-button" class="fa fa-edit"></i>
+                        </a>
 
                     </div>
                 </div>
@@ -253,7 +259,7 @@ It returns the output of the task, which we test with <code>assert_eq!</code>.</
 <p>Run the test by running <code>cargo test</code>.
 The output should look something like:</p>
 <pre><code class="language-shell ">   Compiling pie v0.1.0 (/private/pie)
-    Finished test [unoptimized + debuginfo] target(s) in 0.32s
+    Finished test [unoptimized + debuginfo] target(s) in 0.31s
      Running unittests src/lib.rs (/private/pie/target/debug/deps/pie-3bc98124af05b920)
 
 running 1 test
@@ -473,6 +479,15 @@ The <code>match</code> expression matches the variant and dispatches based on th
 </details>
 <p>We have defined the API for the build system and implemented a non-incremental version of it.
 We're now ready to start implementing an incremental context in the next chapter.</p>
+<details id="admonition-download-source-code" class="admonition example">
+<summary class="admonition-title">
+<p>Download source code</p>
+<p><a class="admonition-anchor-link" href="#admonition-download-source-code"></a></p>
+</summary>
+<div>
+<p>You can <a href="../../gen/1_programmability/2_non_incremental/source.zip">download the source files up to this point</a>.</p>
+</div>
+</details>
 
                     </main>
 

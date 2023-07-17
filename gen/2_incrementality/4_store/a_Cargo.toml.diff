@@ -1,0 +1,14 @@
+--- original
++++ modified
+@@ -1,8 +1,11 @@
+ [package]
+ name = "pie"
+ version = "0.1.0"
+ edition = "2021"
+
++[dependencies]
++pie_graph = "0.0.1"
++
+ [dev-dependencies]
+ dev_shared = { path = "../dev_shared" }
+ assert_matches = "1"
