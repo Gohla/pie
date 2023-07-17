@@ -171,7 +171,7 @@ impl&lt;T: Task&gt; TopDownContext&lt;T, T::Output&gt; {
   pub fn new() -&gt; Self {
     Self {
       store: Store::default(),
-    } 
+    }
   }
 }
 
@@ -207,9 +207,8 @@ Therefore, we will need to keep track of the current executing task.</p>
    pub fn new() -&gt; Self {
      Self {
        store: Store::default(),
--    } 
 +      current_executing_task: None,
-+    }
+     }
    }
  }
 
@@ -655,7 +654,7 @@ Reading from input.txt with Modified stamper
   assert_eq!(&amp;output, &quot;Hi&quot;);</code></pre>
 <p>Running with <code>cargo run --example incremental</code> should produce output like:</p>
 <pre><code>   Compiling pie v0.1.0 (/private/pie)
-    Finished dev [unoptimized + debuginfo] target(s) in 0.60s
+    Finished dev [unoptimized + debuginfo] target(s) in 0.65s
      Running `/private/pie/target/debug/examples/incremental`
 A) New task: expect `read_task` to execute
 Reading from input.txt with Modified stamper
@@ -801,7 +800,7 @@ This shows that tasks can depend on the same file with different stampers, which
 <p>Of course, using an <code>Exists</code> stamper for <code>ReadStringFromFile</code> does not make a lot of sense, but this is for demonstration purposes only.</p>
 <p>Running <code>cargo run --example incremental</code> now should produce output like:</p>
 <pre><code>   Compiling pie v0.1.0 (/private/pie)
-    Finished dev [unoptimized + debuginfo] target(s) in 0.66s
+    Finished dev [unoptimized + debuginfo] target(s) in 0.75s
      Running `/private/pie/target/debug/examples/incremental`
 A) New task: expect `read_task` to execute
 Reading from input.txt with Modified stamper

@@ -15,7 +15,7 @@ impl<T: Task> TopDownContext<T, T::Output> {
   pub fn new() -> Self {
     Self {
       store: Store::default(),
-    } 
+    }
   }
 }
 
