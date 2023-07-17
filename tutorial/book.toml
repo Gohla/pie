@@ -8,6 +8,8 @@ title = "Build your own Programmatic Incremental Build System"
 [build]
 create-missing = false
 
+#[preprocessor.treesitter-table-highlight]
+
 [preprocessor.external-links] # Enable external links preprocessor
 
 [preprocessor.admonish]

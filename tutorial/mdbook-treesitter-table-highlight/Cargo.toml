@@ -1,0 +1,20 @@
+[package]
+name = "mdbook-treesitter-table-highlight"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+tree-sitter-highlight = "0.20"
+tree-sitter-rust = "0.20"
+tree-sitter-toml = "0.20"
+mdbook = "0.4"
+pulldown-cmark = "0.9"
+pulldown-cmark-to-cmark = "10"
+clap = "4"
+serde_json = "1"
+semver = "1"
+anyhow = "1"
+
+# Empty workspace to ensure this is not part of the workspace in the root, because this is a separate project.
+[workspace]
