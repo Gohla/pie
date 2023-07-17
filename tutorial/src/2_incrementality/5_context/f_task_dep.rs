@@ -12,19 +12,14 @@ pub struct TopDownContext<T, O> {
   current_executing_task: Option<TaskNode>,
 }
 
-impl<T: Task> Default for TopDownContext<T, T::Output> {
-  fn default() -> Self {
+impl<T: Task> TopDownContext<T, T::Output> {
+  pub fn new() -> Self {
     Self {
       store: Store::default(),
       current_executing_task: None,
     }
   }
 }
-
-impl<T: Task> TopDownContext<T, T::Output> {
-  pub fn new() -> Self { Self::default() }
-}
-
 
 impl<T: Task> Context<T> for TopDownContext<T, T::Output> {
   fn require_file_with_stamper<P: AsRef<Path>>(&mut self, path: P, stamper: FileStamper) -> Result<Option<File>, io::Error> {

@@ -13,18 +13,14 @@ pub struct TopDownContext<T, O> {
   dependency_check_errors: Vec<io::Error>,
 }
 
-impl<T: Task> Default for TopDownContext<T, T::Output> {
-  fn default() -> Self {
+impl<T: Task> TopDownContext<T, T::Output> {
+  pub fn new() -> Self {
     Self {
       store: Store::default(),
       current_executing_task: None,
       dependency_check_errors: Vec::default(),
     }
   }
-}
-
-impl<T: Task> TopDownContext<T, T::Output> {
-  pub fn new() -> Self { Self::default() }
 
   pub fn get_dependency_check_errors(&self) -> impl Iterator<Item=&io::Error> {
     self.dependency_check_errors.iter()
