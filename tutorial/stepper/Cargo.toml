@@ -10,6 +10,8 @@ duct = "0.13"
 diffy = "0.3"
 dunce = "1"
 termtree = "0.4"
+zip = "0.6"
+walkdir = "2"
 anyhow = "1"
 clap = { version = "4", features = ["derive"] }
 dotenv = "0.15"

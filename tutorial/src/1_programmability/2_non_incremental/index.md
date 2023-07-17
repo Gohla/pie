@@ -9,7 +9,7 @@ Since we will be implementing three different contexts in this tutorial, we will
 Create the `context` module by adding a module to `pie/src/lib.rs`:
 
 ```rust,customdiff
-{{#include ../../../gen/1_programmability/2_non_incremental/a_context_module.rs.diff:4:}}
+{{#include ../../gen/1_programmability/2_non_incremental/a_context_module.rs.diff:4:}}
 ```
 
 This is a diff over `pie/src/lib.rs` where lines with a green background are additions, lines with a red background are removals, and lines with a grey background are context on where to add/remove lines, similar to diffs on source code hubs like GitHub.
@@ -26,7 +26,7 @@ Create the `pie/src/context/non_incremental.rs` file, it will be empty for now.
 Your project structure should now look like:
 
 ```
-{{#include ../../../gen/1_programmability/2_non_incremental/b_dir.txt}}
+{{#include ../../gen/1_programmability/2_non_incremental/b_dir.txt}}
 ```
 
 Confirm your module structure is correct by building with `cargo build`.
@@ -87,7 +87,7 @@ Run the test by running `cargo test`.
 The output should look something like:
 
 ```shell,
-{{#include ../../../gen/1_programmability/2_non_incremental/d_cargo.txt}}
+{{#include ../../gen/1_programmability/2_non_incremental/d_cargo.txt}}
 ```
 
 Which indicates that the test indeed succeeds!
@@ -120,7 +120,7 @@ Our first test only tests a single task that does not use the context, so let's 
 Add the following test:
 
 ```rust,customdiff
-{{#include ../../../gen/1_programmability/2_non_incremental/e_test_problematic.rs.diff:4:}}
+{{#include ../../gen/1_programmability/2_non_incremental/e_test_problematic.rs.diff:4:}}
 ```
 
 We use the same `ReturnHelloWorld` task as before, but now also have a `ToLowerCase` task which requires `ReturnHelloWorld` and then turn its string lowercase.
@@ -128,7 +128,7 @@ However, due to the way we've set up the types between `Task` and `Context`, we 
 Running `cargo test`, you should get these errors:
 
 ```shell,
-{{#include ../../../gen/1_programmability/2_non_incremental/e_cargo.txt}}
+{{#include ../../gen/1_programmability/2_non_incremental/e_cargo.txt}}
 ```
 
 The problem is that `execute` of `ToLowerCase` takes a `Context<Self>`, so in `impl Task for ToLowerCase` it takes a `Context<ToLowerCase>`, while we're trying to require `&ReturnHelloWorld` through the context.
@@ -137,13 +137,13 @@ This doesn't work as `Context<ToLowerCase>::require_task` only takes a `&ToLower
 We could change `execute` of `ToLowerCase` to take `Context<ReturnHelloWorld>`:
 
 ```rust,customdiff
-{{#include ../../../gen/1_programmability/2_non_incremental/f_test_incompatible.rs.diff:4:}}
+{{#include ../../gen/1_programmability/2_non_incremental/f_test_incompatible.rs.diff:4:}}
 ```
 
 But that is not allowed:
 
 ```shell,
-{{#include ../../../gen/1_programmability/2_non_incremental/f_cargo.txt}}
+{{#include ../../gen/1_programmability/2_non_incremental/f_cargo.txt}}
 ```
 
 This is because the `Task` trait defines `execute` to take a `Context<Self>`, thus every implementation of `Task` must adhere to this, so we can't solve it this way.
@@ -193,3 +193,7 @@ The `match` expression matches the variant and dispatches based on that, similar
 
 We have defined the API for the build system and implemented a non-incremental version of it.
 We're now ready to start implementing an incremental context in the next chapter.
+
+```admonish example title="Download source code" collapsible=true
+You can [download the source files up to this point](../../gen/1_programmability/2_non_incremental/source.zip).
+```

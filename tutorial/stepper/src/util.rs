@@ -1,3 +1,4 @@
+use std::ffi::OsStr;
 use std::fs::{File, OpenOptions};
 use std::fs;
 use std::io::Write;
@@ -31,4 +32,10 @@ pub fn add_extension(path: &mut PathBuf, extension: impl AsRef<Path>) {
     }
     None => path.set_extension(extension.as_ref()),
   };
+}
+
+pub fn is_hidden(file_name: &OsStr) -> bool {
+  file_name.to_str()
+    .map(|f| f.starts_with(".") || f == "target")
+    .unwrap_or(false)
 }

@@ -56,7 +56,7 @@ Build the project by running `cargo build`.
 The output should look something like:
 
 ```shell,
-{{#include ../../../gen/1_programmability/1_api/a_cargo.txt}}
+{{#include ../../gen/1_programmability/1_api/a_cargo.txt}}
 ```
 
 ```admonish info title="Rust Help" collapsible=true
@@ -87,4 +87,8 @@ On the other hand, `execute` accepts a *mutable reference* to the context, indic
 The `Self` type in a trait is a built-in associated type that is a placeholder for the type that is implementing the trait.
 
 The `Task` trait is defined with `pub` (public) [visibility](https://doc.rust-lang.org/reference/visibility-and-privacy.html), such that users of the library can implement it. Because `Task` uses `Context` in its public API, `Context` must also be public, even though we don't intend for users to implement their own `Context`. 
+```
+
+```admonish example title="Download source code" collapsible=true
+You can [download the source files up to this point](../../gen/1_programmability/1_api/source.zip).
 ```

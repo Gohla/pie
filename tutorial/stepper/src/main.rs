@@ -34,6 +34,9 @@ enum Command {
     /// Destination root directory where all source files are created and modified during stepping. Defaults to a temporary directory.
     #[arg(short, long)]
     destination_root_directory: Option<PathBuf>,
+    /// Whether to use a local `pie_graph` instead of one from crates.io.
+    #[arg(long)]
+    use_local_pie_graph: bool,
     /// Whether to skip cargo commands for steps, effectively disabling verification.
     #[arg(long)]
     skip_cargo: bool,
@@ -47,6 +50,7 @@ impl Default for Command {
   fn default() -> Self {
     Command::StepAll {
       destination_root_directory: None,
+      use_local_pie_graph: false,
       skip_cargo: false,
       skip_outputs: false,
     }
@@ -91,9 +95,20 @@ fn main() {
 
   let command = args.command.unwrap_or_default();
   match command {
-    Command::StepAll { destination_root_directory, skip_cargo, skip_outputs } => {
-      let destination_root_directory = destination_root_directory.unwrap_or_else(|| tempfile::tempdir().expect("failed to create temporary directory").into_path());
-      app::step_all(destination_root_directory, !skip_cargo, !skip_outputs);
+    Command::StepAll {
+      destination_root_directory,
+      use_local_pie_graph,
+      skip_cargo,
+      skip_outputs
+    } => {
+      let run_cargo = !skip_cargo;
+      let create_outputs = !skip_outputs;
+      if let Some(destination_root_directory) = destination_root_directory {
+        app::step_all(destination_root_directory, use_local_pie_graph, run_cargo, create_outputs);
+      } else { // Temporary directory must be dropped to clean it up, so duplicate step_all call to make this easy.
+        let temp_dir = tempfile::tempdir().expect("failed to create temporary directory");
+        app::step_all(temp_dir.path().join("tutorial"), use_local_pie_graph, run_cargo, create_outputs);
+      }
     }
   }
 }

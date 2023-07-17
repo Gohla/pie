@@ -60,17 +60,14 @@ impl Stepper {
     result
   }
 
-  pub fn add_substitution(&mut self, pattern: impl Into<String>, external_replacement: impl Into<String>, internal_replacement: impl Into<String>) {
-    self.substitutions.push(Substitution::new(pattern, external_replacement, internal_replacement));
+  pub fn add_substitution(&mut self, pattern: impl Into<String>, replacement: impl Into<String>) {
+    self.substitutions.push(Substitution::new(pattern, replacement));
   }
 
-  pub fn apply_substitutions(&self, text: impl AsRef<str>) -> Substituted {
-    let text = text.as_ref();
-    let mut substituted = Substituted::default();
+  pub fn apply_substitutions(&self, text: &mut String) {
     for substitution in &self.substitutions {
-      substitution.apply(text, &mut substituted);
+      substitution.apply(text);
     }
-    substituted
   }
 
   pub fn set_cargo_args<CA: IntoIterator<Item=A>, A: AsRef<OsStr>>(&mut self, cargo_args: CA) {
@@ -184,32 +181,21 @@ impl<'a> Applied<'a> {
 
 pub struct Substitution {
   pub pattern: String,
-  pub external_replacement: String,
-  pub internal_replacement: String,
-}
-
-#[derive(Default)]
-pub struct Substituted {
-  pub external: String,
-  pub internal: String,
+  pub replacement: String,
 }
 
 impl Substitution {
   pub fn new(
     pattern: impl Into<String>,
-    external_replacement: impl Into<String>,
-    internal_replacement: impl Into<String>
+    replacement: impl Into<String>,
   ) -> Self {
     Self {
       pattern: pattern.into(),
-      external_replacement: external_replacement.into(),
-      internal_replacement: internal_replacement.into(),
+      replacement: replacement.into(),
     }
   }
 
-  pub fn apply(&self, text: impl AsRef<str>, substituted: &mut Substituted) {
-    let text = text.as_ref();
-    substituted.external = text.replace(&self.pattern, &self.external_replacement);
-    substituted.internal = text.replace(&self.pattern, &self.internal_replacement);
+  pub fn apply(&self, text: &mut String) {
+    *text = text.replace(&self.pattern, &self.replacement);
   }
 }

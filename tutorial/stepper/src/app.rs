@@ -1,11 +1,12 @@
 use std::path::{Path, PathBuf};
 
 use crate::modification::{add, apply_diff, create, create_diff, create_diff_builder, insert};
-use crate::output::{CargoOutput, DirectoryStructure};
+use crate::output::{CargoOutput, DirectoryStructure, SourceArchive};
 use crate::stepper::Stepper;
 
 pub fn step_all(
   destination_root_directory: impl AsRef<Path>,
+  use_local_pie_graph: bool,
   run_cargo: bool,
   create_outputs: bool,
 ) {
@@ -14,7 +15,7 @@ pub fn step_all(
     "../src/",
     destination_root_directory,
     destination_root_directory.join("pie").join("src"),
-    "../gen/",
+    "../src/gen/",
     run_cargo,
     ["build"],
     create_outputs,
@@ -24,7 +25,12 @@ pub fn step_all(
   // Use dunce to not make an absolute path prefixed with "\\?\" (UNC path) on Windows, as Cargo does not support these.
   let pie_graph_path = dunce::canonicalize(pie_graph_path)
     .expect("failed to get absolute path to pie_graph");
-  stepper.add_substitution("%%%PIE_GRAPH_DEPENDENCY%%%", r#"pie_graph = "0.0.1""#, format!("pie_graph = {{ path = '{}' }}", pie_graph_path.display()));
+  let pie_graph_dependency = if use_local_pie_graph {
+    format!("pie_graph = {{ path = '{}' }}", pie_graph_path.display())
+  } else {
+    r#"pie_graph = "0.0.1""#.to_string()
+  };
+  stepper.add_substitution("%%%PIE_GRAPH_DEPENDENCY%%%", pie_graph_dependency);
 
   stepper.with_path("1_programmability", |stepper| {
     stepper.with_path("0_setup", |stepper| {
@@ -33,14 +39,20 @@ pub fn step_all(
           add("Cargo.toml", "../Cargo.toml"),
           create("lib.rs"),
         ])
-        .output(CargoOutput::new("cargo.txt"));
+        .output([
+          CargoOutput::new("cargo.txt"),
+          SourceArchive::new("source.zip"),
+        ]);
     });
     stepper.with_path("1_api", |stepper| {
       stepper
         .apply([
           add("a_api.rs", "lib.rs"),
         ])
-        .output(CargoOutput::new("a_cargo.txt"));
+        .output([
+          CargoOutput::new("a_cargo.txt"),
+          SourceArchive::new("source.zip"),
+        ]);
     });
     stepper.with_path("2_non_incremental", |stepper| {
       stepper
@@ -61,7 +73,8 @@ pub fn step_all(
       stepper
         .apply_failure(create_diff("f_test_incompatible.rs", "context/non_incremental.rs"))
         .output(CargoOutput::new("f_cargo.txt"));
-      stepper.apply(apply_diff("g_test_correct.rs.diff", "context/non_incremental.rs"));
+      stepper.apply(apply_diff("g_test_correct.rs.diff", "context/non_incremental.rs"))
+        .output(SourceArchive::new("source.zip"));
     });
   });
 
@@ -81,7 +94,10 @@ pub fn step_all(
           .original("../../1_programmability/2_non_incremental/c_non_incremental_context.rs") // HACK: Explicitly set original file to the one without tests
           .into_modification(),
       ])
-        .output(DirectoryStructure::new("../../", "e_dir.txt"));
+        .output([
+          DirectoryStructure::new("../../", "e_dir.txt"),
+          SourceArchive::new("source.zip"),
+        ]);
     });
     stepper.with_path("2_stamp", |stepper| {
       stepper.apply([
@@ -107,7 +123,7 @@ pub fn step_all(
         create_diff_builder("f_context_task.rs", "lib.rs")
           .into_modification(),
         create_diff("g_non_incremental_context.rs", "context/non_incremental.rs"),
-      ]);
+      ]).output(SourceArchive::new("source.zip"));
     });
     stepper.with_path("3_dependency", |stepper| {
       let dest = "dependency.rs";
@@ -117,7 +133,7 @@ pub fn step_all(
         add("c_task.rs", dest),
         add("d_dependency.rs", dest),
         add("e_test.rs", dest),
-      ]);
+      ]).output(SourceArchive::new("source.zip"));
     });
     stepper.with_path("4_store", |stepper| {
       let dest = "store.rs";
@@ -140,7 +156,7 @@ pub fn step_all(
         insert("k_test_task_output.rs", "}", dest),
         insert("l_test_dependencies.rs", "}", dest),
         insert("m_test_reset.rs", "}", dest),
-      ]);
+      ]).output(SourceArchive::new("source.zip"));
     });
     stepper.with_path("5_context", |stepper| {
       let dest = "context/top_down.rs";
@@ -179,7 +195,10 @@ pub fn step_all(
         insert("j_regen_file.rs", insertion_place, dest),
         insert("k_diff_task.rs", insertion_place, dest),
         insert("l_diff_stamp.rs", insertion_place, dest),
-      ]).output(CargoOutput::new("l_diff_stamp.txt"));
+      ]).output([
+        CargoOutput::new("l_diff_stamp.txt"),
+        SourceArchive::new("source.zip"),
+      ]);
       stepper.set_cargo_args(["test"]);
     });
   });

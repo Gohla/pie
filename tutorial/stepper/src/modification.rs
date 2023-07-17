@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 use anyhow::{bail, Context};
 use diffy::{DiffOptions, Patch};
 
-use crate::stepper::{Stepper, Substituted};
+use crate::stepper::Stepper;
 use crate::util::{add_extension, open_writable_file, write_to_file};
 
 #[derive(Clone)]
@@ -139,9 +139,9 @@ impl AddToFile {
   }
 
   fn apply(&self, stepper: &mut Stepper) -> anyhow::Result<()> {
-    let addition_text = read_to_string(&self.addition_file_path)
+    let mut addition_text = read_to_string(&self.addition_file_path)
       .context("failed to read addition file to string")?;
-    let addition_text = stepper.apply_substitutions(&addition_text).internal;
+    stepper.apply_substitutions(&mut addition_text);
     let mut file = open_writable_file(&self.destination_file_path, true)
       .context("failed to open writable file")?;
     write!(file, "{}\n\n", addition_text)
@@ -207,7 +207,7 @@ impl InsertIntoFile {
       .context("failed to read insertion file to string")?;
     let destination_text = read_to_string(&self.destination_file_path)
       .context("failed to read destination file to string")?;
-    let new_text = match &self.insertion_place {
+    let mut new_text = match &self.insertion_place {
       InsertionPlace::BeforeLine(line) => {
         let between_lines: Vec<_> = insertion_text.lines().collect();
         let destination_lines: Vec<_> = destination_text.lines().collect();
@@ -226,7 +226,7 @@ impl InsertIntoFile {
         format!("{}\n\n{}{}", before, insertion_text, after)
       },
     };
-    let new_text = stepper.apply_substitutions(&new_text).internal;
+    stepper.apply_substitutions(&mut new_text);
     write_to_file(new_text.as_bytes(), &self.destination_file_path, false)
       .context("failed to write to destination file")?;
 
@@ -354,16 +354,15 @@ impl CreateDiffAndApplyResolved {
     let original_text = normalize_to_unix_line_endings(original_text); // Normalize to Unix line endings for diffy.
     let modified_text = read_to_string(&self.modified_file_path)
       .context("failed to read modified file text")?;
-    let modified_text = normalize_to_unix_line_endings(modified_text);
-    let Substituted { external: modified_text_external, internal: modified_text_internal } = stepper.apply_substitutions(&modified_text);
+    let mut modified_text = normalize_to_unix_line_endings(modified_text);
+    stepper.apply_substitutions(&mut modified_text);
 
     let mut diff_options = DiffOptions::default();
     diff_options.set_context_len(self.context_length);
-    let patch_external = diff_options.create_patch(&original_text, &modified_text_external);
-    write_to_file(&patch_external.to_bytes(), &self.diff_output_file_path, false)
+    let patch = diff_options.create_patch(&original_text, &modified_text);
+    write_to_file(&patch.to_bytes(), &self.diff_output_file_path, false)
       .context("failed to write to diff output file")?;
-    let patch_internal = diff_options.create_patch(&original_text, &modified_text_internal);
-    apply_patch(patch_internal, &self.destination_file_path)?;
+    apply_patch(patch, &self.destination_file_path)?;
 
     stepper.last_original_file.insert(self.destination_file_path.clone(), self.modified_file_path.clone());
 
@@ -405,8 +404,8 @@ impl ApplyDiff {
   fn apply(&self, stepper: &Stepper) -> anyhow::Result<()> {
     let diff = read_to_string(&self.diff_file_path)
       .context("failed to read diff to string")?;
-    let diff = normalize_to_unix_line_endings(diff); // Normalize to Unix line endings for diffy.
-    let diff = stepper.apply_substitutions(&diff).external;
+    let mut diff = normalize_to_unix_line_endings(diff); // Normalize to Unix line endings for diffy.
+    stepper.apply_substitutions(&mut diff);
     let patch = diffy::Patch::from_str(&diff)
       .context("failed to create patch from diff string")?;
     apply_patch(patch, &self.destination_file_path)?;

@@ -8,7 +8,7 @@ Therefore, we will implement a `FileStamper` that stamps files and produces a `F
 Add the `stamp` module to `pie/src/lib.rs`:
 
 ```rust,customdiff
-{{#include ../../../gen/2_incrementality/2_stamp/a_module.rs.diff:4:}}
+{{#include ../../gen/2_incrementality/2_stamp/a_module.rs.diff:4:}}
 ```
 
 This module is public as users of the library will construct stampers.
@@ -89,14 +89,14 @@ To solve this, add a function to the filesystem testing utility crate.
 Change `dev_shared/src/lib.rs`:
 
 ```rust,customdiff,
-{{#include ../../../gen/2_incrementality/2_stamp/d2_test_utilities.rs.diff:4:}}
+{{#include ../../gen/2_incrementality/2_stamp/d2_test_utilities.rs.diff:4:}}
 ```
 
 The `write_until_modified` function writes to the file, but ensures its modified time will change.
 Now change the tests in `pie/src/stamp.rs` to use this function:
 
 ```rust,customdiff,
-{{#include ../../../gen/2_incrementality/2_stamp/d3_test_correct.rs.diff:4:}}
+{{#include ../../gen/2_incrementality/2_stamp/d3_test_correct.rs.diff:4:}}
 ```
 
 Now we use `write_until_modified` to write to the file, ensuring its modified time will change, ensuring the stamp will change when it should.
@@ -111,7 +111,7 @@ Therefore, we need to update the `Context` trait to allow passing in these stamp
 Change `Context` in `pie/src/lib.rs`:
 
 ```rust,customdiff
-{{#include ../../../gen/2_incrementality/2_stamp/e_context_file.rs.diff:4:}}
+{{#include ../../gen/2_incrementality/2_stamp/e_context_file.rs.diff:4:}}
 ```
 
 We add the `require_file_with_stamper` method which allow passing in a stamper.
@@ -121,15 +121,19 @@ The default is provided by `default_require_file_stamper` which can be overridde
 Now apply the same to tasks, changing `Context` again in `pie/src/lib.rs`:
 
 ```rust,customdiff
-{{#include ../../../gen/2_incrementality/2_stamp/f_context_task.rs.diff:4:}}
+{{#include ../../gen/2_incrementality/2_stamp/f_context_task.rs.diff:4:}}
 ```
 
 Update `NonIncrementalContext` in `src/context/non_incremental.rs` to implement the new methods:
 
 ```rust,customdiff
-{{#include ../../../gen/2_incrementality/2_stamp/g_non_incremental_context.rs.diff:4:}}
+{{#include ../../gen/2_incrementality/2_stamp/g_non_incremental_context.rs.diff:4:}}
 ```
 
 We just ignore the stampers in `NonIncrementalContext`, as they are only needed for incrementality.
 
 Run `cargo test` to confirm everything still works.
+
+```admonish example title="Download source code" collapsible=true
+You can [download the source files up to this point](../../gen/2_incrementality/2_stamp/source.zip).
+```

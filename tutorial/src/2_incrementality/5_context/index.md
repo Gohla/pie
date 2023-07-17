@@ -8,7 +8,7 @@ Now we will create the `TopDownContext` type which implements the `Context` trai
 Add the `top_down` module to `pie/src/context/mod.rs`:
 
 ```rust,customdiff
-{{#include ../../../gen/2_incrementality/5_context/a_module.rs.diff:4:}}
+{{#include ../../gen/2_incrementality/5_context/a_module.rs.diff:4:}}
 ```
 
 Create the `pie/src/context/top_down.rs` file and add the following to get started:
@@ -31,7 +31,7 @@ Therefore, we will need to keep track of the current executing task.
 Change `pie/src/context/mod.rs` to add a field for tracking the current executing task, and use it in `require_file_with_stamper`:
 
 ```rust,customdiff
-{{#include ../../../gen/2_incrementality/5_context/c_current.rs.diff:4:}}
+{{#include ../../gen/2_incrementality/5_context/c_current.rs.diff:4:}}
 ```
 
 We're not setting `current_executing_task` yet, as that is the responsibility of `require_task_with_stamper` which we will implement later.
@@ -41,7 +41,7 @@ If there is no current executing task, which only happens if a user directly cal
 Now we need to add the file dependency, change `pie/src/context/mod.rs` to do this: 
 
 ```rust,customdiff
-{{#include ../../../gen/2_incrementality/5_context/d_file.rs.diff:4:}}
+{{#include ../../gen/2_incrementality/5_context/d_file.rs.diff:4:}}
 ```
 
 We simply create or get an existing file node, create a file dependency, and add the file require dependency to the graph via `store`.
@@ -56,7 +56,7 @@ If we don't execute it, then it must have an output value and all its dependenci
 Change `pie/src/context/mod.rs` to implement this logic:
 
 ```rust,customdiff
-{{#include ../../../gen/2_incrementality/5_context/e_task.rs.diff:4:}}
+{{#include ../../gen/2_incrementality/5_context/e_task.rs.diff:4:}}
 ```
 
 We first create or get an existing file node.
@@ -69,7 +69,7 @@ Finally, we return the output.
 We still need to create a task dependency. Change `pie/src/context/mod.rs` to add the dependency:
 
 ```rust,customdiff
-{{#include ../../../gen/2_incrementality/5_context/f_task_dep.rs.diff:4:}}
+{{#include ../../gen/2_incrementality/5_context/f_task_dep.rs.diff:4:}}
 ```
 
 If there is no current executing task, which occurs when a user requires the initial task, we skip creating a dependency.
@@ -132,7 +132,7 @@ The final piece to our puzzle is the `should_execute_task` implementation.
 Add the following code to `pie/src/context/mod.rs`:
 
 ```rust,customdiff,
-{{#include ../../../gen/2_incrementality/5_context/g_check.rs.diff:4:}}
+{{#include ../../gen/2_incrementality/5_context/g_check.rs.diff:4:}}
 ```
 
 The premise of `should_execute_task` is simple: go over the dependencies of a task until `dependency.is_inconsistent` is true, at which we return true.
@@ -209,13 +209,13 @@ When dependency checking result in an error, we should store the error for the u
 Change `pie/src/context/mod.rs` to store dependency check errors and give users access to it:
 
 ```rust,customdiff
-{{#include ../../../gen/2_incrementality/5_context/h_error_field.rs.diff:4:}}
+{{#include ../../gen/2_incrementality/5_context/h_error_field.rs.diff:4:}}
 ```
 
 And then change `pie/src/context/mod.rs` to store these errors:
 
 ```rust,customdiff
-{{#include ../../../gen/2_incrementality/5_context/i_error_store.rs.diff:4:}}
+{{#include ../../gen/2_incrementality/5_context/i_error_store.rs.diff:4:}}
 ```
 
 It took us a while, but now we've implemented an incremental build system with dynamic dependencies 🎉.
@@ -311,7 +311,7 @@ You should see the `println!` in `ReadStringFromFile` appear in your console as 
 It should look something like:
 
 ```
-{{#include ../../../gen/2_incrementality/5b_context_example/d_main.txt}}
+{{#include ../../gen/2_incrementality/5b_context_example/d_main.txt}}
 ```
 
 #### Reuse
@@ -327,7 +327,7 @@ Insert the following code into the `main` method:
 Running with `cargo run --example incremental` should produce output like:
 
 ```
-{{#include ../../../gen/2_incrementality/5b_context_example/e_reuse.txt}}
+{{#include ../../gen/2_incrementality/5b_context_example/e_reuse.txt}}
 ```
 
 We don't see the `println!` from `ReadStringFromFile`, so it was not executed, so our incremental build system has correctly reused its output!
@@ -458,8 +458,12 @@ Of course, using an `Exists` stamper for `ReadStringFromFile` does not make a lo
 Running `cargo run --example incremental` now should produce output like:
 
 ```
-{{#include ../../../gen/2_incrementality/5b_context_example/l_diff_stamp.txt}}
+{{#include ../../gen/2_incrementality/5b_context_example/l_diff_stamp.txt}}
 ```
 
 Feel free to experiment more with this example (or new example files) before continuing.
 In the next chapter, we will define minimality and soundness, set up an infrastructure for testing those properties, and fix issues uncovered by testing.
+
+```admonish example title="Download source code" collapsible=true
+You can [download the source files up to this point](../../gen/2_incrementality/5b_context_example/source.zip).
+```

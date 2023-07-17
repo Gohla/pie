@@ -6,7 +6,7 @@ Therefore, we will extend the `Context` API with methods to *require files*, ena
 Add a method to the `Context` trait in `pie/src/lib.rs`:
 
 ```rust,customdiff
-{{#include ../../../gen/2_incrementality/1_require_file/a_context.rs.diff:4:}}
+{{#include ../../gen/2_incrementality/1_require_file/a_context.rs.diff:4:}}
 ```
 
 `require_file` is similar to requiring a task, but instead takes a `path` to a file or directory on the filesystem as input.
@@ -39,7 +39,7 @@ However, because we will be performing similar file system operations in the inc
 Add the `fs` module to `pie/src/lib.rs`:
 
 ```rust,customdiff
-{{#include ../../../gen/2_incrementality/1_require_file/b_fs_module.rs.diff:4:}}
+{{#include ../../gen/2_incrementality/1_require_file/b_fs_module.rs.diff:4:}}
 ```
 
 Create file `pie/src/fs.rs` with:
@@ -91,13 +91,13 @@ Create the main library file `dev_shared/src/lib.rs`, with functions for creatin
 Your directory structure should now look like this:
 
 ```
-{{#include ../../../gen/2_incrementality/1_require_file/e_dir.txt:2:}}
+{{#include ../../gen/2_incrementality/1_require_file/e_dir.txt:2:}}
 ```
 
 To access these utility functions in the `pie` crate, add a dependency to `dev_shared` in `pie/Cargo.toml` along with another create that will help testing:
 
 ```toml,customdiff,
-{{#include ../../../gen/2_incrementality/1_require_file/f_Cargo.toml.diff:4:}}
+{{#include ../../gen/2_incrementality/1_require_file/f_Cargo.toml.diff:4:}}
 ```
 
 We've also added the [assert_matches](https://crates.io/crates/assert_matches) crate, which is a handy library for asserting that a value matches a pattern.
@@ -130,9 +130,13 @@ Now we are done unwinding our stack and have filesystem and testing utilities.
 Make the non-incremental context compatible by changing `pie/src/context/non_incremental.rs`:
 
 ```rust,customdiff
-{{#include ../../../gen/2_incrementality/1_require_file/h_non_incremental_context.rs.diff:4:}}
+{{#include ../../gen/2_incrementality/1_require_file/h_non_incremental_context.rs.diff:4:}}
 ```
 
 Since the non-incremental context does not track anything, we only try to open the file and return it, matching the contract in the documentation comment of the `Context::require_file` trait method.
 
 Confirm everything works with `cargo test`.
+
+```admonish example title="Download source code" collapsible=true
+You can [download the source files up to this point](../../gen/2_incrementality/1_require_file/source.zip).
+```

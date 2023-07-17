@@ -17,7 +17,7 @@ The implementation in the `incremental-topo` library is based on a [paper by D. 
 Add the `pie_graph` dependency to `pie/Cargo.toml`:
 
 ```rust,customdiff
-{{#include ../../../gen/2_incrementality/4_store/a_Cargo.toml.diff:4:}}
+{{#include ../../gen/2_incrementality/4_store/a_Cargo.toml.diff:4:}}
 ```
 
 ## Store basics
@@ -25,7 +25,7 @@ Add the `pie_graph` dependency to `pie/Cargo.toml`:
 Add the `store` module to `pie/src/lib.rs`:
 
 ```rust,customdiff
-{{#include ../../../gen/2_incrementality/4_store/b_module.rs.diff:4:}}
+{{#include ../../gen/2_incrementality/4_store/b_module.rs.diff:4:}}
 ```
 
 This module is private, as users of the library should not interact with the store.
@@ -74,13 +74,13 @@ This is also the reason for the `Eq` and `Hash` trait bounds on the `Task` trait
 Change `pie/src/store.rs` to add hash maps to map between these things:
 
 ```rust,customdiff
-{{#include ../../../gen/2_incrementality/4_store/d1_mapping_diff.rs.diff:4:}}
+{{#include ../../gen/2_incrementality/4_store/d1_mapping_diff.rs.diff:4:}}
 ```
 
 To prevent accidentally using a file node as a task node, and vice versa, change `pie/src/store.rs` to add specific types of nodes:
 
 ```rust,customdiff
-{{#include ../../../gen/2_incrementality/4_store/d2_mapping_diff.rs.diff:4:}}
+{{#include ../../gen/2_incrementality/4_store/d2_mapping_diff.rs.diff:4:}}
 ```
 
 The `FileNode` and `TaskNode` types are [newtypes](https://rust-unofficial.github.io/patterns/patterns/behavioural/newtype.html) that wrap a `Node` into a specific type of node.
@@ -282,3 +282,7 @@ Finally, test task reset by inserting the following code into the `test` module:
 Here, we ensure that a task with an output and dependencies, does not have an output and dependencies after a reset, while leaving another task untouched.
 
 Confirm that the store implementation works with `cargo test`.
+
+```admonish example title="Download source code" collapsible=true
+You can [download the source files up to this point](../../gen/2_incrementality/4_store/source.zip).
+```

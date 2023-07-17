@@ -9,7 +9,7 @@ We will also implement a `Dependency` type that abstracts over `FileDependency` 
 Add the `dependency` module to `pie/src/lib.rs`:
 
 ```rust,customdiff
-{{#include ../../../gen/2_incrementality/3_dependency/a_module.rs.diff:4:}}
+{{#include ../../gen/2_incrementality/3_dependency/a_module.rs.diff:4:}}
 ```
 
 This module is private, as users of the library should not construct dependencies.
@@ -130,3 +130,7 @@ We just use `Dependency<ReadStringFromFile, String>` as the type, and this is fi
 
 Run `cargo test` to confirm everything still works.
 You will get some warnings about unused things, but that is ok as we will use them in the next section.
+
+```admonish example title="Download source code" collapsible=true
+You can [download the source files up to this point](../../gen/2_incrementality/3_dependency/source.zip).
+```

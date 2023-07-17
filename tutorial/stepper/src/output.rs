@@ -1,17 +1,20 @@
-use std::ffi::OsString;
 use std::fs;
-use std::io::Write;
+use std::fs::File;
+use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
-use std::str::FromStr;
 
 use anyhow::Context;
 use termtree::Tree;
+use walkdir::WalkDir;
+use zip::write::FileOptions;
 
 use crate::stepper::Applied;
+use crate::util::{is_hidden, open_writable_file};
 
 pub enum Output {
   CargoOutput(CargoOutput),
   DirectoryStructure(DirectoryStructure),
+  SourceArchive(SourceArchive)
 }
 
 impl Output {
@@ -19,6 +22,7 @@ impl Output {
     match self {
       Output::CargoOutput(o) => o.apply(applied),
       Output::DirectoryStructure(o) => o.apply(applied),
+      Output::SourceArchive(o) => o.apply(applied),
     }
   }
 }
@@ -84,7 +88,7 @@ impl DirectoryStructure {
       .context("failed to create directory structure")?;
 
     let output_file_path = applied.stepper.generated_root_directory.join(&self.output_file_path);
-    let mut file = crate::util::open_writable_file(&output_file_path, false)
+    let mut file = open_writable_file(&output_file_path, false)
       .context("failed to open writable file")?;
     write!(file, "{}", tree)
       .context("failed to write directory structure to file")?;
@@ -99,7 +103,7 @@ impl DirectoryStructure {
       Tree::new(label(path.as_ref().canonicalize()?)),
       |mut root, entry| {
         let dir = entry.metadata().unwrap();
-        if dir.is_dir() && entry.file_name() != OsString::from_str("target").unwrap() {
+        if dir.is_dir() && !is_hidden(&entry.file_name()) {
           root.push(Self::directory_tree(entry.path()).unwrap());
         } else {
           root.push(Tree::new(label(entry.path())));
@@ -108,5 +112,52 @@ impl DirectoryStructure {
       },
     );
     Ok(result)
+  }
+}
+
+
+// Source archive
+
+pub struct SourceArchive {
+  zip_file_path: PathBuf,
+}
+
+impl SourceArchive {
+  pub fn new(zip_file_path: impl Into<PathBuf>) -> Output {
+    let zip_file_path = zip_file_path.into();
+    Output::SourceArchive(Self { zip_file_path })
+  }
+}
+
+impl SourceArchive {
+  fn apply(&self, applied: &Applied) -> anyhow::Result<()> {
+    if !applied.create_outputs { return Ok(()); }
+
+    let zip_file_path = applied.stepper.generated_root_directory.join(&self.zip_file_path);
+    let zip_file = open_writable_file(&zip_file_path, false)
+      .context("failed to open writable file")?;
+    let mut zip = zip::ZipWriter::new(zip_file);
+    let zip_file_options = FileOptions::default();
+
+    let mut buffer = Vec::new();
+    let source_directory = &applied.stepper.destination_root_directory;
+    let walker = WalkDir::new(source_directory).into_iter();
+    for entry in walker.filter_entry(|e| !is_hidden(e.file_name())) {
+      let entry = entry?;
+      let path = entry.path();
+      let name = path.strip_prefix(source_directory)?.to_string_lossy();
+      if entry.metadata()?.is_file() {
+        zip.start_file(name, zip_file_options)?;
+        let mut file = File::open(path)?;
+        file.read_to_end(&mut buffer)?;
+        zip.write_all(&buffer)?;
+        buffer.clear();
+      } else if !name.is_empty() {
+        zip.add_directory(name, zip_file_options)?;
+      }
+    }
+    zip.finish()?;
+
+    Ok(())
   }
 }
