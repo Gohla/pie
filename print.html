@@ -378,7 +378,7 @@ It returns the output of the task, which we test with <code>assert_eq!</code>.</
 <p>Run the test by running <code>cargo test</code>.
 The output should look something like:</p>
 <pre><code class="language-shell ">   Compiling pie v0.1.0 (/private/pie)
-    Finished test [unoptimized + debuginfo] target(s) in 0.30s
+    Finished test [unoptimized + debuginfo] target(s) in 0.31s
      Running unittests src/lib.rs (/private/pie/target/debug/deps/pie-3bc98124af05b920)
 
 running 1 test
@@ -2354,7 +2354,6 @@ impl&lt;T: Task&gt; TopDownContext&lt;T, T::Output&gt; {
   }
 }
 
-
 impl&lt;T: Task&gt; Context&lt;T&gt; for TopDownContext&lt;T, T::Output&gt; {
   fn require_file_with_stamper&lt;P: AsRef&lt;Path&gt;&gt;(&amp;mut self, path: P, stamper: FileStamper) -&gt; Result&lt;Option&lt;File&gt;, io::Error&gt; {
     todo!()
@@ -2383,10 +2382,8 @@ Therefore, we will need to keep track of the current executing task.</p>
 +  current_executing_task: Option&lt;TaskNode&gt;,
  }
 
--impl&lt;T: Task&gt; TopDownContext&lt;T, T::Output&gt; {
--  pub fn new() -&gt; Self {
-+impl&lt;T: Task&gt; Default for TopDownContext&lt;T, T::Output&gt; {
-+  fn default() -&gt; Self {
+ impl&lt;T: Task&gt; TopDownContext&lt;T, T::Output&gt; {
+   pub fn new() -&gt; Self {
      Self {
        store: Store::default(),
 -    } 
@@ -2394,11 +2391,6 @@ Therefore, we will need to keep track of the current executing task.</p>
 +    }
    }
  }
-
-+impl&lt;T: Task&gt; TopDownContext&lt;T, T::Output&gt; {
-+  pub fn new() -&gt; Self { Self::default() }
-+}
-+
 
  impl&lt;T: Task&gt; Context&lt;T&gt; for TopDownContext&lt;T, T::Output&gt; {
    fn require_file_with_stamper&lt;P: AsRef&lt;Path&gt;&gt;(&amp;mut self, path: P, stamper: FileStamper) -&gt; Result&lt;Option&lt;File&gt;, io::Error&gt; {
@@ -2644,29 +2636,37 @@ When dependency checking result in an error, we should store the error for the u
 +  dependency_check_errors: Vec&lt;io::Error&gt;,
  }
 
- impl&lt;T: Task&gt; Default for TopDownContext&lt;T, T::Output&gt; {
-   fn default() -&gt; Self {
+ impl&lt;T: Task&gt; TopDownContext&lt;T, T::Output&gt; {
+   pub fn new() -&gt; Self {
      Self {
        store: Store::default(),
        current_executing_task: None,
 +      dependency_check_errors: Vec::default(),
      }
    }
- }
-
- impl&lt;T: Task&gt; TopDownContext&lt;T, T::Output&gt; {
-   pub fn new() -&gt; Self { Self::default() }
 +
 +  pub fn get_dependency_check_errors(&amp;self) -&gt; impl Iterator&lt;Item=&amp;io::Error&gt; {
 +    self.dependency_check_errors.iter()
 +  }
  }
 
-
  impl&lt;T: Task&gt; Context&lt;T&gt; for TopDownContext&lt;T, T::Output&gt; {
-   fn require_file_with_stamper&lt;P: AsRef&lt;Path&gt;&gt;(&amp;mut self, path: P, stamper: FileStamper) -&gt; Result&lt;Option&lt;File&gt;, io::Error&gt; {</code></pre>
+   fn require_file_with_stamper&lt;P: AsRef&lt;Path&gt;&gt;(&amp;mut self, path: P, stamper: FileStamper) -&gt; Result&lt;Option&lt;File&gt;, io::Error&gt; {
+     let Some(current_executing_task_node) = &amp;self.current_executing_task else {</code></pre>
 <p>And then change <code>pie/src/context/mod.rs</code> to store these errors:</p>
-<pre><code class="language-rust customdiff">     //         through `self.store` while we create a mutable borrow of `self`, which is not allowed.
+<pre><code class="language-rust customdiff">   pub fn get_dependency_check_errors(&amp;self) -&gt; impl Iterator&lt;Item=&amp;io::Error&gt; {
+     self.dependency_check_errors.iter()
+   }
+ }
+
++
+ impl&lt;T: Task&gt; Context&lt;T&gt; for TopDownContext&lt;T, T::Output&gt; {
+   fn require_file_with_stamper&lt;P: AsRef&lt;Path&gt;&gt;(&amp;mut self, path: P, stamper: FileStamper) -&gt; Result&lt;Option&lt;File&gt;, io::Error&gt; {
+     let Some(current_executing_task_node) = &amp;self.current_executing_task else {
+       return fs::open_if_file(path); // No current executing task, so no dependency needs to be made.
+     };
+@@ -78,10 +79,14 @@
+     //         through `self.store` while we create a mutable borrow of `self`, which is not allowed.
      let dependencies: Vec&lt;_&gt; = self.store.get_dependencies_of_task(node).cloned().collect();
      for dependency in dependencies {
        match dependency.is_inconsistent(self) {
@@ -2819,7 +2819,7 @@ Run this example with <code>cargo run --example incremental</code>.
 You should see the <code>println!</code> in <code>ReadStringFromFile</code> appear in your console as the incremental context correctly determines that this task is new (i.e., has no output) and must be executed.
 It should look something like:</p>
 <pre><code>   Compiling pie v0.1.0 (/private/pie)
-    Finished dev [unoptimized + debuginfo] target(s) in 1.27s
+    Finished dev [unoptimized + debuginfo] target(s) in 1.29s
      Running `/private/pie/target/debug/examples/incremental`
 A) New task: expect `read_task` to execute
 Reading from input.txt with Modified stamper
@@ -2834,7 +2834,7 @@ Reading from input.txt with Modified stamper
   assert_eq!(&amp;output, &quot;Hi&quot;);</code></pre>
 <p>Running with <code>cargo run --example incremental</code> should produce output like:</p>
 <pre><code>   Compiling pie v0.1.0 (/private/pie)
-    Finished dev [unoptimized + debuginfo] target(s) in 0.67s
+    Finished dev [unoptimized + debuginfo] target(s) in 0.60s
      Running `/private/pie/target/debug/examples/incremental`
 A) New task: expect `read_task` to execute
 Reading from input.txt with Modified stamper
@@ -2980,7 +2980,7 @@ This shows that tasks can depend on the same file with different stampers, which
 <p>Of course, using an <code>Exists</code> stamper for <code>ReadStringFromFile</code> does not make a lot of sense, but this is for demonstration purposes only.</p>
 <p>Running <code>cargo run --example incremental</code> now should produce output like:</p>
 <pre><code>   Compiling pie v0.1.0 (/private/pie)
-    Finished dev [unoptimized + debuginfo] target(s) in 0.67s
+    Finished dev [unoptimized + debuginfo] target(s) in 0.66s
      Running `/private/pie/target/debug/examples/incremental`
 A) New task: expect `read_task` to execute
 Reading from input.txt with Modified stamper
