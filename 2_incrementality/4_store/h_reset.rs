@@ -13,3 +13,4 @@ impl<T: Task> Store<T, T::Output> {
     self.graph.remove_outgoing_edges_of_node(src);
   }
 }
+

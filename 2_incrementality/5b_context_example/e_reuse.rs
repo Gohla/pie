@@ -3,3 +3,4 @@
   // `input_file` has not changed, thus the modified stamp is equal.
   let output = context.require_task(&read_task)?;
   assert_eq!(&output, "Hi");
+

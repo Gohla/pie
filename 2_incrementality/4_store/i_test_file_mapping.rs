@@ -20,7 +20,6 @@ mod test {
     }
   }
 
-
   #[test]
   fn test_file_mapping() {
     let mut store: Store<StringConstant, String> = Store::default();
@@ -47,3 +46,4 @@ mod test {
     store.get_file_path(&fake_node);
   }
 }
+

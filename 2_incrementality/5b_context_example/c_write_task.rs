@@ -16,3 +16,4 @@ impl WriteStringToFile {
     Ok(())
   }
 }
+

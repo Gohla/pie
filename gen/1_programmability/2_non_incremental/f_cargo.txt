@@ -1,8 +1,8 @@
    Compiling pie v0.1.0 (/private/pie)
 error[E0276]: impl has stricter requirements than trait
-  --> src/context/non_incremental.rs:47:21
+  --> src/context/non_incremental.rs:45:21
    |
-47 |       fn execute<C: Context<ReturnHelloWorld>>(&self, context: &mut C) -> Self::Output {
+45 |       fn execute<C: Context<ReturnHelloWorld>>(&self, context: &mut C) -> Self::Output {
    |                     ^^^^^^^^^^^^^^^^^^^^^^^^^ impl has extra requirement `C: Context<non_incremental::test::test_require_task_problematic::ReturnHelloWorld>`
    |
   ::: src/lib.rs:11:3

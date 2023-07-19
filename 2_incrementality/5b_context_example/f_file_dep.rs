@@ -3,3 +3,4 @@
   // The file dependency of `read_task` is inconsistent due to the changed modified time of `input_file`.
   let output = context.require_task(&read_task)?;
   assert_eq!(&output, "Hello");
+

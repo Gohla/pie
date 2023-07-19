@@ -27,3 +27,4 @@ pub fn open_if_file(path: impl AsRef<Path>) -> Result<Option<File>, io::Error> {
   };
   Ok(file)
 }
+

@@ -1,0 +1,16 @@
+--- original
++++ modified
+@@ -4,10 +4,13 @@
+ use std::io;
+ use std::path::Path;
+
+ use stamp::{FileStamper, OutputStamper};
+
++use crate::context::top_down::TopDownContext;
++use crate::store::{Store, TaskNode};
++
+ pub mod stamp;
+ pub mod context;
+ mod fs;
+ mod dependency;
+ mod store;

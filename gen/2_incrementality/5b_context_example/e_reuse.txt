@@ -1,5 +1,5 @@
    Compiling pie v0.1.0 (/private/pie)
-    Finished dev [unoptimized + debuginfo] target(s) in 0.67s
+    Finished dev [unoptimized + debuginfo] target(s) in 0.61s
      Running `/private/pie/target/debug/examples/incremental`
 A) New task: expect `read_task` to execute
 Reading from input.txt with Modified stamper

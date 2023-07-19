@@ -37,3 +37,4 @@ impl<T: Task> Store<T, T::Output> {
     }
   }
 }
+

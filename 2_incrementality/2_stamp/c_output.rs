@@ -27,3 +27,4 @@ impl<O> OutputStamp<O> {
     }
   }
 }
+

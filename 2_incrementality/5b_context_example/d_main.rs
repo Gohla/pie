@@ -12,6 +12,6 @@ fn main() -> Result<(), io::Error> {
   // `read_task` is new, meaning that we have no cached output for it, thus it must be executed.
   let output = context.require_task(&read_task)?;
   assert_eq!(&output, "Hi");
-  
+
   Ok(())
 }

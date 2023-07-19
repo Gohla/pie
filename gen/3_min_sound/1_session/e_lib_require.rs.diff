@@ -1,0 +1,23 @@
+--- original
++++ modified
+@@ -1,6 +1,5 @@
+-
+ /// Main entry point into PIE, a sound and incremental programmatic build system.
+ pub struct Pie<T, O> {
+   store: Store<T, O>,
+ }
+
+@@ -34,11 +33,12 @@
+     }
+   }
+
+   /// Requires `task`, returning its up-to-date output.
+   pub fn require(&mut self, task: &T) -> T::Output {
+-    todo!("Create TopDownContext with this session, and require the task")
++    self.current_executing_task = None;
++    TopDownContext::new(self).require_initial(task)
+   }
+
+   /// Gets all errors produced during dependency checks.
+   pub fn dependency_check_errors(&self) -> impl Iterator<Item=&io::Error> { self.dependency_check_errors.iter() }
+ }
