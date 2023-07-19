@@ -1,13 +1,6 @@
 --- original
 +++ modified
-@@ -1,6 +1,5 @@
--
- /// Main entry point into PIE, a sound and incremental programmatic build system.
- pub struct Pie<T, O> {
-   store: Store<T, O>,
- }
-
-@@ -34,11 +33,12 @@
+@@ -34,11 +34,12 @@
      }
    }
 

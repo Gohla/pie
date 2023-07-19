@@ -172,7 +172,7 @@ edition = &quot;2021&quot;
 <p>Run <code>cargo build</code> to test if the project was set up correctly.
 The output should look something like:</p>
 <pre><code class="language-shell ">   Compiling pie v0.1.0 (/private/pie)
-    Finished dev [unoptimized + debuginfo] target(s) in 0.18s
+    Finished dev [unoptimized + debuginfo] target(s) in 0.19s
 </code></pre>
 <details id="admonition-download-source-code" class="admonition example">
 <summary class="admonition-title">
@@ -399,7 +399,7 @@ It returns the output of the task, which we test with <code>assert_eq!</code>.</
 <p>Run the test by running <code>cargo test</code>.
 The output should look something like:</p>
 <pre><code class="language-shell ">   Compiling pie v0.1.0 (/private/pie)
-    Finished test [unoptimized + debuginfo] target(s) in 0.31s
+    Finished test [unoptimized + debuginfo] target(s) in 0.35s
      Running unittests src/lib.rs (/private/pie/target/debug/deps/pie-3bc98124af05b920)
 
 running 1 test
@@ -2901,7 +2901,7 @@ Run this example with <code>cargo run --example incremental</code>.
 You should see the <code>println!</code> in <code>ReadStringFromFile</code> appear in your console as the incremental context correctly determines that this task is new (i.e., has no output) and must be executed.
 It should look something like:</p>
 <pre><code>   Compiling pie v0.1.0 (/private/pie)
-    Finished dev [unoptimized + debuginfo] target(s) in 1.26s
+    Finished dev [unoptimized + debuginfo] target(s) in 1.30s
      Running `/private/pie/target/debug/examples/incremental`
 A) New task: expect `read_task` to execute
 Reading from input.txt with Modified stamper
@@ -2917,7 +2917,7 @@ Reading from input.txt with Modified stamper
 </code></pre>
 <p>Running with <code>cargo run --example incremental</code> should produce output like:</p>
 <pre><code>   Compiling pie v0.1.0 (/private/pie)
-    Finished dev [unoptimized + debuginfo] target(s) in 0.61s
+    Finished dev [unoptimized + debuginfo] target(s) in 0.77s
      Running `/private/pie/target/debug/examples/incremental`
 A) New task: expect `read_task` to execute
 Reading from input.txt with Modified stamper
@@ -3070,7 +3070,7 @@ This shows that tasks can depend on the same file with different stampers, which
 <p>Of course, using an <code>Exists</code> stamper for <code>ReadStringFromFile</code> does not make a lot of sense, but this is for demonstration purposes only.</p>
 <p>Running <code>cargo run --example incremental</code> now should produce output like:</p>
 <pre><code>   Compiling pie v0.1.0 (/private/pie)
-    Finished dev [unoptimized + debuginfo] target(s) in 0.68s
+    Finished dev [unoptimized + debuginfo] target(s) in 0.72s
      Running `/private/pie/target/debug/examples/incremental`
 A) New task: expect `read_task` to execute
 Reading from input.txt with Modified stamper
@@ -3170,9 +3170,11 @@ However, the filesystem can change during a build, meaning that a task can be af
 For example, after executing a task, it could immediately be affected by a change in a source file again without the build system knowing about it, and that would not be minimal nor sound.</p>
 <p>Therefore, we will introduce the concept of a <em>session</em>.
 Builds are only performed in a session, and at most one session may exist at any given time.
-In one session, each task is checked or executed <em>at most once</em>, and changes made to source files during a session are <em>not guaranteed to be detected</em>.
-Therefore, if a file dependency is inconsistent at the time it is checked, the corresponding task is executed once, and will not be checked nor executed any more that session.
-This simplifies minimality and soundness, as we do not need to worry about checking tasks multiple times.</p>
+In one session, each task is checked or executed <em>at most once</em>, meaning that changes made to source files during a session are <em>not guaranteed to be detected</em>.</p>
+<p>The result is that if a task is deemed inconsistent at the time it is checked, it will be executed, and will not be checked nor executed any more that session.
+If a task is deemed consistent at the time it is checked, it will not be checked any more that session.
+This simplifies minimality and soundness, as we do not need to worry about checking tasks multiple times.
+Furthermore, it is also an optimisation, as requiring the same task many times only results in one check.</p>
 <p>We will implement the <code>Session</code> type to hold all session data, and the <code>Pie</code> type as an entry point into the build system that manages a session.</p>
 <h2 id="pie-and-session"><a class="header" href="#pie-and-session">PIE and Session</a></h2>
 <p>Change the imports <code>pie/src/lib.rs</code>: </p>
@@ -3384,14 +3386,7 @@ You could do this with the following find-replace regex: <code>self\.([\w\d_]+)\
 <p>Now we change <code>Session</code> to use <code>TopDownContext</code>. </p>
 <h2 id="update-session"><a class="header" href="#update-session">Update Session</a></h2>
 <p>Change <code>pie/src/lib.rs</code>:</p>
-<pre><code class="language-rust customdiff ">-
- /// Main entry point into PIE, a sound and incremental programmatic build system.
- pub struct Pie&lt;T, O&gt; {
-   store: Store&lt;T, O&gt;,
- }
-
-@@ -34,11 +33,12 @@
-     }
+<pre><code class="language-rust customdiff ">     }
    }
 
    /// Requires `task`, returning its up-to-date output.

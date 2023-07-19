@@ -158,9 +158,11 @@ However, the filesystem can change during a build, meaning that a task can be af
 For example, after executing a task, it could immediately be affected by a change in a source file again without the build system knowing about it, and that would not be minimal nor sound.</p>
 <p>Therefore, we will introduce the concept of a <em>session</em>.
 Builds are only performed in a session, and at most one session may exist at any given time.
-In one session, each task is checked or executed <em>at most once</em>, and changes made to source files during a session are <em>not guaranteed to be detected</em>.
-Therefore, if a file dependency is inconsistent at the time it is checked, the corresponding task is executed once, and will not be checked nor executed any more that session.
-This simplifies minimality and soundness, as we do not need to worry about checking tasks multiple times.</p>
+In one session, each task is checked or executed <em>at most once</em>, meaning that changes made to source files during a session are <em>not guaranteed to be detected</em>.</p>
+<p>The result is that if a task is deemed inconsistent at the time it is checked, it will be executed, and will not be checked nor executed any more that session.
+If a task is deemed consistent at the time it is checked, it will not be checked any more that session.
+This simplifies minimality and soundness, as we do not need to worry about checking tasks multiple times.
+Furthermore, it is also an optimisation, as requiring the same task many times only results in one check.</p>
 <p>We will implement the <code>Session</code> type to hold all session data, and the <code>Pie</code> type as an entry point into the build system that manages a session.</p>
 <h2 id="pie-and-session"><a class="header" href="#pie-and-session">PIE and Session</a></h2>
 <p>Change the imports <code>pie/src/lib.rs</code>: </p>
@@ -372,14 +374,7 @@ You could do this with the following find-replace regex: <code>self\.([\w\d_]+)\
 <p>Now we change <code>Session</code> to use <code>TopDownContext</code>. </p>
 <h2 id="update-session"><a class="header" href="#update-session">Update Session</a></h2>
 <p>Change <code>pie/src/lib.rs</code>:</p>
-<pre><code class="language-rust customdiff ">-
- /// Main entry point into PIE, a sound and incremental programmatic build system.
- pub struct Pie&lt;T, O&gt; {
-   store: Store&lt;T, O&gt;,
- }
-
-@@ -34,11 +33,12 @@
-     }
+<pre><code class="language-rust customdiff ">     }
    }
 
    /// Requires `task`, returning its up-to-date output.
