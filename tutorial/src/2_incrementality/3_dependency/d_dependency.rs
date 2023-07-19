@@ -25,3 +25,4 @@ impl<T: Task> Dependency<T, T::Output> {
     Ok(option)
   }
 }
+

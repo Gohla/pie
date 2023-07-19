@@ -50,3 +50,4 @@
     let mut store: Store<StringConstant, String> = Store::default();
     store.reset_task(&fake_node);
   }
+

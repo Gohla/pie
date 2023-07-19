@@ -32,3 +32,4 @@ pub enum FileStamp {
   Exists(bool),
   Modified(Option<SystemTime>),
 }
+

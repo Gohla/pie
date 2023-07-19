@@ -23,7 +23,6 @@ enum NodeData<T, O> {
   },
 }
 
-
 impl<T: Task> Default for Store<T, T::Output> {
   fn default() -> Self {
     Self {
@@ -33,3 +32,4 @@ impl<T: Task> Default for Store<T, T::Output> {
     }
   }
 }
+

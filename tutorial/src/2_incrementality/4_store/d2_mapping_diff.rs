@@ -42,7 +42,6 @@ impl Borrow<Node> for &TaskNode {
   fn borrow(&self) -> &Node { &self.0 }
 }
 
-
 impl<T: Task> Default for Store<T, T::Output> {
   fn default() -> Self {
     Self {
@@ -52,3 +51,4 @@ impl<T: Task> Default for Store<T, T::Output> {
     }
   }
 }
+

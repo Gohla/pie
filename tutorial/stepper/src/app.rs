@@ -183,7 +183,7 @@ pub fn step_all(
         add("c_write_task.rs", dest),
         add("d_main.rs", dest),
       ]).output(CargoOutput::new("d_main.txt"));
-      let insertion_place = "Ok(())";
+      let insertion_place = "  Ok(())";
       stepper.apply([
         insert("e_reuse.rs", insertion_place, dest),
       ]).output(CargoOutput::new("e_reuse.txt"));
@@ -200,6 +200,34 @@ pub fn step_all(
         SourceArchive::new("source.zip"),
       ]);
       stepper.set_cargo_args(["test"]);
+    });
+  });
+
+  stepper.with_path("3_min_sound", |stepper| {
+    stepper.with_path("1_session", |stepper| {
+      stepper.set_cargo_args(["check"]);
+      stepper.apply([
+        create_diff("a_lib_import.rs", "lib.rs"),
+        add("b_lib_pie_session.rs", "lib.rs"),
+      ]);
+      stepper.set_cargo_args(["check", "--lib"]);
+      stepper.apply([
+        create_diff("c_top_down_new.rs", "context/top_down.rs"),
+        create_diff("d_top_down_fix.rs", "context/top_down.rs"),
+        create_diff("e_lib_require.rs", "lib.rs"),
+        create_diff_builder("f_lib_private_module.rs", "lib.rs")
+          .original("a_lib_import.rs") // HACK: apply diff to a_lib_import.rs
+          .into_modification(),
+      ]);
+      stepper.set_cargo_args(["test"]);
+      stepper.apply([
+        create_diff_builder("g_example_import.rs", "../examples/incremental.rs")
+          .use_destination_file_as_original_file_if_unset(true)
+          .into_modification(),
+        create_diff_builder("h_example.rs", "../examples/incremental.rs")
+          .context_length(10)
+          .into_modification(),
+      ]).output(SourceArchive::new("source.zip"));
     });
   });
 }

@@ -28,39 +28,3 @@ To achieve incrementality, we will continue with these steps in the following se
 3) Implement *dynamic dependencies* and their *consistency checking*.
 4) Implement a *dependency graph store* with methods to query and mutate the dependency graph. 
 5) Implement the *top-down incremental context* that incrementally executes tasks.
-
-[//]: # (## Implementing the Incremental Context)
-
-[//]: # ()
-[//]: # (Now we get to the fun part, incrementality!)
-
-[//]: # ()
-[//]: # (To check whether we need to execute a task, we need to check the dependencies of that task to see if any of them are not consistent.)
-
-[//]: # (A dependency is consistent if after stamping, the new stamp equals the stored stamp.)
-
-[//]: # (If all dependencies of the task are consistent, we return the cached output of the task.)
-
-[//]: # (If not, we execute the task.)
-
-[//]: # ()
-[//]: # (To implement this, we will need several components:)
-
-[//]: # (- `FileStamper` and `FileStamp` types for stamping files.)
-
-[//]: # (- `OutputStamper` and `OutputStamp` types for stamping task outputs.)
-
-[//]: # (- Extension to `Context` to support passing `FileStamper` and `OutputStamper` when requiring files and tasks.)
-
-[//]: # (- A `FileDependency` type that holds a `FileStamper` and `FileStamp` to check whether a file is consistent.)
-
-[//]: # (- A `TaskDependency` type that holds an `OutputStamper` and `OutputStamp` to check whether a task is consistent.)
-
-[//]: # (- A `Dependency` type that merges `FileDependency` and `TaskDependency` so we can check whether a dependency is consistent without having to know what kind of dependency it is.)
-
-[//]: # (- A `Store` type which holds the dependency graph with methods for mutating and querying the graph, using `Dependency` to represent dependencies.)
-
-[//]: # (- A `TopDownContext` type that implements `Context` in an incremental way, using `Store`.)
-
-[//]: # ()
-[//]: # (We will start with implementing stamps and dependencies, as those can be implemented as a stand-alone part.)

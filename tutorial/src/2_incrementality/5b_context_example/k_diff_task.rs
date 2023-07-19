@@ -10,3 +10,4 @@
   assert_eq!(&output, "Test");
   let output = context.require_task(&read_task_b_exists)?;
   assert_eq!(&output, "Test");
+

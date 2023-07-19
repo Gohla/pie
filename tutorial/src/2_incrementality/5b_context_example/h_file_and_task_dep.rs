@@ -5,3 +5,4 @@
   // output stamp is different.
   context.require_task(&write_task)?;
   assert_eq!(&read_to_string(&output_file)?, "Hello, World!");
+

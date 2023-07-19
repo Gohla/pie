@@ -23,3 +23,4 @@
     let store: Store<StringConstant, String> = Store::default();
     store.get_task(&fake_node);
   }
+

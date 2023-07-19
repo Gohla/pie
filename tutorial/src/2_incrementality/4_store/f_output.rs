@@ -33,3 +33,4 @@ impl<T: Task> Store<T, T::Output> {
     output.replace(new_output);
   }
 }
+

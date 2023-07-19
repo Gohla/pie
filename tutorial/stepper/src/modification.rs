@@ -144,7 +144,7 @@ impl AddToFile {
     stepper.apply_substitutions(&mut addition_text);
     let mut file = open_writable_file(&self.destination_file_path, true)
       .context("failed to open writable file")?;
-    write!(file, "{}\n\n", addition_text)
+    write!(file, "{}", addition_text)
       .context("failed to append to destination file")?;
 
     stepper.last_original_file.insert(self.destination_file_path.clone(), self.addition_file_path.clone());
@@ -223,7 +223,7 @@ impl InsertIntoFile {
           bail!("failed to insert before last match of {}, that pattern was not found", pattern);
         };
         let (before, after) = destination_text.split_at(index);
-        format!("{}\n\n{}{}", before, insertion_text, after)
+        format!("{}{}{}", before, insertion_text, after)
       },
     };
     stepper.apply_substitutions(&mut new_text);
@@ -240,6 +240,7 @@ impl InsertIntoFile {
 #[derive(Default, Clone)]
 pub struct CreateDiffAndApply {
   original_file_path: Option<PathBuf>,
+  use_destination_file_as_original_file_if_unset: bool,
   modified_file_path: Option<PathBuf>,
   destination_file_path: Option<PathBuf>,
   diff_output_file_path: Option<PathBuf>,
@@ -256,6 +257,10 @@ impl Display for CreateDiffAndApply {
 impl CreateDiffAndApply {
   pub fn original(mut self, path: impl Into<PathBuf>) -> Self {
     self.original_file_path = Some(path.into());
+    self
+  }
+  pub fn use_destination_file_as_original_file_if_unset(mut self, use_destination_file_as_original_file_if_unset: bool) -> Self {
+    self.use_destination_file_as_original_file_if_unset = use_destination_file_as_original_file_if_unset;
     self
   }
   pub fn modified(mut self, path: impl Into<PathBuf>) -> Self {
@@ -299,6 +304,8 @@ impl CreateDiffAndApply {
 
     let original_file_path = if let Some(original_file_path) = &self.original_file_path {
       stepper.source_root_directory.join(original_file_path)
+    } else if self.use_destination_file_as_original_file_if_unset {
+      destination_file_path.clone()
     } else {
       stepper.last_original_file.get(&destination_file_path)
         .context("failed to get last original file path")?.clone()

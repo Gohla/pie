@@ -243,18 +243,14 @@ impl<'p, T: Task, A: Tracker<T>, H: BuildHasher + Default> Session<'p, T, T::Out
   #[inline]
   pub fn require(&mut self, task: &T) -> T::Output {
     self.current_executing_task = None;
-
-    let mut context = TopDownContext::new(self);
-    context.require_initial(task)
+    TopDownContext::new(self).require_initial(task)
   }
 
   /// Make up-to-date all tasks (transitively) affected by `changed_files`.
   #[inline]
   pub fn update_affected_by<'a, I: IntoIterator<Item=&'a PathBuf> + Clone>(&mut self, changed_files: I) {
     self.current_executing_task = None;
-
-    let mut context = BottomUpContext::new(self);
-    context.update_affected_by(changed_files);
+    BottomUpContext::new(self).update_affected_by(changed_files);
   }
 
   /// Gets the [`Tracker`] instance.
