@@ -6,9 +6,12 @@ For example, after executing a task, it could immediately be affected by a chang
 
 Therefore, we will introduce the concept of a *session*.
 Builds are only performed in a session, and at most one session may exist at any given time.
-In one session, each task is checked or executed *at most once*, and changes made to source files during a session are *not guaranteed to be detected*.
-Therefore, if a file dependency is inconsistent at the time it is checked, the corresponding task is executed once, and will not be checked nor executed any more that session.
+In one session, each task is checked or executed *at most once*, meaning that changes made to source files during a session are *not guaranteed to be detected*.
+
+The result is that if a task is deemed inconsistent at the time it is checked, it will be executed, and will not be checked nor executed any more that session.
+If a task is deemed consistent at the time it is checked, it will not be checked any more that session.
 This simplifies minimality and soundness, as we do not need to worry about checking tasks multiple times.
+Furthermore, it is also an optimisation, as requiring the same task many times only results in one check.
 
 We will implement the `Session` type to hold all session data, and the `Pie` type as an entry point into the build system that manages a session.
 
