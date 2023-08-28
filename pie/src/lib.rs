@@ -153,14 +153,14 @@ pub trait Context<T: Task> {
 
 /// Main entry point into PIE, a sound and incremental programmatic build system. See the 
 /// [module-level documentation](index.html) for more information.
-pub struct Pie<T, O, A = NoopTracker<T>, H = RandomState> {
+pub struct Pie<T, O, A = NoopTracker, H = RandomState> {
   store: Store<T, O, H>,
   tracker: A,
 }
 
 impl<T: Task> Default for Pie<T, T::Output> {
   #[inline]
-  fn default() -> Self { Self::new(NoopTracker::default()) }
+  fn default() -> Self { Self::with_tracker(NoopTracker) }
 }
 
 impl<T: Task, A: Tracker<T>> Pie<T, T::Output, A> {
@@ -169,7 +169,7 @@ impl<T: Task, A: Tracker<T>> Pie<T, T::Output, A> {
   pub fn with_tracker(tracker: A) -> Self { Self { store: Store::default(), tracker } }
 }
 
-impl<T: Task, A: Tracker<T> + Default, H: BuildHasher + Default> Pie<T, T::Output, A, H> {
+impl<T: Task, A: Tracker<T>, H: BuildHasher + Default> Pie<T, T::Output, A, H> {
   /// Creates a new [`Pie`] instance with given `tracker`.
   #[inline]
   pub fn new(tracker: A) -> Self { Self { store: Store::new(), tracker } }

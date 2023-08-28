@@ -17,7 +17,7 @@ We will implement the `Session` type to hold all session data, and the `Pie` typ
 
 ## PIE and Session
 
-Change the imports `pie/src/lib.rs`: 
+Change the imports in `pie/src/lib.rs`: 
 
 ```rust,customdiff,
 {{#include ../../gen/3_min_sound/1_session/a_lib_import.rs.diff:4:}}
@@ -26,7 +26,7 @@ Change the imports `pie/src/lib.rs`:
 Now add the `Pie` and `Session` types to `pie/src/lib.rs`:
 
 ```rust,
-{{#include b_lib_pie_session.rs}}
+{{#include b_lib_pie_session.rs:2:}}
 ```
 
 We set up the types such that `Pie` owns the store, and `Session` owns all data for a build session that `TopDownContext` previously owned.
@@ -38,10 +38,10 @@ A `Session` is created with `Pie::new_session`, which borrows `Pie` mutibly, ens
 `Session::require` should require the task with the top-down context and return its up-to-date output, which we will implement once we've changed `TopDownContext`.
 The dependency check errors can be accessed with `Session::dependency_check_errors`.
 
-Note that `Session` also has access to `Store`, because the top-down context will need access to the store.
+Note that `Session` also has access to `Store`, because `TopDownContext` needs access to the store.
 The store is mutibly borrowed from `Pie`.
 Therefore, the `Session` struct is generic over the `'p` lifetime, where the `p` stands for `Pie`.
-We can leave out this lifetime in `Pie::new_session`, because the compiler infers it from us, but we must be explicit in structs and impls.
+We can leave out this lifetime in `Pie::new_session`, because the compiler infers it from us, but we must be explicit in structs and most impls.
 
 Check that the code compiles (but gives warnings) with `cargo check`.
 

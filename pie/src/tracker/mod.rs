@@ -1,5 +1,4 @@
 use std::io;
-use std::marker::PhantomData;
 use std::path::PathBuf;
 
 use crate::dependency::{Dependency, FileDependency, InconsistentDependency, TaskDependency};
@@ -86,14 +85,9 @@ pub trait Tracker<T: Task> {
 
 /// A [`Tracker`] that does nothing.
 #[derive(Clone, Debug)]
-pub struct NoopTracker<T>(PhantomData<T>);
+pub struct NoopTracker;
 
-impl<T: Task> Default for NoopTracker<T> {
-  #[inline]
-  fn default() -> Self { Self(PhantomData::default()) }
-}
-
-impl<T: Task> Tracker<T> for NoopTracker<T> {
+impl<T: Task> Tracker<T> for NoopTracker {
   #[inline]
   fn require_file(&mut self, _dependency: &FileDependency) {}
   #[inline]

@@ -214,9 +214,11 @@ pub fn step_all(
       stepper.apply([
         create_diff("c_top_down_new.rs", "context/top_down.rs"),
         create_diff("d_top_down_fix.rs", "context/top_down.rs"),
-        create_diff("e_lib_require.rs", "lib.rs"),
+        create_diff_builder("e_lib_require.rs", "lib.rs")
+          .use_destination_file_as_original_file_if_unset(true)
+          .into_modification(),
         create_diff_builder("f_lib_private_module.rs", "lib.rs")
-          .original("a_lib_import.rs") // HACK: apply diff to a_lib_import.rs
+          .use_destination_file_as_original_file_if_unset(true)
           .into_modification(),
       ]);
       stepper.set_cargo_args(["test"]);
@@ -228,6 +230,25 @@ pub fn step_all(
           .context_length(10)
           .into_modification(),
       ]).output(SourceArchive::new("source.zip"));
+    });
+    stepper.with_path("2_tracker", |stepper| {
+      stepper.apply([
+        create_diff("a_lib_module.rs", "lib.rs"),
+        add("b_tracker.rs", "tracker/mod.rs"),
+      ]);
+      stepper.apply([
+        add("c_noop.rs", "tracker/mod.rs"),
+      ]);
+      stepper.apply([
+        create_diff_builder("d_lib_tracker.rs", "lib.rs")
+          .use_destination_file_as_original_file_if_unset(true)
+          .context_length(10)
+          .into_modification(),
+        create_diff_builder("e_top_down_tracker.rs", "context/top_down.rs")
+          .use_destination_file_as_original_file_if_unset(true)
+          .context_length(10)
+          .into_modification(),
+      ]);
     });
   });
 }
