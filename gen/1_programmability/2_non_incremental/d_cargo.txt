@@ -1,6 +1,6 @@
    Compiling pie v0.1.0 (/private/pie)
-    Finished test [unoptimized + debuginfo] target(s) in 0.35s
-     Running unittests src/lib.rs (/private/pie/target/debug/deps/pie-3bc98124af05b920)
+    Finished test [unoptimized + debuginfo] target(s) in 0.30s
+     Running unittests src/lib.rs (/private/pie/target/debug/deps/pie-a50f0f2aa4868d6a)
 
 running 1 test
 test context::non_incremental::test::test_require_task_direct ... ok
