@@ -3,6 +3,8 @@ use std::path::Path;
 use crate::stamp::{FileStamp, FileStamper, OutputStamp, OutputStamper};
 use crate::Task;
 
+pub mod writing;
+
 /// Trait for tracking build events. Can be used to implement logging, event tracing, progress tracking, metrics, etc.
 #[allow(unused_variables)]
 pub trait Tracker<T: Task> {

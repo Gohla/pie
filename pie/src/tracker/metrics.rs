@@ -1,5 +1,4 @@
 use std::io;
-use std::marker::PhantomData;
 use std::path::PathBuf;
 use std::time::{Duration, Instant};
 
@@ -9,25 +8,23 @@ use crate::Task;
 use crate::tracker::Tracker;
 
 #[derive(Clone, Debug)]
-pub struct MetricsTracker<T> {
+pub struct MetricsTracker {
   report: Report,
   clear_on_build_start: bool,
   last_build_start: Option<Instant>,
-  _task_phantom: PhantomData<T>,
 }
 
-impl<T> Default for MetricsTracker<T> {
+impl Default for MetricsTracker {
   fn default() -> Self {
     Self {
       report: Report::default(),
       clear_on_build_start: true,
       last_build_start: None,
-      _task_phantom: PhantomData::default(),
     }
   }
 }
 
-impl<T> MetricsTracker<T> {
+impl MetricsTracker {
   #[inline]
   pub fn report(&self) -> &Report { &self.report }
 }
@@ -57,7 +54,7 @@ impl Report {
   }
 }
 
-impl<T: Task> Tracker<T> for MetricsTracker<T> {
+impl<T: Task> Tracker<T> for MetricsTracker {
   #[inline]
   fn require_file(&mut self, _dependency: &FileDependency) {
     self.report.total_required_files += 1;
@@ -77,7 +74,7 @@ impl<T: Task> Tracker<T> for MetricsTracker<T> {
     }
   }
 
-  
+
   #[inline]
   fn execute_task_start(&mut self, _task: &T) {
     self.report.total_executed_tasks += 1;
@@ -85,7 +82,7 @@ impl<T: Task> Tracker<T> for MetricsTracker<T> {
   #[inline]
   fn execute_task_end(&mut self, _task: &T, _output: &T::Output) {}
 
-  
+
   #[inline]
   fn require_top_down_initial_start(&mut self, _task: &T) {
     if self.clear_on_build_start {
@@ -116,7 +113,7 @@ impl<T: Task> Tracker<T> for MetricsTracker<T> {
     }
   }
 
-  
+
   #[inline]
   fn update_affected_by_start<'a, I: IntoIterator<Item=&'a PathBuf>>(&mut self, _changed_files: I) {
     if self.clear_on_build_start {

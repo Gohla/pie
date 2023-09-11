@@ -37,6 +37,16 @@ impl FileDependency {
     Ok((dependency, file))
   }
 
+  /// Returns the path of this dependency.
+  #[allow(dead_code)]
+  pub fn path(&self) -> &PathBuf { &self.path }
+  /// Returns the stamper of this dependency.
+  #[allow(dead_code)]
+  pub fn stamper(&self) -> &FileStamper { &self.stamper }
+  /// Returns the stamp of this dependency.
+  #[allow(dead_code)]
+  pub fn stamp(&self) -> &FileStamp { &self.stamp }
+
   /// Checks whether this file dependency is inconsistent, returning:
   /// - `Ok(Some(stamp))` if this dependency is inconsistent (with `stamp` being the new stamp of the dependency),
   /// - `Ok(None)` if this dependency is consistent,

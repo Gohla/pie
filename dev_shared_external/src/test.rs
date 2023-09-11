@@ -1,5 +1,5 @@
 use std::hash::BuildHasher;
-use std::io::Stdout;
+use std::io::{BufWriter, Stdout};
 use std::path::PathBuf;
 
 use rstest::fixture;
@@ -30,14 +30,14 @@ pub fn temp_dir() -> TempDir {
 // Testing utilities
 
 /// Testing tracker composed of an [`EventTracker`] for testing and stdout [`WritingTracker`] for debugging.
-pub type TestTracker<T> = CompositeTracker<EventTracker<T>, WritingTracker<Stdout, T>>;
+pub type TestTracker<T> = CompositeTracker<EventTracker<T>, WritingTracker<BufWriter<Stdout>>>;
 
 /// Testing [`Pie`] using [`TestTracker`].
 pub type TestPie<T> = Pie<T, <T as Task>::Output, TestTracker<T>>;
 
 #[inline]
 pub fn create_test_pie<T: Task>() -> TestPie<T> {
-  let tracker = CompositeTracker(EventTracker::default(), WritingTracker::new_stdout_writer());
+  let tracker = CompositeTracker(EventTracker::default(), WritingTracker::with_stdout());
   TestPie::with_tracker(tracker)
 }
 

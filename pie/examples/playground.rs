@@ -15,7 +15,7 @@ use pie::tracker::Tracker;
 use pie::tracker::writing::WritingTracker;
 
 fn main() {
-  let mut pie = create_pie(WritingTracker::new_stdout_writer());
+  let mut pie = create_pie(WritingTracker::with_stdout());
 
   pie.run_in_session(|mut session| {
     let read_task = PlaygroundTask::read_string_from_file("target/data/in.txt", FileStamper::Modified);
@@ -140,7 +140,7 @@ impl PlaygroundOutput {
 
 // Pie helpers
 
-fn create_pie<A: Tracker<PlaygroundTask> + Default>(tracker: A) -> Pie<PlaygroundTask, PlaygroundOutput, A> {
+fn create_pie<A: Tracker<PlaygroundTask>>(tracker: A) -> Pie<PlaygroundTask, PlaygroundOutput, A> {
   let pie = Pie::<PlaygroundTask, PlaygroundOutput, A>::with_tracker(tracker);
   if let Ok(mut file) = File::open("target/data/pie.store") {
     let mut buffer = Vec::new();
@@ -153,7 +153,7 @@ fn create_pie<A: Tracker<PlaygroundTask> + Default>(tracker: A) -> Pie<Playgroun
   }
 }
 
-fn serialize<A: Tracker<PlaygroundTask> + Default>(pie: Pie<PlaygroundTask, PlaygroundOutput, A>) {
+fn serialize<A: Tracker<PlaygroundTask>>(pie: Pie<PlaygroundTask, PlaygroundOutput, A>) {
   let mut buffer = Vec::new();
   let mut serializer = Serializer::new(&mut buffer, Some(PrettyConfig::default()))
     .unwrap_or_else(|e| panic!("Creating serializer failed: {:?}", e));

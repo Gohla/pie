@@ -25,6 +25,8 @@ Create the `pie/src/dependency.rs` file and add:
 
 A `FileDependency` stores the `path` the dependency is about, the `stamper` used to create a stamp for this dependency, and the `stamp` that was created at the time the file dependency was made.
 The `FileDependency::new_with_file` function also returns the opened file if it exists, so that users of this function can read from the file without having to open it again.
+We add getter methods to get parts of the file dependency without allowing mutation.
+Since we will use those getter methods later, we annotate them with `#[allow(dead_code)]` to disable unused warnings.
 
 A file dependency is inconsistent when the stored stamp is not equal to a stamp that we create at the time of checking, implemented in `FileDependency::is_inconsistent`.
 For example, if we created a file dependency (with modified stamper) for a file that was modified yesterday, then modify the file, and then call `is_inconsistent` on the file dependency, it would return `Some(new_stamp)` indicating that the dependency is inconsistent.
@@ -44,6 +46,7 @@ Add to `pie/src/dependency.rs`:
 
 A `TaskDependency` stores the `task` the dependency is about, along with its `stamper` and `stamp` that is created when the dependency is created.
 Task dependencies are generic over the type of tasks `T`, and their type of outputs `O`.
+We also add immutable getters here.
 
 ```admonish info title="Trait bounds on structs" collapsible=true
 We chose not to put a `Task` trait bound on `TaskDependency`, and instead put the bound on the impl.

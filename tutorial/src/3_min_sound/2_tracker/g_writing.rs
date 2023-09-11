@@ -1,0 +1,38 @@
+use std::io::{self, BufWriter, Stderr, Stdout, Write};
+
+use crate::stamp::{OutputStamp, OutputStamper};
+use crate::Task;
+use crate::tracker::Tracker;
+
+/// [`Tracker`] that writes events to a [`Write`] instance, for example [`Stdout`].
+#[derive(Clone, Debug)]
+pub struct WritingTracker<W> {
+  writer: W,
+  indentation: u32,
+}
+
+impl WritingTracker<BufWriter<Stdout>> {
+  /// Creates a [`WritingTracker`] that writes to buffered standard output.
+  pub fn with_stdout() -> Self { Self::new(BufWriter::new(io::stdout())) }
+}
+impl Default for WritingTracker<BufWriter<Stdout>> {
+  fn default() -> Self { Self::with_stdout() }
+}
+
+impl WritingTracker<BufWriter<Stderr>> {
+  /// Creates a [`WritingTracker`] that writes to buffered standard error.
+  pub fn with_stderr() -> Self { Self::new(BufWriter::new(io::stderr())) }
+}
+impl Default for WritingTracker<BufWriter<Stderr>> {
+  fn default() -> Self { Self::with_stderr() }
+}
+
+impl<W: Write> WritingTracker<W> {
+  /// Creates a [`WritingTracker`] that writes to `writer`.
+  pub fn new(writer: W) -> Self {
+    Self {
+      writer,
+      indentation: 0,
+    }
+  }
+}

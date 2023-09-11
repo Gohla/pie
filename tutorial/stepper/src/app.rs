@@ -249,6 +249,26 @@ pub fn step_all(
           .context_length(10)
           .into_modification(),
       ]);
+      stepper.apply([
+        create_diff_builder("f_mod_writing.rs", "tracker/mod.rs")
+          .original("b_tracker.rs")
+          .into_modification(),
+        add("g_writing.rs", "tracker/writing.rs"),
+        add("h_writing_impl.rs", "tracker/writing.rs"),
+      ]);
+      stepper.set_cargo_args(["run", "--example", "incremental"]);
+      stepper.apply([
+        create_diff_builder("i_writing_example.rs", "../examples/incremental.rs")
+          .context_length(10)
+          .into_modification(),
+      ]).output(CargoOutput::new("i_writing_example.txt"));
+      stepper.set_cargo_args(["test"]);
+      stepper.apply([
+        create_diff_builder("j_mod_event.rs", "tracker/mod.rs")
+          .original("f_mod_writing.rs")
+          .into_modification(),
+        add("k_event.rs", "tracker/event.rs"),
+      ]);
     });
   });
 }

@@ -1,6 +1,4 @@
-use std::io;
-use std::io::{Stderr, Stdout};
-use std::marker::PhantomData;
+use std::io::{self, BufWriter, Stderr, Stdout, Write};
 use std::path::PathBuf;
 
 use crate::dependency::{FileDependency, TaskDependency};
@@ -9,58 +7,47 @@ use crate::Task;
 use crate::tracker::metrics::MetricsTracker;
 use crate::tracker::Tracker;
 
-/// A [`Tracker`] that writes events to a [`std::io::Write`] instance, for example [`std::io::Stdout`].
+/// A [`Tracker`] that writes events to a [`Write`] instance, for example [`Stdout`].
 #[derive(Clone, Debug)]
-pub struct WritingTracker<W, T> {
+pub struct WritingTracker<W> {
   writer: W,
   indentation: u32,
-  metrics_tracker: Option<MetricsTracker<T>>,
-  _task_phantom: PhantomData<T>,
+  metrics_tracker: Option<MetricsTracker>,
 }
 
-impl<T> Default for WritingTracker<Stdout, T> {
+impl WritingTracker<BufWriter<Stdout>> {
+  /// Creates a [`WritingTracker`] that writes to buffered standard output.
   #[inline]
-  fn default() -> Self { Self::new_stdout_writer() }
+  pub fn with_stdout() -> Self { Self::new(BufWriter::new(io::stdout())) }
 }
-
-impl<T> Default for WritingTracker<Stderr, T> {
+impl WritingTracker<BufWriter<Stderr>> {
+  /// Creates a [`WritingTracker`] that writes to buffered standard error.
   #[inline]
-  fn default() -> Self { Self::new_stderr_writer() }
+  pub fn with_stderr() -> Self { Self::new(BufWriter::new(io::stderr())) }
 }
-
-impl<W: io::Write, T> WritingTracker<W, T> {
+impl<W: Write> WritingTracker<W> {
+  /// Creates a [`WritingTracker`] that writes to `writer`.
   #[inline]
   pub fn new(writer: W) -> Self {
     Self {
       writer,
       indentation: 0,
       metrics_tracker: Some(MetricsTracker::default()),
-      _task_phantom: Default::default(),
     }
   }
 }
 
-impl<T> WritingTracker<Stdout, T> {
-  #[inline]
-  pub fn new_stdout_writer() -> Self { Self::new(io::stdout()) }
-}
-
-impl<T> WritingTracker<Stderr, T> {
-  #[inline]
-  pub fn new_stderr_writer() -> Self { Self::new(io::stderr()) }
-}
-
-impl<W: io::Write, T: Task> Tracker<T> for WritingTracker<W, T> {
+impl<W: Write, T: Task> Tracker<T> for WritingTracker<W> {
   #[inline]
   fn require_file(&mut self, dependency: &FileDependency) {
     if let Some(metrics) = &mut self.metrics_tracker {
-      metrics.require_file(dependency);
+      <MetricsTracker as Tracker<T>>::require_file(metrics, dependency);
     }
   }
   #[inline]
   fn provide_file(&mut self, dependency: &FileDependency) {
     if let Some(metrics) = &mut self.metrics_tracker {
-      metrics.provide_file(dependency);
+      <MetricsTracker as Tracker<T>>::provide_file(metrics, dependency);
     }
   }
   #[inline]
@@ -75,7 +62,8 @@ impl<W: io::Write, T: Task> Tracker<T> for WritingTracker<W, T> {
       metrics.require_task_end(task, output, was_executed);
     }
     if !was_executed {
-      self.writeln(format_args!("✓ {:?}", task))
+      self.writeln(format_args!("✓ {:?}", task));
+      self.flush();
     }
   }
 
@@ -87,11 +75,13 @@ impl<W: io::Write, T: Task> Tracker<T> for WritingTracker<W, T> {
     }
     self.writeln(format_args!("→ {:?}", task));
     self.indent();
+    self.flush();
   }
   #[inline]
   fn execute_task_end(&mut self, _task: &T, output: &T::Output) {
     self.unindent();
     self.writeln(format_args!("← {:?}", output));
+    self.flush();
   }
 
 
@@ -102,11 +92,13 @@ impl<W: io::Write, T: Task> Tracker<T> for WritingTracker<W, T> {
     }
     self.writeln(format_args!("Top-down build start: {:?}", task));
     self.indent();
+    self.flush();
   }
   #[inline]
   fn check_top_down_start(&mut self, task: &T) {
     self.writeln(format_args!("? {:?}", task));
     self.indent();
+    self.flush();
   }
   #[inline]
   fn check_require_file_start(&mut self, _dependency: &FileDependency) {}
@@ -142,13 +134,14 @@ impl<W: io::Write, T: Task> Tracker<T> for WritingTracker<W, T> {
       self.write(format_args!(" [{:.3}ms]", duration.as_secs_f64() * 1000.0));
     }
     self.write_nl();
+    self.flush();
   }
 
 
   #[inline]
   fn update_affected_by_start<'a, I: IntoIterator<Item=&'a PathBuf> + Clone>(&mut self, changed_files: I) {
     if let Some(metrics) = &mut self.metrics_tracker {
-      metrics.update_affected_by_start(changed_files.clone());
+      <MetricsTracker as Tracker<T>>::update_affected_by_start::<I>(metrics, changed_files.clone());
     }
     self.write_indentation();
     self.write(format_args!("Bottom-up build start: "));
@@ -161,11 +154,13 @@ impl<W: io::Write, T: Task> Tracker<T> for WritingTracker<W, T> {
     }
     self.write_nl();
     self.indent();
+    self.flush();
   }
   #[inline]
   fn schedule_affected_by_file_start(&mut self, file: &PathBuf) {
     self.writeln(format_args!("¿ {}", file.display()));
     self.indent();
+    self.flush();
   }
   #[inline]
   fn check_affected_by_file_start(&mut self, _requiring_task: &T, _dependency: &FileDependency) {}
@@ -181,6 +176,7 @@ impl<W: io::Write, T: Task> Tracker<T> for WritingTracker<W, T> {
   fn schedule_affected_by_task_start(&mut self, task: &T) {
     self.writeln(format_args!("¿ {:?}", task));
     self.indent();
+    self.flush();
   }
   #[inline]
   fn check_affected_by_required_task_start(&mut self, _requiring_task: &T, _dependency: &TaskDependency<T, T::Output>) {}
@@ -195,11 +191,12 @@ impl<W: io::Write, T: Task> Tracker<T> for WritingTracker<W, T> {
   #[inline]
   fn schedule_task(&mut self, task: &T) {
     self.writeln(format_args!("↑ {:?}", task));
+    self.flush();
   }
   #[inline]
   fn update_affected_by_end(&mut self) {
     let duration = self.metrics_tracker.as_mut().map(|metrics| {
-      metrics.update_affected_by_end();
+      <MetricsTracker as Tracker<T>>::update_affected_by_end(metrics);
       metrics.report().build_duration
     });
     self.unindent();
@@ -208,24 +205,19 @@ impl<W: io::Write, T: Task> Tracker<T> for WritingTracker<W, T> {
       self.write(format_args!(" [{:.3}ms]", duration.as_secs_f64() * 1000.0));
     }
     self.write_nl();
+    self.flush();
   }
 }
 
-impl<W: io::Write, T: Task> WritingTracker<W, T> {
-  #[inline]
-  fn write(&mut self, args: std::fmt::Arguments) {
-    write!(&mut self.writer, "{}", args).ok();
-  }
+impl<W: Write> WritingTracker<W> {
   #[inline]
   fn writeln(&mut self, args: std::fmt::Arguments) {
     self.write_indentation();
     writeln!(&mut self.writer, "{}", args).ok();
   }
   #[inline]
-  fn write_indentation(&mut self) {
-    for _ in 0..self.indentation {
-      write!(&mut self.writer, " ").ok();
-    }
+  fn write(&mut self, args: std::fmt::Arguments) {
+    write!(&mut self.writer, "{}", args).ok();
   }
   #[inline]
   fn write_nl(&mut self) {
@@ -240,6 +232,17 @@ impl<W: io::Write, T: Task> WritingTracker<W, T> {
   fn unindent(&mut self) {
     self.indentation = self.indentation.saturating_sub(1);
   }
+  #[inline]
+  fn write_indentation(&mut self) {
+    for _ in 0..self.indentation {
+      write!(&mut self.writer, " ").ok();
+    }
+  }
+
+  #[inline]
+  fn flush(&mut self) {
+    let _ = self.writer.flush();
+  }
 
   #[inline]
   fn write_top_down_file_dependency(&mut self, dependency: &FileDependency, inconsistent: Result<Option<&FileStamp>, &io::Error>) {
@@ -251,7 +254,7 @@ impl<W: io::Write, T: Task> WritingTracker<W, T> {
     }
   }
   #[inline]
-  fn write_bottom_up_file_dependency(&mut self, requiring_task: &T, dependency: &FileDependency, inconsistent: Result<Option<&FileStamp>, &io::Error>) {
+  fn write_bottom_up_file_dependency<T: Task>(&mut self, requiring_task: &T, dependency: &FileDependency, inconsistent: Result<Option<&FileStamp>, &io::Error>) {
     // Bottom-up: the affecting (required) file has already been written.
     match inconsistent {
       Ok(Some(new_stamp)) => self.writeln(format_args!("☒ {:?} [{:?} ≠ {:?}]", requiring_task, dependency.stamp(), new_stamp)),
@@ -261,7 +264,7 @@ impl<W: io::Write, T: Task> WritingTracker<W, T> {
   }
 
   #[inline]
-  fn write_top_down_task_dependency(&mut self, dependency: &TaskDependency<T, T::Output>, inconsistent: Option<&OutputStamp<T::Output>>) {
+  fn write_top_down_task_dependency<T: Task>(&mut self, dependency: &TaskDependency<T, T::Output>, inconsistent: Option<&OutputStamp<T::Output>>) {
     // Top-down: the requiring task has already been written.
     if let Some(new_stamp) = inconsistent {
       self.writeln(format_args!("☒ {:?} [{:?} ≠ {:?}]", dependency.task(), dependency.stamp(), new_stamp));
@@ -270,7 +273,7 @@ impl<W: io::Write, T: Task> WritingTracker<W, T> {
     }
   }
   #[inline]
-  fn write_bottom_up_task_dependency(&mut self, requiring_task: &T, dependency: &TaskDependency<T, T::Output>, inconsistent: Option<OutputStamp<&T::Output>>) {
+  fn write_bottom_up_task_dependency<T: Task>(&mut self, requiring_task: &T, dependency: &TaskDependency<T, T::Output>, inconsistent: Option<OutputStamp<&T::Output>>) {
     // Bottom-up: the affecting (required) task has already been written.
     if let Some(new_stamp) = inconsistent {
       self.writeln(format_args!("☒ {:?} [{:?} ≠ {:?}]", requiring_task, dependency.stamp(), new_stamp));
