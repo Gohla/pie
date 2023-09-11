@@ -172,7 +172,7 @@ edition = &quot;2021&quot;
 <p>Run <code>cargo build</code> to test if the project was set up correctly.
 The output should look something like:</p>
 <pre><code class="language-shell ">   Compiling pie v0.1.0 (/private/pie)
-    Finished dev [unoptimized + debuginfo] target(s) in 0.18s
+    Finished dev [unoptimized + debuginfo] target(s) in 0.19s
 </code></pre>
 <details id="admonition-download-source-code" class="admonition example">
 <summary class="admonition-title">
@@ -253,7 +253,7 @@ Because of this, the context reference passed to <code>Task::execute</code> is a
 <p>Build the project by running <code>cargo build</code>.
 The output should look something like:</p>
 <pre><code class="language-shell ">   Compiling pie v0.1.0 (/private/pie)
-    Finished dev [unoptimized + debuginfo] target(s) in 0.08s
+    Finished dev [unoptimized + debuginfo] target(s) in 0.07s
 </code></pre>
 <details id="admonition-rust-help" class="admonition info">
 <summary class="admonition-title">
@@ -399,7 +399,7 @@ It returns the output of the task, which we test with <code>assert_eq!</code>.</
 <p>Run the test by running <code>cargo test</code>.
 The output should look something like:</p>
 <pre><code class="language-shell ">   Compiling pie v0.1.0 (/private/pie)
-    Finished test [unoptimized + debuginfo] target(s) in 0.36s
+    Finished test [unoptimized + debuginfo] target(s) in 0.33s
      Running unittests src/lib.rs (/private/pie/target/debug/deps/pie-a50f0f2aa4868d6a)
 
 running 1 test
@@ -2925,7 +2925,7 @@ Run this example with <code>cargo run --example incremental</code>.
 You should see the <code>println!</code> in <code>ReadStringFromFile</code> appear in your console as the incremental context correctly determines that this task is new (i.e., has no output) and must be executed.
 It should look something like:</p>
 <pre><code>   Compiling pie v0.1.0 (/private/pie)
-    Finished dev [unoptimized + debuginfo] target(s) in 1.27s
+    Finished dev [unoptimized + debuginfo] target(s) in 1.87s
      Running `/private/pie/target/debug/examples/incremental`
 A) New task: expect `read_task` to execute
 Reading from input.txt with Modified stamper
@@ -2941,7 +2941,7 @@ Reading from input.txt with Modified stamper
 </code></pre>
 <p>Running with <code>cargo run --example incremental</code> should produce output like:</p>
 <pre><code>   Compiling pie v0.1.0 (/private/pie)
-    Finished dev [unoptimized + debuginfo] target(s) in 0.63s
+    Finished dev [unoptimized + debuginfo] target(s) in 1.41s
      Running `/private/pie/target/debug/examples/incremental`
 A) New task: expect `read_task` to execute
 Reading from input.txt with Modified stamper
@@ -3094,7 +3094,7 @@ This shows that tasks can depend on the same file with different stampers, which
 <p>Of course, using an <code>Exists</code> stamper for <code>ReadStringFromFile</code> does not make a lot of sense, but this is for demonstration purposes only.</p>
 <p>Running <code>cargo run --example incremental</code> now should produce output like:</p>
 <pre><code>   Compiling pie v0.1.0 (/private/pie)
-    Finished dev [unoptimized + debuginfo] target(s) in 0.68s
+    Finished dev [unoptimized + debuginfo] target(s) in 1.16s
      Running `/private/pie/target/debug/examples/incremental`
 A) New task: expect `read_task` to execute
 Reading from input.txt with Modified stamper
@@ -3935,18 +3935,10 @@ impl WritingTracker&lt;BufWriter&lt;Stdout&gt;&gt; {
   /// Creates a [`WritingTracker`] that writes to buffered standard output.
   pub fn with_stdout() -&gt; Self { Self::new(BufWriter::new(io::stdout())) }
 }
-impl Default for WritingTracker&lt;BufWriter&lt;Stdout&gt;&gt; {
-  fn default() -&gt; Self { Self::with_stdout() }
-}
-
 impl WritingTracker&lt;BufWriter&lt;Stderr&gt;&gt; {
   /// Creates a [`WritingTracker`] that writes to buffered standard error.
   pub fn with_stderr() -&gt; Self { Self::new(BufWriter::new(io::stderr())) }
 }
-impl Default for WritingTracker&lt;BufWriter&lt;Stderr&gt;&gt; {
-  fn default() -&gt; Self { Self::with_stderr() }
-}
-
 impl&lt;W: Write&gt; WritingTracker&lt;W&gt; {
   /// Creates a [`WritingTracker`] that writes to `writer`.
   pub fn new(writer: W) -&gt; Self {

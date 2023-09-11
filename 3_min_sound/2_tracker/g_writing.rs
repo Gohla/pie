@@ -15,18 +15,10 @@ impl WritingTracker<BufWriter<Stdout>> {
   /// Creates a [`WritingTracker`] that writes to buffered standard output.
   pub fn with_stdout() -> Self { Self::new(BufWriter::new(io::stdout())) }
 }
-impl Default for WritingTracker<BufWriter<Stdout>> {
-  fn default() -> Self { Self::with_stdout() }
-}
-
 impl WritingTracker<BufWriter<Stderr>> {
   /// Creates a [`WritingTracker`] that writes to buffered standard error.
   pub fn with_stderr() -> Self { Self::new(BufWriter::new(io::stderr())) }
 }
-impl Default for WritingTracker<BufWriter<Stderr>> {
-  fn default() -> Self { Self::with_stderr() }
-}
-
 impl<W: Write> WritingTracker<W> {
   /// Creates a [`WritingTracker`] that writes to `writer`.
   pub fn new(writer: W) -> Self {

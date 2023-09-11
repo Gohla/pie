@@ -495,18 +495,10 @@ impl WritingTracker&lt;BufWriter&lt;Stdout&gt;&gt; {
   /// Creates a [`WritingTracker`] that writes to buffered standard output.
   pub fn with_stdout() -&gt; Self { Self::new(BufWriter::new(io::stdout())) }
 }
-impl Default for WritingTracker&lt;BufWriter&lt;Stdout&gt;&gt; {
-  fn default() -&gt; Self { Self::with_stdout() }
-}
-
 impl WritingTracker&lt;BufWriter&lt;Stderr&gt;&gt; {
   /// Creates a [`WritingTracker`] that writes to buffered standard error.
   pub fn with_stderr() -&gt; Self { Self::new(BufWriter::new(io::stderr())) }
 }
-impl Default for WritingTracker&lt;BufWriter&lt;Stderr&gt;&gt; {
-  fn default() -&gt; Self { Self::with_stderr() }
-}
-
 impl&lt;W: Write&gt; WritingTracker&lt;W&gt; {
   /// Creates a [`WritingTracker`] that writes to `writer`.
   pub fn new(writer: W) -&gt; Self {
