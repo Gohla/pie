@@ -253,7 +253,7 @@ Because of this, the context reference passed to <code>Task::execute</code> is a
 <p>Build the project by running <code>cargo build</code>.
 The output should look something like:</p>
 <pre><code class="language-shell ">   Compiling pie v0.1.0 (/private/pie)
-    Finished dev [unoptimized + debuginfo] target(s) in 0.06s
+    Finished dev [unoptimized + debuginfo] target(s) in 0.08s
 </code></pre>
 <details id="admonition-rust-help" class="admonition info">
 <summary class="admonition-title">
@@ -399,7 +399,7 @@ It returns the output of the task, which we test with <code>assert_eq!</code>.</
 <p>Run the test by running <code>cargo test</code>.
 The output should look something like:</p>
 <pre><code class="language-shell ">   Compiling pie v0.1.0 (/private/pie)
-    Finished test [unoptimized + debuginfo] target(s) in 0.30s
+    Finished test [unoptimized + debuginfo] target(s) in 0.36s
      Running unittests src/lib.rs (/private/pie/target/debug/deps/pie-a50f0f2aa4868d6a)
 
 running 1 test
@@ -1429,6 +1429,16 @@ impl FileDependency {
     Ok((dependency, file))
   }
 
+  /// Returns the path of this dependency.
+  #[allow(dead_code)]
+  pub fn path(&amp;self) -&gt; &amp;PathBuf { &amp;self.path }
+  /// Returns the stamper of this dependency.
+  #[allow(dead_code)]
+  pub fn stamper(&amp;self) -&gt; &amp;FileStamper { &amp;self.stamper }
+  /// Returns the stamp of this dependency.
+  #[allow(dead_code)]
+  pub fn stamp(&amp;self) -&gt; &amp;FileStamp { &amp;self.stamp }
+
   /// Checks whether this file dependency is inconsistent, returning:
   /// - `Ok(Some(stamp))` if this dependency is inconsistent (with `stamp` being the new stamp of the dependency),
   /// - `Ok(None)` if this dependency is consistent,
@@ -1444,7 +1454,9 @@ impl FileDependency {
 }
 </code></pre>
 <p>A <code>FileDependency</code> stores the <code>path</code> the dependency is about, the <code>stamper</code> used to create a stamp for this dependency, and the <code>stamp</code> that was created at the time the file dependency was made.
-The <code>FileDependency::new_with_file</code> function also returns the opened file if it exists, so that users of this function can read from the file without having to open it again.</p>
+The <code>FileDependency::new_with_file</code> function also returns the opened file if it exists, so that users of this function can read from the file without having to open it again.
+We add getter methods to get parts of the file dependency without allowing mutation.
+Since we will use those getter methods later, we annotate them with <code>#[allow(dead_code)]</code> to disable unused warnings.</p>
 <p>A file dependency is inconsistent when the stored stamp is not equal to a stamp that we create at the time of checking, implemented in <code>FileDependency::is_inconsistent</code>.
 For example, if we created a file dependency (with modified stamper) for a file that was modified yesterday, then modify the file, and then call <code>is_inconsistent</code> on the file dependency, it would return <code>Some(new_stamp)</code> indicating that the dependency is inconsistent.</p>
 <p>We implement an <code>is_inconsistent</code> method here instead of an <code>is_consistent</code> method, so that we can return the changed stamp when the dependency is inconsistent, which we will use for debug logging purposes later.</p>
@@ -1460,11 +1472,22 @@ pub struct TaskDependency&lt;T, O&gt; {
 }
 
 impl&lt;T: Task&gt; TaskDependency&lt;T, T::Output&gt; {
+  /// Creates a new `task` dependency with `stamper` and `output`.
   pub fn new(task: T, stamper: OutputStamper, output: T::Output) -&gt; Self {
     let stamp = stamper.stamp(output);
     Self { task, stamper, stamp }
   }
 
+  /// Returns the task of this dependency.
+  #[allow(dead_code)]
+  pub fn task(&amp;self) -&gt; &amp;T { &amp;self.task }
+  /// Returns the stamper of this dependency.
+  #[allow(dead_code)]
+  pub fn stamper(&amp;self) -&gt; &amp;OutputStamper { &amp;self.stamper }
+  /// Returns the stamp of this dependency.
+  #[allow(dead_code)]
+  pub fn stamp(&amp;self) -&gt; &amp;OutputStamp&lt;T::Output&gt; { &amp;self.stamp }
+  
   /// Checks whether this task dependency is inconsistent, returning:
   /// - `Some(stamp)` if this dependency is inconsistent (with `stamp` being the new stamp of the dependency),
   /// - `None` if this dependency is consistent.
@@ -1480,7 +1503,8 @@ impl&lt;T: Task&gt; TaskDependency&lt;T, T::Output&gt; {
 }
 </code></pre>
 <p>A <code>TaskDependency</code> stores the <code>task</code> the dependency is about, along with its <code>stamper</code> and <code>stamp</code> that is created when the dependency is created.
-Task dependencies are generic over the type of tasks <code>T</code>, and their type of outputs <code>O</code>.</p>
+Task dependencies are generic over the type of tasks <code>T</code>, and their type of outputs <code>O</code>.
+We also add immutable getters here.</p>
 <details id="admonition-trait-bounds-on-structs" class="admonition info">
 <summary class="admonition-title">
 <p>Trait bounds on structs</p>
@@ -2901,7 +2925,7 @@ Run this example with <code>cargo run --example incremental</code>.
 You should see the <code>println!</code> in <code>ReadStringFromFile</code> appear in your console as the incremental context correctly determines that this task is new (i.e., has no output) and must be executed.
 It should look something like:</p>
 <pre><code>   Compiling pie v0.1.0 (/private/pie)
-    Finished dev [unoptimized + debuginfo] target(s) in 1.22s
+    Finished dev [unoptimized + debuginfo] target(s) in 1.27s
      Running `/private/pie/target/debug/examples/incremental`
 A) New task: expect `read_task` to execute
 Reading from input.txt with Modified stamper
@@ -2917,7 +2941,7 @@ Reading from input.txt with Modified stamper
 </code></pre>
 <p>Running with <code>cargo run --example incremental</code> should produce output like:</p>
 <pre><code>   Compiling pie v0.1.0 (/private/pie)
-    Finished dev [unoptimized + debuginfo] target(s) in 0.59s
+    Finished dev [unoptimized + debuginfo] target(s) in 0.63s
      Running `/private/pie/target/debug/examples/incremental`
 A) New task: expect `read_task` to execute
 Reading from input.txt with Modified stamper
@@ -3070,7 +3094,7 @@ This shows that tasks can depend on the same file with different stampers, which
 <p>Of course, using an <code>Exists</code> stamper for <code>ReadStringFromFile</code> does not make a lot of sense, but this is for demonstration purposes only.</p>
 <p>Running <code>cargo run --example incremental</code> now should produce output like:</p>
 <pre><code>   Compiling pie v0.1.0 (/private/pie)
-    Finished dev [unoptimized + debuginfo] target(s) in 0.65s
+    Finished dev [unoptimized + debuginfo] target(s) in 0.68s
      Running `/private/pie/target/debug/examples/incremental`
 A) New task: expect `read_task` to execute
 Reading from input.txt with Modified stamper
@@ -3594,21 +3618,31 @@ In this section, we will change that by tracking build events for debugging and 
  mod store;
 </code></pre>
 <p>Then create the <code>pie/src/tracker</code> directory, create the <code>pie/src/tracker/mod.rs</code> file, and add the following content:</p>
-<pre><code class="language-rust ">use crate::dependency::FileDependency;
+<pre><code class="language-rust ">use std::path::Path;
+
+use crate::stamp::{FileStamp, FileStamper, OutputStamp, OutputStamper};
 use crate::Task;
 
 /// Trait for tracking build events. Can be used to implement logging, event tracing, progress tracking, metrics, etc.
 #[allow(unused_variables)]
 pub trait Tracker&lt;T: Task&gt; {
-  // Dependencies
-  fn required_file(&amp;mut self, dependency: &amp;FileDependency) {}
-  fn required_task(&amp;mut self, task: &amp;T, output: &amp;T::Output) {}
-  // Task execution
-  fn execute_task_start(&amp;mut self, task: &amp;T) {}
-  fn execute_task_end(&amp;mut self, task: &amp;T, output: &amp;T::Output) {}
-  // Top-down builds
-  fn require_top_down_initial_start(&amp;mut self, task: &amp;T) {}
-  fn require_top_down_initial_end(&amp;mut self, task: &amp;T, output: &amp;T::Output) {}
+  /// Start a new build.
+  fn build_start(&amp;mut self) {}
+  /// A build has been completed.
+  fn build_end(&amp;mut self) {}
+
+  /// A file at `path` has been required, using `stamper` to create `stamp`.
+  fn required_file(&amp;mut self, path: &amp;Path, stamper: &amp;FileStamper, stamp: &amp;FileStamp) {}
+  /// Require `task` using `stamper`.
+  fn require_task(&amp;mut self, task: &amp;T, stamper: &amp;OutputStamper) {}
+  /// A `task` has been required, resulting in consistent `output`, using `stamper` to create `stamp`, and task 
+  /// `was_executed`.
+  fn required_task(&amp;mut self, task: &amp;T, output: &amp;T::Output, stamper: &amp;OutputStamper, stamp: &amp;OutputStamp&lt;T::Output&gt;, was_executed: bool) {}
+
+  /// Execute `task`.
+  fn execute(&amp;mut self, task: &amp;T) {}
+  /// A `task` has been executed, producing `output`.
+  fn executed(&amp;mut self, task: &amp;T, output: &amp;T::Output) {}
 }</code></pre>
 <p>The <code>Tracker</code> trait is generic over <code>Task</code>.</p>
 <div id="admonition-note" class="admonition note">
@@ -3621,7 +3655,7 @@ pub trait Tracker&lt;T: Task&gt; {
 This will not lead to cascading constraints, as the <code>Tracker</code> trait will only be used as a constraint in <code>impl</code>s, not in structs or other traits.</p>
 </div>
 </div>
-<p><code>Tracker</code> has methods corresponding to events that happen during a build, such as requiring a file, requiring a task, and executing a task.
+<p><code>Tracker</code> has methods corresponding to events that happen during a build, such as a build starting or ending, requiring a file, requiring a task, and executing a task.
 These methods accept <code>&amp;mut self</code> so that tracker implementations can perform mutation, such as storing a build event.
 We provide default methods that do nothing so that implementors of <code>Tracker</code> only have to override the methods for events they are interested in.
 We use <code>#[allow(unused_variables)]</code> on the trait to not give warnings for unused variables, as all variables are unused due to the empty default implementations.</p>
@@ -3661,7 +3695,7 @@ If you care about performance here, be sure to annotate those default empty meth
 </details>
 <h2 id="using-the-tracker-trait"><a class="header" href="#using-the-tracker-trait">Using the <code>Tracker</code> trait</a></h2>
 <p>Now we will make the build system generic over <code>Tracker</code>, and insert <code>Tracker</code> calls in context implementations.</p>
-<p>Make <code>Pie</code> and <code>Session</code> generic over <code>Tracker</code> by modifying <code>src/lib.rs</code>:</p>
+<p>Make <code>Pie</code> and <code>Session</code> generic over <code>Tracker</code> by modifying <code>pie/src/lib.rs</code>:</p>
 <pre><code class="language-rust customdiff"> use std::fmt::Debug;
  use std::fs::File;
  use std::hash::Hash;
@@ -3746,9 +3780,21 @@ If you care about performance here, be sure to annotate those default empty meth
      self.current_executing_task = None;
      TopDownContext::new(self).require_initial(task)
    }</code></pre>
-<p>TODO: explain
-TODO: default type for generic</p>
-<p>Make <code>TopDownContext</code> generic over <code>Tracker</code> and insert method calls in <code>src/context/top_down.rs</code>:</p>
+<p>We use <code>A</code> as the generic argument for tracker types in the source code.
+The <code>Pie</code> struct owns the tracker, similarly to how it owns the store.</p>
+<details id="admonition-default-type" class="admonition info">
+<summary class="admonition-title">
+<p>Default type</p>
+<p><a class="admonition-anchor-link" href="3_min_sound/2_tracker/index.html#admonition-default-type"></a></p>
+</summary>
+<div>
+<p>We assign <code>NoopTracker</code> as the default type for trackers in <code>Pie</code>, so that no tracking is performed when we use the <code>Pie</code> type without an explicit tracker type.
+The <code>Default</code> implementation only works with <code>NoopTracker</code>, because we <code>impl Default for Pie&lt;T, T::Output&gt;</code>, which is equivalent to <code>impl Default for Pie&lt;T, T::Output, NoopTracker&gt;</code> due to the default type.</p>
+</div>
+</details>
+<p>We make <code>Session</code> generic over trackers, and mutibly borrow the tracker from <code>Pie</code>, again like we do with the store.</p>
+<p>Now we make <code>TopDownContext</code> generic over <code>Tracker</code>, and insert calls to tracker methods.
+Modify <code>pie/src/context/top_down.rs</code>:</p>
 <pre><code class="language-rust customdiff"> use std::fs::File;
  use std::io;
  use std::path::Path;
@@ -3772,9 +3818,9 @@ TODO: default type for generic</p>
 
    pub fn require_initial(&amp;mut self, task: &amp;T) -&gt; T::Output {
 -    self.require_task(task)
-+    self.session.tracker.require_top_down_initial_start(task);
++    self.session.tracker.build_start();
 +    let output = self.require_task(task);
-+    self.session.tracker.require_top_down_initial_end(task, &amp;output);
++    self.session.tracker.build_end();
 +    output
    }
  }
@@ -3789,23 +3835,26 @@ TODO: default type for generic</p>
      let path = path.as_ref();
      let node = self.session.store.get_or_create_file_node(path);
      let (dependency, file) = FileDependency::new_with_file(path, stamper)?;
-+    self.session.tracker.required_file(&amp;dependency);
++    self.session.tracker.required_file(path, dependency.stamper(), dependency.stamp());
      self.session.store.add_file_require_dependency(current_executing_task_node, &amp;node, dependency);
      Ok(file)
    }
 
    fn require_task_with_stamper(&amp;mut self, task: &amp;T, stamper: OutputStamper) -&gt; T::Output {
++    self.session.tracker.require_task(task, &amp;stamper);
      let node = self.session.store.get_or_create_task_node(task);
 
      // Get required task output by executing it if needed, or by getting the output from the store if not needed.
-     let output = if self.should_execute_task(&amp;node) {
-+      self.session.tracker.execute_task_start(task);
+-    let output = if self.should_execute_task(&amp;node) {
++    let should_execute = self.should_execute_task(&amp;node);
++    let output = if should_execute {
++      self.session.tracker.execute(task);
        self.session.store.reset_task(&amp;node);
        let previous_executing_task = self.session.current_executing_task.replace(node);
        let output = task.execute(self);
        self.session.current_executing_task = previous_executing_task;
        self.session.store.set_task_output(&amp;node, output.clone());
-+      self.session.tracker.execute_task_end(task, &amp;output);
++      self.session.tracker.executed(task, &amp;output);
        output
      } else {
        // Correctness: when `should_execute_task` returns `true`, the above block is executed. Otherwise this block is 
@@ -3813,16 +3862,18 @@ TODO: default type for generic</p>
        self.session.store.get_task_output(&amp;node).clone()
      };
 
++    let dependency = TaskDependency::new(task.clone(), stamper, output.clone());
++    self.session.tracker.required_task(task, &amp;output,dependency.stamper(), dependency.stamp(), should_execute);
++
      // Create task require dependency if a task is currently executing (i.e., we are not requiring the initial task).
      if let Some(current_executing_task_node) = &amp;self.session.current_executing_task {
-       let dependency = TaskDependency::new(task.clone(), stamper, output.clone());
+-      let dependency = TaskDependency::new(task.clone(), stamper, output.clone());
        if self.session.store.add_task_require_dependency(current_executing_task_node, &amp;node, dependency).is_err() {
          let current_executing_task = self.session.store.get_task(current_executing_task_node);
          panic!(&quot;Cyclic task dependency; current executing task '{:?}' is requiring task '{:?}' which was already required&quot;, current_executing_task, task);
        }
      }
 
-+    self.session.tracker.required_task(task, &amp;output);
      output
    }
  }
@@ -3839,16 +3890,309 @@ TODO: default type for generic</p>
      for dependency in dependencies {
        match dependency.is_inconsistent(self) {
          Ok(Some(_)) =&gt; return true,</code></pre>
-<p>TODO: explain</p>
-<p>Check that the code compiles with <code>cargo test</code>.</p>
+<p>We make <code>TopDownContext</code> generic over trackers, and call methods on the tracker:</p>
+<ul>
+<li><code>build_start</code>/<code>build_end</code> in <code>require_initial</code> to track build start and ends,</li>
+<li><code>required_file</code> in <code>require_file_with_stamper</code> to track file dependencies,</li>
+<li><code>require_task</code>/<code>required_task</code> in <code>require_file_with_stamper</code> to track task dependencies,</li>
+<li><code>execute</code>/<code>executed</code> in <code>require_task_with_stamper</code> to track task execution start and ends.</li>
+</ul>
+<p>In <code>require_file_with_stamper</code>, we also extract <code>should_execute</code> into a variable, and pull <code>dependency</code> out of the <code>if</code>, so that we can pass the required data to <code>tracker.required_task</code>.</p>
+<p>Check that the code compiles with <code>cargo test</code>.
+Existing code should keep working due to the <code>NoopTracker</code> default type in <code>Pie</code>.</p>
 <p>We won’t modify <code>NonIncrementalContext</code> to use a tracker, as <code>NonIncrementalContext</code> has no state, so we cannot pass a tracker to it.</p>
 <h2 id="implement-writing-tracker"><a class="header" href="#implement-writing-tracker">Implement writing tracker</a></h2>
-<p>implement <code>WritingTracker</code>
-test build</p>
-<p>change example to use it
-run example, see build events</p>
+<p>Now we can implement some interesting trackers.
+We start with a simple <code>WritingTracker</code> that writes build events to some writer.</p>
+<p>Add the <code>writing</code> module to <code>pie/src/tracker/mod.rs</code>:</p>
+<pre><code class="language-rust customdiff"> use std::path::Path;
+
+ use crate::stamp::{FileStamp, FileStamper, OutputStamp, OutputStamper};
+ use crate::Task;
+
++pub mod writing;
++
+ /// Trait for tracking build events. Can be used to implement logging, event tracing, progress tracking, metrics, etc.
+ #[allow(unused_variables)]
+ pub trait Tracker&lt;T: Task&gt; {
+   /// Start a new build.
+   fn build_start(&amp;mut self) {}</code></pre>
+<p>Then create the <code>pie/src/tracker/writing.rs</code> file and add:</p>
+<pre><code class="language-rust ">use std::io::{self, BufWriter, Stderr, Stdout, Write};
+
+use crate::stamp::{OutputStamp, OutputStamper};
+use crate::Task;
+use crate::tracker::Tracker;
+
+/// [`Tracker`] that writes events to a [`Write`] instance, for example [`Stdout`].
+#[derive(Clone, Debug)]
+pub struct WritingTracker&lt;W&gt; {
+  writer: W,
+  indentation: u32,
+}
+
+impl WritingTracker&lt;BufWriter&lt;Stdout&gt;&gt; {
+  /// Creates a [`WritingTracker`] that writes to buffered standard output.
+  pub fn with_stdout() -&gt; Self { Self::new(BufWriter::new(io::stdout())) }
+}
+impl Default for WritingTracker&lt;BufWriter&lt;Stdout&gt;&gt; {
+  fn default() -&gt; Self { Self::with_stdout() }
+}
+
+impl WritingTracker&lt;BufWriter&lt;Stderr&gt;&gt; {
+  /// Creates a [`WritingTracker`] that writes to buffered standard error.
+  pub fn with_stderr() -&gt; Self { Self::new(BufWriter::new(io::stderr())) }
+}
+impl Default for WritingTracker&lt;BufWriter&lt;Stderr&gt;&gt; {
+  fn default() -&gt; Self { Self::with_stderr() }
+}
+
+impl&lt;W: Write&gt; WritingTracker&lt;W&gt; {
+  /// Creates a [`WritingTracker`] that writes to `writer`.
+  pub fn new(writer: W) -&gt; Self {
+    Self {
+      writer,
+      indentation: 0,
+    }
+  }
+}</code></pre>
+<p>The <code>WritingTracker</code> is generic over a writer <code>W</code> that must implement <code>Write</code>, which is a standard trait for writing bytes to something.
+<code>with_stdout</code> and <code>with_stderr</code> can be used to create buffered writers to standard output and standard error.
+<code>new</code> can be used to create a writer to anything that implements <code>Write</code>, such as a <code>File</code>.</p>
+<p>Add the <code>Tracker</code> implementation to <code>pie/src/tracker/writing.rs</code>:</p>
+<pre><code class="language-rust ">impl&lt;W: Write, T: Task&gt; Tracker&lt;T&gt; for WritingTracker&lt;W&gt; {
+  fn required_task(&amp;mut self, task: &amp;T, _output: &amp;T::Output, _stamper: &amp;OutputStamper, _stamp: &amp;OutputStamp&lt;T::Output&gt;, was_executed: bool) {
+    if !was_executed {
+      self.writeln(format_args!(&quot;✓ {:?}&quot;, task));
+      self.flush();
+    }
+  }
+
+  fn execute(&amp;mut self, task: &amp;T) {
+    self.writeln(format_args!(&quot;→ {:?}&quot;, task));
+    self.indent();
+    self.flush();
+  }
+  fn executed(&amp;mut self, _task: &amp;T, output: &amp;T::Output) {
+    self.unindent();
+    self.writeln(format_args!(&quot;← {:?}&quot;, output));
+    self.flush();
+  }
+}
+
+#[allow(dead_code)]
+impl&lt;W: Write&gt; WritingTracker&lt;W&gt; {
+  fn writeln(&amp;mut self, args: std::fmt::Arguments) {
+    self.write_indentation();
+    writeln!(&amp;mut self.writer, &quot;{}&quot;, args).ok();
+  }
+  fn write(&amp;mut self, args: std::fmt::Arguments) {
+    write!(&amp;mut self.writer, &quot;{}&quot;, args).ok();
+  }
+  fn write_nl(&amp;mut self) {
+    write!(&amp;mut self.writer, &quot;\n&quot;).ok();
+  }
+
+  fn indent(&amp;mut self) {
+    self.indentation = self.indentation.saturating_add(1);
+  }
+  fn unindent(&amp;mut self) {
+    self.indentation = self.indentation.saturating_sub(1);
+  }
+  fn write_indentation(&amp;mut self) {
+    for _ in 0..self.indentation {
+      write!(&amp;mut self.writer, &quot; &quot;).ok();
+    }
+  }
+
+  fn flush(&amp;mut self) {
+    self.writer.flush().ok();
+  }
+}</code></pre>
+<p>We implement 3 tracker methods that write when:</p>
+<ul>
+<li>✓: a task is required but was not executed (i.e., consistent),</li>
+<li>→: a task starts to execute,</li>
+<li>←: when the task is done executing.</li>
+</ul>
+<p>The text to write is formatted with <code>format_args!</code>, which is passed into <code>writeln</code> using <code>std::fmt::Arguments</code> for flexibility.
+We <code>flush</code> the writer after every event to ensure that bytes are written out.
+When a task starts to execute, we increase indentation to signify the recursive checking/execution.
+When a task is done executing, we decrease the indentation again.</p>
+<details id="admonition-saturating-arithmetic" class="admonition info">
+<summary class="admonition-title">
+<p>Saturating arithmetic</p>
+<p><a class="admonition-anchor-link" href="3_min_sound/2_tracker/index.html#admonition-saturating-arithmetic"></a></p>
+</summary>
+<div>
+<p>We use <code>saturating_add</code> and <code>saturating_sub</code> for safety, which are saturating arithmetic operations that saturate at the numeric bounds instead of overflowing.
+For example, <code>0u32.saturating_sub(1)</code> will result in <code>0</code> instead of overflowing into <code>4294967295</code>.</p>
+<p>These saturating operations are not really needed when calls to <code>indent</code> and <code>unindent</code> are balanced.
+However, if we make a mistake, it is better to write no indentation than to write 4294967295 spaces of indentation.</p>
+<p>Alternatively, we could use standard arithmetic operations, which panic on overflow in debug/development mode, but silently overflow in release mode.</p>
+</div>
+</details>
+<details id="admonition-failing-writes" class="admonition info">
+<summary class="admonition-title">
+<p>Failing writes</p>
+<p><a class="admonition-anchor-link" href="3_min_sound/2_tracker/index.html#admonition-failing-writes"></a></p>
+</summary>
+<div>
+<p>Writes can fail, but we silently ignore them in this tutorial (with <code>let _ = ...</code>) for simplicity.
+You could panic when writing fails, but panicking when writing to standard output fails is probably going a bit too far.
+You could store the latest write error and give access to it, which at least allows users of <code>WritingTracker</code> check for some errors.</p>
+<p>In general, tracking events can fail, but the current <code>Tracker</code> API does not allow for propagating these errors with <code>Result</code>.
+This in turn because <code>TopDownContext</code> does not return <code>Result</code> for <code>require_task</code> due to the trade-offs discussed in the section on <code>TopDownContext</code>.</p>
+</div>
+</details>
+<p>If you want, you can capture more build events and write them, and/or provide more configuration as to what build events should be written.
+But in this tutorial, we will keep it simple like this.</p>
+<p>Check that the code compiles with <code>cargo test</code>.</p>
+<p>Let’s try out our writing tracker in the incrementality example by modifying <code>pie/examples/incremental.rs</code>:</p>
+<pre><code class="language-rust customdiff">
+ /// Pseudo-task that reads a string from a file.
+ #[derive(Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Debug)]
+ struct ReadStringFromFile(PathBuf, FileStamper);
+
+ impl ReadStringFromFile {
+   fn new(path: impl AsRef&lt;Path&gt;, stamper: FileStamper) -&gt; FileTask {
+     FileTask::ReadStringFromFile(Self(path.as_ref().to_path_buf(), stamper))
+   }
+   fn execute&lt;C: Context&lt;FileTask&gt;&gt;(&amp;self, context: &amp;mut C) -&gt; Result&lt;String, io::ErrorKind&gt; {
+-    println!(&quot;Reading from {} with {:?} stamper&quot;, self.0.file_name().unwrap().to_string_lossy(), self.1);
+     let file = context.require_file_with_stamper(&amp;self.0, self.1).map_err(|e| e.kind())?;
+     if let Some(mut file) = file {
+       let mut string = String::new();
+       file.read_to_string(&amp;mut string).map_err(|e| e.kind())?;
+       Ok(string)
+     } else {
+       Err(io::ErrorKind::NotFound)
+     }
+   }
+ }
+@@ -50,36 +49,35 @@
+ /// Pseudo-task that writes a string to a file, where the string is provided by another task. The string provider is 
+ /// boxed to prevent a cyclic definition of infinite size, due to this type being used in [`FileTask`].
+ #[derive(Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Debug)]
+ struct WriteStringToFile(Box&lt;FileTask&gt;, PathBuf, FileStamper);
+
+ impl WriteStringToFile {
+   fn new(string_provider: impl Into&lt;Box&lt;FileTask&gt;&gt;, path: impl Into&lt;PathBuf&gt;, stamper: FileStamper) -&gt; FileTask {
+     FileTask::WriteStringToFile(Self(string_provider.into(), path.into(), stamper))
+   }
+   fn execute&lt;C: Context&lt;FileTask&gt;&gt;(&amp;self, context: &amp;mut C) -&gt; Result&lt;(), io::ErrorKind&gt; {
+-    println!(&quot;Writing to {} with {:?} stamper&quot;, self.1.file_name().unwrap().to_string_lossy(), self.2);
+     let string = context.require_task(&amp;self.0)?;
+     let mut file = File::create(&amp;self.1).map_err(|e| e.kind())?;
+     file.write_all(string.as_bytes()).map_err(|e| e.kind())?;
+     context.require_file_with_stamper(&amp;self.1, self.2).map_err(|e| e.kind())?;
+     Ok(())
+   }
+ }
+
+ fn main() -&gt; Result&lt;(), io::Error&gt; {
+   let temp_dir = create_temp_dir()?;
+   let input_file = temp_dir.path().join(&quot;input.txt&quot;);
+   write(&amp;input_file, &quot;Hi&quot;)?;
+   let output_file = temp_dir.path().join(&quot;output.txt&quot;);
+
+-  let mut pie = Pie::default();
++  let mut pie = Pie::with_tracker(pie::tracker::writing::WritingTracker::with_stdout());
+   let read_task = ReadStringFromFile::new(&amp;input_file, FileStamper::Modified);
+   let write_task = WriteStringToFile::new(read_task.clone(), &amp;output_file, FileStamper::Modified);
+
+   println!(&quot;A) New task: expect `read_task` to execute&quot;);
+   // `read_task` is new, meaning that we have no cached output for it, thus it must be executed.
+   let output = pie.new_session().require(&amp;read_task)?;
+   assert_eq!(&amp;output, &quot;Hi&quot;);
+
+   println!(&quot;\nB) Reuse: expect no execution&quot;);
+   // `read_task` is not new and its file dependency is still consistent. It is consistent because the modified time of </code></pre>
+<p>We remove the <code>println!</code> statements from tasks and create <code>Pie</code> with <code>WritingTracker</code>.
+Now run the example with <code>cargo run --example incremental</code>, and you should see the writing tracker print consistent tasks and task executions to standard output.</p>
 <h2 id="implement-event-tracker"><a class="header" href="#implement-event-tracker">Implement event tracker</a></h2>
+<p>The writing tracker is great for debugging purposes, but we cannot use it to check whether our build system is incremental and sound.
+To check incrementality and soundness, we need to be able to check whether a task has executed or not, and check the order of build events.
+Therefore, we will implement the <code>EventTracker</code> that stores build events for later inspection.</p>
+<p>Add the <code>event</code> module to <code>pie/src/tracker/mod.rs</code>:</p>
+<pre><code class="language-rust customdiff">
+ use crate::stamp::{FileStamp, FileStamper, OutputStamp, OutputStamper};
+ use crate::Task;
+
+ pub mod writing;
++pub mod event;
+
+ /// Trait for tracking build events. Can be used to implement logging, event tracing, progress tracking, metrics, etc.
+ #[allow(unused_variables)]
+ pub trait Tracker&lt;T: Task&gt; {
+   /// Start a new build.</code></pre>
+<p>Then create the <code>pie/src/tracker/event.rs</code> file and add:</p>
+<pre><code class="language-rust ">use std::path::{Path, PathBuf};
+
+use crate::stamp::{FileStamp, FileStamper, OutputStamp, OutputStamper};
+use crate::Task;
+use crate::tracker::Tracker;
+
+/// [`Tracker`] that stores [events](Event) in a [`Vec`], useful in testing to assert that a context implementation is 
+/// incremental and sound.
+#[derive(Clone, Debug)]
+pub struct EventTracker&lt;T: Task&gt; {
+  events: Vec&lt;Event&lt;T&gt;&gt;,
+}
+
+impl&lt;T: Task&gt; Default for EventTracker&lt;T&gt; {
+  fn default() -&gt; Self { Self { events: Vec::new() } }
+}
+
+/// Enumeration of important build events.
+#[derive(Debug, Clone)]
+pub enum Event&lt;T: Task&gt; {
+  /// A file at `path` has been required, using `stamper` to create `stamp`.
+  RequiredFile { path: PathBuf, stamper: FileStamper, stamp: FileStamp },
+  /// Require `task` using `stamper`.
+  RequireTask { task: T, stamper: OutputStamper },
+  /// A `task` has been required, resulting in consistent `output`, using `stamper` to create `stamp`, and task 
+  /// `was_executed`.
+  RequiredTask { task: T, output: T::Output, stamper: OutputStamper, stamp: OutputStamp&lt;T::Output&gt;, was_executed: bool },
+
+  /// Execute `task`.
+  Execute { task: T },
+  /// A `task` has been executed, producing `output`.
+  Executed { task: T, output: T::Output },
+}</code></pre>
+<p>The <code>EventTracker</code> stores build events in a <code>Vec</code>.
+The <code>Event</code> enumeration mimics the <code>Tracker</code> methods, but has all arguments in owned form (for example <code>task: T</code> instead of <code>task: &amp;T</code>) as we want to store these events.</p>
+<p>Add the tracker implementation to <code>pie/src/tracker/event.rs</code>:</p>
+<pre><code class="language-rust ">impl&lt;T: Task&gt; Tracker&lt;T&gt; for EventTracker&lt;T&gt; {
+  fn build_start(&amp;mut self) {
+    self.events.clear();
+  }
+
+  fn required_file(&amp;mut self, path: &amp;Path, stamper: &amp;FileStamper, stamp: &amp;FileStamp) {
+    self.events.push(Event::RequiredFile { path: path.to_path_buf(), stamper: *stamper, stamp: *stamp });
+  }
+  fn require_task(&amp;mut self, task: &amp;T, stamper: &amp;OutputStamper) {
+    self.events.push(Event::RequireTask { task: task.clone(), stamper: stamper.clone() });
+  }
+  fn required_task(&amp;mut self, task: &amp;T, output: &amp;T::Output, stamper: &amp;OutputStamper, stamp: &amp;OutputStamp&lt;T::Output&gt;, was_executed: bool) {
+    self.events.push(Event::RequiredTask { task: task.clone(), output: output.clone(), stamper: *stamper, stamp: stamp.clone(), was_executed });
+  }
+
+  fn execute(&amp;mut self, task: &amp;T) {
+    self.events.push(Event::Execute { task: task.clone() });
+  }
+  fn executed(&amp;mut self, task: &amp;T, output: &amp;T::Output) {
+    self.events.push(Event::Executed { task: task.clone(), output: output.clone() });
+  }
+}</code></pre>
+<p>We implement the relevant methods from <code>Tracker</code> and store the build events as <code>Event</code> instances in <code>self.events</code>.
+When a new build starts, we clear the events.</p>
+<p>TODO: add methods to access events</p>
 <h2 id="implement-composite-tracker"><a class="header" href="#implement-composite-tracker">Implement composite tracker</a></h2>
+<p>Currently, we cannot use both <code>EventTracker</code> and <code>WritingTracker</code> at the same time.
+We want this so that we can check incrementality and soundness, but also look at standard output for debugging, at the same time.
+Therefore, we will implement a <code>CompositeTracker</code> that forwards build events to 2 trackers.</p>
+<p>TODO: implement composite tracker</p>
 
                     </main>
 

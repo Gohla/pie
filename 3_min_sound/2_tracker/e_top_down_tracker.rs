@@ -16,9 +16,9 @@ impl<'p, 's, T: Task, A: Tracker<T>> TopDownContext<'p, 's, T, T::Output, A> {
   pub fn new(session: &'s mut Session<'p, T, T::Output, A>) -> Self { Self { session } }
 
   pub fn require_initial(&mut self, task: &T) -> T::Output {
-    self.session.tracker.require_top_down_initial_start(task);
+    self.session.tracker.build_start();
     let output = self.require_task(task);
-    self.session.tracker.require_top_down_initial_end(task, &output);
+    self.session.tracker.build_end();
     output
   }
 }
@@ -32,23 +32,25 @@ impl<'p, 's, T: Task, A: Tracker<T>> Context<T> for TopDownContext<'p, 's, T, T:
     let path = path.as_ref();
     let node = self.session.store.get_or_create_file_node(path);
     let (dependency, file) = FileDependency::new_with_file(path, stamper)?;
-    self.session.tracker.required_file(&dependency);
+    self.session.tracker.required_file(path, dependency.stamper(), dependency.stamp());
     self.session.store.add_file_require_dependency(current_executing_task_node, &node, dependency);
     Ok(file)
   }
 
   fn require_task_with_stamper(&mut self, task: &T, stamper: OutputStamper) -> T::Output {
+    self.session.tracker.require_task(task, &stamper);
     let node = self.session.store.get_or_create_task_node(task);
 
     // Get required task output by executing it if needed, or by getting the output from the store if not needed.
-    let output = if self.should_execute_task(&node) {
-      self.session.tracker.execute_task_start(task);
+    let should_execute = self.should_execute_task(&node);
+    let output = if should_execute {
+      self.session.tracker.execute(task);
       self.session.store.reset_task(&node);
       let previous_executing_task = self.session.current_executing_task.replace(node);
       let output = task.execute(self);
       self.session.current_executing_task = previous_executing_task;
       self.session.store.set_task_output(&node, output.clone());
-      self.session.tracker.execute_task_end(task, &output);
+      self.session.tracker.executed(task, &output);
       output
     } else {
       // Correctness: when `should_execute_task` returns `true`, the above block is executed. Otherwise this block is 
@@ -56,16 +58,17 @@ impl<'p, 's, T: Task, A: Tracker<T>> Context<T> for TopDownContext<'p, 's, T, T:
       self.session.store.get_task_output(&node).clone()
     };
 
+    let dependency = TaskDependency::new(task.clone(), stamper, output.clone());
+    self.session.tracker.required_task(task, &output,dependency.stamper(), dependency.stamp(), should_execute);
+
     // Create task require dependency if a task is currently executing (i.e., we are not requiring the initial task).
     if let Some(current_executing_task_node) = &self.session.current_executing_task {
-      let dependency = TaskDependency::new(task.clone(), stamper, output.clone());
       if self.session.store.add_task_require_dependency(current_executing_task_node, &node, dependency).is_err() {
         let current_executing_task = self.session.store.get_task(current_executing_task_node);
         panic!("Cyclic task dependency; current executing task '{:?}' is requiring task '{:?}' which was already required", current_executing_task, task);
       }
     }
 
-    self.session.tracker.required_task(task, &output);
     output
   }
 }

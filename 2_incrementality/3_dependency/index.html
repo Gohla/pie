@@ -213,6 +213,16 @@ impl FileDependency {
     Ok((dependency, file))
   }
 
+  /// Returns the path of this dependency.
+  #[allow(dead_code)]
+  pub fn path(&amp;self) -&gt; &amp;PathBuf { &amp;self.path }
+  /// Returns the stamper of this dependency.
+  #[allow(dead_code)]
+  pub fn stamper(&amp;self) -&gt; &amp;FileStamper { &amp;self.stamper }
+  /// Returns the stamp of this dependency.
+  #[allow(dead_code)]
+  pub fn stamp(&amp;self) -&gt; &amp;FileStamp { &amp;self.stamp }
+
   /// Checks whether this file dependency is inconsistent, returning:
   /// - `Ok(Some(stamp))` if this dependency is inconsistent (with `stamp` being the new stamp of the dependency),
   /// - `Ok(None)` if this dependency is consistent,
@@ -228,7 +238,9 @@ impl FileDependency {
 }
 </code></pre>
 <p>A <code>FileDependency</code> stores the <code>path</code> the dependency is about, the <code>stamper</code> used to create a stamp for this dependency, and the <code>stamp</code> that was created at the time the file dependency was made.
-The <code>FileDependency::new_with_file</code> function also returns the opened file if it exists, so that users of this function can read from the file without having to open it again.</p>
+The <code>FileDependency::new_with_file</code> function also returns the opened file if it exists, so that users of this function can read from the file without having to open it again.
+We add getter methods to get parts of the file dependency without allowing mutation.
+Since we will use those getter methods later, we annotate them with <code>#[allow(dead_code)]</code> to disable unused warnings.</p>
 <p>A file dependency is inconsistent when the stored stamp is not equal to a stamp that we create at the time of checking, implemented in <code>FileDependency::is_inconsistent</code>.
 For example, if we created a file dependency (with modified stamper) for a file that was modified yesterday, then modify the file, and then call <code>is_inconsistent</code> on the file dependency, it would return <code>Some(new_stamp)</code> indicating that the dependency is inconsistent.</p>
 <p>We implement an <code>is_inconsistent</code> method here instead of an <code>is_consistent</code> method, so that we can return the changed stamp when the dependency is inconsistent, which we will use for debug logging purposes later.</p>
@@ -244,11 +256,22 @@ pub struct TaskDependency&lt;T, O&gt; {
 }
 
 impl&lt;T: Task&gt; TaskDependency&lt;T, T::Output&gt; {
+  /// Creates a new `task` dependency with `stamper` and `output`.
   pub fn new(task: T, stamper: OutputStamper, output: T::Output) -&gt; Self {
     let stamp = stamper.stamp(output);
     Self { task, stamper, stamp }
   }
 
+  /// Returns the task of this dependency.
+  #[allow(dead_code)]
+  pub fn task(&amp;self) -&gt; &amp;T { &amp;self.task }
+  /// Returns the stamper of this dependency.
+  #[allow(dead_code)]
+  pub fn stamper(&amp;self) -&gt; &amp;OutputStamper { &amp;self.stamper }
+  /// Returns the stamp of this dependency.
+  #[allow(dead_code)]
+  pub fn stamp(&amp;self) -&gt; &amp;OutputStamp&lt;T::Output&gt; { &amp;self.stamp }
+  
   /// Checks whether this task dependency is inconsistent, returning:
   /// - `Some(stamp)` if this dependency is inconsistent (with `stamp` being the new stamp of the dependency),
   /// - `None` if this dependency is consistent.
@@ -264,7 +287,8 @@ impl&lt;T: Task&gt; TaskDependency&lt;T, T::Output&gt; {
 }
 </code></pre>
 <p>A <code>TaskDependency</code> stores the <code>task</code> the dependency is about, along with its <code>stamper</code> and <code>stamp</code> that is created when the dependency is created.
-Task dependencies are generic over the type of tasks <code>T</code>, and their type of outputs <code>O</code>.</p>
+Task dependencies are generic over the type of tasks <code>T</code>, and their type of outputs <code>O</code>.
+We also add immutable getters here.</p>
 <details id="admonition-trait-bounds-on-structs" class="admonition info">
 <summary class="admonition-title">
 <p>Trait bounds on structs</p>
