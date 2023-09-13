@@ -1,53 +1,53 @@
    Compiling pie v0.1.0 (/private/pie)
-    Finished dev [unoptimized + debuginfo] target(s) in 0.93s
+    Finished dev [unoptimized + debuginfo] target(s) in 0.89s
      Running `/private/pie/target/debug/examples/incremental`
 A) New task: expect `read_task` to execute
-→ ReadStringFromFile(ReadStringFromFile("/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmpylBrTM/input.txt", Modified))
+→ ReadStringFromFile(ReadStringFromFile("/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmpgOLnqT/input.txt", Modified))
 ← Ok("Hi")
 
 B) Reuse: expect no execution
-✓ ReadStringFromFile(ReadStringFromFile("/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmpylBrTM/input.txt", Modified))
+✓ ReadStringFromFile(ReadStringFromFile("/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmpgOLnqT/input.txt", Modified))
 
 C) Inconsistent file dependency: expect `read_task` to execute
-→ ReadStringFromFile(ReadStringFromFile("/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmpylBrTM/input.txt", Modified))
+→ ReadStringFromFile(ReadStringFromFile("/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmpgOLnqT/input.txt", Modified))
 ← Ok("Hello")
 
 D) New task, reuse other: expect only `write_task` to execute
-→ WriteStringToFile(WriteStringToFile(ReadStringFromFile(ReadStringFromFile("/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmpylBrTM/input.txt", Modified)), "/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmpylBrTM/output.txt", Modified))
- ✓ ReadStringFromFile(ReadStringFromFile("/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmpylBrTM/input.txt", Modified))
+→ WriteStringToFile(WriteStringToFile(ReadStringFromFile(ReadStringFromFile("/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmpgOLnqT/input.txt", Modified)), "/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmpgOLnqT/output.txt", Modified))
+ ✓ ReadStringFromFile(ReadStringFromFile("/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmpgOLnqT/input.txt", Modified))
 ← Ok("")
 
 E) Inconsistent file and task dependency: expect both tasks to execute
-→ ReadStringFromFile(ReadStringFromFile("/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmpylBrTM/input.txt", Modified))
+→ ReadStringFromFile(ReadStringFromFile("/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmpgOLnqT/input.txt", Modified))
 ← Ok("Hello, World!")
-→ WriteStringToFile(WriteStringToFile(ReadStringFromFile(ReadStringFromFile("/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmpylBrTM/input.txt", Modified)), "/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmpylBrTM/output.txt", Modified))
- ✓ ReadStringFromFile(ReadStringFromFile("/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmpylBrTM/input.txt", Modified))
+→ WriteStringToFile(WriteStringToFile(ReadStringFromFile(ReadStringFromFile("/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmpgOLnqT/input.txt", Modified)), "/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmpgOLnqT/output.txt", Modified))
+ ✓ ReadStringFromFile(ReadStringFromFile("/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmpgOLnqT/input.txt", Modified))
 ← Ok("")
 
 F) Early cutoff: expect only `read_task` to execute
-→ ReadStringFromFile(ReadStringFromFile("/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmpylBrTM/input.txt", Modified))
+→ ReadStringFromFile(ReadStringFromFile("/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmpgOLnqT/input.txt", Modified))
 ← Ok("Hello, World!")
-✓ WriteStringToFile(WriteStringToFile(ReadStringFromFile(ReadStringFromFile("/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmpylBrTM/input.txt", Modified)), "/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmpylBrTM/output.txt", Modified))
+✓ WriteStringToFile(WriteStringToFile(ReadStringFromFile(ReadStringFromFile("/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmpgOLnqT/input.txt", Modified)), "/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmpgOLnqT/output.txt", Modified))
 
 G) Regenerate changed output file: expect only `write_task` to execute
-✓ ReadStringFromFile(ReadStringFromFile("/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmpylBrTM/input.txt", Modified))
-→ WriteStringToFile(WriteStringToFile(ReadStringFromFile(ReadStringFromFile("/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmpylBrTM/input.txt", Modified)), "/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmpylBrTM/output.txt", Modified))
- ✓ ReadStringFromFile(ReadStringFromFile("/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmpylBrTM/input.txt", Modified))
+✓ ReadStringFromFile(ReadStringFromFile("/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmpgOLnqT/input.txt", Modified))
+→ WriteStringToFile(WriteStringToFile(ReadStringFromFile(ReadStringFromFile("/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmpgOLnqT/input.txt", Modified)), "/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmpgOLnqT/output.txt", Modified))
+ ✓ ReadStringFromFile(ReadStringFromFile("/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmpgOLnqT/input.txt", Modified))
 ← Ok("")
 
 H) Regenerate deleted output file: expect only `write_task` to execute
-✓ ReadStringFromFile(ReadStringFromFile("/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmpylBrTM/input.txt", Modified))
-→ WriteStringToFile(WriteStringToFile(ReadStringFromFile(ReadStringFromFile("/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmpylBrTM/input.txt", Modified)), "/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmpylBrTM/output.txt", Modified))
- ✓ ReadStringFromFile(ReadStringFromFile("/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmpylBrTM/input.txt", Modified))
+✓ ReadStringFromFile(ReadStringFromFile("/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmpgOLnqT/input.txt", Modified))
+→ WriteStringToFile(WriteStringToFile(ReadStringFromFile(ReadStringFromFile("/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmpgOLnqT/input.txt", Modified)), "/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmpgOLnqT/output.txt", Modified))
+ ✓ ReadStringFromFile(ReadStringFromFile("/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmpgOLnqT/input.txt", Modified))
 ← Ok("")
 
 I) Different tasks: expect `read_task_b_modified` and `read_task_b_exists` to execute
-→ ReadStringFromFile(ReadStringFromFile("/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmpylBrTM/input_b.txt", Modified))
+→ ReadStringFromFile(ReadStringFromFile("/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmpgOLnqT/input_b.txt", Modified))
 ← Ok("Test")
-→ ReadStringFromFile(ReadStringFromFile("/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmpylBrTM/input_b.txt", Exists))
+→ ReadStringFromFile(ReadStringFromFile("/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmpgOLnqT/input_b.txt", Exists))
 ← Ok("Test")
 
 J) Different stampers: expect only `read_task_b_modified` to execute
-→ ReadStringFromFile(ReadStringFromFile("/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmpylBrTM/input_b.txt", Modified))
+→ ReadStringFromFile(ReadStringFromFile("/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmpgOLnqT/input_b.txt", Modified))
 ← Ok("Test Test")
-✓ ReadStringFromFile(ReadStringFromFile("/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmpylBrTM/input_b.txt", Exists))
+✓ ReadStringFromFile(ReadStringFromFile("/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/.tmpgOLnqT/input_b.txt", Exists))

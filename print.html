@@ -172,7 +172,7 @@ edition = &quot;2021&quot;
 <p>Run <code>cargo build</code> to test if the project was set up correctly.
 The output should look something like:</p>
 <pre><code class="language-shell ">   Compiling pie v0.1.0 (/private/pie)
-    Finished dev [unoptimized + debuginfo] target(s) in 0.19s
+    Finished dev [unoptimized + debuginfo] target(s) in 0.18s
 </code></pre>
 <details id="admonition-download-source-code" class="admonition example">
 <summary class="admonition-title">
@@ -399,7 +399,7 @@ It returns the output of the task, which we test with <code>assert_eq!</code>.</
 <p>Run the test by running <code>cargo test</code>.
 The output should look something like:</p>
 <pre><code class="language-shell ">   Compiling pie v0.1.0 (/private/pie)
-    Finished test [unoptimized + debuginfo] target(s) in 0.33s
+    Finished test [unoptimized + debuginfo] target(s) in 0.34s
      Running unittests src/lib.rs (/private/pie/target/debug/deps/pie-a50f0f2aa4868d6a)
 
 running 1 test
@@ -2925,7 +2925,7 @@ Run this example with <code>cargo run --example incremental</code>.
 You should see the <code>println!</code> in <code>ReadStringFromFile</code> appear in your console as the incremental context correctly determines that this task is new (i.e., has no output) and must be executed.
 It should look something like:</p>
 <pre><code>   Compiling pie v0.1.0 (/private/pie)
-    Finished dev [unoptimized + debuginfo] target(s) in 1.87s
+    Finished dev [unoptimized + debuginfo] target(s) in 1.28s
      Running `/private/pie/target/debug/examples/incremental`
 A) New task: expect `read_task` to execute
 Reading from input.txt with Modified stamper
@@ -2941,7 +2941,7 @@ Reading from input.txt with Modified stamper
 </code></pre>
 <p>Running with <code>cargo run --example incremental</code> should produce output like:</p>
 <pre><code>   Compiling pie v0.1.0 (/private/pie)
-    Finished dev [unoptimized + debuginfo] target(s) in 1.41s
+    Finished dev [unoptimized + debuginfo] target(s) in 0.64s
      Running `/private/pie/target/debug/examples/incremental`
 A) New task: expect `read_task` to execute
 Reading from input.txt with Modified stamper
@@ -3094,7 +3094,7 @@ This shows that tasks can depend on the same file with different stampers, which
 <p>Of course, using an <code>Exists</code> stamper for <code>ReadStringFromFile</code> does not make a lot of sense, but this is for demonstration purposes only.</p>
 <p>Running <code>cargo run --example incremental</code> now should produce output like:</p>
 <pre><code>   Compiling pie v0.1.0 (/private/pie)
-    Finished dev [unoptimized + debuginfo] target(s) in 1.16s
+    Finished dev [unoptimized + debuginfo] target(s) in 0.67s
      Running `/private/pie/target/debug/examples/incremental`
 A) New task: expect `read_task` to execute
 Reading from input.txt with Modified stamper
@@ -3589,7 +3589,7 @@ Therefore, every time we make changes to source files, or expect that changes ha
 <p><a class="admonition-anchor-link" href="3_min_sound/1_session/index.html#admonition-download-source-code"></a></p>
 </summary>
 <div>
-<p>You can <a href="3_min_sound/1_session/../../gen/3_min_Sound/1_session/source.zip">download the source files up to this point</a>.</p>
+<p>You can <a href="3_min_sound/1_session/../../gen/3_min_sound/1_session/source.zip">download the source files up to this point</a>.</p>
 </div>
 </details>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="tracking-build-events"><a class="header" href="#tracking-build-events">Tracking Build Events</a></h1>
@@ -3676,6 +3676,7 @@ In this tutorial we chose the convenient option, but be sure to think about thes
 <h2 id="no-op-tracker"><a class="header" href="#no-op-tracker">No-op tracker</a></h2>
 <p>Add a no-op tracker, which is a tracker that does nothing, by adding the following code to <code>pie/src/tracker/mod.rs</code>:</p>
 <pre><code class="language-rust ">/// [`Tracker`] that does nothing.
+#[derive(Copy, Clone, Debug)]
 pub struct NoopTracker;
 impl&lt;T: Task&gt; Tracker&lt;T&gt; for NoopTracker {}</code></pre>
 <p>Due to the default methods that do nothing on <code>Tracker</code>, this implementation is extremely simple. </p>
@@ -3717,7 +3718,7 @@ If you care about performance here, be sure to annotate those default empty meth
 
  /// A unit of computation in a programmatic incremental build system.
  pub trait Task: Clone + Eq + Hash + Debug {
-@@ -53,49 +54,54 @@
+@@ -53,53 +54,68 @@
      self.require_task_with_stamper(task, self.default_output_stamper())
    }
    /// Requires given `task`, recording a dependency (using given `stamper`) and selectively executing it. Returns its
@@ -3743,6 +3744,7 @@ If you care about performance here, be sure to annotate those default empty meth
 +impl&lt;T: Task, A: Tracker&lt;T&gt;&gt; Pie&lt;T, T::Output, A&gt; {
 +  /// Creates a new [`Pie`] instance with given `tracker`.
 +  pub fn with_tracker(tracker: A) -&gt; Self { Self { store: Store::default(), tracker } }
++  
    /// Creates a new build session. Only one session may be active at once, enforced via mutable (exclusive) borrow.
 -  pub fn new_session(&amp;mut self) -&gt; Session&lt;T, T::Output&gt; { Session::new(self) }
 +  pub fn new_session(&amp;mut self) -&gt; Session&lt;T, T::Output, A&gt; { Session::new(self) }
@@ -3752,6 +3754,11 @@ If you care about performance here, be sure to annotate those default empty meth
      let session = self.new_session();
      f(session)
    }
++
++  /// Gets the [`Tracker`] instance.
++  pub fn tracker(&amp;self) -&gt; &amp;A { &amp;self.tracker }
++  /// Gets the mutable [`Tracker`] instance.
++  pub fn tracker_mut(&amp;mut self) -&gt; &amp;mut A { &amp;mut self.tracker }
  }
 
  /// A session in which builds are executed.
@@ -3779,9 +3786,18 @@ If you care about performance here, be sure to annotate those default empty meth
    pub fn require(&amp;mut self, task: &amp;T) -&gt; T::Output {
      self.current_executing_task = None;
      TopDownContext::new(self).require_initial(task)
-   }</code></pre>
+   }
+
++  /// Gets the [`Tracker`] instance.
++  pub fn tracker(&amp;self) -&gt; &amp;A { &amp;self.tracker }
++  /// Gets the mutable [`Tracker`] instance.
++  pub fn tracker_mut(&amp;mut self) -&gt; &amp;mut A { &amp;mut self.tracker }
+   /// Gets all errors produced during dependency checks.
+   pub fn dependency_check_errors(&amp;self) -&gt; impl Iterator&lt;Item=&amp;io::Error&gt; { self.dependency_check_errors.iter() }
+ }</code></pre>
 <p>We use <code>A</code> as the generic argument for tracker types in the source code.
-The <code>Pie</code> struct owns the tracker, similarly to how it owns the store.</p>
+The <code>Pie</code> struct owns the tracker, similarly to how it owns the store.
+<code>Pie</code> can be created with a specific tracker with <code>with_tracker</code>, and provides access to the tracker with <code>tracker</code> and <code>tracker_mut</code>.</p>
 <details id="admonition-default-type" class="admonition info">
 <summary class="admonition-title">
 <p>Default type</p>
@@ -3792,7 +3808,8 @@ The <code>Pie</code> struct owns the tracker, similarly to how it owns the store
 The <code>Default</code> implementation only works with <code>NoopTracker</code>, because we <code>impl Default for Pie&lt;T, T::Output&gt;</code>, which is equivalent to <code>impl Default for Pie&lt;T, T::Output, NoopTracker&gt;</code> due to the default type.</p>
 </div>
 </details>
-<p>We make <code>Session</code> generic over trackers, and mutibly borrow the tracker from <code>Pie</code>, again like we do with the store.</p>
+<p>We make <code>Session</code> generic over trackers, and mutibly borrow the tracker from <code>Pie</code>, again like we do with the store.
+For convenience, <code>Session</code> also provides access to the tracker with <code>tracker</code> and <code>tracker_mut</code>.</p>
 <p>Now we make <code>TopDownContext</code> generic over <code>Tracker</code>, and insert calls to tracker methods.
 Modify <code>pie/src/context/top_down.rs</code>:</p>
 <pre><code class="language-rust customdiff"> use std::fs::File;
@@ -4179,12 +4196,187 @@ The <code>Event</code> enumeration mimics the <code>Tracker</code> methods, but 
 }</code></pre>
 <p>We implement the relevant methods from <code>Tracker</code> and store the build events as <code>Event</code> instances in <code>self.events</code>.
 When a new build starts, we clear the events.</p>
-<p>TODO: add methods to access events</p>
+<p>Now we will add code to inspect the build events.
+This is quite a bit of code that we will be using in integration testing to test incrementality and soundness.
+We’ll add in one go to keep the tutorial going, and we will use this code in the next section, but feel free to take some time to inspect the code.</p>
+<p>Add the following code to <code>pie/src/tracker/event.rs</code>:</p>
+<pre><code class="language-rust ">impl&lt;T: Task&gt; EventTracker&lt;T&gt; {
+  /// Returns a slice over all events.
+  pub fn slice(&amp;self) -&gt; &amp;[Event&lt;T&gt;] {
+    &amp;self.events
+  }
+  /// Returns an iterator over all events.
+  pub fn iter(&amp;self) -&gt; impl Iterator&lt;Item=&amp;Event&lt;T&gt;&gt; {
+    self.events.iter()
+  }
+
+  /// Returns `true` if `predicate` returns `true` for any event.
+  pub fn any(&amp;self, predicate: impl FnMut(&amp;Event&lt;T&gt;) -&gt; bool) -&gt; bool {
+    self.iter().any(predicate)
+  }
+  /// Returns the number of times `predicate` returns `true`.
+  pub fn count(&amp;self, predicate: impl FnMut(&amp;&amp;Event&lt;T&gt;) -&gt; bool) -&gt; usize {
+    self.iter().filter(predicate).count()
+  }
+  /// Returns `true` if `predicate` returns `true` for exactly one event.
+  pub fn one(&amp;self, predicate: impl FnMut(&amp;&amp;Event&lt;T&gt;) -&gt; bool) -&gt; bool {
+    self.count(predicate) == 1
+  }
+
+  /// Returns `Some(index)` for the first event `e` where `predicate(e)` returns `true`, or `None` otherwise.
+  pub fn index_of(&amp;self, predicate: impl FnMut(&amp;Event&lt;T&gt;) -&gt; bool) -&gt; Option&lt;usize&gt; {
+    self.iter().position(predicate)
+  }
+  /// Returns `Some(v)` for the first event `e` where `f(e)` returns `Some(v)`, or `None` otherwise.
+  pub fn find_map&lt;R&gt;(&amp;self, f: impl FnMut(&amp;Event&lt;T&gt;) -&gt; Option&lt;&amp;R&gt;) -&gt; Option&lt;&amp;R&gt; {
+    self.iter().find_map(f)
+  }
+  /// Returns `Some((index, v))` for the first event `e` where `f(e)` returns `Some(v)`, or `None` otherwise.
+  pub fn index_find_map&lt;R&gt;(&amp;self, mut f: impl FnMut(&amp;Event&lt;T&gt;) -&gt; Option&lt;&amp;R&gt;) -&gt; Option&lt;(usize, &amp;R)&gt; {
+    self.iter().enumerate().find_map(|(i, e)| f(e).map(|o| (i, o)))
+  }
+
+
+  /// Finds the first [required file event](Event::RequiredFile) for `path` and returns its stamp as `Some(stamp)`, or 
+  /// `None` if no event was found.
+  pub fn stamp_of_first_required_file(&amp;self, path: &amp;PathBuf) -&gt; Option&lt;&amp;FileStamp&gt; {
+    self.find_map(|e| e.stamp_of_required_file(path))
+  }
+
+  /// Returns `true` if any task was executed.
+  pub fn any_execution(&amp;self) -&gt; bool {
+    self.any(|e| e.is_execution())
+  }
+  /// Returns `true` if `task` was executed.
+  pub fn any_execution_of(&amp;self, task: &amp;T) -&gt; bool {
+    self.any(|e| e.is_execution_of(task))
+  }
+  /// Returns `true` if `task` was executed exactly once.
+  pub fn one_execute_of(&amp;self, task: &amp;T) -&gt; bool {
+    self.one(|e| e.is_execute(task))
+  }
+
+  /// Finds the first [task execute event](Event::Execute) for `task` and returns its index as `Some(index)`, or `None` 
+  /// if no event was found.
+  pub fn index_of_first_execute(&amp;self, task: &amp;T) -&gt; Option&lt;usize&gt; {
+    self.index_of(|e| e.is_execute(task))
+  }
+  /// Finds the first [task executed event](Event::Executed) for `task` and returns its index as `Some(index)`, or 
+  /// `None` if no event was found.
+  pub fn index_of_first_executed(&amp;self, task: &amp;T) -&gt; Option&lt;usize&gt; {
+    self.index_of(|e| e.output_of_executed(task).is_some())
+  }
+  /// Finds the first [task executed event](Event::Executed) for `task` and returns its index and output as 
+  /// `Some((index, output))`, or `None` if no event was found.
+  pub fn index_output_of_first_executed(&amp;self, task: &amp;T) -&gt; Option&lt;(usize, &amp;T::Output)&gt; {
+    self.index_find_map(|e| e.output_of_executed(task))
+  }
+}
+
+impl&lt;T: Task&gt; Event&lt;T&gt; {
+  /// Returns `Some(stamp)` if this is a [required file event](Event::RequiredFile) for file at `path`, or `None` 
+  /// otherwise.
+  pub fn stamp_of_required_file(&amp;self, path: &amp;PathBuf) -&gt; Option&lt;&amp;FileStamp&gt; {
+    match self {
+      Event::RequiredFile { path: p, stamp, .. } if p == path =&gt; Some(stamp),
+      _ =&gt; None,
+    }
+  }
+
+  /// Returns `true` if this is a task execution (execute or executed) event.
+  pub fn is_execution(&amp;self) -&gt; bool {
+    match self {
+      Event::Execute { .. } =&gt; true,
+      Event::Executed { .. } =&gt; true,
+      _ =&gt; false,
+    }
+  }
+  /// Returns `true` if this is an execution (execute or executed) event for `task`.
+  pub fn is_execution_of(&amp;self, task: &amp;T) -&gt; bool {
+    match self {
+      Event::Execute { task: t } if t == task =&gt; true,
+      Event::Executed { task: t, .. } if t == task =&gt; true,
+      _ =&gt; false,
+    }
+  }
+  /// Returns `true` if this is a [task execute event](Event::Execute) for `task`.
+  pub fn is_execute(&amp;self, task: &amp;T) -&gt; bool {
+    match self {
+      Event::Execute { task: t } if t == task =&gt; true,
+      _ =&gt; false,
+    }
+  }
+  /// Returns `Some(output)` if this is a [task executed event](Event::Executed) for `task`, or `None` otherwise.
+  pub fn output_of_executed(&amp;self, task: &amp;T) -&gt; Option&lt;&amp;T::Output&gt; {
+    match self {
+      Event::Executed { task: t, output: o } if t == task =&gt; Some(o),
+      _ =&gt; None,
+    }
+  }
+}</code></pre>
+<p>We add several general inspection methods to <code>EventTracker</code>:</p>
+<ul>
+<li><code>slice</code> and <code>iter</code> provide raw access to all stored <code>Event</code>s,</li>
+<li><code>any</code>, <code>count</code>, and <code>one</code> are for checking predicates over all events,</li>
+<li><code>index_of</code> for finding the index of the first event given a predicate,</li>
+<li><code>find_map</code> and <code>index_find_map</code> for finding the first event given some function, returning the output (and also index in <code>index_find_map</code>) of that function.</li>
+</ul>
+<p>We add methods for specific kinds of events, following the general methods.
+Finally, we add convenience methods to <code>Event</code> for checking specific kinds of events.</p>
+<p>Check that the code compiles with <code>cargo test</code>.</p>
 <h2 id="implement-composite-tracker"><a class="header" href="#implement-composite-tracker">Implement composite tracker</a></h2>
 <p>Currently, we cannot use both <code>EventTracker</code> and <code>WritingTracker</code> at the same time.
 We want this so that we can check incrementality and soundness, but also look at standard output for debugging, at the same time.
 Therefore, we will implement a <code>CompositeTracker</code> that forwards build events to 2 trackers.</p>
-<p>TODO: implement composite tracker</p>
+<p>Add the following code to <code>pie/src/tracker/mod.rs</code>:</p>
+<pre><code class="language-rust ">/// [`Tracker`] that forwards build events to 2 trackers.
+#[derive(Copy, Clone, Debug)]
+pub struct CompositeTracker&lt;A1, A2&gt;(pub A1, pub A2);
+impl&lt;T: Task, A1: Tracker&lt;T&gt;, A2: Tracker&lt;T&gt;&gt; Tracker&lt;T&gt; for CompositeTracker&lt;A1, A2&gt; {
+  fn build_start(&amp;mut self) {
+    self.0.build_start();
+    self.1.build_start();
+  }
+  fn build_end(&amp;mut self) {
+    self.0.build_end();
+    self.1.build_end();
+  }
+
+  fn required_file(&amp;mut self, path: &amp;Path, stamper: &amp;FileStamper, stamp: &amp;FileStamp) {
+    self.0.required_file(path, stamper, stamp);
+    self.1.required_file(path, stamper, stamp);
+  }
+  fn require_task(&amp;mut self, task: &amp;T, stamper: &amp;OutputStamper) {
+    self.0.require_task(task, stamper);
+    self.1.require_task(task, stamper);
+  }
+  fn required_task(&amp;mut self, task: &amp;T, output: &amp;T::Output, stamper: &amp;OutputStamper, stamp: &amp;OutputStamp&lt;T::Output&gt;, was_executed: bool) {
+    self.0.required_task(task, output, stamper, stamp, was_executed);
+    self.1.required_task(task, output, stamper, stamp, was_executed);
+  }
+
+  fn execute(&amp;mut self, task: &amp;T) {
+    self.0.execute(task);
+    self.1.execute(task);
+  }
+  fn executed(&amp;mut self, task: &amp;T, output: &amp;T::Output) {
+    self.0.executed(task, output);
+    self.1.executed(task, output);
+  }
+}</code></pre>
+<p><code>CompositeTracker</code> is a tuple struct containing 2 trackers that implements all tracker methods and forwards them to the 2 contained trackers.
+Its tuple fields are <code>pub</code> so it can be constructed with <code>CompositeTracker(t1, t2)</code> and the contained trackers can be accessed with <code>c.0</code> and <code>c.1</code>.</p>
+<p>Check that the code compiles with <code>cargo test</code>.</p>
+<p>Now that the build event tracking infrastructure is in place, we can start integration testing!</p>
+<details id="admonition-download-source-code" class="admonition example">
+<summary class="admonition-title">
+<p>Download source code</p>
+<p><a class="admonition-anchor-link" href="3_min_sound/2_tracker/index.html#admonition-download-source-code"></a></p>
+</summary>
+<div>
+<p>You can <a href="3_min_sound/2_tracker/../../gen/3_min_sound/2_tracker/source.zip">download the source files up to this point</a>.</p>
+</div>
+</details>
 
                     </main>
 

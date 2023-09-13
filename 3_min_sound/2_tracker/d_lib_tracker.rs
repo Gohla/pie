@@ -73,6 +73,7 @@ impl<T: Task> Default for Pie<T, T::Output> {
 impl<T: Task, A: Tracker<T>> Pie<T, T::Output, A> {
   /// Creates a new [`Pie`] instance with given `tracker`.
   pub fn with_tracker(tracker: A) -> Self { Self { store: Store::default(), tracker } }
+  
   /// Creates a new build session. Only one session may be active at once, enforced via mutable (exclusive) borrow.
   pub fn new_session(&mut self) -> Session<T, T::Output, A> { Session::new(self) }
   /// Runs `f` inside a new build session.
@@ -80,6 +81,11 @@ impl<T: Task, A: Tracker<T>> Pie<T, T::Output, A> {
     let session = self.new_session();
     f(session)
   }
+
+  /// Gets the [`Tracker`] instance.
+  pub fn tracker(&self) -> &A { &self.tracker }
+  /// Gets the mutable [`Tracker`] instance.
+  pub fn tracker_mut(&mut self) -> &mut A { &mut self.tracker }
 }
 
 /// A session in which builds are executed.
@@ -106,6 +112,10 @@ impl<'p, T: Task, A: Tracker<T>> Session<'p, T, T::Output, A> {
     TopDownContext::new(self).require_initial(task)
   }
 
+  /// Gets the [`Tracker`] instance.
+  pub fn tracker(&self) -> &A { &self.tracker }
+  /// Gets the mutable [`Tracker`] instance.
+  pub fn tracker_mut(&mut self) -> &mut A { &mut self.tracker }
   /// Gets all errors produced during dependency checks.
   pub fn dependency_check_errors(&self) -> impl Iterator<Item=&io::Error> { self.dependency_check_errors.iter() }
 }
