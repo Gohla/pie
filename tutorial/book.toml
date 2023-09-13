@@ -8,20 +8,21 @@ title = "Build your own Programmatic Incremental Build System"
 [build]
 create-missing = false
 
-#[preprocessor.treesitter-table-highlight]
-
-[preprocessor.external-links] # Enable external links preprocessor
-
-[preprocessor.admonish]
-command = "mdbook-admonish"
-assets_version = "2.0.0" # do not edit: managed by `mdbook-admonish install`
-
 [output.html]
-additional-js = ["src/diff.js"]
-additional-css = ["src/custom.css", "src/mdbook-admonish.css"]
+additional-js = ["src/diff2html-ui-base.min.js", "src/diff.js"]
+additional-css = ["src/mdbook-admonish.css", "src/diff2html.min.css", "src/custom.css"]
 git-repository-url = "https://github.com/Gohla/pie/"
 edit-url-template = "https://github.com/Gohla/pie/edit/master/tutorial/{path}"
 
 [output.html.playground]
 copy-js = false
 runnable = false
+
+# TODO: disabled because it inserts markup into raw HTML produced by diff2html.
+#[preprocessor.external-links]
+
+[preprocessor.diff2html]
+
+[preprocessor.admonish]
+command = "mdbook-admonish"
+assets_version = "2.0.0" # do not edit: managed by `mdbook-admonish install`

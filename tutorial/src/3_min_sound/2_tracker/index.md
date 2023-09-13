@@ -15,8 +15,20 @@ We will:
 
 Add the `tracker` module to `pie/src/lib.rs`:
 
-```rust,customdiff
-{{#include ../../gen/3_min_sound/2_tracker/a_lib_module.rs.diff:4:}}
+```diff2html
+--- lib.rs
++++ lib.rs
+@@ -8,10 +8,11 @@
+
+ use crate::context::top_down::TopDownContext;
+ use crate::store::{Store, TaskNode};
+
+ pub mod stamp;
++pub mod tracker;
+ mod context;
+ mod fs;
+ mod dependency;
+ mod store;
 ```
 
 Then create the `pie/src/tracker` directory, create the `pie/src/tracker/mod.rs` file, and add the following content:

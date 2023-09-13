@@ -62,3 +62,22 @@ Structure:
 - `stepper`: command-line application (in Rust) that checks all source code (additions, insertions, diffs) by stepping over them in order and building them with cargo, ensuring that the code in the book is actually valid. It also generates diffs between source code fragments and produces outputs (such as cargo stdout) and stores them in `src/gen`.
   - `stepper/src/app.rs`: stepper instructions. Modify this to modify what/how the source code fragments of the book are checked.
 - `mdbook-treesitter-table-highlight`: experimental mdBook plugin that highlights code fragments with [tree-sitter](https://tree-sitter.github.io/tree-sitter/) and outputs it as a table. Currently not used.
+
+### Diff2Html
+
+Modifications to get it working:
+
+- Replace highlight.js with the newest version, [11.8.0](https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js) at the time of writing.
+  - Place that file in `theme/highlight.js`.
+  - I did not replace the highlight.js theme (which would go in the `theme/highlight.css` file), as it seems to be working.
+  - See [this page](https://cdnjs.com/libraries/highlight.js) for version specific downloads.
+- Styling modifications
+  - Initialize the default mdBook [theme](https://rust-lang.github.io/mdBook/format/theme/index.html) into `theme`.
+  - Remove things that we don't need to override: *.hbs files, favicon, fonts.
+  - Remove table styling from `theme/general.css`, as it was interfering with the tables generated from Diff2Html.
+- Install mdbook-diff2html
+  - `cd mdbook-diff2html; cargo install --path .`
+- Install Diff2Html JS and CSS files
+  - [Download diff2html-ui-base.min.js](https://cdn.jsdelivr.net/npm/diff2html@3.4.42/bundles/js/diff2html-ui-base.min.js) into `src/diff2html-ui-base-.min.js`.
+  - [Download diff2html.min.css](https://cdn.jsdelivr.net/npm/diff2html@3.4.42/bundles/css/diff2html.min.css) into `src/diff2html.min.css`.
+  - Add those to custom JS and CSS files in `book.toml`.

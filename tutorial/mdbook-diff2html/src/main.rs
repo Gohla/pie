@@ -6,11 +6,11 @@ use clap::{Arg, ArgMatches, Command};
 use mdbook::preprocess::{CmdPreprocessor, Preprocessor};
 use semver::{Version, VersionReq};
 
-use mdbook_treesitter_table_highlight::TreesitterTableHighlight;
+use mdbook_diff2html::Diff2Html;
 
 pub fn make_app() -> Command {
-  Command::new("nop-preprocessor")
-    .about("A mdbook preprocessor which does precisely nothing")
+  Command::new("mdbook-diff2html")
+    .about("A mdbook preprocessor for showing highlighted diffs with diff2html")
     .subcommand(
       Command::new("supports")
         .arg(Arg::new("renderer").required(true))
@@ -21,7 +21,7 @@ pub fn make_app() -> Command {
 fn main() {
   let matches = make_app().get_matches();
 
-  let preprocessor = TreesitterTableHighlight::new().unwrap();
+  let preprocessor = Diff2Html::new();
 
   if let Some(sub_args) = matches.subcommand_matches("supports") {
     handle_supports(&preprocessor, sub_args);
