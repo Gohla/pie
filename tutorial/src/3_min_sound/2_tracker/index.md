@@ -78,6 +78,7 @@ Make `Pie` and `Session` generic over `Tracker` by modifying `pie/src/lib.rs`:
 
 We use `A` as the generic argument for tracker types in the source code.
 The `Pie` struct owns the tracker, similarly to how it owns the store.
+`Pie` can be created with a specific tracker with `with_tracker`, and provides access to the tracker with `tracker` and `tracker_mut`.
 
 ```admonish info title="Default type" collapsible=true
 We assign `NoopTracker` as the default type for trackers in `Pie`, so that no tracking is performed when we use the `Pie` type without an explicit tracker type.
@@ -85,6 +86,7 @@ The `Default` implementation only works with `NoopTracker`, because we `impl Def
 ```
 
 We make `Session` generic over trackers, and mutibly borrow the tracker from `Pie`, again like we do with the store.
+For convenience, `Session` also provides access to the tracker with `tracker` and `tracker_mut`.
 
 Now we make `TopDownContext` generic over `Tracker`, and insert calls to tracker methods.
 Modify `pie/src/context/top_down.rs`:
@@ -207,7 +209,26 @@ Add the tracker implementation to `pie/src/tracker/event.rs`:
 We implement the relevant methods from `Tracker` and store the build events as `Event` instances in `self.events`.
 When a new build starts, we clear the events.
 
-TODO: add methods to access events
+Now we will add code to inspect the build events.
+This is quite a bit of code that we will be using in integration testing to test incrementality and soundness.
+We'll add in one go to keep the tutorial going, and we will use this code in the next section, but feel free to take some time to inspect the code.
+
+Add the following code to `pie/src/tracker/event.rs`:
+
+```rust,
+{{#include m_event_inspection.rs:2:}}
+```
+
+We add several general inspection methods to `EventTracker`:
+- `slice` and `iter` provide raw access to all stored `Event`s,
+- `any`, `count`, and `one` are for checking predicates over all events,
+- `index_of` for finding the index of the first event given a predicate,
+- `find_map` and `index_find_map` for finding the first event given some function, returning the output (and also index in `index_find_map`) of that function.
+
+We add methods for specific kinds of events, following the general methods.
+Finally, we add convenience methods to `Event` for checking specific kinds of events.
+
+Check that the code compiles with `cargo test`.
 
 ## Implement composite tracker
 
@@ -215,4 +236,19 @@ Currently, we cannot use both `EventTracker` and `WritingTracker` at the same ti
 We want this so that we can check incrementality and soundness, but also look at standard output for debugging, at the same time.
 Therefore, we will implement a `CompositeTracker` that forwards build events to 2 trackers.
 
-TODO: implement composite tracker
+Add the following code to `pie/src/tracker/mod.rs`:
+
+```rust,
+{{#include n_composite.rs:2:}}
+```
+
+`CompositeTracker` is a tuple struct containing 2 trackers that implements all tracker methods and forwards them to the 2 contained trackers.
+Its tuple fields are `pub` so it can be constructed with `CompositeTracker(t1, t2)` and the contained trackers can be accessed with `c.0` and `c.1`.
+
+Check that the code compiles with `cargo test`.
+
+Now that the build event tracking infrastructure is in place, we can start integration testing!
+
+```admonish example title="Download source code" collapsible=true
+You can [download the source files up to this point](../../gen/3_min_sound/2_tracker/source.zip).
+```

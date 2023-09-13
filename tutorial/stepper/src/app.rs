@@ -268,7 +268,12 @@ pub fn step_all(
           .original("f_mod_writing.rs")
           .into_modification(),
         add("k_event.rs", "tracker/event.rs"),
+        add("l_event_tracker.rs", "tracker/event.rs"),
+        add("m_event_inspection.rs", "tracker/event.rs"),
       ]);
+      stepper.apply([
+        add("n_composite.rs", "tracker/mod.rs"),
+      ]).output(SourceArchive::new("source.zip"));
     });
   });
 }

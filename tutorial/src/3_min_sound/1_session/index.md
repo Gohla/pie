@@ -123,5 +123,5 @@ Check that all code works by running `cargo test`.
 With this new API in place, and all code adjusted to work with it, we can continue with tracking build events.
 
 ```admonish example title="Download source code" collapsible=true
-You can [download the source files up to this point](../../gen/3_min_Sound/1_session/source.zip).
+You can [download the source files up to this point](../../gen/3_min_sound/1_session/source.zip).
 ```
