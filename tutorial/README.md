@@ -74,7 +74,9 @@ Modifications to get it working:
 - Styling modifications
   - Initialize the default mdBook [theme](https://rust-lang.github.io/mdBook/format/theme/index.html) into `theme`.
   - Remove things that we don't need to override: *.hbs files, favicon, fonts.
-  - Remove table styling from `theme/general.css`, as it was interfering with the tables generated from Diff2Html.
+  - Disable table styling for Diff2Html from `theme/general.css` using `table:not(.d2h-diff-table)`.
+  - Disable inline code styling for Diff2Html from `theme/chrome.css` using `:not(pre, .d2h-code-side-line) > .hljs` and `:not(pre, a, .d2h-code-side-line) > .hljs`.
+  - Add `table.d2h-diff-table td, th { padding: 0; }` to `src/custom.css`.
 - Install mdbook-diff2html
   - `cd mdbook-diff2html; cargo install --path .`
 - Install Diff2Html JS and CSS files

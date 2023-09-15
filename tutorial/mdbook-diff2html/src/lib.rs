@@ -42,7 +42,7 @@ impl Diff2Html {
           text.extend(t.chars());
         },
         Event::End(Tag::CodeBlock(CodeBlockKind::Fenced(_))) if in_diff => {
-          let html = self.create_diff(&text, div_id_counter);
+          let html = self.create_diff(&mut text, div_id_counter);
           replacements.push((range, html));
           div_id_counter += 1;
           in_diff = false;
@@ -56,12 +56,14 @@ impl Diff2Html {
     }
   }
 
-  fn create_diff(&self, diff: &str, div_id_counter: usize) -> String {
+  fn create_diff(&self, diff: &mut String, div_id_counter: usize) -> String {
+    let diff = diff.replace("$", r#"${"$"}"#);
+    let diff = diff.replace("`", r#"${"`"}"#);
     format!(r#"<div id="diff2html_{div_id_counter}"></div>
 
 <script>
   document.addEventListener('DOMContentLoaded', function () {{
-    let diff = `{diff}`;
+    let diff = String.raw`{diff}`;
     let target = document.getElementById('diff2html_{div_id_counter}');
     let configuration = {{
       drawFileList: false,

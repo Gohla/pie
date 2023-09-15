@@ -113,6 +113,32 @@ h6:target::before {
     text-decoration: none;
 }
 
+table:not(.d2h-diff-table) {
+    margin: 0 auto;
+    border-collapse: collapse;
+}
+table:not(.d2h-diff-table) td {
+    padding: 3px 20px;
+    border: 1px var(--table-border-color) solid;
+}
+table:not(.d2h-diff-table) thead {
+    background: var(--table-header-bg);
+}
+table:not(.d2h-diff-table) thead td {
+    font-weight: 700;
+    border: none;
+}
+table:not(.d2h-diff-table) thead th {
+    padding: 3px 20px;
+}
+table:not(.d2h-diff-table) thead tr {
+    border: 1px var(--table-header-bg) solid;
+}
+/* Alternate background colors for rows */
+table:not(.d2h-diff-table) tbody tr:nth-child(2n) {
+    background: var(--table-alternate-bg);
+}
+
 
 blockquote {
     margin: 20px 0;
