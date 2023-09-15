@@ -1,3 +1,9 @@
+/* Increase maximum content width */
 :root {
   --content-max-width: 800px;
+}
+
+/* Set Diff2Html table padding to 0 */
+table.d2h-diff-table td, th {
+  padding: 0;
 }

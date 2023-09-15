@@ -29,8 +29,9 @@
         <link rel="stylesheet" href="../../ayu-highlight.css">
 
         <!-- Custom theme stylesheets -->
-        <link rel="stylesheet" href="../../src/custom.css">
         <link rel="stylesheet" href="../../src/mdbook-admonish.css">
+        <link rel="stylesheet" href="../../src/diff2html.min.css">
+        <link rel="stylesheet" href="../../src/custom.css">
 
     </head>
     <body>
@@ -90,11 +91,33 @@
             <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
         </nav>
 
+        <!-- Track and set sidebar scroll position -->
+        <script>
+            var sidebarScrollbox = document.querySelector('#sidebar .sidebar-scrollbox');
+            sidebarScrollbox.addEventListener('click', function(e) {
+                if (e.target.tagName === 'A') {
+                    sessionStorage.setItem('sidebar-scroll', sidebarScrollbox.scrollTop);
+                }
+            }, { passive: true });
+            var sidebarScrollTop = sessionStorage.getItem('sidebar-scroll');
+            sessionStorage.removeItem('sidebar-scroll');
+            if (sidebarScrollTop) {
+                // preserve sidebar scroll position when navigating via links within sidebar
+                sidebarScrollbox.scrollTop = sidebarScrollTop;
+            } else {
+                // scroll sidebar to current active section when navigating via "next/previous chapter" buttons
+                var activeSection = document.querySelector('#sidebar .active');
+                if (activeSection) {
+                    activeSection.scrollIntoView({ block: 'center' });
+                }
+            }
+        </script>
+
         <div id="page-wrapper" class="page-wrapper">
 
             <div class="page">
                                 <div id="menu-bar-hover-placeholder"></div>
-                <div id="menu-bar" class="menu-bar sticky bordered">
+                <div id="menu-bar" class="menu-bar sticky">
                     <div class="left-buttons">
                         <button id="sidebar-toggle" class="icon-button" type="button" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
                             <i class="fa fa-bars"></i>
@@ -166,7 +189,10 @@ In this section, we will change that by tracking build events for debugging and 
 </ol>
 <h2 id="tracker-trait"><a class="header" href="#tracker-trait"><code>Tracker</code> trait</a></h2>
 <p>Add the <code>tracker</code> module to <code>pie/src/lib.rs</code>:</p>
-<pre><code class="language-rust customdiff">
+<pre><code class="language-diff2html">--- lib.rs
++++ lib.rs
+@@ -8,10 +8,11 @@
+
  use crate::context::top_down::TopDownContext;
  use crate::store::{Store, TaskNode};
 
@@ -248,9 +274,8 @@ impl&lt;T: Task&gt; Tracker&lt;T&gt; for NoopTracker {}</code></pre>
 <div>
 <p>We will use generics to select which tracker implementation to use.
 Therefore, all calls to trackers are statically dispatched, and could be inlined.
-Because <code>NoopTracker</code> only has empty methods, and those empty methods can be inlined, using <code>NoopTracker</code> will effectively remove all tracking code from your binary, thus removing the overhead of tracking if you don’t want it.</p>
-<p>In this tutorial, we do not annotate methods with <a href="https://nnethercote.github.io/perf-book/inlining.html" title="" target="_blank">
-<code>#[inline]</code></a>, meaning that the Rust compiler (and the LLVM backend) will make its own decisions on what to make inlineable and what not.
+Because <code>NoopTracker</code> only has empty methods, and those empty methods can be inlined, using <code>NoopTracker</code> will effectively remove all tracking code from your binary, thus removing the overhead of tracking if you don't want it.</p>
+<p>In this tutorial, we do not annotate methods with <a href="https://nnethercote.github.io/perf-book/inlining.html"><code>#[inline]</code></a>, meaning that the Rust compiler (and the LLVM backend) will make its own decisions on what to make inlineable and what not.
 If you care about performance here, be sure to annotate those default empty methods with <code>#[inline]</code>.</p>
 </div>
 </details>
@@ -477,7 +502,7 @@ Modify <code>pie/src/context/top_down.rs</code>:</p>
 <p>In <code>require_file_with_stamper</code>, we also extract <code>should_execute</code> into a variable, and pull <code>dependency</code> out of the <code>if</code>, so that we can pass the required data to <code>tracker.required_task</code>.</p>
 <p>Check that the code compiles with <code>cargo test</code>.
 Existing code should keep working due to the <code>NoopTracker</code> default type in <code>Pie</code>.</p>
-<p>We won’t modify <code>NonIncrementalContext</code> to use a tracker, as <code>NonIncrementalContext</code> has no state, so we cannot pass a tracker to it.</p>
+<p>We won't modify <code>NonIncrementalContext</code> to use a tracker, as <code>NonIncrementalContext</code> has no state, so we cannot pass a tracker to it.</p>
 <h2 id="implement-writing-tracker"><a class="header" href="#implement-writing-tracker">Implement writing tracker</a></h2>
 <p>Now we can implement some interesting trackers.
 We start with a simple <code>WritingTracker</code> that writes build events to some writer.</p>
@@ -617,7 +642,7 @@ This in turn because <code>TopDownContext</code> does not return <code>Result</c
 <p>If you want, you can capture more build events and write them, and/or provide more configuration as to what build events should be written.
 But in this tutorial, we will keep it simple like this.</p>
 <p>Check that the code compiles with <code>cargo test</code>.</p>
-<p>Let’s try out our writing tracker in the incrementality example by modifying <code>pie/examples/incremental.rs</code>:</p>
+<p>Let's try out our writing tracker in the incrementality example by modifying <code>pie/examples/incremental.rs</code>:</p>
 <pre><code class="language-rust customdiff">
  /// Pseudo-task that reads a string from a file.
  #[derive(Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Debug)]
@@ -758,7 +783,7 @@ The <code>Event</code> enumeration mimics the <code>Tracker</code> methods, but 
 When a new build starts, we clear the events.</p>
 <p>Now we will add code to inspect the build events.
 This is quite a bit of code that we will be using in integration testing to test incrementality and soundness.
-We’ll add in one go to keep the tutorial going, and we will use this code in the next section, but feel free to take some time to inspect the code.</p>
+We'll add in one go to keep the tutorial going, and we will use this code in the next section, but feel free to take some time to inspect the code.</p>
 <p>Add the following code to <code>pie/src/tracker/event.rs</code>:</p>
 <pre><code class="language-rust ">impl&lt;T: Task&gt; EventTracker&lt;T&gt; {
   /// Returns a slice over all events.
@@ -978,6 +1003,7 @@ Its tuple fields are <code>pub</code> so it can be constructed with <code>Compos
         <script src="../../book.js"></script>
 
         <!-- Custom JS scripts -->
+        <script src="../../src/diff2html-ui-base.min.js"></script>
         <script src="../../src/diff.js"></script>
 
 

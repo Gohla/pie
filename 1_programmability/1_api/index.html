@@ -29,8 +29,9 @@
         <link rel="stylesheet" href="../../ayu-highlight.css">
 
         <!-- Custom theme stylesheets -->
-        <link rel="stylesheet" href="../../src/custom.css">
         <link rel="stylesheet" href="../../src/mdbook-admonish.css">
+        <link rel="stylesheet" href="../../src/diff2html.min.css">
+        <link rel="stylesheet" href="../../src/custom.css">
 
     </head>
     <body>
@@ -90,11 +91,33 @@
             <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
         </nav>
 
+        <!-- Track and set sidebar scroll position -->
+        <script>
+            var sidebarScrollbox = document.querySelector('#sidebar .sidebar-scrollbox');
+            sidebarScrollbox.addEventListener('click', function(e) {
+                if (e.target.tagName === 'A') {
+                    sessionStorage.setItem('sidebar-scroll', sidebarScrollbox.scrollTop);
+                }
+            }, { passive: true });
+            var sidebarScrollTop = sessionStorage.getItem('sidebar-scroll');
+            sessionStorage.removeItem('sidebar-scroll');
+            if (sidebarScrollTop) {
+                // preserve sidebar scroll position when navigating via links within sidebar
+                sidebarScrollbox.scrollTop = sidebarScrollTop;
+            } else {
+                // scroll sidebar to current active section when navigating via "next/previous chapter" buttons
+                var activeSection = document.querySelector('#sidebar .active');
+                if (activeSection) {
+                    activeSection.scrollIntoView({ block: 'center' });
+                }
+            }
+        </script>
+
         <div id="page-wrapper" class="page-wrapper">
 
             <div class="page">
                                 <div id="menu-bar-hover-placeholder"></div>
-                <div id="menu-bar" class="menu-bar sticky bordered">
+                <div id="menu-bar" class="menu-bar sticky">
                     <div class="left-buttons">
                         <button id="sidebar-toggle" class="icon-button" type="button" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
                             <i class="fa fa-bars"></i>
@@ -171,7 +194,7 @@ Thus, tasks and build contexts are mutually recursive.</p>
 <p>In this tutorial, we will be using the words <em>context</em>, <em>build context</em>, and <em>build system</em> interchangeably, typically using just <em>context</em> as it is concise.</p>
 </div>
 </div>
-<p>Let’s make tasks and contexts more concrete by defining them in code.</p>
+<p>Let's make tasks and contexts more concrete by defining them in code.</p>
 <h2 id="api-implementation"><a class="header" href="#api-implementation">API Implementation</a></h2>
 <p>Since we want users of the build system to implement their own tasks, we will define <code>Task</code> as a trait.
 Likewise, we will also be implementing multiple contexts in this tutorial, so we will also define <code>Context</code> as a trait.
@@ -199,8 +222,8 @@ pub trait Context&lt;T: Task&gt; {
 <p><a class="admonition-anchor-link" href="#admonition-note-1"></a></p>
 </div>
 <div>
-<p>If this seems overwhelming to you, don’t worry. We will go through the API and explain things. But more importantly, the API should become more clear once we implement it in the next section and subsequent chapters.
-Furthermore, if you’re new to Rust and/or need help understanding certain concepts, I will try to explain them in Rust Help blocks. They are collapsed by default to reduce distraction, clicking the header opens them. See the first Rust Help block at the end of this section.</p>
+<p>If this seems overwhelming to you, don't worry. We will go through the API and explain things. But more importantly, the API should become more clear once we implement it in the next section and subsequent chapters.
+Furthermore, if you're new to Rust and/or need help understanding certain concepts, I will try to explain them in Rust Help blocks. They are collapsed by default to reduce distraction, clicking the header opens them. See the first Rust Help block at the end of this section.</p>
 </div>
 </div>
 <p>The <code>Task</code> trait has several supertraits that we will need later in the tutorial to implement incrementality:</p>
@@ -222,7 +245,7 @@ Because of this, the context reference passed to <code>Task::execute</code> is a
 <p>Build the project by running <code>cargo build</code>.
 The output should look something like:</p>
 <pre><code class="language-shell ">   Compiling pie v0.1.0 (/private/pie)
-    Finished dev [unoptimized + debuginfo] target(s) in 0.07s
+    Finished dev [unoptimized + debuginfo] target(s) in 0.11s
 </code></pre>
 <details id="admonition-rust-help" class="admonition info">
 <summary class="admonition-title">
@@ -230,26 +253,25 @@ The output should look something like:</p>
 <p><a class="admonition-anchor-link" href="#admonition-rust-help"></a></p>
 </summary>
 <div>
-<p><a href="https://doc.rust-lang.org/book/ch00-00-introduction.html" title="" target="_blank">The Rust Programming Language</a> is an introductory book about Rust. I will try to provide links to the book where possible.</p>
-<p>Rust has a <a href="https://doc.rust-lang.org/book/ch07-00-managing-growing-projects-with-packages-crates-and-modules.html" title="" target="_blank">module system</a> for project organization. The <code>lib.rs</code> file is the “main file” of a library. Later on, we will be creating more modules in different files.</p>
-<p>Things are imported into the current scope with <a href="https://doc.rust-lang.org/book/ch07-04-bringing-paths-into-scope-with-the-use-keyword.html" title="" target="_blank">
-<code>use</code></a> statements. We import the <code>Debug</code> and <code>Hash</code> traits from the standard library with two <code>use</code> statements. Use statements use <a href="https://doc.rust-lang.org/book/ch07-03-paths-for-referring-to-an-item-in-the-module-tree.html" title="" target="_blank">paths</a> to refer to nested things. We use <code>::</code> for nesting, similar to namespaces in C++.</p>
-<p>Rust models the concept of <a href="https://doc.rust-lang.org/book/ch04-00-understanding-ownership.html" title="" target="_blank">ownership</a> to enable memory safety without a garbage collector.
+<p><a href="https://doc.rust-lang.org/book/ch00-00-introduction.html">The Rust Programming Language</a> is an introductory book about Rust. I will try to provide links to the book where possible.</p>
+<p>Rust has a <a href="https://doc.rust-lang.org/book/ch07-00-managing-growing-projects-with-packages-crates-and-modules.html">module system</a> for project organization. The <code>lib.rs</code> file is the &quot;main file&quot; of a library. Later on, we will be creating more modules in different files.</p>
+<p>Things are imported into the current scope with <a href="https://doc.rust-lang.org/book/ch07-04-bringing-paths-into-scope-with-the-use-keyword.html"><code>use</code></a> statements. We import the <code>Debug</code> and <code>Hash</code> traits from the standard library with two <code>use</code> statements. Use statements use <a href="https://doc.rust-lang.org/book/ch07-03-paths-for-referring-to-an-item-in-the-module-tree.html">paths</a> to refer to nested things. We use <code>::</code> for nesting, similar to namespaces in C++.</p>
+<p>Rust models the concept of <a href="https://doc.rust-lang.org/book/ch04-00-understanding-ownership.html">ownership</a> to enable memory safety without a garbage collector.
 The <code>execute</code> method accepts a <em>reference</em> to the current type, indicated with <code>&amp;</code>: <code>&amp;self</code>. This reference is <em>immutable</em>, meaning that we can read data from it, but not mutate it. In Rust, things are immutable by default.
 On the other hand, <code>execute</code> accepts a <em>mutable reference</em> to the context, indicated with <code>&amp;mut</code>: <code>context: &amp;mut C</code>, which does allow mutation.</p>
-<p><a href="https://doc.rust-lang.org/book/ch10-02-traits.html" title="" target="_blank">Traits</a> are the main mechanism for open extensibility in Rust. They are comparable to interfaces in class-oriented languages. We will implement a context and tasks in the next section.</p>
-<p><a href="https://doc.rust-lang.org/book/ch19-03-advanced-traits.html#using-supertraits-to-require-one-traits-functionality-within-another-trait" title="" target="_blank">Supertraits</a> are a kind of inheritance. The <code>: Clone + Eq + Hash + Debug</code> part of the <code>Task</code> trait means that every <code>Task</code> implementation must also implement the <code>Clone</code>, <code>Eq</code>, <code>Hash</code>, and <code>Debug</code> traits. These traits are part of the standard library:</p>
+<p><a href="https://doc.rust-lang.org/book/ch10-02-traits.html">Traits</a> are the main mechanism for open extensibility in Rust. They are comparable to interfaces in class-oriented languages. We will implement a context and tasks in the next section.</p>
+<p><a href="https://doc.rust-lang.org/book/ch19-03-advanced-traits.html#using-supertraits-to-require-one-traits-functionality-within-another-trait">Supertraits</a> are a kind of inheritance. The <code>: Clone + Eq + Hash + Debug</code> part of the <code>Task</code> trait means that every <code>Task</code> implementation must also implement the <code>Clone</code>, <code>Eq</code>, <code>Hash</code>, and <code>Debug</code> traits. These traits are part of the standard library:</p>
 <ul>
-<li><a href="https://doc.rust-lang.org/std/clone/trait.Clone.html" title="" target="_blank">Clone</a> for duplicating values.</li>
-<li><a href="https://doc.rust-lang.org/std/cmp/trait.Eq.html" title="" target="_blank">Eq</a> for equality comparisons, along with <a href="https://doc.rust-lang.org/std/cmp/trait.PartialEq.html" title="" target="_blank">PartialEq</a>.</li>
-<li><a href="https://doc.rust-lang.org/std/hash/trait.Hash.html" title="" target="_blank">Hash</a> for turning a value into a hash.</li>
-<li><a href="https://doc.rust-lang.org/std/fmt/trait.Debug.html" title="" target="_blank">Debug</a> for formatting values in a programmer-facing debugging context.</li>
+<li><a href="https://doc.rust-lang.org/std/clone/trait.Clone.html">Clone</a> for duplicating values.</li>
+<li><a href="https://doc.rust-lang.org/std/cmp/trait.Eq.html">Eq</a> for equality comparisons, along with <a href="https://doc.rust-lang.org/std/cmp/trait.PartialEq.html">PartialEq</a>.</li>
+<li><a href="https://doc.rust-lang.org/std/hash/trait.Hash.html">Hash</a> for turning a value into a hash.</li>
+<li><a href="https://doc.rust-lang.org/std/fmt/trait.Debug.html">Debug</a> for formatting values in a programmer-facing debugging context.</li>
 </ul>
-<p><code>Clone</code> and <code>Eq</code> are so common that they are part of the <a href="https://doc.rust-lang.org/std/prelude/index.html" title="" target="_blank">Rust Prelude</a>, so we don’t have to import those with <code>use</code> statements.</p>
-<p><a href="https://doc.rust-lang.org/book/ch05-03-method-syntax.html" title="" target="_blank">Methods</a> are functions that take a form of <code>self</code> as the first argument. This enables convenient object-like calling syntax: <code>context.require_task(&amp;task);</code>.</p>
-<p><a href="https://doc.rust-lang.org/book/ch19-03-advanced-traits.html#specifying-placeholder-types-in-trait-definitions-with-associated-types" title="" target="_blank">Associated types</a> are a kind of placeholder type in a trait such that methods of traits can use that type. In <code>Task</code> this allows us to talk about the <code>Output</code> type of a task. In <code>Context</code> this allows us to refer to both the <code>Task</code> type <code>T</code> and its output type <code>T::Output</code>. The <code>::</code> syntax here is used to access associated types of traits.</p>
+<p><code>Clone</code> and <code>Eq</code> are so common that they are part of the <a href="https://doc.rust-lang.org/std/prelude/index.html">Rust Prelude</a>, so we don't have to import those with <code>use</code> statements.</p>
+<p><a href="https://doc.rust-lang.org/book/ch05-03-method-syntax.html">Methods</a> are functions that take a form of <code>self</code> as the first argument. This enables convenient object-like calling syntax: <code>context.require_task(&amp;task);</code>.</p>
+<p><a href="https://doc.rust-lang.org/book/ch19-03-advanced-traits.html#specifying-placeholder-types-in-trait-definitions-with-associated-types">Associated types</a> are a kind of placeholder type in a trait such that methods of traits can use that type. In <code>Task</code> this allows us to talk about the <code>Output</code> type of a task. In <code>Context</code> this allows us to refer to both the <code>Task</code> type <code>T</code> and its output type <code>T::Output</code>. The <code>::</code> syntax here is used to access associated types of traits.</p>
 <p>The <code>Self</code> type in a trait is a built-in associated type that is a placeholder for the type that is implementing the trait.</p>
-<p>The <code>Task</code> trait is defined with <code>pub</code> (public) <a href="https://doc.rust-lang.org/reference/visibility-and-privacy.html" title="" target="_blank">visibility</a>, such that users of the library can implement it. Because <code>Task</code> uses <code>Context</code> in its public API, <code>Context</code> must also be public, even though we don’t intend for users to implement their own <code>Context</code>.</p>
+<p>The <code>Task</code> trait is defined with <code>pub</code> (public) <a href="https://doc.rust-lang.org/reference/visibility-and-privacy.html">visibility</a>, such that users of the library can implement it. Because <code>Task</code> uses <code>Context</code> in its public API, <code>Context</code> must also be public, even though we don't intend for users to implement their own <code>Context</code>.</p>
 </div>
 </details>
 <details id="admonition-download-source-code" class="admonition example">
@@ -308,6 +330,7 @@ On the other hand, <code>execute</code> accepts a <em>mutable reference</em> to 
         <script src="../../book.js"></script>
 
         <!-- Custom JS scripts -->
+        <script src="../../src/diff2html-ui-base.min.js"></script>
         <script src="../../src/diff.js"></script>
 
 

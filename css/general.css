@@ -5,6 +5,7 @@
 :root {
     /* Browser default font-size is 16px, this way 1 rem = 10px */
     font-size: 62.5%;
+    color-scheme: var(--color-scheme);
 }
 
 html {
@@ -112,29 +113,29 @@ h6:target::before {
     text-decoration: none;
 }
 
-table {
+table:not(.d2h-diff-table) {
     margin: 0 auto;
     border-collapse: collapse;
 }
-table td {
+table:not(.d2h-diff-table) td {
     padding: 3px 20px;
     border: 1px var(--table-border-color) solid;
 }
-table thead {
+table:not(.d2h-diff-table) thead {
     background: var(--table-header-bg);
 }
-table thead td {
+table:not(.d2h-diff-table) thead td {
     font-weight: 700;
     border: none;
 }
-table thead th {
+table:not(.d2h-diff-table) thead th {
     padding: 3px 20px;
 }
-table thead tr {
+table:not(.d2h-diff-table) thead tr {
     border: 1px var(--table-header-bg) solid;
 }
 /* Alternate background colors for rows */
-table tbody tr:nth-child(2n) {
+table:not(.d2h-diff-table) tbody tr:nth-child(2n) {
     background: var(--table-alternate-bg);
 }
 

@@ -30,8 +30,9 @@
         <link rel="stylesheet" href="ayu-highlight.css">
 
         <!-- Custom theme stylesheets -->
-        <link rel="stylesheet" href="src/custom.css">
         <link rel="stylesheet" href="src/mdbook-admonish.css">
+        <link rel="stylesheet" href="src/diff2html.min.css">
+        <link rel="stylesheet" href="src/custom.css">
 
     </head>
     <body>
@@ -91,11 +92,33 @@
             <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
         </nav>
 
+        <!-- Track and set sidebar scroll position -->
+        <script>
+            var sidebarScrollbox = document.querySelector('#sidebar .sidebar-scrollbox');
+            sidebarScrollbox.addEventListener('click', function(e) {
+                if (e.target.tagName === 'A') {
+                    sessionStorage.setItem('sidebar-scroll', sidebarScrollbox.scrollTop);
+                }
+            }, { passive: true });
+            var sidebarScrollTop = sessionStorage.getItem('sidebar-scroll');
+            sessionStorage.removeItem('sidebar-scroll');
+            if (sidebarScrollTop) {
+                // preserve sidebar scroll position when navigating via links within sidebar
+                sidebarScrollbox.scrollTop = sidebarScrollTop;
+            } else {
+                // scroll sidebar to current active section when navigating via "next/previous chapter" buttons
+                var activeSection = document.querySelector('#sidebar .active');
+                if (activeSection) {
+                    activeSection.scrollIntoView({ block: 'center' });
+                }
+            }
+        </script>
+
         <div id="page-wrapper" class="page-wrapper">
 
             <div class="page">
                                 <div id="menu-bar-hover-placeholder"></div>
-                <div id="menu-bar" class="menu-bar sticky bordered">
+                <div id="menu-bar" class="menu-bar sticky">
                     <div class="left-buttons">
                         <button id="sidebar-toggle" class="icon-button" type="button" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
                             <i class="fa fa-bars"></i>
@@ -160,7 +183,7 @@
 <p>This page was quickly created to make setup possible, but is unfinished.</p>
 </div>
 </div>
-<p>Make sure <a href="https://www.rust-lang.org/tools/install" title="" target="_blank">Rust is installed</a>.</p>
+<p>Make sure <a href="https://www.rust-lang.org/tools/install">Rust is installed</a>.</p>
 <p>We start by creating a new Rust crate.
 Create the <code>pie</code> directory and create the <code>pie/Cargo.toml</code> file with the following contents:</p>
 <pre><code class="language-toml ">[package]
@@ -172,7 +195,7 @@ edition = &quot;2021&quot;
 <p>Run <code>cargo build</code> to test if the project was set up correctly.
 The output should look something like:</p>
 <pre><code class="language-shell ">   Compiling pie v0.1.0 (/private/pie)
-    Finished dev [unoptimized + debuginfo] target(s) in 0.18s
+    Finished dev [unoptimized + debuginfo] target(s) in 0.17s
 </code></pre>
 <details id="admonition-download-source-code" class="admonition example">
 <summary class="admonition-title">
@@ -202,7 +225,7 @@ Thus, tasks and build contexts are mutually recursive.</p>
 <p>In this tutorial, we will be using the words <em>context</em>, <em>build context</em>, and <em>build system</em> interchangeably, typically using just <em>context</em> as it is concise.</p>
 </div>
 </div>
-<p>Let’s make tasks and contexts more concrete by defining them in code.</p>
+<p>Let's make tasks and contexts more concrete by defining them in code.</p>
 <h2 id="api-implementation"><a class="header" href="#api-implementation">API Implementation</a></h2>
 <p>Since we want users of the build system to implement their own tasks, we will define <code>Task</code> as a trait.
 Likewise, we will also be implementing multiple contexts in this tutorial, so we will also define <code>Context</code> as a trait.
@@ -230,8 +253,8 @@ pub trait Context&lt;T: Task&gt; {
 <p><a class="admonition-anchor-link" href="1_programmability/1_api/index.html#admonition-note-1"></a></p>
 </div>
 <div>
-<p>If this seems overwhelming to you, don’t worry. We will go through the API and explain things. But more importantly, the API should become more clear once we implement it in the next section and subsequent chapters.
-Furthermore, if you’re new to Rust and/or need help understanding certain concepts, I will try to explain them in Rust Help blocks. They are collapsed by default to reduce distraction, clicking the header opens them. See the first Rust Help block at the end of this section.</p>
+<p>If this seems overwhelming to you, don't worry. We will go through the API and explain things. But more importantly, the API should become more clear once we implement it in the next section and subsequent chapters.
+Furthermore, if you're new to Rust and/or need help understanding certain concepts, I will try to explain them in Rust Help blocks. They are collapsed by default to reduce distraction, clicking the header opens them. See the first Rust Help block at the end of this section.</p>
 </div>
 </div>
 <p>The <code>Task</code> trait has several supertraits that we will need later in the tutorial to implement incrementality:</p>
@@ -253,7 +276,7 @@ Because of this, the context reference passed to <code>Task::execute</code> is a
 <p>Build the project by running <code>cargo build</code>.
 The output should look something like:</p>
 <pre><code class="language-shell ">   Compiling pie v0.1.0 (/private/pie)
-    Finished dev [unoptimized + debuginfo] target(s) in 0.07s
+    Finished dev [unoptimized + debuginfo] target(s) in 0.11s
 </code></pre>
 <details id="admonition-rust-help" class="admonition info">
 <summary class="admonition-title">
@@ -261,26 +284,25 @@ The output should look something like:</p>
 <p><a class="admonition-anchor-link" href="1_programmability/1_api/index.html#admonition-rust-help"></a></p>
 </summary>
 <div>
-<p><a href="https://doc.rust-lang.org/book/ch00-00-introduction.html" title="" target="_blank">The Rust Programming Language</a> is an introductory book about Rust. I will try to provide links to the book where possible.</p>
-<p>Rust has a <a href="https://doc.rust-lang.org/book/ch07-00-managing-growing-projects-with-packages-crates-and-modules.html" title="" target="_blank">module system</a> for project organization. The <code>lib.rs</code> file is the “main file” of a library. Later on, we will be creating more modules in different files.</p>
-<p>Things are imported into the current scope with <a href="https://doc.rust-lang.org/book/ch07-04-bringing-paths-into-scope-with-the-use-keyword.html" title="" target="_blank">
-<code>use</code></a> statements. We import the <code>Debug</code> and <code>Hash</code> traits from the standard library with two <code>use</code> statements. Use statements use <a href="https://doc.rust-lang.org/book/ch07-03-paths-for-referring-to-an-item-in-the-module-tree.html" title="" target="_blank">paths</a> to refer to nested things. We use <code>::</code> for nesting, similar to namespaces in C++.</p>
-<p>Rust models the concept of <a href="https://doc.rust-lang.org/book/ch04-00-understanding-ownership.html" title="" target="_blank">ownership</a> to enable memory safety without a garbage collector.
+<p><a href="https://doc.rust-lang.org/book/ch00-00-introduction.html">The Rust Programming Language</a> is an introductory book about Rust. I will try to provide links to the book where possible.</p>
+<p>Rust has a <a href="https://doc.rust-lang.org/book/ch07-00-managing-growing-projects-with-packages-crates-and-modules.html">module system</a> for project organization. The <code>lib.rs</code> file is the &quot;main file&quot; of a library. Later on, we will be creating more modules in different files.</p>
+<p>Things are imported into the current scope with <a href="https://doc.rust-lang.org/book/ch07-04-bringing-paths-into-scope-with-the-use-keyword.html"><code>use</code></a> statements. We import the <code>Debug</code> and <code>Hash</code> traits from the standard library with two <code>use</code> statements. Use statements use <a href="https://doc.rust-lang.org/book/ch07-03-paths-for-referring-to-an-item-in-the-module-tree.html">paths</a> to refer to nested things. We use <code>::</code> for nesting, similar to namespaces in C++.</p>
+<p>Rust models the concept of <a href="https://doc.rust-lang.org/book/ch04-00-understanding-ownership.html">ownership</a> to enable memory safety without a garbage collector.
 The <code>execute</code> method accepts a <em>reference</em> to the current type, indicated with <code>&amp;</code>: <code>&amp;self</code>. This reference is <em>immutable</em>, meaning that we can read data from it, but not mutate it. In Rust, things are immutable by default.
 On the other hand, <code>execute</code> accepts a <em>mutable reference</em> to the context, indicated with <code>&amp;mut</code>: <code>context: &amp;mut C</code>, which does allow mutation.</p>
-<p><a href="https://doc.rust-lang.org/book/ch10-02-traits.html" title="" target="_blank">Traits</a> are the main mechanism for open extensibility in Rust. They are comparable to interfaces in class-oriented languages. We will implement a context and tasks in the next section.</p>
-<p><a href="https://doc.rust-lang.org/book/ch19-03-advanced-traits.html#using-supertraits-to-require-one-traits-functionality-within-another-trait" title="" target="_blank">Supertraits</a> are a kind of inheritance. The <code>: Clone + Eq + Hash + Debug</code> part of the <code>Task</code> trait means that every <code>Task</code> implementation must also implement the <code>Clone</code>, <code>Eq</code>, <code>Hash</code>, and <code>Debug</code> traits. These traits are part of the standard library:</p>
+<p><a href="https://doc.rust-lang.org/book/ch10-02-traits.html">Traits</a> are the main mechanism for open extensibility in Rust. They are comparable to interfaces in class-oriented languages. We will implement a context and tasks in the next section.</p>
+<p><a href="https://doc.rust-lang.org/book/ch19-03-advanced-traits.html#using-supertraits-to-require-one-traits-functionality-within-another-trait">Supertraits</a> are a kind of inheritance. The <code>: Clone + Eq + Hash + Debug</code> part of the <code>Task</code> trait means that every <code>Task</code> implementation must also implement the <code>Clone</code>, <code>Eq</code>, <code>Hash</code>, and <code>Debug</code> traits. These traits are part of the standard library:</p>
 <ul>
-<li><a href="https://doc.rust-lang.org/std/clone/trait.Clone.html" title="" target="_blank">Clone</a> for duplicating values.</li>
-<li><a href="https://doc.rust-lang.org/std/cmp/trait.Eq.html" title="" target="_blank">Eq</a> for equality comparisons, along with <a href="https://doc.rust-lang.org/std/cmp/trait.PartialEq.html" title="" target="_blank">PartialEq</a>.</li>
-<li><a href="https://doc.rust-lang.org/std/hash/trait.Hash.html" title="" target="_blank">Hash</a> for turning a value into a hash.</li>
-<li><a href="https://doc.rust-lang.org/std/fmt/trait.Debug.html" title="" target="_blank">Debug</a> for formatting values in a programmer-facing debugging context.</li>
+<li><a href="https://doc.rust-lang.org/std/clone/trait.Clone.html">Clone</a> for duplicating values.</li>
+<li><a href="https://doc.rust-lang.org/std/cmp/trait.Eq.html">Eq</a> for equality comparisons, along with <a href="https://doc.rust-lang.org/std/cmp/trait.PartialEq.html">PartialEq</a>.</li>
+<li><a href="https://doc.rust-lang.org/std/hash/trait.Hash.html">Hash</a> for turning a value into a hash.</li>
+<li><a href="https://doc.rust-lang.org/std/fmt/trait.Debug.html">Debug</a> for formatting values in a programmer-facing debugging context.</li>
 </ul>
-<p><code>Clone</code> and <code>Eq</code> are so common that they are part of the <a href="https://doc.rust-lang.org/std/prelude/index.html" title="" target="_blank">Rust Prelude</a>, so we don’t have to import those with <code>use</code> statements.</p>
-<p><a href="https://doc.rust-lang.org/book/ch05-03-method-syntax.html" title="" target="_blank">Methods</a> are functions that take a form of <code>self</code> as the first argument. This enables convenient object-like calling syntax: <code>context.require_task(&amp;task);</code>.</p>
-<p><a href="https://doc.rust-lang.org/book/ch19-03-advanced-traits.html#specifying-placeholder-types-in-trait-definitions-with-associated-types" title="" target="_blank">Associated types</a> are a kind of placeholder type in a trait such that methods of traits can use that type. In <code>Task</code> this allows us to talk about the <code>Output</code> type of a task. In <code>Context</code> this allows us to refer to both the <code>Task</code> type <code>T</code> and its output type <code>T::Output</code>. The <code>::</code> syntax here is used to access associated types of traits.</p>
+<p><code>Clone</code> and <code>Eq</code> are so common that they are part of the <a href="https://doc.rust-lang.org/std/prelude/index.html">Rust Prelude</a>, so we don't have to import those with <code>use</code> statements.</p>
+<p><a href="https://doc.rust-lang.org/book/ch05-03-method-syntax.html">Methods</a> are functions that take a form of <code>self</code> as the first argument. This enables convenient object-like calling syntax: <code>context.require_task(&amp;task);</code>.</p>
+<p><a href="https://doc.rust-lang.org/book/ch19-03-advanced-traits.html#specifying-placeholder-types-in-trait-definitions-with-associated-types">Associated types</a> are a kind of placeholder type in a trait such that methods of traits can use that type. In <code>Task</code> this allows us to talk about the <code>Output</code> type of a task. In <code>Context</code> this allows us to refer to both the <code>Task</code> type <code>T</code> and its output type <code>T::Output</code>. The <code>::</code> syntax here is used to access associated types of traits.</p>
 <p>The <code>Self</code> type in a trait is a built-in associated type that is a placeholder for the type that is implementing the trait.</p>
-<p>The <code>Task</code> trait is defined with <code>pub</code> (public) <a href="https://doc.rust-lang.org/reference/visibility-and-privacy.html" title="" target="_blank">visibility</a>, such that users of the library can implement it. Because <code>Task</code> uses <code>Context</code> in its public API, <code>Context</code> must also be public, even though we don’t intend for users to implement their own <code>Context</code>.</p>
+<p>The <code>Task</code> trait is defined with <code>pub</code> (public) <a href="https://doc.rust-lang.org/reference/visibility-and-privacy.html">visibility</a>, such that users of the library can implement it. Because <code>Task</code> uses <code>Context</code> in its public API, <code>Context</code> must also be public, even though we don't intend for users to implement their own <code>Context</code>.</p>
 </div>
 </details>
 <details id="admonition-download-source-code" class="admonition example">
@@ -294,7 +316,7 @@ On the other hand, <code>execute</code> accepts a <em>mutable reference</em> to 
 </details>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="non-incremental-context"><a class="header" href="#non-incremental-context">Non-Incremental Context</a></h1>
 <p>We set up the <code>Task</code> and <code>Context</code> API in such a way that we can implement incrementality.
-However, incrementality is <em>hard</em>, so let’s start with an extremely simple non-incremental <code>Context</code> implementation to get a feeling for the API.</p>
+However, incrementality is <em>hard</em>, so let's start with an extremely simple non-incremental <code>Context</code> implementation to get a feeling for the API.</p>
 <h2 id="context-module"><a class="header" href="#context-module">Context module</a></h2>
 <p>Since we will be implementing three different contexts in this tutorial, we will separate them in different modules.
 Create the <code>context</code> module by adding a module to <code>pie/src/lib.rs</code>:</p>
@@ -331,11 +353,11 @@ Your project structure should now look like:</p>
 <p><a class="admonition-anchor-link" href="1_programmability/2_non_incremental/index.html#admonition-rust-help"></a></p>
 </summary>
 <div>
-<p>Modules are typically <a href="https://doc.rust-lang.org/book/ch07-05-separating-modules-into-different-files.html" title="" target="_blank">separated into different files</a>.
+<p>Modules are typically <a href="https://doc.rust-lang.org/book/ch07-05-separating-modules-into-different-files.html">separated into different files</a>.
 Modules are declared with <code>mod context</code>. 
 Then, the contents of a module are defined either by creating a sibling file with the same name: <code>context.rs</code>, or by creating a sibling directory with the same name, with a <code>mod.rs</code> file in it: <code>context/mod.rs</code>.
 Use the latter if you intend to nest modules, otherwise use the former.</p>
-<p>Like traits, modules also have <a href="https://doc.rust-lang.org/reference/visibility-and-privacy.html" title="" target="_blank">visibility</a>.</p>
+<p>Like traits, modules also have <a href="https://doc.rust-lang.org/reference/visibility-and-privacy.html">visibility</a>.</p>
 </div>
 </details>
 <h2 id="implementation"><a class="header" href="#implementation">Implementation</a></h2>
@@ -349,20 +371,20 @@ impl&lt;T: Task&gt; Context&lt;T&gt; for NonIncrementalContext {
     task.execute(self)
   }
 }</code></pre>
-<p>This <code>NonIncrementalContext</code> is extremely simple: in <code>require_task</code> we unconditionally execute the task, and pass <code>self</code> along so the task we’re calling can require additional tasks.
-Let’s write some tests to see if this does what we expect.</p>
+<p>This <code>NonIncrementalContext</code> is extremely simple: in <code>require_task</code> we unconditionally execute the task, and pass <code>self</code> along so the task we're calling can require additional tasks.
+Let's write some tests to see if this does what we expect.</p>
 <details id="admonition-rust-help-1" class="admonition info">
 <summary class="admonition-title">
 <p>Rust Help</p>
 <p><a class="admonition-anchor-link" href="1_programmability/2_non_incremental/index.html#admonition-rust-help-1"></a></p>
 </summary>
 <div>
-<p>In Rust, libraries are called <a href="https://doc.rust-lang.org/book/ch07-01-packages-and-crates.html" title="" target="_blank">crates</a>.
+<p>In Rust, libraries are called <a href="https://doc.rust-lang.org/book/ch07-01-packages-and-crates.html">crates</a>.
 We import the <code>Context</code> and <code>Task</code> traits from the root of your crate (i.e., the <code>src/lib.rs</code> file) using <code>crate::</code> as a prefix.</p>
-<p><a href="https://doc.rust-lang.org/book/ch05-01-defining-structs.html" title="" target="_blank">Structs</a> are concrete types that can contain data through fields and implement traits, similar to classes in class-oriented languages.
-Since we don’t need any data in <code>NonIncrementalContext</code>, we define it as a <a href="https://doc.rust-lang.org/book/ch05-01-defining-structs.html#unit-like-structs-without-any-fields" title="" target="_blank">unit-like struct</a>.</p>
-<p><a href="https://doc.rust-lang.org/book/ch10-02-traits.html#implementing-a-trait-on-a-type" title="" target="_blank">Traits are implemented for a type</a> with <code>impl Context for NonIncrementalContext { ... }</code>, where we then have to implement all methods and associated types of the trait.</p>
-<p>The <code>Context</code> trait is generic over <code>Task</code>, so in the <code>impl</code> block we introduce a type parameter <code>T</code> with <code>impl&lt;T&gt;</code>, and use <a href="https://doc.rust-lang.org/book/ch10-02-traits.html#using-trait-bounds-to-conditionally-implement-methods" title="" target="_blank">trait bounds</a> as <code>impl&lt;T: Task&gt;</code> to declare that <code>T</code> must implement <code>Task</code>.</p>
+<p><a href="https://doc.rust-lang.org/book/ch05-01-defining-structs.html">Structs</a> are concrete types that can contain data through fields and implement traits, similar to classes in class-oriented languages.
+Since we don't need any data in <code>NonIncrementalContext</code>, we define it as a <a href="https://doc.rust-lang.org/book/ch05-01-defining-structs.html#unit-like-structs-without-any-fields">unit-like struct</a>.</p>
+<p><a href="https://doc.rust-lang.org/book/ch10-02-traits.html#implementing-a-trait-on-a-type">Traits are implemented for a type</a> with <code>impl Context for NonIncrementalContext { ... }</code>, where we then have to implement all methods and associated types of the trait.</p>
+<p>The <code>Context</code> trait is generic over <code>Task</code>, so in the <code>impl</code> block we introduce a type parameter <code>T</code> with <code>impl&lt;T&gt;</code>, and use <a href="https://doc.rust-lang.org/book/ch10-02-traits.html#using-trait-bounds-to-conditionally-implement-methods">trait bounds</a> as <code>impl&lt;T: Task&gt;</code> to declare that <code>T</code> must implement <code>Task</code>.</p>
 <p>The last expression of a function – in this case <code>task.execute(self)</code> in <code>require_task</code> which is an expression because it does not end with <code>;</code> – is used as the return value.
 We could also write that as <code>return task.execute(self);</code>, but that is more verbose.</p>
 </div>
@@ -389,7 +411,7 @@ mod test {
     assert_eq!(&quot;Hello World!&quot;, context.require_task(&amp;ReturnHelloWorld));
   }
 }</code></pre>
-<p>In this test, we create a struct <code>ReturnHelloWorld</code> which is the “hello world” of the build system.
+<p>In this test, we create a struct <code>ReturnHelloWorld</code> which is the &quot;hello world&quot; of the build system.
 We implement <code>Task</code> for it, set its <code>Output</code> associated type to be <code>String</code>, and implement the <code>execute</code> method to just return <code>&quot;Hello World!&quot;</code>.
 We derive the <code>Clone</code>, <code>Eq</code>, <code>Hash</code>, and <code>Debug</code> traits for <code>ReturnHelloWorld</code> as they are required for all <code>Task</code>
 implementations.</p>
@@ -399,7 +421,7 @@ It returns the output of the task, which we test with <code>assert_eq!</code>.</
 <p>Run the test by running <code>cargo test</code>.
 The output should look something like:</p>
 <pre><code class="language-shell ">   Compiling pie v0.1.0 (/private/pie)
-    Finished test [unoptimized + debuginfo] target(s) in 0.34s
+    Finished test [unoptimized + debuginfo] target(s) in 0.31s
      Running unittests src/lib.rs (/private/pie/target/debug/deps/pie-a50f0f2aa4868d6a)
 
 running 1 test
@@ -422,23 +444,23 @@ You can experiment by returning a different string from <code>ReturnHelloWorld::
 <p><a class="admonition-anchor-link" href="1_programmability/2_non_incremental/index.html#admonition-rust-help-2"></a></p>
 </summary>
 <div>
-<p><a href="https://doc.rust-lang.org/book/ch11-03-test-organization.html#the-tests-module-and-cfgtest" title="" target="_blank">Unit tests</a> for a module 
+<p><a href="https://doc.rust-lang.org/book/ch11-03-test-organization.html#the-tests-module-and-cfgtest">Unit tests</a> for a module 
 are typically defined by creating a nested module named <code>test</code> with the <code>#[cfg(test)]</code> attribute applied to it. In that
 <code>test</code> module, you apply <code>#[test]</code> to testing functions, which then get executed when you run <code>cargo test</code>.</p>
-<p>The <code>#[cfg(...)]</code> attribute provides <a href="https://doc.rust-lang.org/reference/conditional-compilation.html" title="" target="_blank">conditional compilation</a> for the item it is applied to. In this case, <code>#[cfg(test)]</code> ensures that the module is only compiled when we run <code>cargo test</code>.</p>
+<p>The <code>#[cfg(...)]</code> attribute provides <a href="https://doc.rust-lang.org/reference/conditional-compilation.html">conditional compilation</a> for the item it is applied to. In this case, <code>#[cfg(test)]</code> ensures that the module is only compiled when we run <code>cargo test</code>.</p>
 <p>We import all definitions from the parent module (i.e., the <code>non_incremental</code> module) into the <code>test</code> module with <code>use super::*;</code>.</p>
-<p>In Rust, <a href="https://doc.rust-lang.org/reference/items.html" title="" target="_blank">items</a> — that is, functions, structs, implementations, etc. — 
+<p>In Rust, <a href="https://doc.rust-lang.org/reference/items.html">items</a> — that is, functions, structs, implementations, etc. — 
 can be nested inside functions. We use that in <code>test_require_task_direct</code> to scope <code>ReturnHelloWorld</code> and its implementation
-to the test function, so it can’t clash with other test functions.</p>
+to the test function, so it can't clash with other test functions.</p>
 <p>In <code>execute</code>, we use <code>_context</code> as the parameter name for the context, as the parameter is unused.
 Unused parameters give a warning in Rust, unless it is prefixed by a <code>_</code>.</p>
-<p><a href="https://doc.rust-lang.org/std/macro.assert_eq.html" title="" target="_blank">assert_eq!</a> is a <a href="https://doc.rust-lang.org/book/ch19-06-macros.html" title="" target="_blank">macro</a> that checks if its two expressions are equal. 
-If not, it <a href="https://doc.rust-lang.org/book/ch09-01-unrecoverable-errors-with-panic.html" title="" target="_blank">panics</a>.
-This macro is typically <a href="https://doc.rust-lang.org/book/ch11-01-writing-tests.html" title="" target="_blank">used in tests</a> for assertions, as a panic marks a test as failed.</p>
+<p><a href="https://doc.rust-lang.org/std/macro.assert_eq.html">assert_eq!</a> is a <a href="https://doc.rust-lang.org/book/ch19-06-macros.html">macro</a> that checks if its two expressions are equal. 
+If not, it <a href="https://doc.rust-lang.org/book/ch09-01-unrecoverable-errors-with-panic.html">panics</a>.
+This macro is typically <a href="https://doc.rust-lang.org/book/ch11-01-writing-tests.html">used in tests</a> for assertions, as a panic marks a test as failed.</p>
 </div>
 </details>
 <h2 id="test-with-multiple-tasks"><a class="header" href="#test-with-multiple-tasks">Test with Multiple Tasks</a></h2>
-<p>Our first test only tests a single task that does not use the context, so let’s write a test with two tasks where one requires the other to increase our test coverage.
+<p>Our first test only tests a single task that does not use the context, so let's write a test with two tasks where one requires the other to increase our test coverage.
 Add the following test:</p>
 <pre><code class="language-rust customdiff">     }
 
@@ -471,7 +493,7 @@ Add the following test:</p>
 +  }
  }</code></pre>
 <p>We use the same <code>ReturnHelloWorld</code> task as before, but now also have a <code>ToLowerCase</code> task which requires <code>ReturnHelloWorld</code> and then turn its string lowercase.
-However, due to the way we’ve set up the types between <code>Task</code> and <code>Context</code>, we will run into a problem.
+However, due to the way we've set up the types between <code>Task</code> and <code>Context</code>, we will run into a problem.
 Running <code>cargo test</code>, you should get these errors:</p>
 <pre><code class="language-shell ">   Compiling pie v0.1.0 (/private/pie)
 error[E0308]: mismatched types
@@ -493,8 +515,8 @@ note: method defined here
 For more information about this error, try `rustc --explain E0308`.
 error: could not compile `pie` (lib test) due to previous error
 </code></pre>
-<p>The problem is that <code>execute</code> of <code>ToLowerCase</code> takes a <code>Context&lt;Self&gt;</code>, so in <code>impl Task for ToLowerCase</code> it takes a <code>Context&lt;ToLowerCase&gt;</code>, while we’re trying to require <code>&amp;ReturnHelloWorld</code> through the context.
-This doesn’t work as <code>Context&lt;ToLowerCase&gt;::require_task</code> only takes a <code>&amp;ToLowerCase</code> as input.</p>
+<p>The problem is that <code>execute</code> of <code>ToLowerCase</code> takes a <code>Context&lt;Self&gt;</code>, so in <code>impl Task for ToLowerCase</code> it takes a <code>Context&lt;ToLowerCase&gt;</code>, while we're trying to require <code>&amp;ReturnHelloWorld</code> through the context.
+This doesn't work as <code>Context&lt;ToLowerCase&gt;::require_task</code> only takes a <code>&amp;ToLowerCase</code> as input.</p>
 <p>We could change <code>execute</code> of <code>ToLowerCase</code> to take <code>Context&lt;ReturnHelloWorld&gt;</code>:</p>
 <pre><code class="language-rust customdiff">
      #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -524,7 +546,7 @@ error[E0276]: impl has stricter requirements than trait
 For more information about this error, try `rustc --explain E0276`.
 error: could not compile `pie` (lib test) due to previous error
 </code></pre>
-<p>This is because the <code>Task</code> trait defines <code>execute</code> to take a <code>Context&lt;Self&gt;</code>, thus every implementation of <code>Task</code> must adhere to this, so we can’t solve it this way.</p>
+<p>This is because the <code>Task</code> trait defines <code>execute</code> to take a <code>Context&lt;Self&gt;</code>, thus every implementation of <code>Task</code> must adhere to this, so we can't solve it this way.</p>
 <p>Effectively, due to the way we defined <code>Task</code> and <code>Context</code>, we can only use <em>a single task implementation</em>.
 However, there is a good reason for this which will become more apparent once we implement incrementality.</p>
 <details id="admonition-why-only-a-single-task-type" class="admonition info">
@@ -537,9 +559,9 @@ However, there is a good reason for this which will become more apparent once we
 Therefore, a context implementation will maintain a <code>Store&lt;T&gt;</code>.</p>
 <p>A <code>Context&lt;ReturnHelloWorld&gt;</code> and <code>Context&lt;ToLowerCase&gt;</code> would then have a <code>Store&lt;ReturnHelloWorld&gt;</code> and <code>Store&lt;ToLowerCase&gt;</code> respectively.
 These two stores would then maintain two different dependency graphs, one where the nodes in the graph are <code>ReturnHelloWorld</code> and one where the nodes are <code>ToLowerCase</code>.
-But that won’t work, as we need a single dependency graph over all tasks to figure out what is affected.</p>
+But that won't work, as we need a single dependency graph over all tasks to figure out what is affected.</p>
 <p>There are several solutions to this problem.
-For example, we could use <a href="https://doc.rust-lang.org/book/ch17-02-trait-objects.html" title="" target="_blank">trait objects</a>.
+For example, we could use <a href="https://doc.rust-lang.org/book/ch17-02-trait-objects.html">trait objects</a>.
 However, this introduces a whole slew of problems because many traits that we use are not trait-object safe. 
 <code>Clone</code> is not object safe because it requires <code>Sized</code>. 
 <code>Eq</code> is not object safe because it uses <code>Self</code>. 
@@ -613,12 +635,12 @@ Run the test with <code>cargo test</code> to confirm it is working.</p>
 <p><a class="admonition-anchor-link" href="1_programmability/2_non_incremental/index.html#admonition-rust-help-3"></a></p>
 </summary>
 <div>
-<p><a href="https://doc.rust-lang.org/book/ch06-01-defining-an-enum.html" title="" target="_blank">Enums</a> define a type by a set of variants, similar to enums in other languages, sometimes called tagged unions in other languages.
+<p><a href="https://doc.rust-lang.org/book/ch06-01-defining-an-enum.html">Enums</a> define a type by a set of variants, similar to enums in other languages, sometimes called tagged unions in other languages.
 The <code>match</code> expression matches the variant and dispatches based on that, similar to switch statements in other languages.</p>
 </div>
 </details>
 <p>We have defined the API for the build system and implemented a non-incremental version of it.
-We’re now ready to start implementing an incremental context in the next chapter.</p>
+We're now ready to start implementing an incremental context in the next chapter.</p>
 <details id="admonition-download-source-code" class="admonition example">
 <summary class="admonition-title">
 <p>Download source code</p>
@@ -703,14 +725,13 @@ The reason for this complicated type is:</p>
 <p><a class="admonition-anchor-link" href="2_incrementality/1_require_file/index.html#admonition-rust-help"></a></p>
 </summary>
 <div>
-<p><a href="https://doc.rust-lang.org/book/ch09-02-recoverable-errors-with-result.html" title="" target="_blank">Recoverable error handling</a> in Rust is done with the <code>Result&lt;T, E&gt;</code> type, which can either be <code>Ok(t)</code> or <code>Err(e)</code>.
+<p><a href="https://doc.rust-lang.org/book/ch09-02-recoverable-errors-with-result.html">Recoverable error handling</a> in Rust is done with the <code>Result&lt;T, E&gt;</code> type, which can either be <code>Ok(t)</code> or <code>Err(e)</code>.
 In contrast to many languages which use exceptions, throwing, and exception handling; Rust treats recoverable errors just as regular values.</p>
-<p>Similarly, <a href="https://doc.rust-lang.org/std/option/" title="" target="_blank">optional values</a> in Rust are defined using the <code>Option&lt;T&gt;</code> type, which can either be <code>Some(t)</code> or <code>None</code>.</p>
+<p>Similarly, <a href="https://doc.rust-lang.org/std/option/">optional values</a> in Rust are defined using the <code>Option&lt;T&gt;</code> type, which can either be <code>Some(t)</code> or <code>None</code>.</p>
 <p>Rust has many traits for converting values or references into others, which provides a lot of convenience in what would otherwise require a lot of explicit conversions.
-<a href="https://doc.rust-lang.org/std/convert/trait.AsRef.html" title="" target="_blank">
-<code>AsRef&lt;T&gt;</code></a> is such a conversion trait, that can convert itself into <code>&amp;T</code>. 
+<a href="https://doc.rust-lang.org/std/convert/trait.AsRef.html"><code>AsRef&lt;T&gt;</code></a> is such a conversion trait, that can convert itself into <code>&amp;T</code>. 
 Here, we use <code>AsRef&lt;Path&gt;</code> as a generic with a trait bound to support many different kinds of values to the <code>path</code> argument in <code>require_file</code>.
-For example, we can call <code>context.require_file(&quot;test.txt&quot;)</code> because <code>str</code>, which is the type of string constants, <a href="https://doc.rust-lang.org/src/std/path.rs.html#3136-3141" title="" target="_blank">implements <code>AsRef&lt;Path&gt;</code></a>.
+For example, we can call <code>context.require_file(&quot;test.txt&quot;)</code> because <code>str</code>, which is the type of string constants, <a href="https://doc.rust-lang.org/src/std/path.rs.html#3136-3141">implements <code>AsRef&lt;Path&gt;</code></a>.
 You can also see this as a kind of method overloading, without having to provide concrete overloads for all supported types.</p>
 </div>
 </details>
@@ -770,7 +791,7 @@ pub fn open_if_file(path: impl AsRef&lt;Path&gt;) -&gt; Result&lt;Option&lt;File
 }
 </code></pre>
 <p>The <code>metadata</code> function gets the filesystem metadata given a path, and <code>open_if_file</code> opens the file for given path.
-The reason for these functions is that the standard library function <code>std::fs::metadata</code> treats non-existent files as an error, whereas we don’t want to treat it as an error and just return <code>None</code>.
+The reason for these functions is that the standard library function <code>std::fs::metadata</code> treats non-existent files as an error, whereas we don't want to treat it as an error and just return <code>None</code>.
 Furthermore, <code>open_if_file</code> works around an issue where opening a directory on Windows (and possibly other operating systems) is an error, where we want to treat it as <code>None</code> again.
 The documentation comments explain the exact behaviour.</p>
 <details id="admonition-rust-help-1" class="admonition info">
@@ -779,10 +800,10 @@ The documentation comments explain the exact behaviour.</p>
 <p><a class="admonition-anchor-link" href="2_incrementality/1_require_file/index.html#admonition-rust-help-1"></a></p>
 </summary>
 <div>
-<p>The <code>?</code> operator makes it easy to <a href="https://doc.rust-lang.org/book/ch09-02-recoverable-errors-with-result.html#a-shortcut-for-propagating-errors-the--operator" title="" target="_blank">propgate errors</a>.
-Because errors are just values in Rust, to propgate an error, you’d normally have to match each result and manually propagate the error.
+<p>The <code>?</code> operator makes it easy to <a href="https://doc.rust-lang.org/book/ch09-02-recoverable-errors-with-result.html#a-shortcut-for-propagating-errors-the--operator">propgate errors</a>.
+Because errors are just values in Rust, to propgate an error, you'd normally have to match each result and manually propagate the error.
 The <code>r?</code> operator applied to a <code>Result</code> <code>r</code> does this for you, it basically desugars to something like <code>match r { Err(e) =&gt; return Err(e), _ =&gt; {} }</code>.</p>
-<p>Comments with three forward slashes <code>///</code> are <a href="https://doc.rust-lang.org/book/ch14-02-publishing-to-crates-io.html#making-useful-documentation-comments" title="" target="_blank">documentation comments</a> that document the function/struct/enum/trait/etc. they are applied to.</p>
+<p>Comments with three forward slashes <code>///</code> are <a href="https://doc.rust-lang.org/book/ch14-02-publishing-to-crates-io.html#making-useful-documentation-comments">documentation comments</a> that document the function/struct/enum/trait/etc. they are applied to.</p>
 </div>
 </details>
 <p>We will write some tests to confirm the behaviour, but for that we need utilities to create temporary files and directories.
@@ -800,15 +821,15 @@ edition = &quot;2021&quot;
 [dependencies]
 tempfile = &quot;3&quot;
 </code></pre>
-<p>We’ve added the <code>tempfile</code> dependency here already, which is a crate that creates and automatically cleans up temporary files and directories.</p>
+<p>We've added the <code>tempfile</code> dependency here already, which is a crate that creates and automatically cleans up temporary files and directories.</p>
 <details id="admonition-rust-help-2" class="admonition info">
 <summary class="admonition-title">
 <p>Rust Help</p>
 <p><a class="admonition-anchor-link" href="2_incrementality/1_require_file/index.html#admonition-rust-help-2"></a></p>
 </summary>
 <div>
-<p>We use other libraries (crates) by <a href="https://doc.rust-lang.org/cargo/reference/specifying-dependencies.html" title="" target="_blank">specifying dependencies</a>.
-Because basically every Rust library adheres to <a href="https://semver.org/" title="" target="_blank">semantic versioning</a>, we can use <code>&quot;3&quot;</code> as a version requirement which indicates that we will use the most up-to-date <code>3.x.x</code> version.</p>
+<p>We use other libraries (crates) by <a href="https://doc.rust-lang.org/cargo/reference/specifying-dependencies.html">specifying dependencies</a>.
+Because basically every Rust library adheres to <a href="https://semver.org/">semantic versioning</a>, we can use <code>&quot;3&quot;</code> as a version requirement which indicates that we will use the most up-to-date <code>3.x.x</code> version.</p>
 </div>
 </details>
 <p>Create the main library file <code>dev_shared/src/lib.rs</code>, with functions for creating temporary files and directories:</p>
@@ -847,7 +868,7 @@ pub fn create_temp_dir() -&gt; Result&lt;TempDir, io::Error&gt; { TempDir::new()
 +dev_shared = { path = &quot;../dev_shared&quot; }
 +assert_matches = &quot;1&quot;
 </code></pre>
-<p>We’ve also added the <a href="https://crates.io/crates/assert_matches" title="" target="_blank">assert_matches</a> crate, which is a handy library for asserting that a value matches a pattern.
+<p>We've also added the <a href="https://crates.io/crates/assert_matches">assert_matches</a> crate, which is a handy library for asserting that a value matches a pattern.
 Note that these dependencies are added under <code>dev-dependencies</code>, indicating that these dependencies are only available when running tests, benchmarks, and examples.
 Therefore, users of our library will not depend on these crates, which is good, because temporary file management and assertions are not necessary to users of the library.</p>
 <p>Back to testing our filesystem utilities.
@@ -908,7 +929,7 @@ mod test {
   }
 }</code></pre>
 <p>We test whether the functions conform to the specified behaviour.
-Unfortunately, we can’t easily test when <code>metadata</code> and <code>open_if_file</code> should return an error, because we cannot disable read permissions on files via the Rust standard library.</p>
+Unfortunately, we can't easily test when <code>metadata</code> and <code>open_if_file</code> should return an error, because we cannot disable read permissions on files via the Rust standard library.</p>
 <p>We use our <code>create_temp_file</code> and <code>create_temp_dir</code> utility functions to create temporary files and directories.
 The <code>tempfile</code> library takes care of deleting temporary files when they go out of scope (at the end of the test).</p>
 <p>We use <code>assert_matches!</code> to assert that <code>metadata</code> is <code>Some(metadata)</code>, binding <code>metadata</code> in the <code> =&gt; { ... }</code> block in which we assert that the metadata describes a file.
@@ -919,7 +940,7 @@ We will use this macro more in future integration tests.</p>
 <p><a class="admonition-anchor-link" href="2_incrementality/1_require_file/index.html#admonition-rust-help-3"></a></p>
 </summary>
 <div>
-<p>Tests can <a href="https://doc.rust-lang.org/book/ch11-01-writing-tests.html#using-resultt-e-in-tests" title="" target="_blank">return <code>Result</code></a>.
+<p>Tests can <a href="https://doc.rust-lang.org/book/ch11-01-writing-tests.html#using-resultt-e-in-tests">return <code>Result</code></a>.
 When a test returns an <code>Err</code>, the test fails.
 This allows us to write more concise tests using error propagation.</p>
 </div>
@@ -1020,7 +1041,7 @@ pub enum FileStamp {
   Modified(Option&lt;SystemTime&gt;),
 }
 </code></pre>
-<p>We’re implementing <code>FileStamper</code> as an enum for simplicity.</p>
+<p>We're implementing <code>FileStamper</code> as an enum for simplicity.</p>
 <p>A <code>FileStamper</code> has a single method <code>stamp</code> which takes something that can be dereferenced to a path, and produces a <code>FileStamp</code> or an error if creating the stamp failed.
 For now, we implement only two kinds of file stampers: <code>Exists</code> and <code>Modified</code>.
 The <code>Exists</code> stamper just returns a boolean indicating whether a file exists.
@@ -1063,7 +1084,7 @@ impl&lt;O&gt; OutputStamp&lt;O&gt; {
 }
 </code></pre>
 <p>The <code>Inconsequential</code> stamper simply ignores the output and always returns the same stamp (thus is always equal).
-It can be used to create a task dependency where we are interested in some side effect of a task, but don’t care about its output.
+It can be used to create a task dependency where we are interested in some side effect of a task, but don't care about its output.
 The <code>Equals</code> stamper simply wraps the output of a task, so the stamp is equal when the output is equal.</p>
 <p>Output stamps are generic over the task output type <code>O</code>.</p>
 <details id="admonition-trait-bounds-and-derive-macros" class="admonition info">
@@ -1085,7 +1106,7 @@ Because we declared <code>Task::Output</code> with bound <code>Clone + Eq + Debu
 <div>
 <p><code>FileStamper</code> and <code>OutputStamper</code> could also be a trait which would allow users of the library to implement their own stampers.
 For simplicity, we do not explore that option in this tutorial.
-If you feel adventurous, you could try to implement this after you’ve finished the tutorial.
+If you feel adventurous, you could try to implement this after you've finished the tutorial.
 Do note that this introduces a lot of extra generics and trait bounds everywhere, which can be a bit cumbersome.</p>
 </div>
 </details>
@@ -1151,11 +1172,11 @@ mod test {
 <p>We test file stamps by creating a stamp, changing the file, creating a new stamp, and then compare the stamps.
 We test task output stamps by just passing a different output value to the <code>stamp</code> function, and then compare the stamps.</p>
 <p>Run <code>cargo test</code> to confirm the stamp implementation.
-If test <code>test_modified_file_stamper</code> fails, do continue to the next section, because we’re going to fix it!</p>
+If test <code>test_modified_file_stamper</code> fails, do continue to the next section, because we're going to fix it!</p>
 <h2 id="testing-with-file-modified-time-correctly"><a class="header" href="#testing-with-file-modified-time-correctly">Testing with file modified time, correctly</a></h2>
 <p>Unfortunately, these tests may fail on some operating systems (Linux and Windows in my testing), due to an imprecise file last modified timer.
 What can happen is that we write to a file, making the OS update its modified time to <code>1000</code> (as an example, not a real timestamp), then very quickly write to the file again, making the OS update its modified time to <code>1000</code> again.
-Then, our test will fail because the stamp didn’t change even though we expect it to change.</p>
+Then, our test will fail because the stamp didn't change even though we expect it to change.</p>
 <p>This can happen with an imprecise timer that only increases once every millisecond (again, an example, not a real number) when we perform writes in between that millisecond.
 Even worse, our test can be flaky, sometimes succeeding if we write in between those milliseconds, sometimes failing if we write within a millisecond.</p>
 <p>To solve this, add a function to the filesystem testing utility crate.
@@ -1369,7 +1390,7 @@ The default is provided by <code>default_require_file_stamper</code> which can b
 </div>
 </details>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="dynamic-dependencies"><a class="header" href="#dynamic-dependencies">Dynamic Dependencies</a></h1>
-<p>Now that we’ve implemented stamps, we can implement dynamic dependencies and their consistency checking.
+<p>Now that we've implemented stamps, we can implement dynamic dependencies and their consistency checking.
 A dependency is inconsistent if after stamping, the new stamp is different from the old stamp.
 Therefore, dependencies need to keep track of their stamper and their previous stamp.
 To that end, we will implement the <code>FileDependency</code> and <code>TaskDependency</code> types with methods for consistency checking.
@@ -1580,8 +1601,8 @@ Likewise, <code>InconsistentDependency</code> propagates the <code>O</code> gene
 <div>
 <p>Like with stampers, <code>Dependency</code> could also be a trait to allow users of the library to define their own dependencies.
 However, as we will see later, these dynamic dependencies also require validation, and I am unsure how such a <code>Dependency</code> trait should look.
-Therefore, we don’t have an appendix on how to implement this.
-But, if you have an idea on how to this nicely (after you’ve completed this tutorial), please get in touch!</p>
+Therefore, we don't have an appendix on how to implement this.
+But, if you have an idea on how to this nicely (after you've completed this tutorial), please get in touch!</p>
 </div>
 </details>
 <h2 id="tests-1"><a class="header" href="#tests-1">Tests</a></h2>
@@ -1673,7 +1694,7 @@ Since we use the <code>Equals</code> output stamper, and <code>&quot;test1&quot;
 <div>
 <p>Normally, a task such as <code>ReadStringFromFile</code> shound return a <code>Result&lt;String, io::Error&gt;</code>, but for testing purposes we are just using panics with <code>expect</code>.</p>
 <p>In the file dependency case, using <code>Dependency</code> requires an explicit type annotation because there is no task to infer the type from.
-We just use <code>Dependency&lt;ReadStringFromFile, String&gt;</code> as the type, and this is fine even though we don’t use <code>ReadStringFromFile</code> in that test, because the <code>Dependency::RequireFile</code> variant does not use those types.</p>
+We just use <code>Dependency&lt;ReadStringFromFile, String&gt;</code> as the type, and this is fine even though we don't use <code>ReadStringFromFile</code> in that test, because the <code>Dependency::RequireFile</code> variant does not use those types.</p>
 </div>
 </div>
 <p>Run <code>cargo test</code> to confirm everything still works.
@@ -1700,10 +1721,9 @@ The graph from this library is a directed acyclic graph (DAG), meaning that edge
 <p><a class="admonition-anchor-link" href="2_incrementality/4_store/index.html#admonition-graph-library"></a></p>
 </summary>
 <div>
-<p>The <code>pie_graph</code> library is a modified version of the great <a href="https://github.com/declanvk/incremental-topo/" title="" target="_blank">
-<code>incremental-topo</code></a> library which implements incremental topological ordering: it keeps the topological ordering up-to-date incrementally while nodes and edges are added and removed.
+<p>The <code>pie_graph</code> library is a modified version of the great <a href="https://github.com/declanvk/incremental-topo/"><code>incremental-topo</code></a> library which implements incremental topological ordering: it keeps the topological ordering up-to-date incrementally while nodes and edges are added and removed.
 That is exactly what we need, as dynamic dependencies prevents us from calculating the topological ordering in one go, and calculating the topological ordering after every task execution is prohibitively expensive.
-The implementation in the <code>incremental-topo</code> library is based on a <a href="http://www.doc.ic.ac.uk/~phjk/Publications/DynamicTopoSortAlg-JEA-07.pdf" title="" target="_blank">paper by D. J. Pearce and P. H. J. Kelly</a> that describes several dynamic topological sort algorithms for directed acyclic graphs.</p>
+The implementation in the <code>incremental-topo</code> library is based on a <a href="http://www.doc.ic.ac.uk/~phjk/Publications/DynamicTopoSortAlg-JEA-07.pdf">paper by D. J. Pearce and P. H. J. Kelly</a> that describes several dynamic topological sort algorithms for directed acyclic graphs.</p>
 </div>
 </details>
 <p>Add the <code>pie_graph</code> dependency to <code>pie/Cargo.toml</code>:</p>
@@ -1770,7 +1790,7 @@ The nodes in our graph are either files or tasks, and the edges are dependencies
 <p>The first generic argument to <code>DAG</code> is the type of data to attach to nodes, which is <code>NodeData&lt;T, O&gt;</code> in our case.
 Because nodes can be files or tasks, <code>NodeData&lt;T, O&gt;</code> enumerates these, storing the path for files, and the task along with its output for tasks.
 We store file paths as <code>PathBuf</code>, which is the owned version of <code>Path</code> (similar to <code>String</code> being the owned version of <code>str</code>).
-The task output is stored as <code>Option&lt;O&gt;</code> because we can add a task to the graph without having executed it, so we don’t have its output yet.</p>
+The task output is stored as <code>Option&lt;O&gt;</code> because we can add a task to the graph without having executed it, so we don't have its output yet.</p>
 <p>The second argument is the type of data to attach to edges, which is <code>Dependency&lt;T, O&gt;</code>, using the <code>Dependency</code> enum we defined earlier.</p>
 <p>We implement <code>Default</code> for the store to initialize it.</p>
 <details id="admonition-deriving-default" class="admonition info">
@@ -1786,7 +1806,7 @@ Therefore, we implement <code>Default</code> ourselves.</p>
 </div>
 </details>
 <h2 id="graph-nodes"><a class="header" href="#graph-nodes">Graph nodes</a></h2>
-<p>A node in <code>DAG</code> is represented by a <code>Node</code>, which is a transparent identifier (sometimes called a <a href="https://en.wikipedia.org/wiki/Handle_(computing)" title="" target="_blank">handle</a>) that points to the node and its data.
+<p>A node in <code>DAG</code> is represented by a <code>Node</code>, which is a transparent identifier (sometimes called a <a href="https://en.wikipedia.org/wiki/Handle_(computing)">handle</a>) that points to the node and its data.
 We can create nodes in the graph, and then query attached data (<code>NodeData</code>) given a node.
 So <code>DAG</code> allows us to go from <code>Node</code> to a <code>PathBuf</code> and task <code>T</code> through attached <code>NodeData</code>.</p>
 <p>However, we want each unique file and task to be represented by a single unique node in the graph.
@@ -1886,7 +1906,7 @@ This is also the reason for the <code>Eq</code> and <code>Hash</code> trait boun
    }
  }
 </code></pre>
-<p>The <code>FileNode</code> and <code>TaskNode</code> types are <a href="https://rust-unofficial.github.io/patterns/patterns/behavioural/newtype.html" title="" target="_blank">newtypes</a> that wrap a <code>Node</code> into a specific type of node.
+<p>The <code>FileNode</code> and <code>TaskNode</code> types are <a href="https://rust-unofficial.github.io/patterns/patterns/behavioural/newtype.html">newtypes</a> that wrap a <code>Node</code> into a specific type of node.
 The <code>Borrow</code> implementations will make subsequent code a bit more concise by automatically converting <code>&amp;FileNode</code> and <code>&amp;TaskNode</code>s to <code>&amp;Node</code>s.</p>
 <details id="admonition-newtypes" class="admonition info">
 <summary class="admonition-title">
@@ -1968,7 +1988,7 @@ We get the attached data given a node, and extract the file path from it.</p>
 Returning an <code>Option&lt;&amp;PathBuf&gt;</code> makes no sense here, as the caller of this method has no way to recover from this.
 Because this is not an end-user-facing API (<code>store</code> module is private), we control all the calls to this method, and thus we are responsible for using these methods in a valid way. 
 Therefore, when we call these methods, we should document why it is valid (if this is not immediately obvious), and we need to test whether we really use it in a valid way.</p>
-<p>We’re also documenting the panics in a <code># Panics</code> section in the documentation comment, as is common practice in Rust.</p>
+<p>We're also documenting the panics in a <code># Panics</code> section in the documentation comment, as is common practice in Rust.</p>
 <details id="admonition-triggering-these-panics" class="admonition info">
 <summary class="admonition-title">
 <p>Triggering these panics</p>
@@ -1977,10 +1997,10 @@ Therefore, when we call these methods, we should document why it is valid (if th
 <div>
 <p>Because only <code>Store</code> can create <code>FileNode</code>s and <code>TaskNode</code>s, and all methods only take these values as inputs, these panics will not happen under normal usage.
 The only way to trigger these panics (in safe Rust) would be to create two stores, and use the nodes from one store in another.
-However, since this is a private module, we just need to make sure that we don’t do that.</p>
+However, since this is a private module, we just need to make sure that we don't do that.</p>
 <p>There are some tricks to prevent even this kind of invalid usage.
-For example, the <a href="https://docs.rs/generativity/latest/generativity/" title="" target="_blank">generativity</a> crate generates unique identifiers based on lifetimes.
-However, that is a bit overkill, especially for an internal API, so we won’t be using that.</p>
+For example, the <a href="https://docs.rs/generativity/latest/generativity/">generativity</a> crate generates unique identifiers based on lifetimes.
+However, that is a bit overkill, especially for an internal API, so we won't be using that.</p>
 </div>
 </details>
 <p>We implement similar methods for task nodes in <code>get_or_create_task_node</code> and <code>get_task</code>.</p>
@@ -2074,7 +2094,7 @@ An edge does not have its own dedicated representation, and is simply represente
 </code></pre>
 <p>The <code>get_dependencies_of_task</code> method gets the dependencies (edge data of outgoing edges) of a task, and returns it as an iterator (which is empty if task has no dependencies).
 This method needs explicit lifetime annotations due to the signature of <code>get_outgoing_edge_data</code> and the way we return an iterator using <code>impl Iterator&lt;...</code>.
-We’re using <code>debug_assert!</code> here to trigger a panic indicating an unrecoverable programming error only in development mode, because this check is too expensive to run in release (optimized) mode.</p>
+We're using <code>debug_assert!</code> here to trigger a panic indicating an unrecoverable programming error only in development mode, because this check is too expensive to run in release (optimized) mode.</p>
 <p>The <code>add_file_require_dependency</code> method adds a file dependency.
 Adding an edge to the graph can result in cycles, which are not allowed in a directed <em>acyclic</em> graph (DAG).
 Therefore, <code>graph.add_edge</code> can return an <code>Err</code> indicating that there is a cycle.
@@ -2083,7 +2103,7 @@ In case of files, this cannot happen because files do not have outgoing dependen
 In <code>add_task_require_dependency</code>, we propagate the cycle detected error (by returning <code>Err(())</code>) to the caller because the caller has more information to create an error message for the user that made a cyclic task dependency.</p>
 <h2 id="resetting-tasks"><a class="header" href="#resetting-tasks">Resetting tasks</a></h2>
 <p>Finally, when we determine that a task is inconsistent and needs to be executed, we first need to remove its output and remove its outgoing dependencies, as those will interfere with incrementality when not removed.
-We do NOT want to remove incoming dependencies, as that would remove dependencies from other tasks to this task, which breaks incrementality, so we can’t just remove and re-add the task to the graph.
+We do NOT want to remove incoming dependencies, as that would remove dependencies from other tasks to this task, which breaks incrementality, so we can't just remove and re-add the task to the graph.
 Add the <code>reset_task</code> method that does this to <code>pie/src/store.rs</code>:</p>
 <pre><code class="language-rust ">impl&lt;T: Task&gt; Store&lt;T, T::Output&gt; {
   /// Reset task `src`, removing its output and removing all its outgoing dependencies.
@@ -2103,7 +2123,7 @@ Add the <code>reset_task</code> method that does this to <code>pie/src/store.rs<
 </code></pre>
 <p>This will reset the task output back to <code>None</code>, and remove all outgoing edges (dependencies).</p>
 <h2 id="tests-2"><a class="header" href="#tests-2">Tests</a></h2>
-<p>Now we’ve implemented everything we need for implementing the top-down context, but first we will write some tests.</p>
+<p>Now we've implemented everything we need for implementing the top-down context, but first we will write some tests.</p>
 <h3 id="testing-file-mapping"><a class="header" href="#testing-file-mapping">Testing file mapping</a></h3>
 <p>Add the following code to <code>pie/src/store.rs</code> for testing the file mapping:</p>
 <pre><code class="language-rust ">#[cfg(test)]
@@ -2163,7 +2183,7 @@ We will never execute it because <code>Store</code> does not execute tasks.</p>
 <li><code>get_or_create_file_node</code> calls with different paths should produce different <code>FileNode</code>s.</li>
 </ul>
 <p>This works because <code>&quot;hello.txt&quot;</code> and <code>&quot;world.txt&quot;</code> are different paths, thus their <code>Eq</code> and <code>Hash</code> implementations ensure they get separate spots in the <code>file_to_node</code> hash map.</p>
-<p>Test <code>test_file_mapping_panics</code> triggers the panic in <code>get_file_path</code> by creating a <code>FileNode</code> with a “fake store”, and then using that rogue file node in another store.
+<p>Test <code>test_file_mapping_panics</code> triggers the panic in <code>get_file_path</code> by creating a <code>FileNode</code> with a &quot;fake store&quot;, and then using that rogue file node in another store.
 While it is unlikely that we will make this mistake when using <code>Store</code>, it is good to confirm that this panics.</p>
 <details id="admonition-rust-help" class="admonition info">
 <summary class="admonition-title">
@@ -2430,7 +2450,7 @@ Later on we will also see that this is important for soundness of the incrementa
 </div>
 </details>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="top-down-context"><a class="header" href="#top-down-context">Top-down Context</a></h1>
-<p>We’ve implemented all the prerequisites for incremental top-down building.
+<p>We've implemented all the prerequisites for incremental top-down building.
 Now we will create the <code>TopDownContext</code> type which implements the <code>Context</code> trait in an incremental way. </p>
 <h2 id="top-down-context-basics"><a class="header" href="#top-down-context-basics">Top-down context basics</a></h2>
 <p>Add the <code>top_down</code> module to <code>pie/src/context/mod.rs</code>:</p>
@@ -2470,7 +2490,7 @@ impl&lt;T: Task&gt; Context&lt;T&gt; for TopDownContext&lt;T, T::Output&gt; {
 <p>The <code>TopDownContext</code> type is generic over tasks <code>T</code> and their outputs <code>O</code>, owns a <code>Store</code>, and can be created using <code>new</code>.</p>
 <p><code>TopDownContext</code> implements <code>Context</code>, and the main challenge will be implementing the <code>require_file_with_stamper</code> and <code>require_task_with_stamper</code> methods <em>incrementally</em> and <em>correctly</em>.</p>
 <h2 id="requiring-files-1"><a class="header" href="#requiring-files-1">Requiring files</a></h2>
-<p>Tasks such as <code>ReadStringFromFile</code> which we’ve used in tests before call <code>context.require_file</code> to declare that they depend on a file in the filesystem.
+<p>Tasks such as <code>ReadStringFromFile</code> which we've used in tests before call <code>context.require_file</code> to declare that they depend on a file in the filesystem.
 For incrementality, we need to add this dependency to the dependency graph.
 This dependency will go from the <em>current executing task</em> to the file.
 Therefore, we will need to keep track of the current executing task.</p>
@@ -2507,9 +2527,9 @@ Therefore, we will need to keep track of the current executing task.</p>
      todo!()
    }
  }</code></pre>
-<p>We’re not setting <code>current_executing_task</code> yet, as that is the responsibility of <code>require_task_with_stamper</code> which we will implement later.
-In <code>require_file_with_stamper</code> we’re now getting the current executing task.
-If there is no current executing task, which only happens if a user directly calls <code>require_file</code> on a context, we don’t make a dependency and just open the file.</p>
+<p>We're not setting <code>current_executing_task</code> yet, as that is the responsibility of <code>require_task_with_stamper</code> which we will implement later.
+In <code>require_file_with_stamper</code> we're now getting the current executing task.
+If there is no current executing task, which only happens if a user directly calls <code>require_file</code> on a context, we don't make a dependency and just open the file.</p>
 <p>Now we need to add the file dependency, change <code>pie/src/context/mod.rs</code> to do this: </p>
 <pre><code class="language-rust customdiff"> impl&lt;T: Task&gt; Context&lt;T&gt; for TopDownContext&lt;T, T::Output&gt; {
    fn require_file_with_stamper&lt;P: AsRef&lt;Path&gt;&gt;(&amp;mut self, path: P, stamper: FileStamper) -&gt; Result&lt;Option&lt;File&gt;, io::Error&gt; {
@@ -2531,8 +2551,8 @@ If there is no current executing task, which only happens if a user directly cal
 Errors are propagated to the caller, so they can react accordingly to filesystem operation failures.</p>
 <h2 id="requiring-tasks"><a class="header" href="#requiring-tasks">Requiring tasks</a></h2>
 <p>To implement <code>require_task_with_stamper</code>, we need to check whether we should execute a task.
-A task should be executed either if it’s new (it does not have an output stored yet), or if at least one of its dependencies is inconsistent.
-If we don’t execute it, then it must have an output value and all its dependencies are consistent, so we just return its output value.</p>
+A task should be executed either if it's new (it does not have an output stored yet), or if at least one of its dependencies is inconsistent.
+If we don't execute it, then it must have an output value and all its dependencies are consistent, so we just return its output value.</p>
 <p>Change <code>pie/src/context/mod.rs</code> to implement this logic:</p>
 <pre><code class="language-rust customdiff">     self.store.add_file_require_dependency(current_executing_task_node, &amp;node, dependency);
      Ok(file)
@@ -2587,8 +2607,8 @@ Otherwise, we create a dependency and add it to the store.
 However, creating a task dependency can create cycles, and we need to handle that error.</p>
 <p>At this point, we need to make a hard decision about the API of our library.
 <code>require_task_with_stamper</code> returns the task output, with no opportunity to return an error.
-If we want to propagate this error, we’d need to change the <code>Context::require_task</code> API to return <code>Result&lt;T::Output, CycleError&gt;</code>.
-However, because tasks call these methods on <code>Context</code>, we’d also need to change <code>Task::execute</code> to return <code>Result&lt;T::Output, CycleError&gt;</code>.
+If we want to propagate this error, we'd need to change the <code>Context::require_task</code> API to return <code>Result&lt;T::Output, CycleError&gt;</code>.
+However, because tasks call these methods on <code>Context</code>, we'd also need to change <code>Task::execute</code> to return <code>Result&lt;T::Output, CycleError&gt;</code>.
 That would require all tasks to propagate these cycle errors every time they require another task.</p>
 <p>Furthermore, some tasks want to return their own kinds of errors, where <code>T::Output</code> will be <code>Result&lt;AnOutput, AnError&gt;</code>.
 In that case, the concrete return type would be <code>Result&lt;Result&lt;AnOutput, AnError&gt;, CycleError&gt;</code>, which is annoying to deal with.</p>
@@ -2609,11 +2629,9 @@ Or we panic which will end the program but introduces no boilerplate.</p>
 <p>Panics either abort the program (when panics are set to abort in <code>Cargo.toml</code>), or unwind the call stack and then end the program.</p>
 <p>When panics abort, there is nothing we can do about it. 
 A panic will immediately abort the program.
-When panics unwind, the call stack is unwound, which still runs all destructors (<a href="https://doc.rust-lang.org/std/ops/trait.Drop.html" title="" target="_blank">
-<code>Drop</code></a>), and this unwinding can be caught.</p>
-<p>We can catch unwinding panics with <a href="https://doc.rust-lang.org/std/panic/fn.catch_unwind.html" title="" target="_blank">
-<code>catch_unwind</code></a>, which is a way to recover from panics.
-This does require that the types used in the closure passed to <code>catch_unwind</code> are <a href="https://doc.rust-lang.org/std/panic/trait.UnwindSafe.html" title="" target="_blank">unwind safe</a>.
+When panics unwind, the call stack is unwound, which still runs all destructors (<a href="https://doc.rust-lang.org/std/ops/trait.Drop.html"><code>Drop</code></a>), and this unwinding can be caught.</p>
+<p>We can catch unwinding panics with <a href="https://doc.rust-lang.org/std/panic/fn.catch_unwind.html"><code>catch_unwind</code></a>, which is a way to recover from panics.
+This does require that the types used in the closure passed to <code>catch_unwind</code> are <a href="https://doc.rust-lang.org/std/panic/trait.UnwindSafe.html">unwind safe</a>.
 This is because panics exit a function early, which can mess up some invariants of your code.
 For example, a call to set a task output can be skipped when a panic occurs, breaking a code invariant.
 Therefore, types such as <code>&amp;mut T</code> are not unwind safe by default, because these invariants can break under panics.</p>
@@ -2626,7 +2644,7 @@ At any point we panic, we need to think about keeping the system in a valid stat
 If the code panics, it will only end that thread, effectively allowing panic recovery.
 However, this does require some form of thread-safety, beause you are moving a computation to a different thread.
 Furthermore, some platforms do not have access to threads, such as WASM, where this approach would not work.</p>
-<p>A final note is that care must be taken when <a href="https://doc.rust-lang.org/nomicon/ffi.html#ffi-and-unwinding" title="" target="_blank">unwiding panics across foreign function interfaces (FFI)</a>.</p>
+<p>A final note is that care must be taken when <a href="https://doc.rust-lang.org/nomicon/ffi.html#ffi-and-unwinding">unwiding panics across foreign function interfaces (FFI)</a>.</p>
 </div>
 </details>
 <h2 id="checking-tasks"><a class="header" href="#checking-tasks">Checking tasks</a></h2>
@@ -2665,7 +2683,7 @@ Checking if a task dependency is inconsistent requires recursive checking: <code
 To that end, we pass <code>self</code> to <code>is_inconsistent</code>, because <code>self</code> is an instance of <code>TopDownContext</code> which implements <code>Context</code>.</p>
 <p>In this method, <code>self</code> is <code>&amp;mut self</code>, a mutable borrow.
 Therefore, we cannot have <em>any other borrows</em> active while <code>is_inconsistent</code> is being called, because that would violate one of the safety mechanisms of Rust where mutable borrows are <em>exclusive</em>.
-Getting the task’s dependencies from the store requires a borrow, so we cannot hold onto that borrow.
+Getting the task's dependencies from the store requires a borrow, so we cannot hold onto that borrow.
 We get around that here by cloning the dependencies and collecting them into a <code>Vec</code>.</p>
 <p>We also document this fact in a comment to explain to readers (us in the future) why we do this cloning, preventing refactorings only to hit that same borrowing issue again. </p>
 <p>Cloning and collecting does have a performance overhead as we need to clone the dependencies and heap allocate a <code>Vec</code> to store them.
@@ -2677,7 +2695,7 @@ For this tutorial, that is fine, but in a real-world application we should minim
 </summary>
 <div>
 <p>Cloning a <code>Dependency</code> results in heap allocations, because cloning <code>FileDependency</code> clones a <code>PathBuf</code> which is a heap allocated string (basically a <code>Vec&lt;u8&gt;</code>), and cloning a <code>TaskDependency</code> clones the <code>Task</code>, which may require allocations as well.</p>
-<p>One way to avoid heap allocations in both kinds of dependencies is to store the <code>PathBuf</code> and <code>Task</code> in a <a href="https://doc.rust-lang.org/std/rc/struct.Rc.html" title="" target="_blank">reference-counting pointer <code>Rc</code></a>.
+<p>One way to avoid heap allocations in both kinds of dependencies is to store the <code>PathBuf</code> and <code>Task</code> in a <a href="https://doc.rust-lang.org/std/rc/struct.Rc.html">reference-counting pointer <code>Rc</code></a>.
 Then, there will only be one heap allocated <code>PathBuf</code> and <code>Task</code>, and cloning just increments the reference count.
 The upside is that this approach is easy to implement and reduces allocations.
 The downside is that clones require incrementing the reference count, which is a write operation that does have a tiny bit of overhead.
@@ -2685,8 +2703,7 @@ In many cases, this overhead is smaller than cloning data when the data is large
 In our case, it would probably be worth doing this, but benchmarking is required to confirm this.</p>
 <p>Note that instead of always wrapping tasks in a <code>Rc</code>, task authors could implement <code>Task</code> on <code>Rc&lt;TheirTask&gt;</code> instead.
 Since <code>Rc</code> implements <code>Clone</code>, any time we <code>task.clone()</code>, we would just increase the reference count instead.</p>
-<p>When working in a multi-threaded situation, you would use the thread-safe <a href="https://doc.rust-lang.org/std/sync/struct.Arc.html" title="" target="_blank">
-<code>Arc</code></a> instead.</p>
+<p>When working in a multi-threaded situation, you would use the thread-safe <a href="https://doc.rust-lang.org/std/sync/struct.Arc.html"><code>Arc</code></a> instead.</p>
 </div>
 </details>
 <details id="admonition-string-optimizations" class="admonition info">
@@ -2695,7 +2712,7 @@ Since <code>Rc</code> implements <code>Clone</code>, any time we <code>task.clon
 <p><a class="admonition-anchor-link" href="2_incrementality/5_context/index.html#admonition-string-optimizations"></a></p>
 </summary>
 <div>
-<p>A technique for reducing allocations on strings (and string-like types such as <code>PathBuf</code>) is to apply <a href="https://fasterthanli.me/articles/small-strings-in-rust" title="" target="_blank">small string optimization</a>, where small strings are stored inline instead of requiring a heap allocation.
+<p>A technique for reducing allocations on strings (and string-like types such as <code>PathBuf</code>) is to apply <a href="https://fasterthanli.me/articles/small-strings-in-rust">small string optimization</a>, where small strings are stored inline instead of requiring a heap allocation.
 This only works if the strings are usually small enough to fit inline on the stack (for example, 32 bytes).</p>
 <p>Another technique for strings is string interning, where equal strings are stored in a central place and then re-used everywhere.
 This technique is great when we use the same string a lot of times.
@@ -2718,17 +2735,16 @@ The downside is that you are keeping this heap allocated space for as long as yo
 You could of course call <code>vec.shrink_to_fit()</code> after not using it for a while to free up this space.</p>
 <p>However, we cannot apply this technique here, because if we store the <code>Vec</code> in <code>TopDownContext</code>, we would run into the same borrowing problem again.
 This technique also requires that you have mutable access to the <code>Vec</code> in order to mutate it.</p>
-<p>Both of these limitations can be overcome by using a <a href="https://doc.rust-lang.org/std/cell/struct.Cell.html" title="" target="_blank">
-<code>Cell</code></a>.
+<p>Both of these limitations can be overcome by using a <a href="https://doc.rust-lang.org/std/cell/struct.Cell.html"><code>Cell</code></a>.
 <code>Cell</code> allows mutation to its inner value in an immutable context.
 The catch is that you <em>cannot get a reference to its inner value</em>, you can only <code>take</code> the value out, mutate it, and then <code>set</code> it back.
 Unfortunately, even this technique cannot be fully applied to <code>should_execute_task</code>, because it is called recursively and therefore the <code>Cell</code> will be empty when we try to <code>take</code> the <code>Vec</code> out.</p>
 <p>If we want to avoid heap allocations from collecting new <code>Vec</code>s in <code>should_execute_task</code>, we would need to come up with a creative solution.
-But this is outside of the scope of even this extra information block, so we’ll just leave it at that.</p>
+But this is outside of the scope of even this extra information block, so we'll just leave it at that.</p>
 </div>
 </details>
 <p>Finally, we need to do something with dependency checking failures.
-We’ve ignored the case where <code>dependency.is_inconsistent</code> returns <code>Err</code>.
+We've ignored the case where <code>dependency.is_inconsistent</code> returns <code>Err</code>.
 When dependency checking result in an error, we should store the error for the user to investigate, and assume the dependency is inconsistent.</p>
 <p>Change <code>pie/src/context/mod.rs</code> to store dependency check errors and give users access to it:</p>
 <pre><code class="language-rust customdiff"> use crate::store::{Store, TaskNode};
@@ -2783,8 +2799,8 @@ When dependency checking result in an error, we should store the error for the u
      }
      // Task has no dependencies or all dependencies are consistent. Should only execute if it has no output, meaning
      // that it has never been executed before.</code></pre>
-<p>It took us a while, but now we’ve implemented an incremental build system with dynamic dependencies 🎉.
-Let’s set up an example to see the fruits of our labour.</p>
+<p>It took us a while, but now we've implemented an incremental build system with dynamic dependencies 🎉.
+Let's set up an example to see the fruits of our labour.</p>
 <h2 id="incrementality-example"><a class="header" href="#incrementality-example">Incrementality Example</a></h2>
 <p>In this example, we will show off incrementality using two tasks: a task that reads a string from a file, and a task that writes a string to a file.
 The writing task gets the string by requiring another task.
@@ -2821,7 +2837,7 @@ impl Task for FileTask {
   }
 }
 </code></pre>
-<p><code>FileTask</code> is the enum over the <code>ReadStringFromFile</code> and <code>WriteStringToFile</code> “pseudo-tasks” that we still need to define.
+<p><code>FileTask</code> is the enum over the <code>ReadStringFromFile</code> and <code>WriteStringToFile</code> &quot;pseudo-tasks&quot; that we still need to define.
 We call these types pseudo-tasks, because they behave like tasks, but do not actually implement <code>Task</code>.
 We implement <code>Task</code> on <code>FileTask</code> instead, which forwards the <code>execute</code> method to the pseudo-tasks.</p>
 <p>Both tasks can fail due to using filesystem operations, so the output is a <code>Result</code>.
@@ -2830,7 +2846,7 @@ Therefore, we use <code>std::io::ErrorKind</code> which does implement these tra
 <p>On success, we return a <code>String</code>.
 Because <code>WriteStringToFile</code> will not return a value (i.e., <code>()</code>) on success, we return an empty string with <code>String::new()</code>.
 It would be cleaner to define an <code>FileOutput</code> enum that enumerates the possible outputs of file tasks, which would include a variant for <code>WriteStringToFile</code> returning <code>()</code>.
-But to keep this example simple we don’t do that.</p>
+But to keep this example simple we don't do that.</p>
 <h3 id="readwrite-pseudo-tasks"><a class="header" href="#readwrite-pseudo-tasks">Read/write pseudo-tasks</a></h3>
 <p>Now add <code>ReadStringFromFile</code> to <code>pie/examples/incrementality.rs</code>:</p>
 <pre><code class="language-rust ">/// Pseudo-task that reads a string from a file.
@@ -2854,7 +2870,7 @@ impl ReadStringFromFile {
   }
 }
 </code></pre>
-<p>We’ve already defined a task like this before, but now it accepts a <code>FileStamper</code>, prints something when it gets executed, and propagates errors.</p>
+<p>We've already defined a task like this before, but now it accepts a <code>FileStamper</code>, prints something when it gets executed, and propagates errors.</p>
 <p>Add <code>WriteStringToFile</code> to <code>pie/examples/incrementality.rs</code>:</p>
 <pre><code class="language-rust ">/// Pseudo-task that writes a string to a file, where the string is provided by another task. The string provider is 
 /// boxed to prevent a cyclic definition of infinite size, due to this type being used in [`FileTask`].
@@ -2894,15 +2910,15 @@ This is due to several reasons:</p>
 <li>The size of an <code>enum</code> is the size of the largest variant.</li>
 <li>The size of a struct is the sum of the size of the fields.</li>
 </ul>
-<p>If we don’t box the task, to calculate the size of <code>WriteStringToFile</code>, we need to calculate the size of <code>FileTask</code>, which would require calculating the size of <code>WriteStringToFile</code>, and so forth.
-Therefore, we can’t calulate the size of <code>WriteStringToFile</code> and <code>FileTask</code>, which is an error.</p>
+<p>If we don't box the task, to calculate the size of <code>WriteStringToFile</code>, we need to calculate the size of <code>FileTask</code>, which would require calculating the size of <code>WriteStringToFile</code>, and so forth.
+Therefore, we can't calulate the size of <code>WriteStringToFile</code> and <code>FileTask</code>, which is an error.</p>
 <p>Boxing solves this because <code>Box&lt;FileTask&gt;</code> allocates a <code>FileTask</code> on the heap, and then creates a pointer to it.
 Therefore, the size of <code>Box&lt;FileTask&gt;</code> is the size of one pointer, breaking the cycle in the size calculations.</p>
-<p>Note that this explanation <a href="https://doc.rust-lang.org/nomicon/exotic-sizes.html" title="" target="_blank">simplifies many aspects of Rust’s size calculation</a>.</p>
+<p>Note that this explanation <a href="https://doc.rust-lang.org/nomicon/exotic-sizes.html">simplifies many aspects of Rust's size calculation</a>.</p>
 </div>
 </details>
 <h3 id="exploring-incrementality"><a class="header" href="#exploring-incrementality">Exploring incrementality</a></h3>
-<p>We’ve implemented the tasks, now add a <code>main</code> function to <code>pie/examples/incrementality.rs</code>:</p>
+<p>We've implemented the tasks, now add a <code>main</code> function to <code>pie/examples/incrementality.rs</code>:</p>
 <pre><code class="language-rust ">fn main() -&gt; Result&lt;(), io::Error&gt; {
   let temp_dir = create_temp_dir()?;
   let input_file = temp_dir.path().join(&quot;input.txt&quot;);
@@ -2925,7 +2941,7 @@ Run this example with <code>cargo run --example incremental</code>.
 You should see the <code>println!</code> in <code>ReadStringFromFile</code> appear in your console as the incremental context correctly determines that this task is new (i.e., has no output) and must be executed.
 It should look something like:</p>
 <pre><code>   Compiling pie v0.1.0 (/private/pie)
-    Finished dev [unoptimized + debuginfo] target(s) in 1.28s
+    Finished dev [unoptimized + debuginfo] target(s) in 1.29s
      Running `/private/pie/target/debug/examples/incremental`
 A) New task: expect `read_task` to execute
 Reading from input.txt with Modified stamper
@@ -2941,14 +2957,14 @@ Reading from input.txt with Modified stamper
 </code></pre>
 <p>Running with <code>cargo run --example incremental</code> should produce output like:</p>
 <pre><code>   Compiling pie v0.1.0 (/private/pie)
-    Finished dev [unoptimized + debuginfo] target(s) in 0.64s
+    Finished dev [unoptimized + debuginfo] target(s) in 0.60s
      Running `/private/pie/target/debug/examples/incremental`
 A) New task: expect `read_task` to execute
 Reading from input.txt with Modified stamper
 
 B) Reuse: expect no execution
 </code></pre>
-<p>We don’t see the <code>println!</code> from <code>ReadStringFromFile</code>, so it was not executed, so our incremental build system has correctly reused its output!</p>
+<p>We don't see the <code>println!</code> from <code>ReadStringFromFile</code>, so it was not executed, so our incremental build system has correctly reused its output!</p>
 <p>Normally we would write a test to confirm that the task was executed the first time, and that it was not executed the second time.
 However, this is not trivial.
 How do we know if the task was executed?
@@ -3014,7 +3030,7 @@ However, the previous output stamp of the task dependency from write to read is 
 Therefore, the task dependency is consistent, and we do not execute the write task.</p>
 <p>We call this <em>early cutoff</em>, because we can cut off building a task early, if we figure out its task dependency is consistent <em>due to having the same output stamp</em>.
 Early cutoff is possible due to the precise dependency tracking provided by dynamic dependencies.
-This is one of the pieces that makes this build system incremental: we don’t execute the write task because it is not affected by a change.</p>
+This is one of the pieces that makes this build system incremental: we don't execute the write task because it is not affected by a change.</p>
 <details id="admonition-different-stampers" class="admonition info">
 <summary class="admonition-title">
 <p>Different stampers</p>
@@ -3046,7 +3062,7 @@ Therefore, if we modify or remove the output file, and require the write task, i
 By tracking these output file dependencies, we ensure that the output files are in a consistent state after every build.</p>
 <details id="admonition-dont-regenerate-ouput-files" class="admonition info">
 <summary class="admonition-title">
-<p>Don’t regenerate ouput files</p>
+<p>Don't regenerate ouput files</p>
 <p><a class="admonition-anchor-link" href="2_incrementality/5_context/index.html#admonition-dont-regenerate-ouput-files"></a></p>
 </summary>
 <div>
@@ -3094,7 +3110,7 @@ This shows that tasks can depend on the same file with different stampers, which
 <p>Of course, using an <code>Exists</code> stamper for <code>ReadStringFromFile</code> does not make a lot of sense, but this is for demonstration purposes only.</p>
 <p>Running <code>cargo run --example incremental</code> now should produce output like:</p>
 <pre><code>   Compiling pie v0.1.0 (/private/pie)
-    Finished dev [unoptimized + debuginfo] target(s) in 0.67s
+    Finished dev [unoptimized + debuginfo] target(s) in 0.68s
      Running `/private/pie/target/debug/examples/incremental`
 A) New task: expect `read_task` to execute
 Reading from input.txt with Modified stamper
@@ -3139,8 +3155,8 @@ In the next chapter, we will define minimality and soundness, set up an infrastr
 </div>
 </details>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="minimality-and-soundness"><a class="header" href="#minimality-and-soundness">Minimality and Soundness</a></h1>
-<p>So far, the definitions we’ve used for minimality (incrementality) and soundness (correctness) have been a bit vague.
-Let’s define this more concretely and precisely.</p>
+<p>So far, the definitions we've used for minimality (incrementality) and soundness (correctness) have been a bit vague.
+Let's define this more concretely and precisely.</p>
 <p>An incremental and sound build system executes a task, if and only if, it is new or affected by a change.
 A task is new if it has not been executed before.
 When it is not new, a task is affected by a change when any of its dependencies are inconsistent.
@@ -3160,10 +3176,10 @@ Unfortunately, there is no easy way to solve this.</p>
 <p>We will be writing a build event tracking system later, for which we will make an implementation that writes the entire build log to standard output.
 This build log can help debug mistakes by precisely showing what the build system is doing.</p>
 <p>A technique to catch file dependency mistakes is by sandboxing the filesystem to only have access to files that have been required.
-For example, Bazel can perform <a href="https://bazel.build/docs/sandboxing" title="" target="_blank">sandboxing</a>, but it is not fully cross-platform, and still allows reading files from absolute paths.
+For example, Bazel can perform <a href="https://bazel.build/docs/sandboxing">sandboxing</a>, but it is not fully cross-platform, and still allows reading files from absolute paths.
 If a cross-platform and bulletproof sandboxing library exists, it could help catch file dependency mistakes in programmatic incremental build systems.</p>
 <p>Finally, the ultimate technique to catch file dependency mistakes is by automatically creating these dependencies using filesystem tracing, instead of having the task author make them.
-For example, the <a href="https://github.com/ndmitchell/rattle" title="" target="_blank">Rattle</a> build system uses <a href="https://github.com/jacereda/fsatrace" title="" target="_blank">fsatrace</a> to automatically create file dependencies, freeing task authors from having to think about file dependencies
+For example, the <a href="https://github.com/ndmitchell/rattle">Rattle</a> build system uses <a href="https://github.com/jacereda/fsatrace">fsatrace</a> to automatically create file dependencies, freeing task authors from having to think about file dependencies
 However, filesystem tracing is also not fully cross-platform and bulletproof, so it cannot always be used.
 Again, if a cross-platform and bulletproof filesystem tracing library exists, it would be extremely useful for programmatic incremental build systems.</p>
 </div>
@@ -3184,7 +3200,7 @@ We will continue as follows:</p>
 <p><a class="admonition-anchor-link" href="3_min_sound/index.html#admonition-proving-minimality-and-soundness"></a></p>
 </summary>
 <div>
-<p>While proving minimality and soundness would be a very interesting exercise, I am not at all an expert in formal proofs in proof assistants such as <a href="https://coq.inria.fr/" title="" target="_blank">Coq</a>, <a href="https://wiki.portal.chalmers.se/agda/pmwiki.php" title="" target="_blank">Agda</a>, etc.
+<p>While proving minimality and soundness would be a very interesting exercise, I am not at all an expert in formal proofs in proof assistants such as <a href="https://coq.inria.fr/">Coq</a>, <a href="https://wiki.portal.chalmers.se/agda/pmwiki.php">Agda</a>, etc.
 If that is something that interests you, do pursue it and get in touch!</p>
 </div>
 </details>
@@ -3263,7 +3279,7 @@ impl&lt;'p, T: Task&gt; Session&lt;'p, T, T::Output&gt; {
 We put the store in <code>Pie</code> because we want to keep the dependency graph and task outputs between build sessions, otherwise we cannot be incremental.</p>
 <p>A <code>Session</code> is created with <code>Pie::new_session</code>, which borrows <code>Pie</code> mutibly, ensuring that there can only be one <code>Session</code> instance (per <code>Pie</code> instance).
 <code>run_in_session</code> is a convenience method that runs given function inside a new session.</p>
-<p><code>Session::require</code> should require the task with the top-down context and return its up-to-date output, which we will implement once we’ve changed <code>TopDownContext</code>.
+<p><code>Session::require</code> should require the task with the top-down context and return its up-to-date output, which we will implement once we've changed <code>TopDownContext</code>.
 The dependency check errors can be accessed with <code>Session::dependency_check_errors</code>.</p>
 <p>Note that <code>Session</code> also has access to <code>Store</code>, because <code>TopDownContext</code> needs access to the store.
 The store is mutibly borrowed from <code>Pie</code>.
@@ -3578,7 +3594,7 @@ Therefore, every time we make changes to source files, or expect that changes ha
 <p><a class="admonition-anchor-link" href="3_min_sound/1_session/index.html#admonition-note"></a></p>
 </div>
 <div>
-<p>In changes I and J, Rust is smart enough to allow creating a new session even though the previous <code>session</code> variable is still active, because it knows that we don’t use that previous session anymore.</p>
+<p>In changes I and J, Rust is smart enough to allow creating a new session even though the previous <code>session</code> variable is still active, because it knows that we don't use that previous session anymore.</p>
 </div>
 </div>
 <p>Check that all code works by running <code>cargo test</code>.</p>
@@ -3606,7 +3622,10 @@ In this section, we will change that by tracking build events for debugging and 
 </ol>
 <h2 id="tracker-trait"><a class="header" href="#tracker-trait"><code>Tracker</code> trait</a></h2>
 <p>Add the <code>tracker</code> module to <code>pie/src/lib.rs</code>:</p>
-<pre><code class="language-rust customdiff">
+<pre><code class="language-diff2html">--- lib.rs
++++ lib.rs
+@@ -8,10 +8,11 @@
+
  use crate::context::top_down::TopDownContext;
  use crate::store::{Store, TaskNode};
 
@@ -3688,9 +3707,8 @@ impl&lt;T: Task&gt; Tracker&lt;T&gt; for NoopTracker {}</code></pre>
 <div>
 <p>We will use generics to select which tracker implementation to use.
 Therefore, all calls to trackers are statically dispatched, and could be inlined.
-Because <code>NoopTracker</code> only has empty methods, and those empty methods can be inlined, using <code>NoopTracker</code> will effectively remove all tracking code from your binary, thus removing the overhead of tracking if you don’t want it.</p>
-<p>In this tutorial, we do not annotate methods with <a href="https://nnethercote.github.io/perf-book/inlining.html" title="" target="_blank">
-<code>#[inline]</code></a>, meaning that the Rust compiler (and the LLVM backend) will make its own decisions on what to make inlineable and what not.
+Because <code>NoopTracker</code> only has empty methods, and those empty methods can be inlined, using <code>NoopTracker</code> will effectively remove all tracking code from your binary, thus removing the overhead of tracking if you don't want it.</p>
+<p>In this tutorial, we do not annotate methods with <a href="https://nnethercote.github.io/perf-book/inlining.html"><code>#[inline]</code></a>, meaning that the Rust compiler (and the LLVM backend) will make its own decisions on what to make inlineable and what not.
 If you care about performance here, be sure to annotate those default empty methods with <code>#[inline]</code>.</p>
 </div>
 </details>
@@ -3917,7 +3935,7 @@ Modify <code>pie/src/context/top_down.rs</code>:</p>
 <p>In <code>require_file_with_stamper</code>, we also extract <code>should_execute</code> into a variable, and pull <code>dependency</code> out of the <code>if</code>, so that we can pass the required data to <code>tracker.required_task</code>.</p>
 <p>Check that the code compiles with <code>cargo test</code>.
 Existing code should keep working due to the <code>NoopTracker</code> default type in <code>Pie</code>.</p>
-<p>We won’t modify <code>NonIncrementalContext</code> to use a tracker, as <code>NonIncrementalContext</code> has no state, so we cannot pass a tracker to it.</p>
+<p>We won't modify <code>NonIncrementalContext</code> to use a tracker, as <code>NonIncrementalContext</code> has no state, so we cannot pass a tracker to it.</p>
 <h2 id="implement-writing-tracker"><a class="header" href="#implement-writing-tracker">Implement writing tracker</a></h2>
 <p>Now we can implement some interesting trackers.
 We start with a simple <code>WritingTracker</code> that writes build events to some writer.</p>
@@ -4057,7 +4075,7 @@ This in turn because <code>TopDownContext</code> does not return <code>Result</c
 <p>If you want, you can capture more build events and write them, and/or provide more configuration as to what build events should be written.
 But in this tutorial, we will keep it simple like this.</p>
 <p>Check that the code compiles with <code>cargo test</code>.</p>
-<p>Let’s try out our writing tracker in the incrementality example by modifying <code>pie/examples/incremental.rs</code>:</p>
+<p>Let's try out our writing tracker in the incrementality example by modifying <code>pie/examples/incremental.rs</code>:</p>
 <pre><code class="language-rust customdiff">
  /// Pseudo-task that reads a string from a file.
  #[derive(Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Debug)]
@@ -4198,7 +4216,7 @@ The <code>Event</code> enumeration mimics the <code>Tracker</code> methods, but 
 When a new build starts, we clear the events.</p>
 <p>Now we will add code to inspect the build events.
 This is quite a bit of code that we will be using in integration testing to test incrementality and soundness.
-We’ll add in one go to keep the tutorial going, and we will use this code in the next section, but feel free to take some time to inspect the code.</p>
+We'll add in one go to keep the tutorial going, and we will use this code in the next section, but feel free to take some time to inspect the code.</p>
 <p>Add the following code to <code>pie/src/tracker/event.rs</code>:</p>
 <pre><code class="language-rust ">impl&lt;T: Task&gt; EventTracker&lt;T&gt; {
   /// Returns a slice over all events.
@@ -4412,6 +4430,7 @@ Its tuple fields are <code>pub</code> so it can be constructed with <code>Compos
         <script src="book.js"></script>
 
         <!-- Custom JS scripts -->
+        <script src="src/diff2html-ui-base.min.js"></script>
         <script src="src/diff.js"></script>
 
         <script>

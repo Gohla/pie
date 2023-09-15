@@ -29,8 +29,9 @@
         <link rel="stylesheet" href="ayu-highlight.css">
 
         <!-- Custom theme stylesheets -->
-        <link rel="stylesheet" href="src/custom.css">
         <link rel="stylesheet" href="src/mdbook-admonish.css">
+        <link rel="stylesheet" href="src/diff2html.min.css">
+        <link rel="stylesheet" href="src/custom.css">
 
     </head>
     <body>
@@ -90,11 +91,33 @@
             <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
         </nav>
 
+        <!-- Track and set sidebar scroll position -->
+        <script>
+            var sidebarScrollbox = document.querySelector('#sidebar .sidebar-scrollbox');
+            sidebarScrollbox.addEventListener('click', function(e) {
+                if (e.target.tagName === 'A') {
+                    sessionStorage.setItem('sidebar-scroll', sidebarScrollbox.scrollTop);
+                }
+            }, { passive: true });
+            var sidebarScrollTop = sessionStorage.getItem('sidebar-scroll');
+            sessionStorage.removeItem('sidebar-scroll');
+            if (sidebarScrollTop) {
+                // preserve sidebar scroll position when navigating via links within sidebar
+                sidebarScrollbox.scrollTop = sidebarScrollTop;
+            } else {
+                // scroll sidebar to current active section when navigating via "next/previous chapter" buttons
+                var activeSection = document.querySelector('#sidebar .active');
+                if (activeSection) {
+                    activeSection.scrollIntoView({ block: 'center' });
+                }
+            }
+        </script>
+
         <div id="page-wrapper" class="page-wrapper">
 
             <div class="page">
                                 <div id="menu-bar-hover-placeholder"></div>
-                <div id="menu-bar" class="menu-bar sticky bordered">
+                <div id="menu-bar" class="menu-bar sticky">
                     <div class="left-buttons">
                         <button id="sidebar-toggle" class="icon-button" type="button" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
                             <i class="fa fa-bars"></i>
@@ -162,7 +185,7 @@
 <p>This page was quickly created to make setup possible, but is unfinished.</p>
 </div>
 </div>
-<p>Make sure <a href="https://www.rust-lang.org/tools/install" title="" target="_blank">Rust is installed</a>.</p>
+<p>Make sure <a href="https://www.rust-lang.org/tools/install">Rust is installed</a>.</p>
 <p>We start by creating a new Rust crate.
 Create the <code>pie</code> directory and create the <code>pie/Cargo.toml</code> file with the following contents:</p>
 <pre><code class="language-toml ">[package]
@@ -174,7 +197,7 @@ edition = &quot;2021&quot;
 <p>Run <code>cargo build</code> to test if the project was set up correctly.
 The output should look something like:</p>
 <pre><code class="language-shell ">   Compiling pie v0.1.0 (/private/pie)
-    Finished dev [unoptimized + debuginfo] target(s) in 0.18s
+    Finished dev [unoptimized + debuginfo] target(s) in 0.17s
 </code></pre>
 <details id="admonition-download-source-code" class="admonition example">
 <summary class="admonition-title">
@@ -226,6 +249,7 @@ The output should look something like:</p>
         <script src="book.js"></script>
 
         <!-- Custom JS scripts -->
+        <script src="src/diff2html-ui-base.min.js"></script>
         <script src="src/diff.js"></script>
 
 

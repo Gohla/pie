@@ -29,8 +29,9 @@
         <link rel="stylesheet" href="../../ayu-highlight.css">
 
         <!-- Custom theme stylesheets -->
-        <link rel="stylesheet" href="../../src/custom.css">
         <link rel="stylesheet" href="../../src/mdbook-admonish.css">
+        <link rel="stylesheet" href="../../src/diff2html.min.css">
+        <link rel="stylesheet" href="../../src/custom.css">
 
     </head>
     <body>
@@ -90,11 +91,33 @@
             <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
         </nav>
 
+        <!-- Track and set sidebar scroll position -->
+        <script>
+            var sidebarScrollbox = document.querySelector('#sidebar .sidebar-scrollbox');
+            sidebarScrollbox.addEventListener('click', function(e) {
+                if (e.target.tagName === 'A') {
+                    sessionStorage.setItem('sidebar-scroll', sidebarScrollbox.scrollTop);
+                }
+            }, { passive: true });
+            var sidebarScrollTop = sessionStorage.getItem('sidebar-scroll');
+            sessionStorage.removeItem('sidebar-scroll');
+            if (sidebarScrollTop) {
+                // preserve sidebar scroll position when navigating via links within sidebar
+                sidebarScrollbox.scrollTop = sidebarScrollTop;
+            } else {
+                // scroll sidebar to current active section when navigating via "next/previous chapter" buttons
+                var activeSection = document.querySelector('#sidebar .active');
+                if (activeSection) {
+                    activeSection.scrollIntoView({ block: 'center' });
+                }
+            }
+        </script>
+
         <div id="page-wrapper" class="page-wrapper">
 
             <div class="page">
                                 <div id="menu-bar-hover-placeholder"></div>
-                <div id="menu-bar" class="menu-bar sticky bordered">
+                <div id="menu-bar" class="menu-bar sticky">
                     <div class="left-buttons">
                         <button id="sidebar-toggle" class="icon-button" type="button" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
                             <i class="fa fa-bars"></i>
@@ -201,14 +224,13 @@ The reason for this complicated type is:</p>
 <p><a class="admonition-anchor-link" href="#admonition-rust-help"></a></p>
 </summary>
 <div>
-<p><a href="https://doc.rust-lang.org/book/ch09-02-recoverable-errors-with-result.html" title="" target="_blank">Recoverable error handling</a> in Rust is done with the <code>Result&lt;T, E&gt;</code> type, which can either be <code>Ok(t)</code> or <code>Err(e)</code>.
+<p><a href="https://doc.rust-lang.org/book/ch09-02-recoverable-errors-with-result.html">Recoverable error handling</a> in Rust is done with the <code>Result&lt;T, E&gt;</code> type, which can either be <code>Ok(t)</code> or <code>Err(e)</code>.
 In contrast to many languages which use exceptions, throwing, and exception handling; Rust treats recoverable errors just as regular values.</p>
-<p>Similarly, <a href="https://doc.rust-lang.org/std/option/" title="" target="_blank">optional values</a> in Rust are defined using the <code>Option&lt;T&gt;</code> type, which can either be <code>Some(t)</code> or <code>None</code>.</p>
+<p>Similarly, <a href="https://doc.rust-lang.org/std/option/">optional values</a> in Rust are defined using the <code>Option&lt;T&gt;</code> type, which can either be <code>Some(t)</code> or <code>None</code>.</p>
 <p>Rust has many traits for converting values or references into others, which provides a lot of convenience in what would otherwise require a lot of explicit conversions.
-<a href="https://doc.rust-lang.org/std/convert/trait.AsRef.html" title="" target="_blank">
-<code>AsRef&lt;T&gt;</code></a> is such a conversion trait, that can convert itself into <code>&amp;T</code>. 
+<a href="https://doc.rust-lang.org/std/convert/trait.AsRef.html"><code>AsRef&lt;T&gt;</code></a> is such a conversion trait, that can convert itself into <code>&amp;T</code>. 
 Here, we use <code>AsRef&lt;Path&gt;</code> as a generic with a trait bound to support many different kinds of values to the <code>path</code> argument in <code>require_file</code>.
-For example, we can call <code>context.require_file(&quot;test.txt&quot;)</code> because <code>str</code>, which is the type of string constants, <a href="https://doc.rust-lang.org/src/std/path.rs.html#3136-3141" title="" target="_blank">implements <code>AsRef&lt;Path&gt;</code></a>.
+For example, we can call <code>context.require_file(&quot;test.txt&quot;)</code> because <code>str</code>, which is the type of string constants, <a href="https://doc.rust-lang.org/src/std/path.rs.html#3136-3141">implements <code>AsRef&lt;Path&gt;</code></a>.
 You can also see this as a kind of method overloading, without having to provide concrete overloads for all supported types.</p>
 </div>
 </details>
@@ -268,7 +290,7 @@ pub fn open_if_file(path: impl AsRef&lt;Path&gt;) -&gt; Result&lt;Option&lt;File
 }
 </code></pre>
 <p>The <code>metadata</code> function gets the filesystem metadata given a path, and <code>open_if_file</code> opens the file for given path.
-The reason for these functions is that the standard library function <code>std::fs::metadata</code> treats non-existent files as an error, whereas we don’t want to treat it as an error and just return <code>None</code>.
+The reason for these functions is that the standard library function <code>std::fs::metadata</code> treats non-existent files as an error, whereas we don't want to treat it as an error and just return <code>None</code>.
 Furthermore, <code>open_if_file</code> works around an issue where opening a directory on Windows (and possibly other operating systems) is an error, where we want to treat it as <code>None</code> again.
 The documentation comments explain the exact behaviour.</p>
 <details id="admonition-rust-help-1" class="admonition info">
@@ -277,10 +299,10 @@ The documentation comments explain the exact behaviour.</p>
 <p><a class="admonition-anchor-link" href="#admonition-rust-help-1"></a></p>
 </summary>
 <div>
-<p>The <code>?</code> operator makes it easy to <a href="https://doc.rust-lang.org/book/ch09-02-recoverable-errors-with-result.html#a-shortcut-for-propagating-errors-the--operator" title="" target="_blank">propgate errors</a>.
-Because errors are just values in Rust, to propgate an error, you’d normally have to match each result and manually propagate the error.
+<p>The <code>?</code> operator makes it easy to <a href="https://doc.rust-lang.org/book/ch09-02-recoverable-errors-with-result.html#a-shortcut-for-propagating-errors-the--operator">propgate errors</a>.
+Because errors are just values in Rust, to propgate an error, you'd normally have to match each result and manually propagate the error.
 The <code>r?</code> operator applied to a <code>Result</code> <code>r</code> does this for you, it basically desugars to something like <code>match r { Err(e) =&gt; return Err(e), _ =&gt; {} }</code>.</p>
-<p>Comments with three forward slashes <code>///</code> are <a href="https://doc.rust-lang.org/book/ch14-02-publishing-to-crates-io.html#making-useful-documentation-comments" title="" target="_blank">documentation comments</a> that document the function/struct/enum/trait/etc. they are applied to.</p>
+<p>Comments with three forward slashes <code>///</code> are <a href="https://doc.rust-lang.org/book/ch14-02-publishing-to-crates-io.html#making-useful-documentation-comments">documentation comments</a> that document the function/struct/enum/trait/etc. they are applied to.</p>
 </div>
 </details>
 <p>We will write some tests to confirm the behaviour, but for that we need utilities to create temporary files and directories.
@@ -298,15 +320,15 @@ edition = &quot;2021&quot;
 [dependencies]
 tempfile = &quot;3&quot;
 </code></pre>
-<p>We’ve added the <code>tempfile</code> dependency here already, which is a crate that creates and automatically cleans up temporary files and directories.</p>
+<p>We've added the <code>tempfile</code> dependency here already, which is a crate that creates and automatically cleans up temporary files and directories.</p>
 <details id="admonition-rust-help-2" class="admonition info">
 <summary class="admonition-title">
 <p>Rust Help</p>
 <p><a class="admonition-anchor-link" href="#admonition-rust-help-2"></a></p>
 </summary>
 <div>
-<p>We use other libraries (crates) by <a href="https://doc.rust-lang.org/cargo/reference/specifying-dependencies.html" title="" target="_blank">specifying dependencies</a>.
-Because basically every Rust library adheres to <a href="https://semver.org/" title="" target="_blank">semantic versioning</a>, we can use <code>&quot;3&quot;</code> as a version requirement which indicates that we will use the most up-to-date <code>3.x.x</code> version.</p>
+<p>We use other libraries (crates) by <a href="https://doc.rust-lang.org/cargo/reference/specifying-dependencies.html">specifying dependencies</a>.
+Because basically every Rust library adheres to <a href="https://semver.org/">semantic versioning</a>, we can use <code>&quot;3&quot;</code> as a version requirement which indicates that we will use the most up-to-date <code>3.x.x</code> version.</p>
 </div>
 </details>
 <p>Create the main library file <code>dev_shared/src/lib.rs</code>, with functions for creating temporary files and directories:</p>
@@ -345,7 +367,7 @@ pub fn create_temp_dir() -&gt; Result&lt;TempDir, io::Error&gt; { TempDir::new()
 +dev_shared = { path = &quot;../dev_shared&quot; }
 +assert_matches = &quot;1&quot;
 </code></pre>
-<p>We’ve also added the <a href="https://crates.io/crates/assert_matches" title="" target="_blank">assert_matches</a> crate, which is a handy library for asserting that a value matches a pattern.
+<p>We've also added the <a href="https://crates.io/crates/assert_matches">assert_matches</a> crate, which is a handy library for asserting that a value matches a pattern.
 Note that these dependencies are added under <code>dev-dependencies</code>, indicating that these dependencies are only available when running tests, benchmarks, and examples.
 Therefore, users of our library will not depend on these crates, which is good, because temporary file management and assertions are not necessary to users of the library.</p>
 <p>Back to testing our filesystem utilities.
@@ -406,7 +428,7 @@ mod test {
   }
 }</code></pre>
 <p>We test whether the functions conform to the specified behaviour.
-Unfortunately, we can’t easily test when <code>metadata</code> and <code>open_if_file</code> should return an error, because we cannot disable read permissions on files via the Rust standard library.</p>
+Unfortunately, we can't easily test when <code>metadata</code> and <code>open_if_file</code> should return an error, because we cannot disable read permissions on files via the Rust standard library.</p>
 <p>We use our <code>create_temp_file</code> and <code>create_temp_dir</code> utility functions to create temporary files and directories.
 The <code>tempfile</code> library takes care of deleting temporary files when they go out of scope (at the end of the test).</p>
 <p>We use <code>assert_matches!</code> to assert that <code>metadata</code> is <code>Some(metadata)</code>, binding <code>metadata</code> in the <code> =&gt; { ... }</code> block in which we assert that the metadata describes a file.
@@ -417,7 +439,7 @@ We will use this macro more in future integration tests.</p>
 <p><a class="admonition-anchor-link" href="#admonition-rust-help-3"></a></p>
 </summary>
 <div>
-<p>Tests can <a href="https://doc.rust-lang.org/book/ch11-01-writing-tests.html#using-resultt-e-in-tests" title="" target="_blank">return <code>Result</code></a>.
+<p>Tests can <a href="https://doc.rust-lang.org/book/ch11-01-writing-tests.html#using-resultt-e-in-tests">return <code>Result</code></a>.
 When a test returns an <code>Err</code>, the test fails.
 This allows us to write more concise tests using error propagation.</p>
 </div>
@@ -500,6 +522,7 @@ Make the non-incremental context compatible by changing <code>pie/src/context/no
         <script src="../../book.js"></script>
 
         <!-- Custom JS scripts -->
+        <script src="../../src/diff2html-ui-base.min.js"></script>
         <script src="../../src/diff.js"></script>
 
 
