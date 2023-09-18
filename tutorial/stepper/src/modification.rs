@@ -366,7 +366,7 @@ impl CreateDiffAndApplyResolved {
     stepper.apply_substitutions(&mut modified_text);
 
     let destination_file_path = dunce::canonicalize(&self.destination_file_path)
-      .context(|| format!("failed to canonicalize destination file path '{}' for unified diff header", self.destination_file_path.display()))?;
+      .with_context(|| format!("failed to canonicalize destination file path '{}' for unified diff header", self.destination_file_path.display()))?;
     let header_file_name = destination_file_path.strip_prefix(&stepper.destination_root_directory)
       .with_context(|| format!("failed to get relative file name for unified diff header by stripping prefix '{}' from: {}", stepper.destination_root_directory.display(), destination_file_path.display()))?
       .to_slash_lossy();
