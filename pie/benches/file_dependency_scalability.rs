@@ -1,12 +1,12 @@
 use criterion::{BenchmarkId, black_box, Criterion, criterion_group, criterion_main, Throughput};
 use tempfile::TempDir;
 
-use dev_shared::bench::create_bench_pie;
-use dev_shared::fs::create_temp_dir;
-use dev_shared::task::*;
+use dev_shared::create_temp_dir;
+use dev_shared_external::bench::create_bench_pie;
+use dev_shared_external::task::*;
 use pie::stamp::FileStamper;
 
-/// Show that file dependencies are slower than task dependencies (if task outputs are simple), due to system calls 
+/// Show that file dependencies are slower than task dependencies (if task outputs are simple), due to system calls
 /// being more expensive than equality checks on task outputs.
 pub fn file_dependency_scalability(c: &mut Criterion) {
   fn create_task_with_file_deps(size: usize, temp_dir: &TempDir) -> CommonTask {
@@ -34,7 +34,7 @@ pub fn file_dependency_scalability(c: &mut Criterion) {
   g.sample_size(10);
 
   // Create task with N dependencies.
-  let temp_dir = create_temp_dir();
+  let temp_dir = create_temp_dir().unwrap();
   let task_with_file_deps = create_task_with_file_deps(size, &temp_dir);
   let task_without_file_deps = create_task_without_file_deps(size);
 

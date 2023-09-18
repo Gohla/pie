@@ -4,9 +4,9 @@ use std::path::{Path, PathBuf};
 use criterion::{BatchSize, BenchmarkId, black_box, Criterion, criterion_group, criterion_main, Throughput};
 use tempfile::TempDir;
 
-use dev_shared::bench::create_bench_pie;
-use dev_shared::fs::create_temp_dir;
-use dev_shared::task::*;
+use dev_shared::create_temp_dir;
+use dev_shared_external::bench::create_bench_pie;
+use dev_shared_external::task::*;
 
 /// Show that bottom-up builds scale better than top-down builds due to bottom-up builds only checking the affected
 /// region of the dependency graph.
@@ -56,7 +56,7 @@ pub fn top_down_vs_bottom_up_scalability(c: &mut Criterion) {
     g.sample_size(sample_size);
 
     // Create task with N dependencies.
-    let temp_dir = create_temp_dir();
+    let temp_dir = create_temp_dir().unwrap();
     let (task, paths) = create_tasks_and_paths(size, &temp_dir);
     remove_files(&paths);
 

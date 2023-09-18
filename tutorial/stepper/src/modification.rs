@@ -4,7 +4,8 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 
 use anyhow::{bail, Context};
-use diffy::{DiffOptions, Patch};
+use path_slash::PathExt;
+use similar::TextDiff;
 
 use crate::stepper::Stepper;
 use crate::util::{add_extension, open_writable_file, write_to_file};
@@ -159,7 +160,7 @@ impl AddToFile {
 #[derive(Clone, Debug)]
 pub enum InsertionPlace {
   BeforeLine(usize),
-  BeforeLastMatchOf(&'static str)
+  BeforeLastMatchOf(&'static str),
 }
 
 impl From<usize> for InsertionPlace {
@@ -217,14 +218,14 @@ impl InsertIntoFile {
         new_lines.extend_from_slice(&between_lines);
         new_lines.extend_from_slice(after);
         new_lines.join("\n")
-      },
+      }
       InsertionPlace::BeforeLastMatchOf(pattern) => {
         let Some(index) = destination_text.rfind(pattern) else {
           bail!("failed to insert before last match of {}, that pattern was not found", pattern);
         };
         let (before, after) = destination_text.split_at(index);
         format!("{}{}{}", before, insertion_text, after)
-      },
+      }
     };
     stepper.apply_substitutions(&mut new_text);
     write_to_file(new_text.as_bytes(), &self.destination_file_path, false)
@@ -300,7 +301,7 @@ impl CreateDiffAndApply {
       diff_output_file_path
     };
     let diff_output_file_path = stepper.generated_root_directory.join(&diff_output_file_path);
-    let context_length = self.context_length.unwrap_or(5);
+    let context_length = self.context_length.unwrap_or(3);
 
     let original_file_path = if let Some(original_file_path) = &self.original_file_path {
       stepper.source_root_directory.join(original_file_path)
@@ -364,11 +365,22 @@ impl CreateDiffAndApplyResolved {
     let mut modified_text = normalize_to_unix_line_endings(modified_text);
     stepper.apply_substitutions(&mut modified_text);
 
-    let mut diff_options = DiffOptions::default();
-    diff_options.set_context_len(self.context_length);
-    let patch = diff_options.create_patch(&original_text, &modified_text);
-    write_to_file(&patch.to_bytes(), &self.diff_output_file_path, false)
+    let destination_file_path = dunce::canonicalize(&self.destination_file_path)
+      .context("failed to canonicalize destination file path for unified diff header")?;
+    let header_file_name = destination_file_path.strip_prefix(&stepper.destination_root_directory)
+      .context("failed to get relative file name for unified diff header")?
+      .to_slash_lossy();
+
+    let diff = TextDiff::from_lines(&original_text, &modified_text);
+    let unified_diff = diff.unified_diff()
+      .header(&header_file_name, &header_file_name)
+      .context_radius(self.context_length)
+      .to_string();
+    write_to_file(unified_diff.as_bytes(), &self.diff_output_file_path, false)
       .context("failed to write to diff output file")?;
+
+    let patch = diffy::Patch::from_str(&unified_diff)
+      .context("failed to parse unified diff")?;
     apply_patch(patch, &self.destination_file_path)?;
 
     stepper.last_original_file.insert(self.destination_file_path.clone(), self.modified_file_path.clone());
@@ -414,7 +426,7 @@ impl ApplyDiff {
     let mut diff = normalize_to_unix_line_endings(diff); // Normalize to Unix line endings for diffy.
     stepper.apply_substitutions(&mut diff);
     let patch = diffy::Patch::from_str(&diff)
-      .context("failed to create patch from diff string")?;
+      .context("failed to parse unified diff")?;
     apply_patch(patch, &self.destination_file_path)?;
 
     Ok(())
@@ -425,7 +437,7 @@ fn normalize_to_unix_line_endings(str: impl AsRef<str>) -> String {
   str.as_ref().replace("\r\n", "\n")
 }
 
-fn apply_patch(patch: Patch<str>, file_path: impl AsRef<Path>) -> anyhow::Result<()> {
+fn apply_patch(patch: diffy::Patch<str>, file_path: impl AsRef<Path>) -> anyhow::Result<()> {
   let text = read_to_string(file_path.as_ref())
     .context("failed to read file text")?;
   let text = normalize_to_unix_line_endings(text); // Normalize to Unix line endings for diffy.

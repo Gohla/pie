@@ -5,10 +5,11 @@ Live hosted version at: <https://gohla.github.io/pie/>
 
 ## Requirements
 
-Install mdBook and several plugins:
+Install mdBook and several preprocessors:
 
 ```shell
 cargo install mdbook mdbook-admonish mdbook-external-links
+cargo install --path mdbook-diff2html
 ```
 
 ## Building
@@ -61,7 +62,7 @@ Structure:
   - `src/*`: markdown files and code (diff) fragments of the book.
 - `stepper`: command-line application (in Rust) that checks all source code (additions, insertions, diffs) by stepping over them in order and building them with cargo, ensuring that the code in the book is actually valid. It also generates diffs between source code fragments and produces outputs (such as cargo stdout) and stores them in `src/gen`.
   - `stepper/src/app.rs`: stepper instructions. Modify this to modify what/how the source code fragments of the book are checked.
-- `mdbook-treesitter-table-highlight`: experimental mdBook plugin that highlights code fragments with [tree-sitter](https://tree-sitter.github.io/tree-sitter/) and outputs it as a table. Currently not used.
+- `mdbook-diff2html`: mdBook preprocessor that renders diffs with [Diff2Html]()
 
 ### Diff2Html
 
@@ -78,7 +79,7 @@ Modifications to get it working:
   - Disable inline code styling for Diff2Html from `theme/chrome.css` using `:not(pre, .d2h-code-side-line) > .hljs` and `:not(pre, a, .d2h-code-side-line) > .hljs`.
   - Add `table.d2h-diff-table td, th { padding: 0; }` to `src/custom.css`.
 - Install mdbook-diff2html
-  - `cd mdbook-diff2html; cargo install --path .`
+  - `cargo install --path mdbook-diff2html`
 - Install Diff2Html JS and CSS files
   - [Download diff2html-ui-base.min.js](https://cdn.jsdelivr.net/npm/diff2html@3.4.42/bundles/js/diff2html-ui-base.min.js) into `src/diff2html-ui-base-.min.js`.
   - [Download diff2html.min.css](https://cdn.jsdelivr.net/npm/diff2html@3.4.42/bundles/css/diff2html.min.css) into `src/diff2html.min.css`.

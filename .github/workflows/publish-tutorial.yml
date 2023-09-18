@@ -60,9 +60,12 @@ jobs:
         uses: taiki-e/install-action@v2
         with:
           tool: cargo-binstall
-      - id: install-mdbook-processors
-        name: Install mdBook processors
+      - id: install-mdbook-preprocessors
+        name: Install mdBook preprocessors
         run: cargo binstall --no-confirm --no-symlinks mdbook-admonish mdbook-external-links
+      - id: install-local-mdbook-preprocessors
+        name: Install local mdBook preprocessors
+        run: cargo install --path tutorial/mdbook-diff2html
       - id: build
         name: Build tutorial mdBook
         run: |

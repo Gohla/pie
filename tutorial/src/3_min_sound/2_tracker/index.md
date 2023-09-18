@@ -15,20 +15,8 @@ We will:
 
 Add the `tracker` module to `pie/src/lib.rs`:
 
-```diff2html
---- lib.rs
-+++ lib.rs
-@@ -8,10 +8,11 @@
-
- use crate::context::top_down::TopDownContext;
- use crate::store::{Store, TaskNode};
-
- pub mod stamp;
-+pub mod tracker;
- mod context;
- mod fs;
- mod dependency;
- mod store;
+```diff2html fromfile
+../../gen/3_min_sound/2_tracker/a_lib_module.rs.diff
 ```
 
 Then create the `pie/src/tracker` directory, create the `pie/src/tracker/mod.rs` file, and add the following content:
@@ -84,8 +72,8 @@ Now we will make the build system generic over `Tracker`, and insert `Tracker` c
 
 Make `Pie` and `Session` generic over `Tracker` by modifying `pie/src/lib.rs`:
 
-```rust,customdiff
-{{#include ../../gen/3_min_sound/2_tracker/d_lib_tracker.rs.diff:4:}}
+```diff2html fromfile
+../../gen/3_min_sound/2_tracker/d_lib_tracker.rs.diff
 ```
 
 We use `A` as the generic argument for tracker types in the source code.
@@ -103,8 +91,8 @@ For convenience, `Session` also provides access to the tracker with `tracker` an
 Now we make `TopDownContext` generic over `Tracker`, and insert calls to tracker methods.
 Modify `pie/src/context/top_down.rs`:
 
-```rust,customdiff
-{{#include ../../gen/3_min_sound/2_tracker/e_top_down_tracker.rs.diff:4:}}
+```diff2html fromfile
+../../gen/3_min_sound/2_tracker/e_top_down_tracker.rs.diff
 ```
 
 We make `TopDownContext` generic over trackers, and call methods on the tracker:
@@ -128,8 +116,8 @@ We start with a simple `WritingTracker` that writes build events to some writer.
 
 Add the `writing` module to `pie/src/tracker/mod.rs`:
 
-```rust,customdiff
-{{#include ../../gen/3_min_sound/2_tracker/f_mod_writing.rs.diff:4:}}
+```diff2html fromfile
+../../gen/3_min_sound/2_tracker/f_mod_writing.rs.diff
 ```
 
 Then create the `pie/src/tracker/writing.rs` file and add:
@@ -184,8 +172,8 @@ Check that the code compiles with `cargo test`.
 
 Let's try out our writing tracker in the incrementality example by modifying `pie/examples/incremental.rs`:
 
-```rust,customdiff
-{{#include ../../gen/3_min_sound/2_tracker/i_writing_example.rs.diff:4:}}
+```diff2html fromfile
+../../gen/3_min_sound/2_tracker/i_writing_example.rs.diff
 ```
 
 We remove the `println!` statements from tasks and create `Pie` with `WritingTracker`.
@@ -199,8 +187,8 @@ Therefore, we will implement the `EventTracker` that stores build events for lat
 
 Add the `event` module to `pie/src/tracker/mod.rs`:
 
-```rust,customdiff
-{{#include ../../gen/3_min_sound/2_tracker/j_mod_event.rs.diff:4:}}
+```diff2html fromfile
+../../gen/3_min_sound/2_tracker/j_mod_event.rs.diff
 ```
 
 Then create the `pie/src/tracker/event.rs` file and add:
