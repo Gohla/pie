@@ -1,11 +1,9 @@
---- original
-+++ modified
-@@ -1,8 +1,11 @@
- [package]
- name = "pie"
+--- pie/Cargo.toml
++++ pie/Cargo.toml
+@@ -3,6 +3,9 @@
  version = "0.1.0"
  edition = "2021"
-
+ 
 +[dependencies]
 +pie_graph = "0.0.1"
 +

@@ -1,20 +1,14 @@
---- original
-+++ modified
-@@ -25,10 +25,11 @@
-   pub fn get_dependency_check_errors(&self) -> impl Iterator<Item=&io::Error> {
-     self.dependency_check_errors.iter()
+--- pie/src/context/top_down.rs
++++ pie/src/context/top_down.rs
+@@ -27,6 +27,7 @@
    }
  }
-
+ 
 +
  impl<T: Task> Context<T> for TopDownContext<T, T::Output> {
    fn require_file_with_stamper<P: AsRef<Path>>(&mut self, path: P, stamper: FileStamper) -> Result<Option<File>, io::Error> {
      let Some(current_executing_task_node) = &self.current_executing_task else {
-       return fs::open_if_file(path); // No current executing task, so no dependency needs to be made.
-     };
-@@ -78,10 +79,14 @@
-     //         through `self.store` while we create a mutable borrow of `self`, which is not allowed.
-     let dependencies: Vec<_> = self.store.get_dependencies_of_task(node).cloned().collect();
+@@ -80,6 +81,10 @@
      for dependency in dependencies {
        match dependency.is_inconsistent(self) {
          Ok(Some(_)) => return true,
@@ -25,5 +19,3 @@
          _ => {} // Consistent: continue checking
        }
      }
-     // Task has no dependencies or all dependencies are consistent. Should only execute if it has no output, meaning
-     // that it has never been executed before.

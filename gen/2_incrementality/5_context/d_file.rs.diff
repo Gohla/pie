@@ -1,8 +1,6 @@
---- original
-+++ modified
-@@ -24,11 +24,15 @@
- impl<T: Task> Context<T> for TopDownContext<T, T::Output> {
-   fn require_file_with_stamper<P: AsRef<Path>>(&mut self, path: P, stamper: FileStamper) -> Result<Option<File>, io::Error> {
+--- pie/src/context/top_down.rs
++++ pie/src/context/top_down.rs
+@@ -26,7 +26,11 @@
      let Some(current_executing_task_node) = &self.current_executing_task else {
        return fs::open_if_file(path); // No current executing task, so no dependency needs to be made.
      };
@@ -13,7 +11,5 @@
 +    self.store.add_file_require_dependency(current_executing_task_node, &node, dependency);
 +    Ok(file)
    }
-
+ 
    fn require_task_with_stamper(&mut self, task: &T, stamper: OutputStamper) -> T::Output {
-     todo!()
-   }

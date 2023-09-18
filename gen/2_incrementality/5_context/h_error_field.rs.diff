@@ -1,16 +1,14 @@
---- original
-+++ modified
-@@ -8,19 +8,25 @@
- use crate::store::{Store, TaskNode};
-
+--- pie/src/context/top_down.rs
++++ pie/src/context/top_down.rs
+@@ -10,6 +10,7 @@
  pub struct TopDownContext<T, O> {
    store: Store<T, O>,
    current_executing_task: Option<TaskNode>,
 +  dependency_check_errors: Vec<io::Error>,
  }
-
+ 
  impl<T: Task> TopDownContext<T, T::Output> {
-   pub fn new() -> Self {
+@@ -17,8 +18,13 @@
      Self {
        store: Store::default(),
        current_executing_task: None,
@@ -22,7 +20,5 @@
 +    self.dependency_check_errors.iter()
 +  }
  }
-
+ 
  impl<T: Task> Context<T> for TopDownContext<T, T::Output> {
-   fn require_file_with_stamper<P: AsRef<Path>>(&mut self, path: P, stamper: FileStamper) -> Result<Option<File>, io::Error> {
-     let Some(current_executing_task_node) = &self.current_executing_task else {

@@ -1,27 +1,27 @@
---- original
-+++ modified
+--- pie/src/context/top_down.rs
++++ pie/src/context/top_down.rs
 @@ -1,75 +1,86 @@
  use std::fs::File;
  use std::io;
  use std::path::Path;
-
+ 
  use crate::{Context, fs, Session, Task};
  use crate::dependency::{FileDependency, TaskDependency};
  use crate::stamp::{FileStamper, OutputStamper};
  use crate::store::TaskNode;
 +use crate::tracker::Tracker;
-
+ 
 -pub struct TopDownContext<'p, 's, T, O> {
 -  session: &'s mut Session<'p, T, O>,
 +pub struct TopDownContext<'p, 's, T, O, A> {
 +  session: &'s mut Session<'p, T, O, A>,
  }
-
+ 
 -impl<'p, 's, T: Task> TopDownContext<'p, 's, T, T::Output> {
 -  pub fn new(session: &'s mut Session<'p, T, T::Output>) -> Self { Self { session } }
 +impl<'p, 's, T: Task, A: Tracker<T>> TopDownContext<'p, 's, T, T::Output, A> {
 +  pub fn new(session: &'s mut Session<'p, T, T::Output, A>) -> Self { Self { session } }
-
+ 
    pub fn require_initial(&mut self, task: &T) -> T::Output {
 -    self.require_task(task)
 +    self.session.tracker.build_start();
@@ -30,8 +30,8 @@
 +    output
    }
  }
-
-
+ 
+ 
 -impl<'p, 's, T: Task> Context<T> for TopDownContext<'p, 's, T, T::Output> {
 +impl<'p, 's, T: Task, A: Tracker<T>> Context<T> for TopDownContext<'p, 's, T, T::Output, A> {
    fn require_file_with_stamper<P: AsRef<Path>>(&mut self, path: P, stamper: FileStamper) -> Result<Option<File>, io::Error> {
@@ -45,11 +45,11 @@
      self.session.store.add_file_require_dependency(current_executing_task_node, &node, dependency);
      Ok(file)
    }
-
+ 
    fn require_task_with_stamper(&mut self, task: &T, stamper: OutputStamper) -> T::Output {
 +    self.session.tracker.require_task(task, &stamper);
      let node = self.session.store.get_or_create_task_node(task);
-
+ 
      // Get required task output by executing it if needed, or by getting the output from the store if not needed.
 -    let output = if self.should_execute_task(&node) {
 +    let should_execute = self.should_execute_task(&node);
@@ -67,7 +67,7 @@
        // executed and `should_execute_task` ensures that the task has an output.
        self.session.store.get_task_output(&node).clone()
      };
-
+ 
 +    let dependency = TaskDependency::new(task.clone(), stamper, output.clone());
 +    self.session.tracker.required_task(task, &output,dependency.stamper(), dependency.stamp(), should_execute);
 +
@@ -79,11 +79,11 @@
          panic!("Cyclic task dependency; current executing task '{:?}' is requiring task '{:?}' which was already required", current_executing_task, task);
        }
      }
-
+ 
      output
    }
  }
-
+ 
 -impl<'p, 's, T: Task> TopDownContext<'p, 's, T, T::Output> {
 +impl<'p, 's, T: Task, A: Tracker<T>> TopDownContext<'p, 's, T, T::Output, A> {
    /// Checks whether given task should be executed, returning `true` if it should be executed. A task should be executed

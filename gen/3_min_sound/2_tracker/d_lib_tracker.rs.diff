@@ -1,25 +1,25 @@
---- original
-+++ modified
+--- pie/src/lib.rs
++++ pie/src/lib.rs
 @@ -1,20 +1,21 @@
  use std::fmt::Debug;
  use std::fs::File;
  use std::hash::Hash;
  use std::io;
  use std::path::Path;
-
+ 
  use stamp::{FileStamper, OutputStamper};
-
+ 
  use crate::context::top_down::TopDownContext;
  use crate::store::{Store, TaskNode};
 +use crate::tracker::{NoopTracker, Tracker};
-
+ 
  pub mod stamp;
  pub mod tracker;
  mod context;
  mod fs;
  mod dependency;
  mod store;
-
+ 
  /// A unit of computation in a programmatic incremental build system.
  pub trait Task: Clone + Eq + Hash + Debug {
 @@ -53,53 +54,68 @@
@@ -31,19 +31,19 @@
    /// Returns the default output stamper.
    fn default_output_stamper(&self) -> OutputStamper { OutputStamper::Equals }
  }
-
+ 
  /// Main entry point into PIE, a sound and incremental programmatic build system.
 -pub struct Pie<T, O> {
 +pub struct Pie<T, O, A = NoopTracker> {
    store: Store<T, O>,
 +  tracker: A,
  }
-
+ 
  impl<T: Task> Default for Pie<T, T::Output> {
 -  fn default() -> Self { Self { store: Store::default() } }
 +  fn default() -> Self { Self::with_tracker(NoopTracker) }
  }
-
+ 
 -impl<T: Task> Pie<T, T::Output> {
 +impl<T: Task, A: Tracker<T>> Pie<T, T::Output, A> {
 +  /// Creates a new [`Pie`] instance with given `tracker`.
@@ -64,7 +64,7 @@
 +  /// Gets the mutable [`Tracker`] instance.
 +  pub fn tracker_mut(&mut self) -> &mut A { &mut self.tracker }
  }
-
+ 
  /// A session in which builds are executed.
 -pub struct Session<'p, T, O> {
 +pub struct Session<'p, T, O, A> {
@@ -73,7 +73,7 @@
    current_executing_task: Option<TaskNode>,
    dependency_check_errors: Vec<io::Error>,
  }
-
+ 
 -impl<'p, T: Task> Session<'p, T, T::Output> {
 -  fn new(pie: &'p mut Pie<T, T::Output>) -> Self {
 +impl<'p, T: Task, A: Tracker<T>> Session<'p, T, T::Output, A> {
@@ -85,13 +85,13 @@
        dependency_check_errors: Vec::default(),
      }
    }
-
+ 
    /// Requires `task`, returning its up-to-date output.
    pub fn require(&mut self, task: &T) -> T::Output {
      self.current_executing_task = None;
      TopDownContext::new(self).require_initial(task)
    }
-
+ 
 +  /// Gets the [`Tracker`] instance.
 +  pub fn tracker(&self) -> &A { &self.tracker }
 +  /// Gets the mutable [`Tracker`] instance.

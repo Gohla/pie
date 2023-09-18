@@ -1,8 +1,6 @@
---- original
-+++ modified
-@@ -15,6 +15,30 @@
-     }
-
+--- pie/src/context/non_incremental.rs
++++ pie/src/context/non_incremental.rs
+@@ -17,4 +17,28 @@
      let mut context = NonIncrementalContext;
      assert_eq!("Hello World!", context.require_task(&ReturnHelloWorld));
    }

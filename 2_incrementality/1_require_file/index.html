@@ -184,9 +184,9 @@ Therefore, we will extend the <code>Context</code> API with methods to <em>requi
  use std::hash::Hash;
 +use std::io;
 +use std::path::Path;
-
+ 
  pub mod context;
-
+ 
  /// A unit of computation in a programmatic incremental build system.
  pub trait Task: Clone + Eq + Hash + Debug {
    /// Type of output this task returns when executed.
@@ -194,7 +194,7 @@ Therefore, we will extend the <code>Context</code> API with methods to <em>requi
    /// Execute the task, using `context` to specify dynamic dependencies, returning `Self::Output`.
    fn execute&lt;C: Context&lt;Self&gt;&gt;(&amp;self, context: &amp;mut C) -&gt; Self::Output;
  }
-
+ 
  /// Programmatic incremental build context, enabling tasks to create dynamic dependencies that context implementations 
  /// use for incremental execution.
  pub trait Context&lt;T: Task&gt; {
@@ -237,20 +237,14 @@ You can also see this as a kind of method overloading, without having to provide
 <p>Now we need to implement this method for <code>NonIncrementalContext</code>.
 However, because we will be performing similar file system operations in the incremental context as well, we will create some utility functions for this first.</p>
 <p>Add the <code>fs</code> module to <code>pie/src/lib.rs</code>:</p>
-<pre><code class="language-rust customdiff"> use std::hash::Hash;
- use std::io;
- use std::path::Path;
-
+<pre><code class="language-rust customdiff"> use std::path::Path;
+ 
  pub mod context;
 +mod fs;
-
+ 
  /// A unit of computation in a programmatic incremental build system.
  pub trait Task: Clone + Eq + Hash + Debug {
-   /// Type of output this task returns when executed.
-   type Output: Clone + Eq + Debug;
-@@ -21,9 +22,8 @@
-   /// so that the dependency corresponds to the data that you are reading. Returns:
-   /// - `Ok(Some(file))` if a file exists at given `path`, 
+@@ -23,7 +24,6 @@
    /// - `Ok(None)` if no file exists at given `path` (but a directory could exist at given `path`),
    /// - `Err(e)` if there was an error getting the metadata for given `path`, or if there was an error opening the file. 
    fn require_file&lt;P: AsRef&lt;Path&gt;&gt;(&amp;mut self, path: P) -&gt; Result&lt;Option&lt;File&gt;, io::Error&gt;;
@@ -343,23 +337,22 @@ pub fn create_temp_file() -&gt; Result&lt;NamedTempFile, io::Error&gt; { NamedTe
 pub fn create_temp_dir() -&gt; Result&lt;TempDir, io::Error&gt; { TempDir::new() }</code></pre>
 <p>Your directory structure should now look like this:</p>
 <pre><code>├── pie
+│   ├── src
+│   │   ├── lib.rs
+│   │   ├── context
+│   │   │   ├── mod.rs
+│   │   │   └── non_incremental.rs
+│   │   └── fs.rs
 │   ├── Cargo.toml
-│   ├── target
 │   ├── Cargo.lock
-│   └── src
-│       ├── context
-│       │   ├── non_incremental.rs
-│       │   └── mod.rs
-│       ├── lib.rs
-│       └── fs.rs
+│   └── target
 └── dev_shared
-    ├── Cargo.toml
-    └── src
-        └── lib.rs
+    ├── src
+    │   └── lib.rs
+    └── Cargo.toml
 </code></pre>
 <p>To access these utility functions in the <code>pie</code> crate, add a dependency to <code>dev_shared</code> in <code>pie/Cargo.toml</code> along with another create that will help testing:</p>
-<pre><code class="language-toml customdiff "> [package]
- name = &quot;pie&quot;
+<pre><code class="language-toml customdiff "> name = &quot;pie&quot;
  version = &quot;0.1.0&quot;
  edition = &quot;2021&quot;
 +
@@ -452,9 +445,9 @@ Make the non-incremental context compatible by changing <code>pie/src/context/no
 +
  use crate::{Context, Task};
 +use crate::fs::open_if_file;
-
+ 
  pub struct NonIncrementalContext;
-
+ 
  impl&lt;T: Task&gt; Context&lt;T&gt; for NonIncrementalContext {
 +  fn require_file&lt;P: AsRef&lt;Path&gt;&gt;(&amp;mut self, path: P) -&gt; Result&lt;Option&lt;File&gt;, io::Error&gt; {
 +    open_if_file(&amp;path)
@@ -462,8 +455,7 @@ Make the non-incremental context compatible by changing <code>pie/src/context/no
 +
    fn require_task(&amp;mut self, task: &amp;T) -&gt; T::Output {
      task.execute(self)
-   }
- }</code></pre>
+   }</code></pre>
 <p>Since the non-incremental context does not track anything, we only try to open the file and return it, matching the contract in the documentation comment of the <code>Context::require_file</code> trait method.</p>
 <p>Confirm everything works with <code>cargo test</code>.</p>
 <details id="admonition-download-source-code" class="admonition example">

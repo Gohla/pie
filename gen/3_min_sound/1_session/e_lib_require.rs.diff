@@ -1,16 +1,12 @@
---- original
-+++ modified
-@@ -93,11 +93,12 @@
-     }
-   }
-
+--- pie/src/lib.rs
++++ pie/src/lib.rs
+@@ -95,7 +95,8 @@
+ 
    /// Requires `task`, returning its up-to-date output.
    pub fn require(&mut self, task: &T) -> T::Output {
 -    todo!("Create TopDownContext with this session, and require the task")
 +    self.current_executing_task = None;
 +    TopDownContext::new(self).require_initial(task)
    }
-
+ 
    /// Gets all errors produced during dependency checks.
-   pub fn dependency_check_errors(&self) -> impl Iterator<Item=&io::Error> { self.dependency_check_errors.iter() }
- }

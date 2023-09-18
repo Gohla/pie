@@ -1,8 +1,6 @@
---- original
-+++ modified
-@@ -31,11 +31,11 @@
-
-     #[derive(Clone, PartialEq, Eq, Hash, Debug)]
+--- pie/src/context/non_incremental.rs
++++ pie/src/context/non_incremental.rs
+@@ -33,7 +33,7 @@
      struct ToLowerCase;
      impl Task for ToLowerCase {
        type Output = String;
@@ -11,5 +9,3 @@
          context.require_task(&ReturnHelloWorld).to_lowercase()
        }
      }
-
-     let mut context = NonIncrementalContext;

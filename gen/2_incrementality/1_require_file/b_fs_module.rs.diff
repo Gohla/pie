@@ -1,20 +1,14 @@
---- original
-+++ modified
-@@ -3,10 +3,11 @@
- use std::hash::Hash;
- use std::io;
+--- pie/src/lib.rs
++++ pie/src/lib.rs
+@@ -5,6 +5,7 @@
  use std::path::Path;
-
+ 
  pub mod context;
 +mod fs;
-
+ 
  /// A unit of computation in a programmatic incremental build system.
  pub trait Task: Clone + Eq + Hash + Debug {
-   /// Type of output this task returns when executed.
-   type Output: Clone + Eq + Debug;
-@@ -21,9 +22,8 @@
-   /// so that the dependency corresponds to the data that you are reading. Returns:
-   /// - `Ok(Some(file))` if a file exists at given `path`, 
+@@ -23,7 +24,6 @@
    /// - `Ok(None)` if no file exists at given `path` (but a directory could exist at given `path`),
    /// - `Err(e)` if there was an error getting the metadata for given `path`, or if there was an error opening the file. 
    fn require_file<P: AsRef<Path>>(&mut self, path: P) -> Result<Option<File>, io::Error>;

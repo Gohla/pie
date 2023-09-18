@@ -1,10 +1,8 @@
---- original
-+++ modified
-@@ -32,8 +32,24 @@
-     self.store.add_file_require_dependency(current_executing_task_node, &node, dependency);
-     Ok(file)
+--- pie/src/context/top_down.rs
++++ pie/src/context/top_down.rs
+@@ -34,6 +34,22 @@
    }
-
+ 
    fn require_task_with_stamper(&mut self, task: &T, stamper: OutputStamper) -> T::Output {
 -    todo!()
 +    let node = self.store.get_or_create_task_node(task);

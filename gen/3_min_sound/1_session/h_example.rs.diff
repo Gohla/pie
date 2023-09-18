@@ -1,47 +1,47 @@
---- original
-+++ modified
+--- pie/examples/incremental.rs
++++ pie/examples/incremental.rs
 @@ -65,95 +65,97 @@
      Ok(())
    }
  }
-
+ 
  fn main() -> Result<(), io::Error> {
    let temp_dir = create_temp_dir()?;
    let input_file = temp_dir.path().join("input.txt");
    write(&input_file, "Hi")?;
    let output_file = temp_dir.path().join("output.txt");
-
+ 
 -  let mut context = TopDownContext::new();
 +  let mut pie = Pie::default();
    let read_task = ReadStringFromFile::new(&input_file, FileStamper::Modified);
    let write_task = WriteStringToFile::new(read_task.clone(), &output_file, FileStamper::Modified);
-
+ 
    println!("A) New task: expect `read_task` to execute");
    // `read_task` is new, meaning that we have no cached output for it, thus it must be executed.
 -  let output = context.require_task(&read_task)?;
 +  let output = pie.new_session().require(&read_task)?;
    assert_eq!(&output, "Hi");
-
+ 
    println!("\nB) Reuse: expect no execution");
    // `read_task` is not new and its file dependency is still consistent. It is consistent because the modified time of 
    // `input_file` has not changed, thus the modified stamp is equal.
 -  let output = context.require_task(&read_task)?;
 +  let output = pie.new_session().require(&read_task)?;
    assert_eq!(&output, "Hi");
-
+ 
    write_until_modified(&input_file, "Hello")?;
    println!("\nC) Inconsistent file dependency: expect `read_task` to execute");
    // The file dependency of `read_task` is inconsistent due to the changed modified time of `input_file`.
 -  let output = context.require_task(&read_task)?;
 +  let output = pie.new_session().require(&read_task)?;
    assert_eq!(&output, "Hello");
-
+ 
    println!("\nD) New task, reuse other: expect only `write_task` to execute");
    // write_task` is new, but `read_task` is not new and its file dependency is still consistent.
 -  context.require_task(&write_task)?;
 +  pie.new_session().require(&write_task)?;
    assert_eq!(&read_to_string(&output_file)?, "Hello");
-
+ 
    write_until_modified(&input_file, "Hello, World!")?;
    println!("\nE) Inconsistent file and task dependency: expect both tasks to execute");
    // The file dependency of `read_task` is inconsistent. Then, the task dependency from `write_task` to `read_task` is 
@@ -50,7 +50,7 @@
 -  context.require_task(&write_task)?;
 +  pie.new_session().require(&write_task)?;
    assert_eq!(&read_to_string(&output_file)?, "Hello, World!");
-
+ 
    write_until_modified(&input_file, "Hello, World!")?; // Note: writing same file contents!
    println!("\nF) Early cutoff: expect only `read_task` to execute");
    // File dependency of `read_task` is inconsistent because the modified time changed, but it returns the same output 
@@ -60,14 +60,14 @@
 -  context.require_task(&write_task)?;
 +  pie.new_session().require(&write_task)?;
    assert_eq!(&read_to_string(&output_file)?, "Hello, World!");
-
+ 
    write_until_modified(&output_file, "")?;
    println!("\nG) Regenerate changed output file: expect only `write_task` to execute");
    // The file dependency of `write_task` to `output_file` is inconsistent.
 -  context.require_task(&write_task)?;
 +  pie.new_session().require(&write_task)?;
    assert_eq!(&read_to_string(&output_file)?, "Hello, World!");
-
+ 
    write_until_modified(&output_file, "")?;
    remove_file(&output_file)?;
    println!("\nH) Regenerate deleted output file: expect only `write_task` to execute");
@@ -75,7 +75,7 @@
 -  context.require_task(&write_task)?;
 +  pie.new_session().require(&write_task)?;
    assert_eq!(&read_to_string(&output_file)?, "Hello, World!");
-
+ 
    let input_file_b = temp_dir.path().join("input_b.txt");
    write(&input_file_b, "Test")?;
    let read_task_b_modified = ReadStringFromFile::new(&input_file_b, FileStamper::Modified);
@@ -91,7 +91,7 @@
 -  let output = context.require_task(&read_task_b_exists)?;
 +  let output = session.require(&read_task_b_exists)?;
    assert_eq!(&output, "Test");
-
+ 
    write_until_modified(&input_file_b, "Test Test")?;
    println!("\nJ) Different stampers: expect only `read_task_b_modified` to execute");
    // Both `read_task_b_modified` and `read_task_b_exists` read from the same file, but they use different stampers.
@@ -108,6 +108,6 @@
 -  let output = context.require_task(&read_task_b_exists)?;
 +  let output = session.require(&read_task_b_exists)?;
    assert_eq!(&output, "Test");
-
+ 
    Ok(())
  }

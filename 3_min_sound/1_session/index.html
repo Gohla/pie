@@ -189,19 +189,15 @@ Furthermore, it is also an optimisation, as requiring the same task many times o
 <p>We will implement the <code>Session</code> type to hold all session data, and the <code>Pie</code> type as an entry point into the build system that manages a session.</p>
 <h2 id="pie-and-session"><a class="header" href="#pie-and-session">PIE and Session</a></h2>
 <p>Change the imports in <code>pie/src/lib.rs</code>: </p>
-<pre><code class="language-rust customdiff "> use std::io;
- use std::path::Path;
-
+<pre><code class="language-rust customdiff "> 
  use stamp::{FileStamper, OutputStamper};
-
+ 
 +use crate::context::top_down::TopDownContext;
 +use crate::store::{Store, TaskNode};
 +
  pub mod stamp;
  pub mod context;
- mod fs;
- mod dependency;
- mod store;</code></pre>
+ mod fs;</code></pre>
 <p>Now add the <code>Pie</code> and <code>Session</code> types to <code>pie/src/lib.rs</code>:</p>
 <pre><code class="language-rust ">/// Main entry point into PIE, a sound and incremental programmatic build system.
 pub struct Pie&lt;T, O&gt; {
@@ -260,17 +256,16 @@ We can leave out this lifetime in <code>Pie::new_session</code>, because the com
 <p>Now we need to modify <code>TopDownContext</code> to work with <code>Session</code>.</p>
 <h2 id="update-topdowncontext"><a class="header" href="#update-topdowncontext">Update TopDownContext</a></h2>
 <p>Change <code>TopDownContext</code> to only contain a mutable reference to <code>Session</code> in <code>pie/src/context/top_down.rs</code>:</p>
-<pre><code class="language-rust customdiff "> use std::fs::File;
- use std::io;
+<pre><code class="language-rust customdiff "> use std::io;
  use std::path::Path;
-
+ 
 -use crate::{Context, fs, Task};
 +use crate::{Context, fs, Session, Task};
  use crate::dependency::{FileDependency, TaskDependency};
  use crate::stamp::{FileStamper, OutputStamper};
 -use crate::store::{Store, TaskNode};
 +use crate::store::TaskNode;
-
+ 
 -pub struct TopDownContext&lt;T, O&gt; {
 -  store: Store&lt;T, O&gt;,
 -  current_executing_task: Option&lt;TaskNode&gt;,
@@ -278,7 +273,7 @@ We can leave out this lifetime in <code>Pie::new_session</code>, because the com
 +pub struct TopDownContext&lt;'p, 's, T, O&gt; {
 +  session: &amp;'s mut Session&lt;'p, T, O&gt;,
  }
-
+ 
 -impl&lt;T: Task&gt; TopDownContext&lt;T, T::Output&gt; {
 -  pub fn new() -&gt; Self {
 -    Self {
@@ -289,16 +284,14 @@ We can leave out this lifetime in <code>Pie::new_session</code>, because the com
 -  }
 +impl&lt;'p, 's, T: Task&gt; TopDownContext&lt;'p, 's, T, T::Output&gt; {
 +  pub fn new(session: &amp;'s mut Session&lt;'p, T, T::Output&gt;) -&gt; Self { Self { session } }
-
+ 
 -  pub fn get_dependency_check_errors(&amp;self) -&gt; impl Iterator&lt;Item=&amp;io::Error&gt; {
 -    self.dependency_check_errors.iter()
 +  pub fn require_initial(&amp;mut self, task: &amp;T) -&gt; T::Output {
 +    self.require_task(task)
    }
  }
-
-
- impl&lt;T: Task&gt; Context&lt;T&gt; for TopDownContext&lt;T, T::Output&gt; {</code></pre>
+ </code></pre>
 <p>Here, we use lifetime <code>'s</code> to denote the lifetime of a session, and make <code>TopDownContext</code> generic over it.
 <code>new</code> now just accepts a mutable reference to the session.
 The <code>get_dependency_check_errors</code> method can be removed.
@@ -306,11 +299,9 @@ We add a <code>require_initial</code> convenience method for <code>Session</code
 <p>In the rest of the file, we need to update the <code>impl</code> lines to include the lifetimes, and we need to replace most instances of <code>self</code> with <code>self.session</code>.
 You could do this with the following find-replace regex: <code>self\.([\w\d_]+)\.</code> -&gt; <code>self.session.$1.</code></p>
 <p>Change <code>pie/src/context/top_down.rs</code>:</p>
-<pre><code class="language-rust customdiff ">     self.require_task(task)
-   }
- }
-
-
+<pre><code class="language-rust customdiff "> }
+ 
+ 
 -impl&lt;T: Task&gt; Context&lt;T&gt; for TopDownContext&lt;T, T::Output&gt; {
 +impl&lt;'p, 's, T: Task&gt; Context&lt;T&gt; for TopDownContext&lt;'p, 's, T, T::Output&gt; {
    fn require_file_with_stamper&lt;P: AsRef&lt;Path&gt;&gt;(&amp;mut self, path: P, stamper: FileStamper) -&gt; Result&lt;Option&lt;File&gt;, io::Error&gt; {
@@ -326,11 +317,11 @@ You could do this with the following find-replace regex: <code>self\.([\w\d_]+)\
 +    self.session.store.add_file_require_dependency(current_executing_task_node, &amp;node, dependency);
      Ok(file)
    }
-
+ 
    fn require_task_with_stamper(&amp;mut self, task: &amp;T, stamper: OutputStamper) -&gt; T::Output {
 -    let node = self.store.get_or_create_task_node(task);
 +    let node = self.session.store.get_or_create_task_node(task);
-
+ 
      // Get required task output by executing it if needed, or by getting the output from the store if not needed.
      let output = if self.should_execute_task(&amp;node) {
 -      self.store.reset_task(&amp;node);
@@ -349,7 +340,7 @@ You could do this with the following find-replace regex: <code>self\.([\w\d_]+)\
 -      self.store.get_task_output(&amp;node).clone()
 +      self.session.store.get_task_output(&amp;node).clone()
      };
-
+ 
      // Create task require dependency if a task is currently executing (i.e., we are not requiring the initial task).
 -    if let Some(current_executing_task_node) = &amp;self.current_executing_task {
 +    if let Some(current_executing_task_node) = &amp;self.session.current_executing_task {
@@ -361,11 +352,10 @@ You could do this with the following find-replace regex: <code>self\.([\w\d_]+)\
          panic!(&quot;Cyclic task dependency; current executing task '{:?}' is requiring task '{:?}' which was already required&quot;, current_executing_task, task);
        }
      }
-
-     output
+@@ -62,19 +62,19 @@
    }
  }
-
+ 
 -impl&lt;T: Task&gt; TopDownContext&lt;T, T::Output&gt; {
 +impl&lt;'p, 's, T: Task&gt; TopDownContext&lt;'p, 's, T, T::Output&gt; {
    /// Checks whether given task should be executed, returning `true` if it should be executed. A task should be executed
@@ -385,7 +375,7 @@ You could do this with the following find-replace regex: <code>self\.([\w\d_]+)\
            return true;
          }
          _ =&gt; {} // Consistent: continue checking
-       }
+@@ -82,6 +82,6 @@
      }
      // Task has no dependencies or all dependencies are consistent. Should only execute if it has no output, meaning
      // that it has never been executed before.
@@ -396,95 +386,83 @@ You could do this with the following find-replace regex: <code>self\.([\w\d_]+)\
 <p>Now we change <code>Session</code> to use <code>TopDownContext</code>. </p>
 <h2 id="update-session"><a class="header" href="#update-session">Update Session</a></h2>
 <p>Change <code>pie/src/lib.rs</code>:</p>
-<pre><code class="language-rust customdiff ">     }
-   }
-
+<pre><code class="language-rust customdiff "> 
    /// Requires `task`, returning its up-to-date output.
    pub fn require(&amp;mut self, task: &amp;T) -&gt; T::Output {
 -    todo!(&quot;Create TopDownContext with this session, and require the task&quot;)
 +    self.current_executing_task = None;
 +    TopDownContext::new(self).require_initial(task)
    }
-
-   /// Gets all errors produced during dependency checks.
-   pub fn dependency_check_errors(&amp;self) -&gt; impl Iterator&lt;Item=&amp;io::Error&gt; { self.dependency_check_errors.iter() }
- }</code></pre>
+ 
+   /// Gets all errors produced during dependency checks.</code></pre>
 <p>We reset the <code>current_executing_task</code> to <code>None</code>, to be sure that we start a build without an executing task.
 Then, we just create a <code>TopDownContext</code> and call <code>require_initial</code>.</p>
 <p>Finally, we can now make the <code>context</code> module private, as users of the library run builds using <code>Session</code>, instead of having to create a context implementation.
 Change <code>pie/src/lib.rs</code>:</p>
-<pre><code class="language-rust customdiff ">
- use crate::context::top_down::TopDownContext;
- use crate::store::{Store, TaskNode};
-
+<pre><code class="language-rust customdiff "> use crate::store::{Store, TaskNode};
+ 
  pub mod stamp;
 -pub mod context;
 +mod context;
  mod fs;
  mod dependency;
- mod store;
-
- /// A unit of computation in a programmatic incremental build system.</code></pre>
+ mod store;</code></pre>
 <p>Check that the code compiles with <code>cargo check --lib</code>.
 This only checks if the library builds, but not any examples.
 We need to update the incrementality example to work with these changes.</p>
 <h2 id="update-incremental-example"><a class="header" href="#update-incremental-example">Update incremental example</a></h2>
 <p>First change some imports in <code>pie/examples/incremental.rs</code>:</p>
-<pre><code class="language-rust customdiff "> use std::fs::{File, read_to_string, remove_file, write};
- use std::io::{self, Read, Write};
- use std::path::{Path, PathBuf};
-
+<pre><code class="language-rust customdiff "> use std::path::{Path, PathBuf};
+ 
  use dev_shared::{create_temp_dir, write_until_modified};
 -use pie::{Context, Task};
 -use pie::context::top_down::TopDownContext;
 +use pie::{Context, Pie, Task};
  use pie::stamp::FileStamper;
-
- /// Enumeration over file pseudo-tasks.
- #[derive(Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Debug)]
- enum FileTask {</code></pre>
+ 
+ /// Enumeration over file pseudo-tasks.</code></pre>
 <p>Then, change <code>pie/examples/incremental.rs</code> to use sessions:</p>
 <pre><code class="language-rust customdiff ">     Ok(())
    }
  }
-
+ 
  fn main() -&gt; Result&lt;(), io::Error&gt; {
    let temp_dir = create_temp_dir()?;
    let input_file = temp_dir.path().join(&quot;input.txt&quot;);
    write(&amp;input_file, &quot;Hi&quot;)?;
    let output_file = temp_dir.path().join(&quot;output.txt&quot;);
-
+ 
 -  let mut context = TopDownContext::new();
 +  let mut pie = Pie::default();
    let read_task = ReadStringFromFile::new(&amp;input_file, FileStamper::Modified);
    let write_task = WriteStringToFile::new(read_task.clone(), &amp;output_file, FileStamper::Modified);
-
+ 
    println!(&quot;A) New task: expect `read_task` to execute&quot;);
    // `read_task` is new, meaning that we have no cached output for it, thus it must be executed.
 -  let output = context.require_task(&amp;read_task)?;
 +  let output = pie.new_session().require(&amp;read_task)?;
    assert_eq!(&amp;output, &quot;Hi&quot;);
-
+ 
    println!(&quot;\nB) Reuse: expect no execution&quot;);
    // `read_task` is not new and its file dependency is still consistent. It is consistent because the modified time of 
    // `input_file` has not changed, thus the modified stamp is equal.
 -  let output = context.require_task(&amp;read_task)?;
 +  let output = pie.new_session().require(&amp;read_task)?;
    assert_eq!(&amp;output, &quot;Hi&quot;);
-
+ 
    write_until_modified(&amp;input_file, &quot;Hello&quot;)?;
    println!(&quot;\nC) Inconsistent file dependency: expect `read_task` to execute&quot;);
    // The file dependency of `read_task` is inconsistent due to the changed modified time of `input_file`.
 -  let output = context.require_task(&amp;read_task)?;
 +  let output = pie.new_session().require(&amp;read_task)?;
    assert_eq!(&amp;output, &quot;Hello&quot;);
-
+ 
    println!(&quot;\nD) New task, reuse other: expect only `write_task` to execute&quot;);
    // write_task` is new, but `read_task` is not new and its file dependency is still consistent.
 -  context.require_task(&amp;write_task)?;
 +  pie.new_session().require(&amp;write_task)?;
    assert_eq!(&amp;read_to_string(&amp;output_file)?, &quot;Hello&quot;);
-
+ 
    write_until_modified(&amp;input_file, &quot;Hello, World!&quot;)?;
    println!(&quot;\nE) Inconsistent file and task dependency: expect both tasks to execute&quot;);
    // The file dependency of `read_task` is inconsistent. Then, the task dependency from `write_task` to `read_task` is 
@@ -493,7 +471,7 @@ We need to update the incrementality example to work with these changes.</p>
 -  context.require_task(&amp;write_task)?;
 +  pie.new_session().require(&amp;write_task)?;
    assert_eq!(&amp;read_to_string(&amp;output_file)?, &quot;Hello, World!&quot;);
-
+ 
    write_until_modified(&amp;input_file, &quot;Hello, World!&quot;)?; // Note: writing same file contents!
    println!(&quot;\nF) Early cutoff: expect only `read_task` to execute&quot;);
    // File dependency of `read_task` is inconsistent because the modified time changed, but it returns the same output 
@@ -503,14 +481,14 @@ We need to update the incrementality example to work with these changes.</p>
 -  context.require_task(&amp;write_task)?;
 +  pie.new_session().require(&amp;write_task)?;
    assert_eq!(&amp;read_to_string(&amp;output_file)?, &quot;Hello, World!&quot;);
-
+ 
    write_until_modified(&amp;output_file, &quot;&quot;)?;
    println!(&quot;\nG) Regenerate changed output file: expect only `write_task` to execute&quot;);
    // The file dependency of `write_task` to `output_file` is inconsistent.
 -  context.require_task(&amp;write_task)?;
 +  pie.new_session().require(&amp;write_task)?;
    assert_eq!(&amp;read_to_string(&amp;output_file)?, &quot;Hello, World!&quot;);
-
+ 
    write_until_modified(&amp;output_file, &quot;&quot;)?;
    remove_file(&amp;output_file)?;
    println!(&quot;\nH) Regenerate deleted output file: expect only `write_task` to execute&quot;);
@@ -518,7 +496,7 @@ We need to update the incrementality example to work with these changes.</p>
 -  context.require_task(&amp;write_task)?;
 +  pie.new_session().require(&amp;write_task)?;
    assert_eq!(&amp;read_to_string(&amp;output_file)?, &quot;Hello, World!&quot;);
-
+ 
    let input_file_b = temp_dir.path().join(&quot;input_b.txt&quot;);
    write(&amp;input_file_b, &quot;Test&quot;)?;
    let read_task_b_modified = ReadStringFromFile::new(&amp;input_file_b, FileStamper::Modified);
@@ -534,7 +512,7 @@ We need to update the incrementality example to work with these changes.</p>
 -  let output = context.require_task(&amp;read_task_b_exists)?;
 +  let output = session.require(&amp;read_task_b_exists)?;
    assert_eq!(&amp;output, &quot;Test&quot;);
-
+ 
    write_until_modified(&amp;input_file_b, &quot;Test Test&quot;)?;
    println!(&quot;\nJ) Different stampers: expect only `read_task_b_modified` to execute&quot;);
    // Both `read_task_b_modified` and `read_task_b_exists` read from the same file, but they use different stampers.
@@ -551,7 +529,7 @@ We need to update the incrementality example to work with these changes.</p>
 -  let output = context.require_task(&amp;read_task_b_exists)?;
 +  let output = session.require(&amp;read_task_b_exists)?;
    assert_eq!(&amp;output, &quot;Test&quot;);
-
+ 
    Ok(())
  }</code></pre>
 <p>When we only require one task, we replace <code>context.require_task</code> with <code>pie.new_session().require</code>.

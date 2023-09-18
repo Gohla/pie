@@ -181,20 +181,14 @@ To make this consistency checking configurable, we will use stamps.
 A dependency is inconsistent if after stamping, the new stamp is different from the old stamp.
 Therefore, we will implement a <code>FileStamper</code> that stamps files and produces a <code>FileStamp</code>, and an <code>OutputStamper</code> that stamps task outputs and produces an <code>OutputStamp</code>.</p>
 <p>Add the <code>stamp</code> module to <code>pie/src/lib.rs</code>:</p>
-<pre><code class="language-rust customdiff"> use std::fs::File;
- use std::hash::Hash;
- use std::io;
+<pre><code class="language-rust customdiff"> use std::io;
  use std::path::Path;
-
+ 
 +pub mod stamp;
  pub mod context;
  mod fs;
-
- /// A unit of computation in a programmatic incremental build system.
- pub trait Task: Clone + Eq + Hash + Debug {
-@@ -22,8 +23,9 @@
-   /// so that the dependency corresponds to the data that you are reading. Returns:
-   /// - `Ok(Some(file))` if a file exists at given `path`, 
+ 
+@@ -24,6 +25,7 @@
    /// - `Ok(None)` if no file exists at given `path` (but a directory could exist at given `path`),
    /// - `Err(e)` if there was an error getting the metadata for given `path`, or if there was an error opening the file. 
    fn require_file&lt;P: AsRef&lt;Path&gt;&gt;(&amp;mut self, path: P) -&gt; Result&lt;Option&lt;File&gt;, io::Error&gt;;
@@ -384,12 +378,12 @@ Change <code>dev_shared/src/lib.rs</code>:</p>
  use std::io;
 +use std::path::Path;
 +use std::time::SystemTime;
-
+ 
  use tempfile::{NamedTempFile, TempDir};
-
+ 
  /// Creates a new temporary file that gets cleaned up when dropped.
  pub fn create_temp_file() -&gt; Result&lt;NamedTempFile, io::Error&gt; { NamedTempFile::new() }
-
+ 
  /// Creates a new temporary directory that gets cleaned up when dropped.
  pub fn create_temp_dir() -&gt; Result&lt;TempDir, io::Error&gt; { TempDir::new() }
 +
@@ -425,32 +419,32 @@ Now change the tests in <code>pie/src/stamp.rs</code> to use this function:</p>
 -  use std::fs::{remove_file, write};
 +  use std::fs::remove_file;
    use std::io;
-
+ 
 -  use dev_shared::create_temp_file;
 +  use dev_shared::{create_temp_file, write_until_modified};
-
+ 
    use super::*;
-
+ 
    #[test]
    fn test_exists_file_stamper() -&gt; Result&lt;(), io::Error&gt; {
      let stamper = FileStamper::Exists;
      let temp_file = create_temp_file()?;
      let stamp = stamper.stamp(&amp;temp_file)?;
      assert_eq!(stamp, stamper.stamp(&amp;temp_file)?);
-
+ 
      remove_file(&amp;temp_file)?;
      assert_ne!(stamp, stamper.stamp(&amp;temp_file)?);
-
+ 
      Ok(())
    }
-
+ 
    #[test]
    fn test_modified_file_stamper() -&gt; Result&lt;(), io::Error&gt; {
      let stamper = FileStamper::Modified;
      let temp_file = create_temp_file()?;
      let stamp = stamper.stamp(&amp;temp_file)?;
      assert_eq!(stamp, stamper.stamp(&amp;temp_file)?);
-
+ 
 -    write(&amp;temp_file, format!(&quot;{:?}&quot;, stamp))?;
 +    // Write until file modified time changes. Required on some OSs due to imprecise modified timer causing the modified 
 +    // stamp to be the same after fast consecutive writes.
@@ -458,13 +452,13 @@ Now change the tests in <code>pie/src/stamp.rs</code> to use this function:</p>
      let new_stamp = stamper.stamp(&amp;temp_file)?;
      assert_ne!(stamp, new_stamp);
      let stamp = new_stamp;
-
+ 
      remove_file(&amp;temp_file)?;
      assert_ne!(stamp, stamper.stamp(&amp;temp_file)?);
-
+ 
      Ok(())
    }
-
+ 
    #[test]
    fn test_inconsequential_output_stamper() {
      let stamper = OutputStamper::Inconsequential;
@@ -472,7 +466,7 @@ Now change the tests in <code>pie/src/stamp.rs</code> to use this function:</p>
      assert_eq!(stamp, stamper.stamp(&amp;1));
      assert_eq!(stamp, stamper.stamp(&amp;2));
    }
-
+ 
    #[test]
    fn test_equals_output_stamper() {</code></pre>
 <p>Now we use <code>write_until_modified</code> to write to the file, ensuring its modified time will change, ensuring the stamp will change when it should.
@@ -487,13 +481,13 @@ Therefore, we need to update the <code>Context</code> trait to allow passing in 
  use std::hash::Hash;
  use std::io;
  use std::path::Path;
-
+ 
 +use stamp::{FileStamper, OutputStamper};
 +
  pub mod stamp;
  pub mod context;
  mod fs;
-
+ 
  /// A unit of computation in a programmatic incremental build system.
  pub trait Task: Clone + Eq + Hash + Debug {
    /// Type of output this task returns when executed.
@@ -501,7 +495,7 @@ Therefore, we need to update the <code>Context</code> trait to allow passing in 
    /// Execute the task, using `context` to specify dynamic dependencies, returning `Self::Output`.
    fn execute&lt;C: Context&lt;Self&gt;&gt;(&amp;self, context: &amp;mut C) -&gt; Self::Output;
  }
-
+ 
  /// Programmatic incremental build context, enabling tasks to create dynamic dependencies that context implementations 
  /// use for incremental execution.
  pub trait Context&lt;T: Task&gt; {
@@ -528,7 +522,7 @@ Therefore, we need to update the <code>Context</code> trait to allow passing in 
 +  fn require_file_with_stamper&lt;P: AsRef&lt;Path&gt;&gt;(&amp;mut self, path: P, stamper: FileStamper) -&gt; Result&lt;Option&lt;File&gt;, io::Error&gt;;
 +  /// Returns the default require file stamper.
 +  fn default_require_file_stamper(&amp;self) -&gt; FileStamper { FileStamper::Modified }
-
+ 
    /// Requires given `task`, recording a dependency and selectively executing it. Returns its up-to-date output.
    fn require_task(&amp;mut self, task: &amp;T) -&gt; T::Output;
  }</code></pre>
@@ -536,11 +530,9 @@ Therefore, we need to update the <code>Context</code> trait to allow passing in 
 We add a default implementation for <code>require_file</code> that passes in a default stamper.
 The default is provided by <code>default_require_file_stamper</code> which can be overridden by context implementations.</p>
 <p>Now apply the same to tasks, changing <code>Context</code> again in <code>pie/src/lib.rs</code>:</p>
-<pre><code class="language-rust customdiff">   ///   if there was an error stamping the file.
-   fn require_file_with_stamper&lt;P: AsRef&lt;Path&gt;&gt;(&amp;mut self, path: P, stamper: FileStamper) -&gt; Result&lt;Option&lt;File&gt;, io::Error&gt;;
-   /// Returns the default require file stamper.
+<pre><code class="language-rust customdiff">   /// Returns the default require file stamper.
    fn default_require_file_stamper(&amp;self) -&gt; FileStamper { FileStamper::Modified }
-
+ 
 -  /// Requires given `task`, recording a dependency and selectively executing it. Returns its up-to-date output.
 -  fn require_task(&amp;mut self, task: &amp;T) -&gt; T::Output;
 +  /// Requires given `task`, recording a dependency (using the default output stamper) and selectively executing it. 
@@ -555,15 +547,13 @@ The default is provided by <code>default_require_file_stamper</code> which can b
 +  fn default_output_stamper(&amp;self) -&gt; OutputStamper { OutputStamper::Equals }
  }</code></pre>
 <p>Update <code>NonIncrementalContext</code> in <code>src/context/non_incremental.rs</code> to implement the new methods:</p>
-<pre><code class="language-rust customdiff"> use std::io;
- use std::path::Path;
-
+<pre><code class="language-rust customdiff"> 
  use crate::{Context, Task};
  use crate::fs::open_if_file;
 +use crate::stamp::{FileStamper, OutputStamper};
-
+ 
  pub struct NonIncrementalContext;
-
+ 
  impl&lt;T: Task&gt; Context&lt;T&gt; for NonIncrementalContext {
 -  fn require_file&lt;P: AsRef&lt;Path&gt;&gt;(&amp;mut self, path: P) -&gt; Result&lt;Option&lt;File&gt;, io::Error&gt; {
 -    open_if_file(&amp;path)
@@ -571,7 +561,7 @@ The default is provided by <code>default_require_file_stamper</code> which can b
 +    let file = open_if_file(&amp;path)?;
 +    Ok(file)
    }
-
+ 
 -  fn require_task(&amp;mut self, task: &amp;T) -&gt; T::Output {
 +  fn require_task_with_stamper(&amp;mut self, task: &amp;T, _stamper: OutputStamper) -&gt; T::Output {
      task.execute(self)

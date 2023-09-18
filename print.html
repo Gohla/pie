@@ -194,8 +194,8 @@ edition = &quot;2021&quot;
 <p>Then create the <code>pie/src</code> directory and create the <code>pie/src/lib.rs</code> file, which will be left empty for now.</p>
 <p>Run <code>cargo build</code> to test if the project was set up correctly.
 The output should look something like:</p>
-<pre><code class="language-shell ">   Compiling pie v0.1.0 (/private/pie)
-    Finished dev [unoptimized + debuginfo] target(s) in 0.17s
+<pre><code class="language-shell ">   Compiling pie v0.1.0 (/pie)
+    Finished dev [unoptimized + debuginfo] target(s) in 0.10s
 </code></pre>
 <details id="admonition-download-source-code" class="admonition example">
 <summary class="admonition-title">
@@ -275,8 +275,8 @@ Because of this, the context reference passed to <code>Task::execute</code> is a
 <p>This <code>Task</code> and <code>Context</code> API mirrors the mutually recursive definition of task and context we discussed earlier, and forms the basis for the entire build system.</p>
 <p>Build the project by running <code>cargo build</code>.
 The output should look something like:</p>
-<pre><code class="language-shell ">   Compiling pie v0.1.0 (/private/pie)
-    Finished dev [unoptimized + debuginfo] target(s) in 0.11s
+<pre><code class="language-shell ">   Compiling pie v0.1.0 (/pie)
+    Finished dev [unoptimized + debuginfo] target(s) in 0.05s
 </code></pre>
 <details id="admonition-rust-help" class="admonition info">
 <summary class="admonition-title">
@@ -322,14 +322,12 @@ However, incrementality is <em>hard</em>, so let's start with an extremely simpl
 Create the <code>context</code> module by adding a module to <code>pie/src/lib.rs</code>:</p>
 <pre><code class="language-rust customdiff"> use std::fmt::Debug;
  use std::hash::Hash;
-
+ 
 +pub mod context;
 +
  /// A unit of computation in a programmatic incremental build system.
  pub trait Task: Clone + Eq + Hash + Debug {
-   /// Type of output this task returns when executed.
-   type Output: Clone + Eq + Debug;
-   /// Execute the task, using `context` to specify dynamic dependencies, returning `Self::Output`.</code></pre>
+   /// Type of output this task returns when executed.</code></pre>
 <p>This is a diff over <code>pie/src/lib.rs</code> where lines with a green background are additions, lines with a red background are removals, and lines with a grey background are context on where to add/remove lines, similar to diffs on source code hubs like GitHub.</p>
 <p>Create the <code>pie/src/context</code> directory, and in it, create the <code>pie/src/context/mod.rs</code> file with the following contents:</p>
 <pre><code class="language-rust ">pub mod non_incremental;</code></pre>
@@ -337,14 +335,14 @@ Create the <code>context</code> module by adding a module to <code>pie/src/lib.r
 <p>Create the <code>pie/src/context/non_incremental.rs</code> file, it will be empty for now.
 Your project structure should now look like:</p>
 <pre><code>pie
+├── src
+│   ├── lib.rs
+│   └── context
+│       ├── mod.rs
+│       └── non_incremental.rs
 ├── Cargo.toml
-├── target
 ├── Cargo.lock
-└── src
-    ├── context
-    │   ├── non_incremental.rs
-    │   └── mod.rs
-    └── lib.rs
+└── target
 </code></pre>
 <p>Confirm your module structure is correct by building with <code>cargo build</code>.</p>
 <details id="admonition-rust-help" class="admonition info">
@@ -420,9 +418,9 @@ in a reference to the task.
 It returns the output of the task, which we test with <code>assert_eq!</code>.</p>
 <p>Run the test by running <code>cargo test</code>.
 The output should look something like:</p>
-<pre><code class="language-shell ">   Compiling pie v0.1.0 (/private/pie)
-    Finished test [unoptimized + debuginfo] target(s) in 0.31s
-     Running unittests src/lib.rs (/private/pie/target/debug/deps/pie-a50f0f2aa4868d6a)
+<pre><code class="language-shell ">   Compiling pie v0.1.0 (/pie)
+    Finished test [unoptimized + debuginfo] target(s) in 0.39s
+     Running unittests src/lib.rs (/pie/target/debug/deps/pie-2022d1785b8ce336)
 
 running 1 test
 test context::non_incremental::test::test_require_task_direct ... ok
@@ -462,9 +460,7 @@ This macro is typically <a href="https://doc.rust-lang.org/book/ch11-01-writing-
 <h2 id="test-with-multiple-tasks"><a class="header" href="#test-with-multiple-tasks">Test with Multiple Tasks</a></h2>
 <p>Our first test only tests a single task that does not use the context, so let's write a test with two tasks where one requires the other to increase our test coverage.
 Add the following test:</p>
-<pre><code class="language-rust customdiff">     }
-
-     let mut context = NonIncrementalContext;
+<pre><code class="language-rust customdiff">     let mut context = NonIncrementalContext;
      assert_eq!(&quot;Hello World!&quot;, context.require_task(&amp;ReturnHelloWorld));
    }
 +
@@ -495,7 +491,7 @@ Add the following test:</p>
 <p>We use the same <code>ReturnHelloWorld</code> task as before, but now also have a <code>ToLowerCase</code> task which requires <code>ReturnHelloWorld</code> and then turn its string lowercase.
 However, due to the way we've set up the types between <code>Task</code> and <code>Context</code>, we will run into a problem.
 Running <code>cargo test</code>, you should get these errors:</p>
-<pre><code class="language-shell ">   Compiling pie v0.1.0 (/private/pie)
+<pre><code class="language-shell ">   Compiling pie v0.1.0 (/pie)
 error[E0308]: mismatched types
   --&gt; src/context/non_incremental.rs:46:30
    |
@@ -518,20 +514,16 @@ error: could not compile `pie` (lib test) due to previous error
 <p>The problem is that <code>execute</code> of <code>ToLowerCase</code> takes a <code>Context&lt;Self&gt;</code>, so in <code>impl Task for ToLowerCase</code> it takes a <code>Context&lt;ToLowerCase&gt;</code>, while we're trying to require <code>&amp;ReturnHelloWorld</code> through the context.
 This doesn't work as <code>Context&lt;ToLowerCase&gt;::require_task</code> only takes a <code>&amp;ToLowerCase</code> as input.</p>
 <p>We could change <code>execute</code> of <code>ToLowerCase</code> to take <code>Context&lt;ReturnHelloWorld&gt;</code>:</p>
-<pre><code class="language-rust customdiff">
-     #[derive(Clone, PartialEq, Eq, Hash, Debug)]
-     struct ToLowerCase;
+<pre><code class="language-rust customdiff">     struct ToLowerCase;
      impl Task for ToLowerCase {
        type Output = String;
 -      fn execute&lt;C: Context&lt;Self&gt;&gt;(&amp;self, context: &amp;mut C) -&gt; Self::Output {
 +      fn execute&lt;C: Context&lt;ReturnHelloWorld&gt;&gt;(&amp;self, context: &amp;mut C) -&gt; Self::Output {
          context.require_task(&amp;ReturnHelloWorld).to_lowercase()
        }
-     }
-
-     let mut context = NonIncrementalContext;</code></pre>
+     }</code></pre>
 <p>But that is not allowed:</p>
-<pre><code class="language-shell ">   Compiling pie v0.1.0 (/private/pie)
+<pre><code class="language-shell ">   Compiling pie v0.1.0 (/pie)
 error[E0276]: impl has stricter requirements than trait
   --&gt; src/context/non_incremental.rs:45:21
    |
@@ -685,9 +677,9 @@ Therefore, we will extend the <code>Context</code> API with methods to <em>requi
  use std::hash::Hash;
 +use std::io;
 +use std::path::Path;
-
+ 
  pub mod context;
-
+ 
  /// A unit of computation in a programmatic incremental build system.
  pub trait Task: Clone + Eq + Hash + Debug {
    /// Type of output this task returns when executed.
@@ -695,7 +687,7 @@ Therefore, we will extend the <code>Context</code> API with methods to <em>requi
    /// Execute the task, using `context` to specify dynamic dependencies, returning `Self::Output`.
    fn execute&lt;C: Context&lt;Self&gt;&gt;(&amp;self, context: &amp;mut C) -&gt; Self::Output;
  }
-
+ 
  /// Programmatic incremental build context, enabling tasks to create dynamic dependencies that context implementations 
  /// use for incremental execution.
  pub trait Context&lt;T: Task&gt; {
@@ -738,20 +730,14 @@ You can also see this as a kind of method overloading, without having to provide
 <p>Now we need to implement this method for <code>NonIncrementalContext</code>.
 However, because we will be performing similar file system operations in the incremental context as well, we will create some utility functions for this first.</p>
 <p>Add the <code>fs</code> module to <code>pie/src/lib.rs</code>:</p>
-<pre><code class="language-rust customdiff"> use std::hash::Hash;
- use std::io;
- use std::path::Path;
-
+<pre><code class="language-rust customdiff"> use std::path::Path;
+ 
  pub mod context;
 +mod fs;
-
+ 
  /// A unit of computation in a programmatic incremental build system.
  pub trait Task: Clone + Eq + Hash + Debug {
-   /// Type of output this task returns when executed.
-   type Output: Clone + Eq + Debug;
-@@ -21,9 +22,8 @@
-   /// so that the dependency corresponds to the data that you are reading. Returns:
-   /// - `Ok(Some(file))` if a file exists at given `path`, 
+@@ -23,7 +24,6 @@
    /// - `Ok(None)` if no file exists at given `path` (but a directory could exist at given `path`),
    /// - `Err(e)` if there was an error getting the metadata for given `path`, or if there was an error opening the file. 
    fn require_file&lt;P: AsRef&lt;Path&gt;&gt;(&amp;mut self, path: P) -&gt; Result&lt;Option&lt;File&gt;, io::Error&gt;;
@@ -844,23 +830,22 @@ pub fn create_temp_file() -&gt; Result&lt;NamedTempFile, io::Error&gt; { NamedTe
 pub fn create_temp_dir() -&gt; Result&lt;TempDir, io::Error&gt; { TempDir::new() }</code></pre>
 <p>Your directory structure should now look like this:</p>
 <pre><code>├── pie
+│   ├── src
+│   │   ├── lib.rs
+│   │   ├── context
+│   │   │   ├── mod.rs
+│   │   │   └── non_incremental.rs
+│   │   └── fs.rs
 │   ├── Cargo.toml
-│   ├── target
 │   ├── Cargo.lock
-│   └── src
-│       ├── context
-│       │   ├── non_incremental.rs
-│       │   └── mod.rs
-│       ├── lib.rs
-│       └── fs.rs
+│   └── target
 └── dev_shared
-    ├── Cargo.toml
-    └── src
-        └── lib.rs
+    ├── src
+    │   └── lib.rs
+    └── Cargo.toml
 </code></pre>
 <p>To access these utility functions in the <code>pie</code> crate, add a dependency to <code>dev_shared</code> in <code>pie/Cargo.toml</code> along with another create that will help testing:</p>
-<pre><code class="language-toml customdiff "> [package]
- name = &quot;pie&quot;
+<pre><code class="language-toml customdiff "> name = &quot;pie&quot;
  version = &quot;0.1.0&quot;
  edition = &quot;2021&quot;
 +
@@ -953,9 +938,9 @@ Make the non-incremental context compatible by changing <code>pie/src/context/no
 +
  use crate::{Context, Task};
 +use crate::fs::open_if_file;
-
+ 
  pub struct NonIncrementalContext;
-
+ 
  impl&lt;T: Task&gt; Context&lt;T&gt; for NonIncrementalContext {
 +  fn require_file&lt;P: AsRef&lt;Path&gt;&gt;(&amp;mut self, path: P) -&gt; Result&lt;Option&lt;File&gt;, io::Error&gt; {
 +    open_if_file(&amp;path)
@@ -963,8 +948,7 @@ Make the non-incremental context compatible by changing <code>pie/src/context/no
 +
    fn require_task(&amp;mut self, task: &amp;T) -&gt; T::Output {
      task.execute(self)
-   }
- }</code></pre>
+   }</code></pre>
 <p>Since the non-incremental context does not track anything, we only try to open the file and return it, matching the contract in the documentation comment of the <code>Context::require_file</code> trait method.</p>
 <p>Confirm everything works with <code>cargo test</code>.</p>
 <details id="admonition-download-source-code" class="admonition example">
@@ -982,20 +966,14 @@ To make this consistency checking configurable, we will use stamps.
 A dependency is inconsistent if after stamping, the new stamp is different from the old stamp.
 Therefore, we will implement a <code>FileStamper</code> that stamps files and produces a <code>FileStamp</code>, and an <code>OutputStamper</code> that stamps task outputs and produces an <code>OutputStamp</code>.</p>
 <p>Add the <code>stamp</code> module to <code>pie/src/lib.rs</code>:</p>
-<pre><code class="language-rust customdiff"> use std::fs::File;
- use std::hash::Hash;
- use std::io;
+<pre><code class="language-rust customdiff"> use std::io;
  use std::path::Path;
-
+ 
 +pub mod stamp;
  pub mod context;
  mod fs;
-
- /// A unit of computation in a programmatic incremental build system.
- pub trait Task: Clone + Eq + Hash + Debug {
-@@ -22,8 +23,9 @@
-   /// so that the dependency corresponds to the data that you are reading. Returns:
-   /// - `Ok(Some(file))` if a file exists at given `path`, 
+ 
+@@ -24,6 +25,7 @@
    /// - `Ok(None)` if no file exists at given `path` (but a directory could exist at given `path`),
    /// - `Err(e)` if there was an error getting the metadata for given `path`, or if there was an error opening the file. 
    fn require_file&lt;P: AsRef&lt;Path&gt;&gt;(&amp;mut self, path: P) -&gt; Result&lt;Option&lt;File&gt;, io::Error&gt;;
@@ -1185,12 +1163,12 @@ Change <code>dev_shared/src/lib.rs</code>:</p>
  use std::io;
 +use std::path::Path;
 +use std::time::SystemTime;
-
+ 
  use tempfile::{NamedTempFile, TempDir};
-
+ 
  /// Creates a new temporary file that gets cleaned up when dropped.
  pub fn create_temp_file() -&gt; Result&lt;NamedTempFile, io::Error&gt; { NamedTempFile::new() }
-
+ 
  /// Creates a new temporary directory that gets cleaned up when dropped.
  pub fn create_temp_dir() -&gt; Result&lt;TempDir, io::Error&gt; { TempDir::new() }
 +
@@ -1226,32 +1204,32 @@ Now change the tests in <code>pie/src/stamp.rs</code> to use this function:</p>
 -  use std::fs::{remove_file, write};
 +  use std::fs::remove_file;
    use std::io;
-
+ 
 -  use dev_shared::create_temp_file;
 +  use dev_shared::{create_temp_file, write_until_modified};
-
+ 
    use super::*;
-
+ 
    #[test]
    fn test_exists_file_stamper() -&gt; Result&lt;(), io::Error&gt; {
      let stamper = FileStamper::Exists;
      let temp_file = create_temp_file()?;
      let stamp = stamper.stamp(&amp;temp_file)?;
      assert_eq!(stamp, stamper.stamp(&amp;temp_file)?);
-
+ 
      remove_file(&amp;temp_file)?;
      assert_ne!(stamp, stamper.stamp(&amp;temp_file)?);
-
+ 
      Ok(())
    }
-
+ 
    #[test]
    fn test_modified_file_stamper() -&gt; Result&lt;(), io::Error&gt; {
      let stamper = FileStamper::Modified;
      let temp_file = create_temp_file()?;
      let stamp = stamper.stamp(&amp;temp_file)?;
      assert_eq!(stamp, stamper.stamp(&amp;temp_file)?);
-
+ 
 -    write(&amp;temp_file, format!(&quot;{:?}&quot;, stamp))?;
 +    // Write until file modified time changes. Required on some OSs due to imprecise modified timer causing the modified 
 +    // stamp to be the same after fast consecutive writes.
@@ -1259,13 +1237,13 @@ Now change the tests in <code>pie/src/stamp.rs</code> to use this function:</p>
      let new_stamp = stamper.stamp(&amp;temp_file)?;
      assert_ne!(stamp, new_stamp);
      let stamp = new_stamp;
-
+ 
      remove_file(&amp;temp_file)?;
      assert_ne!(stamp, stamper.stamp(&amp;temp_file)?);
-
+ 
      Ok(())
    }
-
+ 
    #[test]
    fn test_inconsequential_output_stamper() {
      let stamper = OutputStamper::Inconsequential;
@@ -1273,7 +1251,7 @@ Now change the tests in <code>pie/src/stamp.rs</code> to use this function:</p>
      assert_eq!(stamp, stamper.stamp(&amp;1));
      assert_eq!(stamp, stamper.stamp(&amp;2));
    }
-
+ 
    #[test]
    fn test_equals_output_stamper() {</code></pre>
 <p>Now we use <code>write_until_modified</code> to write to the file, ensuring its modified time will change, ensuring the stamp will change when it should.
@@ -1288,13 +1266,13 @@ Therefore, we need to update the <code>Context</code> trait to allow passing in 
  use std::hash::Hash;
  use std::io;
  use std::path::Path;
-
+ 
 +use stamp::{FileStamper, OutputStamper};
 +
  pub mod stamp;
  pub mod context;
  mod fs;
-
+ 
  /// A unit of computation in a programmatic incremental build system.
  pub trait Task: Clone + Eq + Hash + Debug {
    /// Type of output this task returns when executed.
@@ -1302,7 +1280,7 @@ Therefore, we need to update the <code>Context</code> trait to allow passing in 
    /// Execute the task, using `context` to specify dynamic dependencies, returning `Self::Output`.
    fn execute&lt;C: Context&lt;Self&gt;&gt;(&amp;self, context: &amp;mut C) -&gt; Self::Output;
  }
-
+ 
  /// Programmatic incremental build context, enabling tasks to create dynamic dependencies that context implementations 
  /// use for incremental execution.
  pub trait Context&lt;T: Task&gt; {
@@ -1329,7 +1307,7 @@ Therefore, we need to update the <code>Context</code> trait to allow passing in 
 +  fn require_file_with_stamper&lt;P: AsRef&lt;Path&gt;&gt;(&amp;mut self, path: P, stamper: FileStamper) -&gt; Result&lt;Option&lt;File&gt;, io::Error&gt;;
 +  /// Returns the default require file stamper.
 +  fn default_require_file_stamper(&amp;self) -&gt; FileStamper { FileStamper::Modified }
-
+ 
    /// Requires given `task`, recording a dependency and selectively executing it. Returns its up-to-date output.
    fn require_task(&amp;mut self, task: &amp;T) -&gt; T::Output;
  }</code></pre>
@@ -1337,11 +1315,9 @@ Therefore, we need to update the <code>Context</code> trait to allow passing in 
 We add a default implementation for <code>require_file</code> that passes in a default stamper.
 The default is provided by <code>default_require_file_stamper</code> which can be overridden by context implementations.</p>
 <p>Now apply the same to tasks, changing <code>Context</code> again in <code>pie/src/lib.rs</code>:</p>
-<pre><code class="language-rust customdiff">   ///   if there was an error stamping the file.
-   fn require_file_with_stamper&lt;P: AsRef&lt;Path&gt;&gt;(&amp;mut self, path: P, stamper: FileStamper) -&gt; Result&lt;Option&lt;File&gt;, io::Error&gt;;
-   /// Returns the default require file stamper.
+<pre><code class="language-rust customdiff">   /// Returns the default require file stamper.
    fn default_require_file_stamper(&amp;self) -&gt; FileStamper { FileStamper::Modified }
-
+ 
 -  /// Requires given `task`, recording a dependency and selectively executing it. Returns its up-to-date output.
 -  fn require_task(&amp;mut self, task: &amp;T) -&gt; T::Output;
 +  /// Requires given `task`, recording a dependency (using the default output stamper) and selectively executing it. 
@@ -1356,15 +1332,13 @@ The default is provided by <code>default_require_file_stamper</code> which can b
 +  fn default_output_stamper(&amp;self) -&gt; OutputStamper { OutputStamper::Equals }
  }</code></pre>
 <p>Update <code>NonIncrementalContext</code> in <code>src/context/non_incremental.rs</code> to implement the new methods:</p>
-<pre><code class="language-rust customdiff"> use std::io;
- use std::path::Path;
-
+<pre><code class="language-rust customdiff"> 
  use crate::{Context, Task};
  use crate::fs::open_if_file;
 +use crate::stamp::{FileStamper, OutputStamper};
-
+ 
  pub struct NonIncrementalContext;
-
+ 
  impl&lt;T: Task&gt; Context&lt;T&gt; for NonIncrementalContext {
 -  fn require_file&lt;P: AsRef&lt;Path&gt;&gt;(&amp;mut self, path: P) -&gt; Result&lt;Option&lt;File&gt;, io::Error&gt; {
 -    open_if_file(&amp;path)
@@ -1372,7 +1346,7 @@ The default is provided by <code>default_require_file_stamper</code> which can b
 +    let file = open_if_file(&amp;path)?;
 +    Ok(file)
    }
-
+ 
 -  fn require_task(&amp;mut self, task: &amp;T) -&gt; T::Output {
 +  fn require_task_with_stamper(&amp;mut self, task: &amp;T, _stamper: OutputStamper) -&gt; T::Output {
      task.execute(self)
@@ -1396,17 +1370,13 @@ Therefore, dependencies need to keep track of their stamper and their previous s
 To that end, we will implement the <code>FileDependency</code> and <code>TaskDependency</code> types with methods for consistency checking.
 We will also implement a <code>Dependency</code> type that abstracts over <code>FileDependency</code> and <code>TaskDependency</code>, which we will need for the dependency graph implementation in the next chapter.</p>
 <p>Add the <code>dependency</code> module to <code>pie/src/lib.rs</code>:</p>
-<pre><code class="language-rust customdiff"> use stamp::{FileStamper, OutputStamper};
-
- pub mod stamp;
+<pre><code class="language-rust customdiff"> pub mod stamp;
  pub mod context;
  mod fs;
 +mod dependency;
-
+ 
  /// A unit of computation in a programmatic incremental build system.
- pub trait Task: Clone + Eq + Hash + Debug {
-   /// Type of output this task returns when executed.
-   type Output: Clone + Eq + Debug;</code></pre>
+ pub trait Task: Clone + Eq + Hash + Debug {</code></pre>
 <p>This module is private, as users of the library should not construct dependencies.
 They should only create dependencies (and choose stampers) via <code>Context</code> methods.</p>
 <h2 id="file-dependencies"><a class="header" href="#file-dependencies">File dependencies</a></h2>
@@ -1727,11 +1697,9 @@ The implementation in the <code>incremental-topo</code> library is based on a <a
 </div>
 </details>
 <p>Add the <code>pie_graph</code> dependency to <code>pie/Cargo.toml</code>:</p>
-<pre><code class="language-rust customdiff"> [package]
- name = &quot;pie&quot;
- version = &quot;0.1.0&quot;
+<pre><code class="language-rust customdiff"> version = &quot;0.1.0&quot;
  edition = &quot;2021&quot;
-
+ 
 +[dependencies]
 +pie_graph = &quot;0.0.1&quot;
 +
@@ -1740,17 +1708,13 @@ The implementation in the <code>incremental-topo</code> library is based on a <a
  assert_matches = &quot;1&quot;</code></pre>
 <h2 id="store-basics"><a class="header" href="#store-basics">Store basics</a></h2>
 <p>Add the <code>store</code> module to <code>pie/src/lib.rs</code>:</p>
-<pre><code class="language-rust customdiff">
- pub mod stamp;
- pub mod context;
+<pre><code class="language-rust customdiff"> pub mod context;
  mod fs;
  mod dependency;
 +mod store;
-
+ 
  /// A unit of computation in a programmatic incremental build system.
- pub trait Task: Clone + Eq + Hash + Debug {
-   /// Type of output this task returns when executed.
-   type Output: Clone + Eq + Debug;</code></pre>
+ pub trait Task: Clone + Eq + Hash + Debug {</code></pre>
 <p>This module is private, as users of the library should not interact with the store.
 Only <code>Context</code> implementations will use the store.</p>
 <p>Create the <code>pie/src/store.rs</code> file and add the following to get started:</p>
@@ -1816,12 +1780,12 @@ This is also the reason for the <code>Eq</code> and <code>Hash</code> trait boun
 <p>Change <code>pie/src/store.rs</code> to add hash maps to map between these things:</p>
 <pre><code class="language-rust customdiff">+use std::collections::HashMap;
  use std::path::{Path, PathBuf};
-
+ 
  use pie_graph::{DAG, Node};
-
+ 
  use crate::dependency::{Dependency, FileDependency, TaskDependency};
  use crate::Task;
-
+ 
  /// Stores files and tasks, and their dependencies, in a DAG (directed acyclic graph). Provides operations to mutate
  /// and query this graph.
  pub struct Store&lt;T, O&gt; {
@@ -1829,7 +1793,7 @@ This is also the reason for the <code>Eq</code> and <code>Hash</code> trait boun
 +  file_to_node: HashMap&lt;PathBuf, Node&gt;,
 +  task_to_node: HashMap&lt;T, Node&gt;,
  }
-
+ 
  #[derive(Debug)]
  enum NodeData&lt;T, O&gt; {
    File(PathBuf),
@@ -1838,7 +1802,7 @@ This is also the reason for the <code>Eq</code> and <code>Hash</code> trait boun
      output: Option&lt;O&gt;,
    },
  }
-
+ 
  impl&lt;T: Task&gt; Default for Store&lt;T, T::Output&gt; {
    fn default() -&gt; Self {
      Self {
@@ -1848,17 +1812,17 @@ This is also the reason for the <code>Eq</code> and <code>Hash</code> trait boun
      }
    }
  }
-</code></pre>
+ </code></pre>
 <p>To prevent accidentally using a file node as a task node, and vice versa, change <code>pie/src/store.rs</code> to add specific types of nodes:</p>
 <pre><code class="language-rust customdiff">+use std::borrow::Borrow;
  use std::collections::HashMap;
  use std::path::{Path, PathBuf};
-
+ 
  use pie_graph::{DAG, Node};
-
+ 
  use crate::dependency::{Dependency, FileDependency, TaskDependency};
  use crate::Task;
-
+ 
  /// Stores files and tasks, and their dependencies, in a DAG (directed acyclic graph). Provides operations to mutate
  /// and query this graph.
  pub struct Store&lt;T, O&gt; {
@@ -1868,7 +1832,7 @@ This is also the reason for the <code>Eq</code> and <code>Hash</code> trait boun
 +  file_to_node: HashMap&lt;PathBuf, FileNode&gt;,
 +  task_to_node: HashMap&lt;T, TaskNode&gt;,
  }
-
+ 
  #[derive(Debug)]
  enum NodeData&lt;T, O&gt; {
    File(PathBuf),
@@ -1877,7 +1841,7 @@ This is also the reason for the <code>Eq</code> and <code>Hash</code> trait boun
      output: Option&lt;O&gt;,
    },
  }
-
+ 
 +/// Newtype for file `Node`s.
 +#[repr(transparent)]
 +#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
@@ -1905,7 +1869,7 @@ This is also the reason for the <code>Eq</code> and <code>Hash</code> trait boun
      }
    }
  }
-</code></pre>
+ </code></pre>
 <p>The <code>FileNode</code> and <code>TaskNode</code> types are <a href="https://rust-unofficial.github.io/patterns/patterns/behavioural/newtype.html">newtypes</a> that wrap a <code>Node</code> into a specific type of node.
 The <code>Borrow</code> implementations will make subsequent code a bit more concise by automatically converting <code>&amp;FileNode</code> and <code>&amp;TaskNode</code>s to <code>&amp;Node</code>s.</p>
 <details id="admonition-newtypes" class="admonition info">
@@ -2495,17 +2459,17 @@ For incrementality, we need to add this dependency to the dependency graph.
 This dependency will go from the <em>current executing task</em> to the file.
 Therefore, we will need to keep track of the current executing task.</p>
 <p>Change <code>pie/src/context/mod.rs</code> to add a field for tracking the current executing task, and use it in <code>require_file_with_stamper</code>:</p>
-<pre><code class="language-rust customdiff">
+<pre><code class="language-rust customdiff"> 
  use crate::{Context, fs, Task};
  use crate::dependency::{FileDependency, TaskDependency};
  use crate::stamp::{FileStamper, OutputStamper};
  use crate::store::{Store, TaskNode};
-
+ 
  pub struct TopDownContext&lt;T, O&gt; {
    store: Store&lt;T, O&gt;,
 +  current_executing_task: Option&lt;TaskNode&gt;,
  }
-
+ 
  impl&lt;T: Task&gt; TopDownContext&lt;T, T::Output&gt; {
    pub fn new() -&gt; Self {
      Self {
@@ -2514,7 +2478,7 @@ Therefore, we will need to keep track of the current executing task.</p>
      }
    }
  }
-
+ 
  impl&lt;T: Task&gt; Context&lt;T&gt; for TopDownContext&lt;T, T::Output&gt; {
    fn require_file_with_stamper&lt;P: AsRef&lt;Path&gt;&gt;(&amp;mut self, path: P, stamper: FileStamper) -&gt; Result&lt;Option&lt;File&gt;, io::Error&gt; {
 +    let Some(current_executing_task_node) = &amp;self.current_executing_task else {
@@ -2522,7 +2486,7 @@ Therefore, we will need to keep track of the current executing task.</p>
 +    };
      todo!()
    }
-
+ 
    fn require_task_with_stamper(&amp;mut self, task: &amp;T, stamper: OutputStamper) -&gt; T::Output {
      todo!()
    }
@@ -2531,9 +2495,7 @@ Therefore, we will need to keep track of the current executing task.</p>
 In <code>require_file_with_stamper</code> we're now getting the current executing task.
 If there is no current executing task, which only happens if a user directly calls <code>require_file</code> on a context, we don't make a dependency and just open the file.</p>
 <p>Now we need to add the file dependency, change <code>pie/src/context/mod.rs</code> to do this: </p>
-<pre><code class="language-rust customdiff"> impl&lt;T: Task&gt; Context&lt;T&gt; for TopDownContext&lt;T, T::Output&gt; {
-   fn require_file_with_stamper&lt;P: AsRef&lt;Path&gt;&gt;(&amp;mut self, path: P, stamper: FileStamper) -&gt; Result&lt;Option&lt;File&gt;, io::Error&gt; {
-     let Some(current_executing_task_node) = &amp;self.current_executing_task else {
+<pre><code class="language-rust customdiff">     let Some(current_executing_task_node) = &amp;self.current_executing_task else {
        return fs::open_if_file(path); // No current executing task, so no dependency needs to be made.
      };
 -    todo!()
@@ -2543,10 +2505,8 @@ If there is no current executing task, which only happens if a user directly cal
 +    self.store.add_file_require_dependency(current_executing_task_node, &amp;node, dependency);
 +    Ok(file)
    }
-
-   fn require_task_with_stamper(&amp;mut self, task: &amp;T, stamper: OutputStamper) -&gt; T::Output {
-     todo!()
-   }</code></pre>
+ 
+   fn require_task_with_stamper(&amp;mut self, task: &amp;T, stamper: OutputStamper) -&gt; T::Output {</code></pre>
 <p>We simply create or get an existing file node, create a file dependency, and add the file require dependency to the graph via <code>store</code>.
 Errors are propagated to the caller, so they can react accordingly to filesystem operation failures.</p>
 <h2 id="requiring-tasks"><a class="header" href="#requiring-tasks">Requiring tasks</a></h2>
@@ -2554,10 +2514,8 @@ Errors are propagated to the caller, so they can react accordingly to filesystem
 A task should be executed either if it's new (it does not have an output stored yet), or if at least one of its dependencies is inconsistent.
 If we don't execute it, then it must have an output value and all its dependencies are consistent, so we just return its output value.</p>
 <p>Change <code>pie/src/context/mod.rs</code> to implement this logic:</p>
-<pre><code class="language-rust customdiff">     self.store.add_file_require_dependency(current_executing_task_node, &amp;node, dependency);
-     Ok(file)
-   }
-
+<pre><code class="language-rust customdiff">   }
+ 
    fn require_task_with_stamper(&amp;mut self, task: &amp;T, stamper: OutputStamper) -&gt; T::Output {
 -    todo!()
 +    let node = self.store.get_or_create_task_node(task);
@@ -2585,11 +2543,9 @@ Then, we check whether the task should be executed with <code>should_execute_tas
 Otherwise, we get the output of the task from the store, which cannot panic because <code>should_execute_task</code> ensures that the task has an output if it returns false.
 Finally, we return the output.</p>
 <p>We still need to create a task dependency. Change <code>pie/src/context/mod.rs</code> to add the dependency:</p>
-<pre><code class="language-rust customdiff">       // Correctness: when `should_execute_task` returns `true`, the above block is executed. Otherwise this block is 
-       // executed and `should_execute_task` ensures that the task has an output.
-       self.store.get_task_output(&amp;node).clone()
+<pre><code class="language-rust customdiff">       self.store.get_task_output(&amp;node).clone()
      };
-
+ 
 +    // Create task require dependency if a task is currently executing (i.e., we are not requiring the initial task).
 +    if let Some(current_executing_task_node) = &amp;self.current_executing_task {
 +      let dependency = TaskDependency::new(task.clone(), stamper, output.clone());
@@ -2650,9 +2606,7 @@ Furthermore, some platforms do not have access to threads, such as WASM, where t
 <h2 id="checking-tasks"><a class="header" href="#checking-tasks">Checking tasks</a></h2>
 <p>The final piece to our puzzle is the <code>should_execute_task</code> implementation.</p>
 <p>Add the following code to <code>pie/src/context/mod.rs</code>:</p>
-<pre><code class="language-rust customdiff ">     }
-
-     output
+<pre><code class="language-rust customdiff ">     output
    }
  }
 +
@@ -2747,16 +2701,14 @@ But this is outside of the scope of even this extra information block, so we'll 
 We've ignored the case where <code>dependency.is_inconsistent</code> returns <code>Err</code>.
 When dependency checking result in an error, we should store the error for the user to investigate, and assume the dependency is inconsistent.</p>
 <p>Change <code>pie/src/context/mod.rs</code> to store dependency check errors and give users access to it:</p>
-<pre><code class="language-rust customdiff"> use crate::store::{Store, TaskNode};
-
- pub struct TopDownContext&lt;T, O&gt; {
+<pre><code class="language-rust customdiff"> pub struct TopDownContext&lt;T, O&gt; {
    store: Store&lt;T, O&gt;,
    current_executing_task: Option&lt;TaskNode&gt;,
 +  dependency_check_errors: Vec&lt;io::Error&gt;,
  }
-
+ 
  impl&lt;T: Task&gt; TopDownContext&lt;T, T::Output&gt; {
-   pub fn new() -&gt; Self {
+@@ -17,8 +18,13 @@
      Self {
        store: Store::default(),
        current_executing_task: None,
@@ -2768,25 +2720,17 @@ When dependency checking result in an error, we should store the error for the u
 +    self.dependency_check_errors.iter()
 +  }
  }
-
- impl&lt;T: Task&gt; Context&lt;T&gt; for TopDownContext&lt;T, T::Output&gt; {
-   fn require_file_with_stamper&lt;P: AsRef&lt;Path&gt;&gt;(&amp;mut self, path: P, stamper: FileStamper) -&gt; Result&lt;Option&lt;File&gt;, io::Error&gt; {
-     let Some(current_executing_task_node) = &amp;self.current_executing_task else {</code></pre>
+ 
+ impl&lt;T: Task&gt; Context&lt;T&gt; for TopDownContext&lt;T, T::Output&gt; {</code></pre>
 <p>And then change <code>pie/src/context/mod.rs</code> to store these errors:</p>
-<pre><code class="language-rust customdiff">   pub fn get_dependency_check_errors(&amp;self) -&gt; impl Iterator&lt;Item=&amp;io::Error&gt; {
-     self.dependency_check_errors.iter()
-   }
+<pre><code class="language-rust customdiff">   }
  }
-
+ 
 +
  impl&lt;T: Task&gt; Context&lt;T&gt; for TopDownContext&lt;T, T::Output&gt; {
    fn require_file_with_stamper&lt;P: AsRef&lt;Path&gt;&gt;(&amp;mut self, path: P, stamper: FileStamper) -&gt; Result&lt;Option&lt;File&gt;, io::Error&gt; {
      let Some(current_executing_task_node) = &amp;self.current_executing_task else {
-       return fs::open_if_file(path); // No current executing task, so no dependency needs to be made.
-     };
-@@ -78,10 +79,14 @@
-     //         through `self.store` while we create a mutable borrow of `self`, which is not allowed.
-     let dependencies: Vec&lt;_&gt; = self.store.get_dependencies_of_task(node).cloned().collect();
+@@ -80,6 +81,10 @@
      for dependency in dependencies {
        match dependency.is_inconsistent(self) {
          Ok(Some(_)) =&gt; return true,
@@ -2796,9 +2740,7 @@ When dependency checking result in an error, we should store the error for the u
 +        }
          _ =&gt; {} // Consistent: continue checking
        }
-     }
-     // Task has no dependencies or all dependencies are consistent. Should only execute if it has no output, meaning
-     // that it has never been executed before.</code></pre>
+     }</code></pre>
 <p>It took us a while, but now we've implemented an incremental build system with dynamic dependencies 🎉.
 Let's set up an example to see the fruits of our labour.</p>
 <h2 id="incrementality-example"><a class="header" href="#incrementality-example">Incrementality Example</a></h2>
@@ -2940,9 +2882,9 @@ Therefore, the size of <code>Box&lt;FileTask&gt;</code> is the size of one point
 Run this example with <code>cargo run --example incremental</code>.
 You should see the <code>println!</code> in <code>ReadStringFromFile</code> appear in your console as the incremental context correctly determines that this task is new (i.e., has no output) and must be executed.
 It should look something like:</p>
-<pre><code>   Compiling pie v0.1.0 (/private/pie)
-    Finished dev [unoptimized + debuginfo] target(s) in 1.29s
-     Running `/private/pie/target/debug/examples/incremental`
+<pre><code>   Compiling pie v0.1.0 (/pie)
+    Finished dev [unoptimized + debuginfo] target(s) in 1.10s
+     Running `/pie/target/debug/examples/incremental`
 A) New task: expect `read_task` to execute
 Reading from input.txt with Modified stamper
 </code></pre>
@@ -2956,9 +2898,9 @@ Reading from input.txt with Modified stamper
   assert_eq!(&amp;output, &quot;Hi&quot;);
 </code></pre>
 <p>Running with <code>cargo run --example incremental</code> should produce output like:</p>
-<pre><code>   Compiling pie v0.1.0 (/private/pie)
-    Finished dev [unoptimized + debuginfo] target(s) in 0.60s
-     Running `/private/pie/target/debug/examples/incremental`
+<pre><code>   Compiling pie v0.1.0 (/pie)
+    Finished dev [unoptimized + debuginfo] target(s) in 0.55s
+     Running `/pie/target/debug/examples/incremental`
 A) New task: expect `read_task` to execute
 Reading from input.txt with Modified stamper
 
@@ -3109,9 +3051,9 @@ We expect <code>read_task_b_modified</code> to be executed, but <code>read_task_
 This shows that tasks can depend on the same file with different stampers, which influences whether the tasks are affected by a file change individually.</p>
 <p>Of course, using an <code>Exists</code> stamper for <code>ReadStringFromFile</code> does not make a lot of sense, but this is for demonstration purposes only.</p>
 <p>Running <code>cargo run --example incremental</code> now should produce output like:</p>
-<pre><code>   Compiling pie v0.1.0 (/private/pie)
-    Finished dev [unoptimized + debuginfo] target(s) in 0.68s
-     Running `/private/pie/target/debug/examples/incremental`
+<pre><code>   Compiling pie v0.1.0 (/pie)
+    Finished dev [unoptimized + debuginfo] target(s) in 0.59s
+     Running `/pie/target/debug/examples/incremental`
 A) New task: expect `read_task` to execute
 Reading from input.txt with Modified stamper
 
@@ -3218,19 +3160,15 @@ Furthermore, it is also an optimisation, as requiring the same task many times o
 <p>We will implement the <code>Session</code> type to hold all session data, and the <code>Pie</code> type as an entry point into the build system that manages a session.</p>
 <h2 id="pie-and-session"><a class="header" href="#pie-and-session">PIE and Session</a></h2>
 <p>Change the imports in <code>pie/src/lib.rs</code>: </p>
-<pre><code class="language-rust customdiff "> use std::io;
- use std::path::Path;
-
+<pre><code class="language-rust customdiff "> 
  use stamp::{FileStamper, OutputStamper};
-
+ 
 +use crate::context::top_down::TopDownContext;
 +use crate::store::{Store, TaskNode};
 +
  pub mod stamp;
  pub mod context;
- mod fs;
- mod dependency;
- mod store;</code></pre>
+ mod fs;</code></pre>
 <p>Now add the <code>Pie</code> and <code>Session</code> types to <code>pie/src/lib.rs</code>:</p>
 <pre><code class="language-rust ">/// Main entry point into PIE, a sound and incremental programmatic build system.
 pub struct Pie&lt;T, O&gt; {
@@ -3289,17 +3227,16 @@ We can leave out this lifetime in <code>Pie::new_session</code>, because the com
 <p>Now we need to modify <code>TopDownContext</code> to work with <code>Session</code>.</p>
 <h2 id="update-topdowncontext"><a class="header" href="#update-topdowncontext">Update TopDownContext</a></h2>
 <p>Change <code>TopDownContext</code> to only contain a mutable reference to <code>Session</code> in <code>pie/src/context/top_down.rs</code>:</p>
-<pre><code class="language-rust customdiff "> use std::fs::File;
- use std::io;
+<pre><code class="language-rust customdiff "> use std::io;
  use std::path::Path;
-
+ 
 -use crate::{Context, fs, Task};
 +use crate::{Context, fs, Session, Task};
  use crate::dependency::{FileDependency, TaskDependency};
  use crate::stamp::{FileStamper, OutputStamper};
 -use crate::store::{Store, TaskNode};
 +use crate::store::TaskNode;
-
+ 
 -pub struct TopDownContext&lt;T, O&gt; {
 -  store: Store&lt;T, O&gt;,
 -  current_executing_task: Option&lt;TaskNode&gt;,
@@ -3307,7 +3244,7 @@ We can leave out this lifetime in <code>Pie::new_session</code>, because the com
 +pub struct TopDownContext&lt;'p, 's, T, O&gt; {
 +  session: &amp;'s mut Session&lt;'p, T, O&gt;,
  }
-
+ 
 -impl&lt;T: Task&gt; TopDownContext&lt;T, T::Output&gt; {
 -  pub fn new() -&gt; Self {
 -    Self {
@@ -3318,16 +3255,14 @@ We can leave out this lifetime in <code>Pie::new_session</code>, because the com
 -  }
 +impl&lt;'p, 's, T: Task&gt; TopDownContext&lt;'p, 's, T, T::Output&gt; {
 +  pub fn new(session: &amp;'s mut Session&lt;'p, T, T::Output&gt;) -&gt; Self { Self { session } }
-
+ 
 -  pub fn get_dependency_check_errors(&amp;self) -&gt; impl Iterator&lt;Item=&amp;io::Error&gt; {
 -    self.dependency_check_errors.iter()
 +  pub fn require_initial(&amp;mut self, task: &amp;T) -&gt; T::Output {
 +    self.require_task(task)
    }
  }
-
-
- impl&lt;T: Task&gt; Context&lt;T&gt; for TopDownContext&lt;T, T::Output&gt; {</code></pre>
+ </code></pre>
 <p>Here, we use lifetime <code>'s</code> to denote the lifetime of a session, and make <code>TopDownContext</code> generic over it.
 <code>new</code> now just accepts a mutable reference to the session.
 The <code>get_dependency_check_errors</code> method can be removed.
@@ -3335,11 +3270,9 @@ We add a <code>require_initial</code> convenience method for <code>Session</code
 <p>In the rest of the file, we need to update the <code>impl</code> lines to include the lifetimes, and we need to replace most instances of <code>self</code> with <code>self.session</code>.
 You could do this with the following find-replace regex: <code>self\.([\w\d_]+)\.</code> -&gt; <code>self.session.$1.</code></p>
 <p>Change <code>pie/src/context/top_down.rs</code>:</p>
-<pre><code class="language-rust customdiff ">     self.require_task(task)
-   }
- }
-
-
+<pre><code class="language-rust customdiff "> }
+ 
+ 
 -impl&lt;T: Task&gt; Context&lt;T&gt; for TopDownContext&lt;T, T::Output&gt; {
 +impl&lt;'p, 's, T: Task&gt; Context&lt;T&gt; for TopDownContext&lt;'p, 's, T, T::Output&gt; {
    fn require_file_with_stamper&lt;P: AsRef&lt;Path&gt;&gt;(&amp;mut self, path: P, stamper: FileStamper) -&gt; Result&lt;Option&lt;File&gt;, io::Error&gt; {
@@ -3355,11 +3288,11 @@ You could do this with the following find-replace regex: <code>self\.([\w\d_]+)\
 +    self.session.store.add_file_require_dependency(current_executing_task_node, &amp;node, dependency);
      Ok(file)
    }
-
+ 
    fn require_task_with_stamper(&amp;mut self, task: &amp;T, stamper: OutputStamper) -&gt; T::Output {
 -    let node = self.store.get_or_create_task_node(task);
 +    let node = self.session.store.get_or_create_task_node(task);
-
+ 
      // Get required task output by executing it if needed, or by getting the output from the store if not needed.
      let output = if self.should_execute_task(&amp;node) {
 -      self.store.reset_task(&amp;node);
@@ -3378,7 +3311,7 @@ You could do this with the following find-replace regex: <code>self\.([\w\d_]+)\
 -      self.store.get_task_output(&amp;node).clone()
 +      self.session.store.get_task_output(&amp;node).clone()
      };
-
+ 
      // Create task require dependency if a task is currently executing (i.e., we are not requiring the initial task).
 -    if let Some(current_executing_task_node) = &amp;self.current_executing_task {
 +    if let Some(current_executing_task_node) = &amp;self.session.current_executing_task {
@@ -3390,11 +3323,10 @@ You could do this with the following find-replace regex: <code>self\.([\w\d_]+)\
          panic!(&quot;Cyclic task dependency; current executing task '{:?}' is requiring task '{:?}' which was already required&quot;, current_executing_task, task);
        }
      }
-
-     output
+@@ -62,19 +62,19 @@
    }
  }
-
+ 
 -impl&lt;T: Task&gt; TopDownContext&lt;T, T::Output&gt; {
 +impl&lt;'p, 's, T: Task&gt; TopDownContext&lt;'p, 's, T, T::Output&gt; {
    /// Checks whether given task should be executed, returning `true` if it should be executed. A task should be executed
@@ -3414,7 +3346,7 @@ You could do this with the following find-replace regex: <code>self\.([\w\d_]+)\
            return true;
          }
          _ =&gt; {} // Consistent: continue checking
-       }
+@@ -82,6 +82,6 @@
      }
      // Task has no dependencies or all dependencies are consistent. Should only execute if it has no output, meaning
      // that it has never been executed before.
@@ -3425,95 +3357,83 @@ You could do this with the following find-replace regex: <code>self\.([\w\d_]+)\
 <p>Now we change <code>Session</code> to use <code>TopDownContext</code>. </p>
 <h2 id="update-session"><a class="header" href="#update-session">Update Session</a></h2>
 <p>Change <code>pie/src/lib.rs</code>:</p>
-<pre><code class="language-rust customdiff ">     }
-   }
-
+<pre><code class="language-rust customdiff "> 
    /// Requires `task`, returning its up-to-date output.
    pub fn require(&amp;mut self, task: &amp;T) -&gt; T::Output {
 -    todo!(&quot;Create TopDownContext with this session, and require the task&quot;)
 +    self.current_executing_task = None;
 +    TopDownContext::new(self).require_initial(task)
    }
-
-   /// Gets all errors produced during dependency checks.
-   pub fn dependency_check_errors(&amp;self) -&gt; impl Iterator&lt;Item=&amp;io::Error&gt; { self.dependency_check_errors.iter() }
- }</code></pre>
+ 
+   /// Gets all errors produced during dependency checks.</code></pre>
 <p>We reset the <code>current_executing_task</code> to <code>None</code>, to be sure that we start a build without an executing task.
 Then, we just create a <code>TopDownContext</code> and call <code>require_initial</code>.</p>
 <p>Finally, we can now make the <code>context</code> module private, as users of the library run builds using <code>Session</code>, instead of having to create a context implementation.
 Change <code>pie/src/lib.rs</code>:</p>
-<pre><code class="language-rust customdiff ">
- use crate::context::top_down::TopDownContext;
- use crate::store::{Store, TaskNode};
-
+<pre><code class="language-rust customdiff "> use crate::store::{Store, TaskNode};
+ 
  pub mod stamp;
 -pub mod context;
 +mod context;
  mod fs;
  mod dependency;
- mod store;
-
- /// A unit of computation in a programmatic incremental build system.</code></pre>
+ mod store;</code></pre>
 <p>Check that the code compiles with <code>cargo check --lib</code>.
 This only checks if the library builds, but not any examples.
 We need to update the incrementality example to work with these changes.</p>
 <h2 id="update-incremental-example"><a class="header" href="#update-incremental-example">Update incremental example</a></h2>
 <p>First change some imports in <code>pie/examples/incremental.rs</code>:</p>
-<pre><code class="language-rust customdiff "> use std::fs::{File, read_to_string, remove_file, write};
- use std::io::{self, Read, Write};
- use std::path::{Path, PathBuf};
-
+<pre><code class="language-rust customdiff "> use std::path::{Path, PathBuf};
+ 
  use dev_shared::{create_temp_dir, write_until_modified};
 -use pie::{Context, Task};
 -use pie::context::top_down::TopDownContext;
 +use pie::{Context, Pie, Task};
  use pie::stamp::FileStamper;
-
- /// Enumeration over file pseudo-tasks.
- #[derive(Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Debug)]
- enum FileTask {</code></pre>
+ 
+ /// Enumeration over file pseudo-tasks.</code></pre>
 <p>Then, change <code>pie/examples/incremental.rs</code> to use sessions:</p>
 <pre><code class="language-rust customdiff ">     Ok(())
    }
  }
-
+ 
  fn main() -&gt; Result&lt;(), io::Error&gt; {
    let temp_dir = create_temp_dir()?;
    let input_file = temp_dir.path().join(&quot;input.txt&quot;);
    write(&amp;input_file, &quot;Hi&quot;)?;
    let output_file = temp_dir.path().join(&quot;output.txt&quot;);
-
+ 
 -  let mut context = TopDownContext::new();
 +  let mut pie = Pie::default();
    let read_task = ReadStringFromFile::new(&amp;input_file, FileStamper::Modified);
    let write_task = WriteStringToFile::new(read_task.clone(), &amp;output_file, FileStamper::Modified);
-
+ 
    println!(&quot;A) New task: expect `read_task` to execute&quot;);
    // `read_task` is new, meaning that we have no cached output for it, thus it must be executed.
 -  let output = context.require_task(&amp;read_task)?;
 +  let output = pie.new_session().require(&amp;read_task)?;
    assert_eq!(&amp;output, &quot;Hi&quot;);
-
+ 
    println!(&quot;\nB) Reuse: expect no execution&quot;);
    // `read_task` is not new and its file dependency is still consistent. It is consistent because the modified time of 
    // `input_file` has not changed, thus the modified stamp is equal.
 -  let output = context.require_task(&amp;read_task)?;
 +  let output = pie.new_session().require(&amp;read_task)?;
    assert_eq!(&amp;output, &quot;Hi&quot;);
-
+ 
    write_until_modified(&amp;input_file, &quot;Hello&quot;)?;
    println!(&quot;\nC) Inconsistent file dependency: expect `read_task` to execute&quot;);
    // The file dependency of `read_task` is inconsistent due to the changed modified time of `input_file`.
 -  let output = context.require_task(&amp;read_task)?;
 +  let output = pie.new_session().require(&amp;read_task)?;
    assert_eq!(&amp;output, &quot;Hello&quot;);
-
+ 
    println!(&quot;\nD) New task, reuse other: expect only `write_task` to execute&quot;);
    // write_task` is new, but `read_task` is not new and its file dependency is still consistent.
 -  context.require_task(&amp;write_task)?;
 +  pie.new_session().require(&amp;write_task)?;
    assert_eq!(&amp;read_to_string(&amp;output_file)?, &quot;Hello&quot;);
-
+ 
    write_until_modified(&amp;input_file, &quot;Hello, World!&quot;)?;
    println!(&quot;\nE) Inconsistent file and task dependency: expect both tasks to execute&quot;);
    // The file dependency of `read_task` is inconsistent. Then, the task dependency from `write_task` to `read_task` is 
@@ -3522,7 +3442,7 @@ We need to update the incrementality example to work with these changes.</p>
 -  context.require_task(&amp;write_task)?;
 +  pie.new_session().require(&amp;write_task)?;
    assert_eq!(&amp;read_to_string(&amp;output_file)?, &quot;Hello, World!&quot;);
-
+ 
    write_until_modified(&amp;input_file, &quot;Hello, World!&quot;)?; // Note: writing same file contents!
    println!(&quot;\nF) Early cutoff: expect only `read_task` to execute&quot;);
    // File dependency of `read_task` is inconsistent because the modified time changed, but it returns the same output 
@@ -3532,14 +3452,14 @@ We need to update the incrementality example to work with these changes.</p>
 -  context.require_task(&amp;write_task)?;
 +  pie.new_session().require(&amp;write_task)?;
    assert_eq!(&amp;read_to_string(&amp;output_file)?, &quot;Hello, World!&quot;);
-
+ 
    write_until_modified(&amp;output_file, &quot;&quot;)?;
    println!(&quot;\nG) Regenerate changed output file: expect only `write_task` to execute&quot;);
    // The file dependency of `write_task` to `output_file` is inconsistent.
 -  context.require_task(&amp;write_task)?;
 +  pie.new_session().require(&amp;write_task)?;
    assert_eq!(&amp;read_to_string(&amp;output_file)?, &quot;Hello, World!&quot;);
-
+ 
    write_until_modified(&amp;output_file, &quot;&quot;)?;
    remove_file(&amp;output_file)?;
    println!(&quot;\nH) Regenerate deleted output file: expect only `write_task` to execute&quot;);
@@ -3547,7 +3467,7 @@ We need to update the incrementality example to work with these changes.</p>
 -  context.require_task(&amp;write_task)?;
 +  pie.new_session().require(&amp;write_task)?;
    assert_eq!(&amp;read_to_string(&amp;output_file)?, &quot;Hello, World!&quot;);
-
+ 
    let input_file_b = temp_dir.path().join(&quot;input_b.txt&quot;);
    write(&amp;input_file_b, &quot;Test&quot;)?;
    let read_task_b_modified = ReadStringFromFile::new(&amp;input_file_b, FileStamper::Modified);
@@ -3563,7 +3483,7 @@ We need to update the incrementality example to work with these changes.</p>
 -  let output = context.require_task(&amp;read_task_b_exists)?;
 +  let output = session.require(&amp;read_task_b_exists)?;
    assert_eq!(&amp;output, &quot;Test&quot;);
-
+ 
    write_until_modified(&amp;input_file_b, &quot;Test Test&quot;)?;
    println!(&quot;\nJ) Different stampers: expect only `read_task_b_modified` to execute&quot;);
    // Both `read_task_b_modified` and `read_task_b_exists` read from the same file, but they use different stampers.
@@ -3580,7 +3500,7 @@ We need to update the incrementality example to work with these changes.</p>
 -  let output = context.require_task(&amp;read_task_b_exists)?;
 +  let output = session.require(&amp;read_task_b_exists)?;
    assert_eq!(&amp;output, &quot;Test&quot;);
-
+ 
    Ok(())
  }</code></pre>
 <p>When we only require one task, we replace <code>context.require_task</code> with <code>pie.new_session().require</code>.
@@ -3622,20 +3542,33 @@ In this section, we will change that by tracking build events for debugging and 
 </ol>
 <h2 id="tracker-trait"><a class="header" href="#tracker-trait"><code>Tracker</code> trait</a></h2>
 <p>Add the <code>tracker</code> module to <code>pie/src/lib.rs</code>:</p>
-<pre><code class="language-diff2html">--- lib.rs
-+++ lib.rs
-@@ -8,10 +8,11 @@
-
- use crate::context::top_down::TopDownContext;
+<div id="diff2html_0"></div>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    let diff = String.raw`--- pie/src/lib.rs
++++ pie/src/lib.rs
+@@ -10,6 +10,7 @@
  use crate::store::{Store, TaskNode};
-
+ 
  pub mod stamp;
 +pub mod tracker;
  mod context;
  mod fs;
  mod dependency;
- mod store;
-</code></pre>
+`;
+    let target = document.getElementById('diff2html_0');
+    let configuration = {
+      drawFileList: false,
+      fileListToggle: false,
+      fileContentToggle: false,
+
+      outputFormat: 'side-by-side',
+      matching: 'lines',
+    };
+    let diff2htmlUi = new Diff2HtmlUI(target, diff, configuration, hljs);
+    diff2htmlUi.draw();
+  });
+</script>
 <p>Then create the <code>pie/src/tracker</code> directory, create the <code>pie/src/tracker/mod.rs</code> file, and add the following content:</p>
 <pre><code class="language-rust ">use std::path::Path;
 
@@ -3715,104 +3648,124 @@ If you care about performance here, be sure to annotate those default empty meth
 <h2 id="using-the-tracker-trait"><a class="header" href="#using-the-tracker-trait">Using the <code>Tracker</code> trait</a></h2>
 <p>Now we will make the build system generic over <code>Tracker</code>, and insert <code>Tracker</code> calls in context implementations.</p>
 <p>Make <code>Pie</code> and <code>Session</code> generic over <code>Tracker</code> by modifying <code>pie/src/lib.rs</code>:</p>
-<pre><code class="language-rust customdiff"> use std::fmt::Debug;
+<div id="diff2html_1"></div>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    let diff = String.raw`--- pie/src/lib.rs
++++ pie/src/lib.rs
+@@ -1,20 +1,21 @@
+ use std::fmt::Debug;
  use std::fs::File;
  use std::hash::Hash;
  use std::io;
  use std::path::Path;
-
+ 
  use stamp::{FileStamper, OutputStamper};
-
+ 
  use crate::context::top_down::TopDownContext;
  use crate::store::{Store, TaskNode};
 +use crate::tracker::{NoopTracker, Tracker};
-
+ 
  pub mod stamp;
  pub mod tracker;
  mod context;
  mod fs;
  mod dependency;
  mod store;
-
+ 
  /// A unit of computation in a programmatic incremental build system.
  pub trait Task: Clone + Eq + Hash + Debug {
 @@ -53,53 +54,68 @@
      self.require_task_with_stamper(task, self.default_output_stamper())
    }
-   /// Requires given `task`, recording a dependency (using given `stamper`) and selectively executing it. Returns its
+   /// Requires given ${"`"}task${"`"}, recording a dependency (using given ${"`"}stamper${"`"}) and selectively executing it. Returns its
    /// up-to-date output.
-   fn require_task_with_stamper(&amp;mut self, task: &amp;T, stamper: OutputStamper) -&gt; T::Output;
+   fn require_task_with_stamper(&mut self, task: &T, stamper: OutputStamper) -> T::Output;
    /// Returns the default output stamper.
-   fn default_output_stamper(&amp;self) -&gt; OutputStamper { OutputStamper::Equals }
+   fn default_output_stamper(&self) -> OutputStamper { OutputStamper::Equals }
  }
-
+ 
  /// Main entry point into PIE, a sound and incremental programmatic build system.
--pub struct Pie&lt;T, O&gt; {
-+pub struct Pie&lt;T, O, A = NoopTracker&gt; {
-   store: Store&lt;T, O&gt;,
+-pub struct Pie<T, O> {
++pub struct Pie<T, O, A = NoopTracker> {
+   store: Store<T, O>,
 +  tracker: A,
  }
-
- impl&lt;T: Task&gt; Default for Pie&lt;T, T::Output&gt; {
--  fn default() -&gt; Self { Self { store: Store::default() } }
-+  fn default() -&gt; Self { Self::with_tracker(NoopTracker) }
+ 
+ impl<T: Task> Default for Pie<T, T::Output> {
+-  fn default() -> Self { Self { store: Store::default() } }
++  fn default() -> Self { Self::with_tracker(NoopTracker) }
  }
-
--impl&lt;T: Task&gt; Pie&lt;T, T::Output&gt; {
-+impl&lt;T: Task, A: Tracker&lt;T&gt;&gt; Pie&lt;T, T::Output, A&gt; {
-+  /// Creates a new [`Pie`] instance with given `tracker`.
-+  pub fn with_tracker(tracker: A) -&gt; Self { Self { store: Store::default(), tracker } }
+ 
+-impl<T: Task> Pie<T, T::Output> {
++impl<T: Task, A: Tracker<T>> Pie<T, T::Output, A> {
++  /// Creates a new [${"`"}Pie${"`"}] instance with given ${"`"}tracker${"`"}.
++  pub fn with_tracker(tracker: A) -> Self { Self { store: Store::default(), tracker } }
 +  
    /// Creates a new build session. Only one session may be active at once, enforced via mutable (exclusive) borrow.
--  pub fn new_session(&amp;mut self) -&gt; Session&lt;T, T::Output&gt; { Session::new(self) }
-+  pub fn new_session(&amp;mut self) -&gt; Session&lt;T, T::Output, A&gt; { Session::new(self) }
-   /// Runs `f` inside a new build session.
--  pub fn run_in_session&lt;R&gt;(&amp;mut self, f: impl FnOnce(Session&lt;T, T::Output&gt;) -&gt; R) -&gt; R {
-+  pub fn run_in_session&lt;R&gt;(&amp;mut self, f: impl FnOnce(Session&lt;T, T::Output, A&gt;) -&gt; R) -&gt; R {
+-  pub fn new_session(&mut self) -> Session<T, T::Output> { Session::new(self) }
++  pub fn new_session(&mut self) -> Session<T, T::Output, A> { Session::new(self) }
+   /// Runs ${"`"}f${"`"} inside a new build session.
+-  pub fn run_in_session<R>(&mut self, f: impl FnOnce(Session<T, T::Output>) -> R) -> R {
++  pub fn run_in_session<R>(&mut self, f: impl FnOnce(Session<T, T::Output, A>) -> R) -> R {
      let session = self.new_session();
      f(session)
    }
 +
-+  /// Gets the [`Tracker`] instance.
-+  pub fn tracker(&amp;self) -&gt; &amp;A { &amp;self.tracker }
-+  /// Gets the mutable [`Tracker`] instance.
-+  pub fn tracker_mut(&amp;mut self) -&gt; &amp;mut A { &amp;mut self.tracker }
++  /// Gets the [${"`"}Tracker${"`"}] instance.
++  pub fn tracker(&self) -> &A { &self.tracker }
++  /// Gets the mutable [${"`"}Tracker${"`"}] instance.
++  pub fn tracker_mut(&mut self) -> &mut A { &mut self.tracker }
  }
-
+ 
  /// A session in which builds are executed.
--pub struct Session&lt;'p, T, O&gt; {
-+pub struct Session&lt;'p, T, O, A&gt; {
-   store: &amp;'p mut Store&lt;T, O&gt;,
-+  tracker: &amp;'p mut A,
-   current_executing_task: Option&lt;TaskNode&gt;,
-   dependency_check_errors: Vec&lt;io::Error&gt;,
+-pub struct Session<'p, T, O> {
++pub struct Session<'p, T, O, A> {
+   store: &'p mut Store<T, O>,
++  tracker: &'p mut A,
+   current_executing_task: Option<TaskNode>,
+   dependency_check_errors: Vec<io::Error>,
  }
-
--impl&lt;'p, T: Task&gt; Session&lt;'p, T, T::Output&gt; {
--  fn new(pie: &amp;'p mut Pie&lt;T, T::Output&gt;) -&gt; Self {
-+impl&lt;'p, T: Task, A: Tracker&lt;T&gt;&gt; Session&lt;'p, T, T::Output, A&gt; {
-+  fn new(pie: &amp;'p mut Pie&lt;T, T::Output, A&gt;) -&gt; Self {
+ 
+-impl<'p, T: Task> Session<'p, T, T::Output> {
+-  fn new(pie: &'p mut Pie<T, T::Output>) -> Self {
++impl<'p, T: Task, A: Tracker<T>> Session<'p, T, T::Output, A> {
++  fn new(pie: &'p mut Pie<T, T::Output, A>) -> Self {
      Self {
-       store: &amp;mut pie.store,
-+      tracker: &amp;mut pie.tracker,
+       store: &mut pie.store,
++      tracker: &mut pie.tracker,
        current_executing_task: None,
        dependency_check_errors: Vec::default(),
      }
    }
-
-   /// Requires `task`, returning its up-to-date output.
-   pub fn require(&amp;mut self, task: &amp;T) -&gt; T::Output {
+ 
+   /// Requires ${"`"}task${"`"}, returning its up-to-date output.
+   pub fn require(&mut self, task: &T) -> T::Output {
      self.current_executing_task = None;
      TopDownContext::new(self).require_initial(task)
    }
-
-+  /// Gets the [`Tracker`] instance.
-+  pub fn tracker(&amp;self) -&gt; &amp;A { &amp;self.tracker }
-+  /// Gets the mutable [`Tracker`] instance.
-+  pub fn tracker_mut(&amp;mut self) -&gt; &amp;mut A { &amp;mut self.tracker }
+ 
++  /// Gets the [${"`"}Tracker${"`"}] instance.
++  pub fn tracker(&self) -> &A { &self.tracker }
++  /// Gets the mutable [${"`"}Tracker${"`"}] instance.
++  pub fn tracker_mut(&mut self) -> &mut A { &mut self.tracker }
    /// Gets all errors produced during dependency checks.
-   pub fn dependency_check_errors(&amp;self) -&gt; impl Iterator&lt;Item=&amp;io::Error&gt; { self.dependency_check_errors.iter() }
- }</code></pre>
+   pub fn dependency_check_errors(&self) -> impl Iterator<Item=&io::Error> { self.dependency_check_errors.iter() }
+ }
+`;
+    let target = document.getElementById('diff2html_1');
+    let configuration = {
+      drawFileList: false,
+      fileListToggle: false,
+      fileContentToggle: false,
+
+      outputFormat: 'side-by-side',
+      matching: 'lines',
+    };
+    let diff2htmlUi = new Diff2HtmlUI(target, diff, configuration, hljs);
+    diff2htmlUi.draw();
+  });
+</script>
 <p>We use <code>A</code> as the generic argument for tracker types in the source code.
 The <code>Pie</code> struct owns the tracker, similarly to how it owns the store.
 <code>Pie</code> can be created with a specific tracker with <code>with_tracker</code>, and provides access to the tracker with <code>tracker</code> and <code>tracker_mut</code>.</p>
@@ -3830,28 +3783,34 @@ The <code>Default</code> implementation only works with <code>NoopTracker</code>
 For convenience, <code>Session</code> also provides access to the tracker with <code>tracker</code> and <code>tracker_mut</code>.</p>
 <p>Now we make <code>TopDownContext</code> generic over <code>Tracker</code>, and insert calls to tracker methods.
 Modify <code>pie/src/context/top_down.rs</code>:</p>
-<pre><code class="language-rust customdiff"> use std::fs::File;
+<div id="diff2html_2"></div>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    let diff = String.raw`--- pie/src/context/top_down.rs
++++ pie/src/context/top_down.rs
+@@ -1,75 +1,86 @@
+ use std::fs::File;
  use std::io;
  use std::path::Path;
-
+ 
  use crate::{Context, fs, Session, Task};
  use crate::dependency::{FileDependency, TaskDependency};
  use crate::stamp::{FileStamper, OutputStamper};
  use crate::store::TaskNode;
 +use crate::tracker::Tracker;
-
--pub struct TopDownContext&lt;'p, 's, T, O&gt; {
--  session: &amp;'s mut Session&lt;'p, T, O&gt;,
-+pub struct TopDownContext&lt;'p, 's, T, O, A&gt; {
-+  session: &amp;'s mut Session&lt;'p, T, O, A&gt;,
+ 
+-pub struct TopDownContext<'p, 's, T, O> {
+-  session: &'s mut Session<'p, T, O>,
++pub struct TopDownContext<'p, 's, T, O, A> {
++  session: &'s mut Session<'p, T, O, A>,
  }
-
--impl&lt;'p, 's, T: Task&gt; TopDownContext&lt;'p, 's, T, T::Output&gt; {
--  pub fn new(session: &amp;'s mut Session&lt;'p, T, T::Output&gt;) -&gt; Self { Self { session } }
-+impl&lt;'p, 's, T: Task, A: Tracker&lt;T&gt;&gt; TopDownContext&lt;'p, 's, T, T::Output, A&gt; {
-+  pub fn new(session: &amp;'s mut Session&lt;'p, T, T::Output, A&gt;) -&gt; Self { Self { session } }
-
-   pub fn require_initial(&amp;mut self, task: &amp;T) -&gt; T::Output {
+ 
+-impl<'p, 's, T: Task> TopDownContext<'p, 's, T, T::Output> {
+-  pub fn new(session: &'s mut Session<'p, T, T::Output>) -> Self { Self { session } }
++impl<'p, 's, T: Task, A: Tracker<T>> TopDownContext<'p, 's, T, T::Output, A> {
++  pub fn new(session: &'s mut Session<'p, T, T::Output, A>) -> Self { Self { session } }
+ 
+   pub fn require_initial(&mut self, task: &T) -> T::Output {
 -    self.require_task(task)
 +    self.session.tracker.build_start();
 +    let output = self.require_task(task);
@@ -3859,72 +3818,86 @@ Modify <code>pie/src/context/top_down.rs</code>:</p>
 +    output
    }
  }
-
-
--impl&lt;'p, 's, T: Task&gt; Context&lt;T&gt; for TopDownContext&lt;'p, 's, T, T::Output&gt; {
-+impl&lt;'p, 's, T: Task, A: Tracker&lt;T&gt;&gt; Context&lt;T&gt; for TopDownContext&lt;'p, 's, T, T::Output, A&gt; {
-   fn require_file_with_stamper&lt;P: AsRef&lt;Path&gt;&gt;(&amp;mut self, path: P, stamper: FileStamper) -&gt; Result&lt;Option&lt;File&gt;, io::Error&gt; {
-     let Some(current_executing_task_node) = &amp;self.session.current_executing_task else {
+ 
+ 
+-impl<'p, 's, T: Task> Context<T> for TopDownContext<'p, 's, T, T::Output> {
++impl<'p, 's, T: Task, A: Tracker<T>> Context<T> for TopDownContext<'p, 's, T, T::Output, A> {
+   fn require_file_with_stamper<P: AsRef<Path>>(&mut self, path: P, stamper: FileStamper) -> Result<Option<File>, io::Error> {
+     let Some(current_executing_task_node) = &self.session.current_executing_task else {
        return fs::open_if_file(path); // No current executing task, so no dependency needs to be made.
      };
      let path = path.as_ref();
      let node = self.session.store.get_or_create_file_node(path);
      let (dependency, file) = FileDependency::new_with_file(path, stamper)?;
 +    self.session.tracker.required_file(path, dependency.stamper(), dependency.stamp());
-     self.session.store.add_file_require_dependency(current_executing_task_node, &amp;node, dependency);
+     self.session.store.add_file_require_dependency(current_executing_task_node, &node, dependency);
      Ok(file)
    }
-
-   fn require_task_with_stamper(&amp;mut self, task: &amp;T, stamper: OutputStamper) -&gt; T::Output {
-+    self.session.tracker.require_task(task, &amp;stamper);
+ 
+   fn require_task_with_stamper(&mut self, task: &T, stamper: OutputStamper) -> T::Output {
++    self.session.tracker.require_task(task, &stamper);
      let node = self.session.store.get_or_create_task_node(task);
-
+ 
      // Get required task output by executing it if needed, or by getting the output from the store if not needed.
--    let output = if self.should_execute_task(&amp;node) {
-+    let should_execute = self.should_execute_task(&amp;node);
+-    let output = if self.should_execute_task(&node) {
++    let should_execute = self.should_execute_task(&node);
 +    let output = if should_execute {
 +      self.session.tracker.execute(task);
-       self.session.store.reset_task(&amp;node);
+       self.session.store.reset_task(&node);
        let previous_executing_task = self.session.current_executing_task.replace(node);
        let output = task.execute(self);
        self.session.current_executing_task = previous_executing_task;
-       self.session.store.set_task_output(&amp;node, output.clone());
-+      self.session.tracker.executed(task, &amp;output);
+       self.session.store.set_task_output(&node, output.clone());
++      self.session.tracker.executed(task, &output);
        output
      } else {
-       // Correctness: when `should_execute_task` returns `true`, the above block is executed. Otherwise this block is 
-       // executed and `should_execute_task` ensures that the task has an output.
-       self.session.store.get_task_output(&amp;node).clone()
+       // Correctness: when ${"`"}should_execute_task${"`"} returns ${"`"}true${"`"}, the above block is executed. Otherwise this block is 
+       // executed and ${"`"}should_execute_task${"`"} ensures that the task has an output.
+       self.session.store.get_task_output(&node).clone()
      };
-
+ 
 +    let dependency = TaskDependency::new(task.clone(), stamper, output.clone());
-+    self.session.tracker.required_task(task, &amp;output,dependency.stamper(), dependency.stamp(), should_execute);
++    self.session.tracker.required_task(task, &output,dependency.stamper(), dependency.stamp(), should_execute);
 +
      // Create task require dependency if a task is currently executing (i.e., we are not requiring the initial task).
-     if let Some(current_executing_task_node) = &amp;self.session.current_executing_task {
+     if let Some(current_executing_task_node) = &self.session.current_executing_task {
 -      let dependency = TaskDependency::new(task.clone(), stamper, output.clone());
-       if self.session.store.add_task_require_dependency(current_executing_task_node, &amp;node, dependency).is_err() {
+       if self.session.store.add_task_require_dependency(current_executing_task_node, &node, dependency).is_err() {
          let current_executing_task = self.session.store.get_task(current_executing_task_node);
-         panic!(&quot;Cyclic task dependency; current executing task '{:?}' is requiring task '{:?}' which was already required&quot;, current_executing_task, task);
+         panic!("Cyclic task dependency; current executing task '{:?}' is requiring task '{:?}' which was already required", current_executing_task, task);
        }
      }
-
+ 
      output
    }
  }
-
--impl&lt;'p, 's, T: Task&gt; TopDownContext&lt;'p, 's, T, T::Output&gt; {
-+impl&lt;'p, 's, T: Task, A: Tracker&lt;T&gt;&gt; TopDownContext&lt;'p, 's, T, T::Output, A&gt; {
-   /// Checks whether given task should be executed, returning `true` if it should be executed. A task should be executed
+ 
+-impl<'p, 's, T: Task> TopDownContext<'p, 's, T, T::Output> {
++impl<'p, 's, T: Task, A: Tracker<T>> TopDownContext<'p, 's, T, T::Output, A> {
+   /// Checks whether given task should be executed, returning ${"`"}true${"`"} if it should be executed. A task should be executed
    /// if any of its dependencies are inconsistent, or when it has no output.
-   fn should_execute_task(&amp;mut self, node: &amp;TaskNode) -&gt; bool {
-     // Borrow: because we pass `self` (which is `&amp;mut self`) to `is_inconsistent` for recursive consistency checking, 
-     //         we need to clone and collect dependencies into a `Vec`. Otherwise we have an immutable borrow of `self`
-     //         through `self.store` while we create a mutable borrow of `self`, which is not allowed.
-     let dependencies: Vec&lt;_&gt; = self.session.store.get_dependencies_of_task(node).cloned().collect();
+   fn should_execute_task(&mut self, node: &TaskNode) -> bool {
+     // Borrow: because we pass ${"`"}self${"`"} (which is ${"`"}&mut self${"`"}) to ${"`"}is_inconsistent${"`"} for recursive consistency checking, 
+     //         we need to clone and collect dependencies into a ${"`"}Vec${"`"}. Otherwise we have an immutable borrow of ${"`"}self${"`"}
+     //         through ${"`"}self.store${"`"} while we create a mutable borrow of ${"`"}self${"`"}, which is not allowed.
+     let dependencies: Vec<_> = self.session.store.get_dependencies_of_task(node).cloned().collect();
      for dependency in dependencies {
        match dependency.is_inconsistent(self) {
-         Ok(Some(_)) =&gt; return true,</code></pre>
+         Ok(Some(_)) => return true,
+`;
+    let target = document.getElementById('diff2html_2');
+    let configuration = {
+      drawFileList: false,
+      fileListToggle: false,
+      fileContentToggle: false,
+
+      outputFormat: 'side-by-side',
+      matching: 'lines',
+    };
+    let diff2htmlUi = new Diff2HtmlUI(target, diff, configuration, hljs);
+    diff2htmlUi.draw();
+  });
+</script>
 <p>We make <code>TopDownContext</code> generic over trackers, and call methods on the tracker:</p>
 <ul>
 <li><code>build_start</code>/<code>build_end</code> in <code>require_initial</code> to track build start and ends,</li>
@@ -3940,18 +3913,34 @@ Existing code should keep working due to the <code>NoopTracker</code> default ty
 <p>Now we can implement some interesting trackers.
 We start with a simple <code>WritingTracker</code> that writes build events to some writer.</p>
 <p>Add the <code>writing</code> module to <code>pie/src/tracker/mod.rs</code>:</p>
-<pre><code class="language-rust customdiff"> use std::path::Path;
-
+<div id="diff2html_3"></div>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    let diff = String.raw`--- pie/src/tracker/mod.rs
++++ pie/src/tracker/mod.rs
+@@ -3,6 +3,8 @@
  use crate::stamp::{FileStamp, FileStamper, OutputStamp, OutputStamper};
  use crate::Task;
-
+ 
 +pub mod writing;
 +
  /// Trait for tracking build events. Can be used to implement logging, event tracing, progress tracking, metrics, etc.
  #[allow(unused_variables)]
- pub trait Tracker&lt;T: Task&gt; {
-   /// Start a new build.
-   fn build_start(&amp;mut self) {}</code></pre>
+ pub trait Tracker<T: Task> {
+`;
+    let target = document.getElementById('diff2html_3');
+    let configuration = {
+      drawFileList: false,
+      fileListToggle: false,
+      fileContentToggle: false,
+
+      outputFormat: 'side-by-side',
+      matching: 'lines',
+    };
+    let diff2htmlUi = new Diff2HtmlUI(target, diff, configuration, hljs);
+    diff2htmlUi.draw();
+  });
+</script>
 <p>Then create the <code>pie/src/tracker/writing.rs</code> file and add:</p>
 <pre><code class="language-rust ">use std::io::{self, BufWriter, Stderr, Stdout, Write};
 
@@ -4076,21 +4065,27 @@ This in turn because <code>TopDownContext</code> does not return <code>Result</c
 But in this tutorial, we will keep it simple like this.</p>
 <p>Check that the code compiles with <code>cargo test</code>.</p>
 <p>Let's try out our writing tracker in the incrementality example by modifying <code>pie/examples/incremental.rs</code>:</p>
-<pre><code class="language-rust customdiff">
+<div id="diff2html_4"></div>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    let diff = String.raw`--- pie/examples/incremental.rs
++++ pie/examples/incremental.rs
+@@ -28,21 +28,20 @@
+ 
  /// Pseudo-task that reads a string from a file.
  #[derive(Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Debug)]
  struct ReadStringFromFile(PathBuf, FileStamper);
-
+ 
  impl ReadStringFromFile {
-   fn new(path: impl AsRef&lt;Path&gt;, stamper: FileStamper) -&gt; FileTask {
+   fn new(path: impl AsRef<Path>, stamper: FileStamper) -> FileTask {
      FileTask::ReadStringFromFile(Self(path.as_ref().to_path_buf(), stamper))
    }
-   fn execute&lt;C: Context&lt;FileTask&gt;&gt;(&amp;self, context: &amp;mut C) -&gt; Result&lt;String, io::ErrorKind&gt; {
--    println!(&quot;Reading from {} with {:?} stamper&quot;, self.0.file_name().unwrap().to_string_lossy(), self.1);
-     let file = context.require_file_with_stamper(&amp;self.0, self.1).map_err(|e| e.kind())?;
+   fn execute<C: Context<FileTask>>(&self, context: &mut C) -> Result<String, io::ErrorKind> {
+-    println!("Reading from {} with {:?} stamper", self.0.file_name().unwrap().to_string_lossy(), self.1);
+     let file = context.require_file_with_stamper(&self.0, self.1).map_err(|e| e.kind())?;
      if let Some(mut file) = file {
        let mut string = String::new();
-       file.read_to_string(&amp;mut string).map_err(|e| e.kind())?;
+       file.read_to_string(&mut string).map_err(|e| e.kind())?;
        Ok(string)
      } else {
        Err(io::ErrorKind::NotFound)
@@ -4099,42 +4094,56 @@ But in this tutorial, we will keep it simple like this.</p>
  }
 @@ -50,36 +49,35 @@
  /// Pseudo-task that writes a string to a file, where the string is provided by another task. The string provider is 
- /// boxed to prevent a cyclic definition of infinite size, due to this type being used in [`FileTask`].
+ /// boxed to prevent a cyclic definition of infinite size, due to this type being used in [${"`"}FileTask${"`"}].
  #[derive(Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Debug)]
- struct WriteStringToFile(Box&lt;FileTask&gt;, PathBuf, FileStamper);
-
+ struct WriteStringToFile(Box<FileTask>, PathBuf, FileStamper);
+ 
  impl WriteStringToFile {
-   fn new(string_provider: impl Into&lt;Box&lt;FileTask&gt;&gt;, path: impl Into&lt;PathBuf&gt;, stamper: FileStamper) -&gt; FileTask {
+   fn new(string_provider: impl Into<Box<FileTask>>, path: impl Into<PathBuf>, stamper: FileStamper) -> FileTask {
      FileTask::WriteStringToFile(Self(string_provider.into(), path.into(), stamper))
    }
-   fn execute&lt;C: Context&lt;FileTask&gt;&gt;(&amp;self, context: &amp;mut C) -&gt; Result&lt;(), io::ErrorKind&gt; {
--    println!(&quot;Writing to {} with {:?} stamper&quot;, self.1.file_name().unwrap().to_string_lossy(), self.2);
-     let string = context.require_task(&amp;self.0)?;
-     let mut file = File::create(&amp;self.1).map_err(|e| e.kind())?;
+   fn execute<C: Context<FileTask>>(&self, context: &mut C) -> Result<(), io::ErrorKind> {
+-    println!("Writing to {} with {:?} stamper", self.1.file_name().unwrap().to_string_lossy(), self.2);
+     let string = context.require_task(&self.0)?;
+     let mut file = File::create(&self.1).map_err(|e| e.kind())?;
      file.write_all(string.as_bytes()).map_err(|e| e.kind())?;
-     context.require_file_with_stamper(&amp;self.1, self.2).map_err(|e| e.kind())?;
+     context.require_file_with_stamper(&self.1, self.2).map_err(|e| e.kind())?;
      Ok(())
    }
  }
-
- fn main() -&gt; Result&lt;(), io::Error&gt; {
+ 
+ fn main() -> Result<(), io::Error> {
    let temp_dir = create_temp_dir()?;
-   let input_file = temp_dir.path().join(&quot;input.txt&quot;);
-   write(&amp;input_file, &quot;Hi&quot;)?;
-   let output_file = temp_dir.path().join(&quot;output.txt&quot;);
-
+   let input_file = temp_dir.path().join("input.txt");
+   write(&input_file, "Hi")?;
+   let output_file = temp_dir.path().join("output.txt");
+ 
 -  let mut pie = Pie::default();
 +  let mut pie = Pie::with_tracker(pie::tracker::writing::WritingTracker::with_stdout());
-   let read_task = ReadStringFromFile::new(&amp;input_file, FileStamper::Modified);
-   let write_task = WriteStringToFile::new(read_task.clone(), &amp;output_file, FileStamper::Modified);
+   let read_task = ReadStringFromFile::new(&input_file, FileStamper::Modified);
+   let write_task = WriteStringToFile::new(read_task.clone(), &output_file, FileStamper::Modified);
+ 
+   println!("A) New task: expect ${"`"}read_task${"`"} to execute");
+   // ${"`"}read_task${"`"} is new, meaning that we have no cached output for it, thus it must be executed.
+   let output = pie.new_session().require(&read_task)?;
+   assert_eq!(&output, "Hi");
+ 
+   println!("\nB) Reuse: expect no execution");
+   // ${"`"}read_task${"`"} is not new and its file dependency is still consistent. It is consistent because the modified time of 
+`;
+    let target = document.getElementById('diff2html_4');
+    let configuration = {
+      drawFileList: false,
+      fileListToggle: false,
+      fileContentToggle: false,
 
-   println!(&quot;A) New task: expect `read_task` to execute&quot;);
-   // `read_task` is new, meaning that we have no cached output for it, thus it must be executed.
-   let output = pie.new_session().require(&amp;read_task)?;
-   assert_eq!(&amp;output, &quot;Hi&quot;);
-
-   println!(&quot;\nB) Reuse: expect no execution&quot;);
-   // `read_task` is not new and its file dependency is still consistent. It is consistent because the modified time of </code></pre>
+      outputFormat: 'side-by-side',
+      matching: 'lines',
+    };
+    let diff2htmlUi = new Diff2HtmlUI(target, diff, configuration, hljs);
+    diff2htmlUi.draw();
+  });
+</script>
 <p>We remove the <code>println!</code> statements from tasks and create <code>Pie</code> with <code>WritingTracker</code>.
 Now run the example with <code>cargo run --example incremental</code>, and you should see the writing tracker print consistent tasks and task executions to standard output.</p>
 <h2 id="implement-event-tracker"><a class="header" href="#implement-event-tracker">Implement event tracker</a></h2>
@@ -4142,17 +4151,33 @@ Now run the example with <code>cargo run --example incremental</code>, and you s
 To check incrementality and soundness, we need to be able to check whether a task has executed or not, and check the order of build events.
 Therefore, we will implement the <code>EventTracker</code> that stores build events for later inspection.</p>
 <p>Add the <code>event</code> module to <code>pie/src/tracker/mod.rs</code>:</p>
-<pre><code class="language-rust customdiff">
- use crate::stamp::{FileStamp, FileStamper, OutputStamp, OutputStamper};
+<div id="diff2html_5"></div>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    let diff = String.raw`--- pie/src/tracker/mod.rs
++++ pie/src/tracker/mod.rs
+@@ -4,6 +4,7 @@
  use crate::Task;
-
+ 
  pub mod writing;
 +pub mod event;
-
+ 
  /// Trait for tracking build events. Can be used to implement logging, event tracing, progress tracking, metrics, etc.
  #[allow(unused_variables)]
- pub trait Tracker&lt;T: Task&gt; {
-   /// Start a new build.</code></pre>
+`;
+    let target = document.getElementById('diff2html_5');
+    let configuration = {
+      drawFileList: false,
+      fileListToggle: false,
+      fileContentToggle: false,
+
+      outputFormat: 'side-by-side',
+      matching: 'lines',
+    };
+    let diff2htmlUi = new Diff2HtmlUI(target, diff, configuration, hljs);
+    diff2htmlUi.draw();
+  });
+</script>
 <p>Then create the <code>pie/src/tracker/event.rs</code> file and add:</p>
 <pre><code class="language-rust ">use std::path::{Path, PathBuf};
 

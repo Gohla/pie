@@ -1,17 +1,16 @@
---- original
-+++ modified
-@@ -1,31 +1,23 @@
- use std::fs::File;
+--- pie/src/context/top_down.rs
++++ pie/src/context/top_down.rs
+@@ -2,28 +2,20 @@
  use std::io;
  use std::path::Path;
-
+ 
 -use crate::{Context, fs, Task};
 +use crate::{Context, fs, Session, Task};
  use crate::dependency::{FileDependency, TaskDependency};
  use crate::stamp::{FileStamper, OutputStamper};
 -use crate::store::{Store, TaskNode};
 +use crate::store::TaskNode;
-
+ 
 -pub struct TopDownContext<T, O> {
 -  store: Store<T, O>,
 -  current_executing_task: Option<TaskNode>,
@@ -19,7 +18,7 @@
 +pub struct TopDownContext<'p, 's, T, O> {
 +  session: &'s mut Session<'p, T, O>,
  }
-
+ 
 -impl<T: Task> TopDownContext<T, T::Output> {
 -  pub fn new() -> Self {
 -    Self {
@@ -30,13 +29,11 @@
 -  }
 +impl<'p, 's, T: Task> TopDownContext<'p, 's, T, T::Output> {
 +  pub fn new(session: &'s mut Session<'p, T, T::Output>) -> Self { Self { session } }
-
+ 
 -  pub fn get_dependency_check_errors(&self) -> impl Iterator<Item=&io::Error> {
 -    self.dependency_check_errors.iter()
 +  pub fn require_initial(&mut self, task: &T) -> T::Output {
 +    self.require_task(task)
    }
  }
-
-
- impl<T: Task> Context<T> for TopDownContext<T, T::Output> {
+ 

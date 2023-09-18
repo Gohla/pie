@@ -1,4 +1,4 @@
-   Compiling pie v0.1.0 (/private/pie)
+   Compiling pie v0.1.0 (/pie)
 error[E0276]: impl has stricter requirements than trait
   --> src/context/non_incremental.rs:45:21
    |

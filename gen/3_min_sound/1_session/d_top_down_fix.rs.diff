@@ -1,11 +1,9 @@
---- original
-+++ modified
-@@ -18,70 +18,70 @@
-     self.require_task(task)
-   }
+--- pie/src/context/top_down.rs
++++ pie/src/context/top_down.rs
+@@ -20,40 +20,40 @@
  }
-
-
+ 
+ 
 -impl<T: Task> Context<T> for TopDownContext<T, T::Output> {
 +impl<'p, 's, T: Task> Context<T> for TopDownContext<'p, 's, T, T::Output> {
    fn require_file_with_stamper<P: AsRef<Path>>(&mut self, path: P, stamper: FileStamper) -> Result<Option<File>, io::Error> {
@@ -21,11 +19,11 @@
 +    self.session.store.add_file_require_dependency(current_executing_task_node, &node, dependency);
      Ok(file)
    }
-
+ 
    fn require_task_with_stamper(&mut self, task: &T, stamper: OutputStamper) -> T::Output {
 -    let node = self.store.get_or_create_task_node(task);
 +    let node = self.session.store.get_or_create_task_node(task);
-
+ 
      // Get required task output by executing it if needed, or by getting the output from the store if not needed.
      let output = if self.should_execute_task(&node) {
 -      self.store.reset_task(&node);
@@ -44,7 +42,7 @@
 -      self.store.get_task_output(&node).clone()
 +      self.session.store.get_task_output(&node).clone()
      };
-
+ 
      // Create task require dependency if a task is currently executing (i.e., we are not requiring the initial task).
 -    if let Some(current_executing_task_node) = &self.current_executing_task {
 +    if let Some(current_executing_task_node) = &self.session.current_executing_task {
@@ -56,11 +54,10 @@
          panic!("Cyclic task dependency; current executing task '{:?}' is requiring task '{:?}' which was already required", current_executing_task, task);
        }
      }
-
-     output
+@@ -62,19 +62,19 @@
    }
  }
-
+ 
 -impl<T: Task> TopDownContext<T, T::Output> {
 +impl<'p, 's, T: Task> TopDownContext<'p, 's, T, T::Output> {
    /// Checks whether given task should be executed, returning `true` if it should be executed. A task should be executed
@@ -80,7 +77,7 @@
            return true;
          }
          _ => {} // Consistent: continue checking
-       }
+@@ -82,6 +82,6 @@
      }
      // Task has no dependencies or all dependencies are consistent. Should only execute if it has no output, meaning
      // that it has never been executed before.

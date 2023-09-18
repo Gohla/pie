@@ -1,5 +1,5 @@
---- original
-+++ modified
+--- pie/src/context/mod.rs
++++ pie/src/context/mod.rs
 @@ -1 +1,2 @@
  pub mod non_incremental;
 +pub mod top_down;

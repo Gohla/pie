@@ -1,15 +1,11 @@
---- original
-+++ modified
-@@ -1,10 +1,12 @@
- use std::path::Path;
-
+--- pie/src/tracker/mod.rs
++++ pie/src/tracker/mod.rs
+@@ -3,6 +3,8 @@
  use crate::stamp::{FileStamp, FileStamper, OutputStamp, OutputStamper};
  use crate::Task;
-
+ 
 +pub mod writing;
 +
  /// Trait for tracking build events. Can be used to implement logging, event tracing, progress tracking, metrics, etc.
  #[allow(unused_variables)]
  pub trait Tracker<T: Task> {
-   /// Start a new build.
-   fn build_start(&mut self) {}

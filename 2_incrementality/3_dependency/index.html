@@ -182,17 +182,13 @@ Therefore, dependencies need to keep track of their stamper and their previous s
 To that end, we will implement the <code>FileDependency</code> and <code>TaskDependency</code> types with methods for consistency checking.
 We will also implement a <code>Dependency</code> type that abstracts over <code>FileDependency</code> and <code>TaskDependency</code>, which we will need for the dependency graph implementation in the next chapter.</p>
 <p>Add the <code>dependency</code> module to <code>pie/src/lib.rs</code>:</p>
-<pre><code class="language-rust customdiff"> use stamp::{FileStamper, OutputStamper};
-
- pub mod stamp;
+<pre><code class="language-rust customdiff"> pub mod stamp;
  pub mod context;
  mod fs;
 +mod dependency;
-
+ 
  /// A unit of computation in a programmatic incremental build system.
- pub trait Task: Clone + Eq + Hash + Debug {
-   /// Type of output this task returns when executed.
-   type Output: Clone + Eq + Debug;</code></pre>
+ pub trait Task: Clone + Eq + Hash + Debug {</code></pre>
 <p>This module is private, as users of the library should not construct dependencies.
 They should only create dependencies (and choose stampers) via <code>Context</code> methods.</p>
 <h2 id="file-dependencies"><a class="header" href="#file-dependencies">File dependencies</a></h2>

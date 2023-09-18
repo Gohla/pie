@@ -221,17 +221,17 @@ For incrementality, we need to add this dependency to the dependency graph.
 This dependency will go from the <em>current executing task</em> to the file.
 Therefore, we will need to keep track of the current executing task.</p>
 <p>Change <code>pie/src/context/mod.rs</code> to add a field for tracking the current executing task, and use it in <code>require_file_with_stamper</code>:</p>
-<pre><code class="language-rust customdiff">
+<pre><code class="language-rust customdiff"> 
  use crate::{Context, fs, Task};
  use crate::dependency::{FileDependency, TaskDependency};
  use crate::stamp::{FileStamper, OutputStamper};
  use crate::store::{Store, TaskNode};
-
+ 
  pub struct TopDownContext&lt;T, O&gt; {
    store: Store&lt;T, O&gt;,
 +  current_executing_task: Option&lt;TaskNode&gt;,
  }
-
+ 
  impl&lt;T: Task&gt; TopDownContext&lt;T, T::Output&gt; {
    pub fn new() -&gt; Self {
      Self {
@@ -240,7 +240,7 @@ Therefore, we will need to keep track of the current executing task.</p>
      }
    }
  }
-
+ 
  impl&lt;T: Task&gt; Context&lt;T&gt; for TopDownContext&lt;T, T::Output&gt; {
    fn require_file_with_stamper&lt;P: AsRef&lt;Path&gt;&gt;(&amp;mut self, path: P, stamper: FileStamper) -&gt; Result&lt;Option&lt;File&gt;, io::Error&gt; {
 +    let Some(current_executing_task_node) = &amp;self.current_executing_task else {
@@ -248,7 +248,7 @@ Therefore, we will need to keep track of the current executing task.</p>
 +    };
      todo!()
    }
-
+ 
    fn require_task_with_stamper(&amp;mut self, task: &amp;T, stamper: OutputStamper) -&gt; T::Output {
      todo!()
    }
@@ -257,9 +257,7 @@ Therefore, we will need to keep track of the current executing task.</p>
 In <code>require_file_with_stamper</code> we're now getting the current executing task.
 If there is no current executing task, which only happens if a user directly calls <code>require_file</code> on a context, we don't make a dependency and just open the file.</p>
 <p>Now we need to add the file dependency, change <code>pie/src/context/mod.rs</code> to do this: </p>
-<pre><code class="language-rust customdiff"> impl&lt;T: Task&gt; Context&lt;T&gt; for TopDownContext&lt;T, T::Output&gt; {
-   fn require_file_with_stamper&lt;P: AsRef&lt;Path&gt;&gt;(&amp;mut self, path: P, stamper: FileStamper) -&gt; Result&lt;Option&lt;File&gt;, io::Error&gt; {
-     let Some(current_executing_task_node) = &amp;self.current_executing_task else {
+<pre><code class="language-rust customdiff">     let Some(current_executing_task_node) = &amp;self.current_executing_task else {
        return fs::open_if_file(path); // No current executing task, so no dependency needs to be made.
      };
 -    todo!()
@@ -269,10 +267,8 @@ If there is no current executing task, which only happens if a user directly cal
 +    self.store.add_file_require_dependency(current_executing_task_node, &amp;node, dependency);
 +    Ok(file)
    }
-
-   fn require_task_with_stamper(&amp;mut self, task: &amp;T, stamper: OutputStamper) -&gt; T::Output {
-     todo!()
-   }</code></pre>
+ 
+   fn require_task_with_stamper(&amp;mut self, task: &amp;T, stamper: OutputStamper) -&gt; T::Output {</code></pre>
 <p>We simply create or get an existing file node, create a file dependency, and add the file require dependency to the graph via <code>store</code>.
 Errors are propagated to the caller, so they can react accordingly to filesystem operation failures.</p>
 <h2 id="requiring-tasks"><a class="header" href="#requiring-tasks">Requiring tasks</a></h2>
@@ -280,10 +276,8 @@ Errors are propagated to the caller, so they can react accordingly to filesystem
 A task should be executed either if it's new (it does not have an output stored yet), or if at least one of its dependencies is inconsistent.
 If we don't execute it, then it must have an output value and all its dependencies are consistent, so we just return its output value.</p>
 <p>Change <code>pie/src/context/mod.rs</code> to implement this logic:</p>
-<pre><code class="language-rust customdiff">     self.store.add_file_require_dependency(current_executing_task_node, &amp;node, dependency);
-     Ok(file)
-   }
-
+<pre><code class="language-rust customdiff">   }
+ 
    fn require_task_with_stamper(&amp;mut self, task: &amp;T, stamper: OutputStamper) -&gt; T::Output {
 -    todo!()
 +    let node = self.store.get_or_create_task_node(task);
@@ -311,11 +305,9 @@ Then, we check whether the task should be executed with <code>should_execute_tas
 Otherwise, we get the output of the task from the store, which cannot panic because <code>should_execute_task</code> ensures that the task has an output if it returns false.
 Finally, we return the output.</p>
 <p>We still need to create a task dependency. Change <code>pie/src/context/mod.rs</code> to add the dependency:</p>
-<pre><code class="language-rust customdiff">       // Correctness: when `should_execute_task` returns `true`, the above block is executed. Otherwise this block is 
-       // executed and `should_execute_task` ensures that the task has an output.
-       self.store.get_task_output(&amp;node).clone()
+<pre><code class="language-rust customdiff">       self.store.get_task_output(&amp;node).clone()
      };
-
+ 
 +    // Create task require dependency if a task is currently executing (i.e., we are not requiring the initial task).
 +    if let Some(current_executing_task_node) = &amp;self.current_executing_task {
 +      let dependency = TaskDependency::new(task.clone(), stamper, output.clone());
@@ -376,9 +368,7 @@ Furthermore, some platforms do not have access to threads, such as WASM, where t
 <h2 id="checking-tasks"><a class="header" href="#checking-tasks">Checking tasks</a></h2>
 <p>The final piece to our puzzle is the <code>should_execute_task</code> implementation.</p>
 <p>Add the following code to <code>pie/src/context/mod.rs</code>:</p>
-<pre><code class="language-rust customdiff ">     }
-
-     output
+<pre><code class="language-rust customdiff ">     output
    }
  }
 +
@@ -473,16 +463,14 @@ But this is outside of the scope of even this extra information block, so we'll 
 We've ignored the case where <code>dependency.is_inconsistent</code> returns <code>Err</code>.
 When dependency checking result in an error, we should store the error for the user to investigate, and assume the dependency is inconsistent.</p>
 <p>Change <code>pie/src/context/mod.rs</code> to store dependency check errors and give users access to it:</p>
-<pre><code class="language-rust customdiff"> use crate::store::{Store, TaskNode};
-
- pub struct TopDownContext&lt;T, O&gt; {
+<pre><code class="language-rust customdiff"> pub struct TopDownContext&lt;T, O&gt; {
    store: Store&lt;T, O&gt;,
    current_executing_task: Option&lt;TaskNode&gt;,
 +  dependency_check_errors: Vec&lt;io::Error&gt;,
  }
-
+ 
  impl&lt;T: Task&gt; TopDownContext&lt;T, T::Output&gt; {
-   pub fn new() -&gt; Self {
+@@ -17,8 +18,13 @@
      Self {
        store: Store::default(),
        current_executing_task: None,
@@ -494,25 +482,17 @@ When dependency checking result in an error, we should store the error for the u
 +    self.dependency_check_errors.iter()
 +  }
  }
-
- impl&lt;T: Task&gt; Context&lt;T&gt; for TopDownContext&lt;T, T::Output&gt; {
-   fn require_file_with_stamper&lt;P: AsRef&lt;Path&gt;&gt;(&amp;mut self, path: P, stamper: FileStamper) -&gt; Result&lt;Option&lt;File&gt;, io::Error&gt; {
-     let Some(current_executing_task_node) = &amp;self.current_executing_task else {</code></pre>
+ 
+ impl&lt;T: Task&gt; Context&lt;T&gt; for TopDownContext&lt;T, T::Output&gt; {</code></pre>
 <p>And then change <code>pie/src/context/mod.rs</code> to store these errors:</p>
-<pre><code class="language-rust customdiff">   pub fn get_dependency_check_errors(&amp;self) -&gt; impl Iterator&lt;Item=&amp;io::Error&gt; {
-     self.dependency_check_errors.iter()
-   }
+<pre><code class="language-rust customdiff">   }
  }
-
+ 
 +
  impl&lt;T: Task&gt; Context&lt;T&gt; for TopDownContext&lt;T, T::Output&gt; {
    fn require_file_with_stamper&lt;P: AsRef&lt;Path&gt;&gt;(&amp;mut self, path: P, stamper: FileStamper) -&gt; Result&lt;Option&lt;File&gt;, io::Error&gt; {
      let Some(current_executing_task_node) = &amp;self.current_executing_task else {
-       return fs::open_if_file(path); // No current executing task, so no dependency needs to be made.
-     };
-@@ -78,10 +79,14 @@
-     //         through `self.store` while we create a mutable borrow of `self`, which is not allowed.
-     let dependencies: Vec&lt;_&gt; = self.store.get_dependencies_of_task(node).cloned().collect();
+@@ -80,6 +81,10 @@
      for dependency in dependencies {
        match dependency.is_inconsistent(self) {
          Ok(Some(_)) =&gt; return true,
@@ -522,9 +502,7 @@ When dependency checking result in an error, we should store the error for the u
 +        }
          _ =&gt; {} // Consistent: continue checking
        }
-     }
-     // Task has no dependencies or all dependencies are consistent. Should only execute if it has no output, meaning
-     // that it has never been executed before.</code></pre>
+     }</code></pre>
 <p>It took us a while, but now we've implemented an incremental build system with dynamic dependencies 🎉.
 Let's set up an example to see the fruits of our labour.</p>
 <h2 id="incrementality-example"><a class="header" href="#incrementality-example">Incrementality Example</a></h2>
@@ -666,9 +644,9 @@ Therefore, the size of <code>Box&lt;FileTask&gt;</code> is the size of one point
 Run this example with <code>cargo run --example incremental</code>.
 You should see the <code>println!</code> in <code>ReadStringFromFile</code> appear in your console as the incremental context correctly determines that this task is new (i.e., has no output) and must be executed.
 It should look something like:</p>
-<pre><code>   Compiling pie v0.1.0 (/private/pie)
-    Finished dev [unoptimized + debuginfo] target(s) in 1.29s
-     Running `/private/pie/target/debug/examples/incremental`
+<pre><code>   Compiling pie v0.1.0 (/pie)
+    Finished dev [unoptimized + debuginfo] target(s) in 1.10s
+     Running `/pie/target/debug/examples/incremental`
 A) New task: expect `read_task` to execute
 Reading from input.txt with Modified stamper
 </code></pre>
@@ -682,9 +660,9 @@ Reading from input.txt with Modified stamper
   assert_eq!(&amp;output, &quot;Hi&quot;);
 </code></pre>
 <p>Running with <code>cargo run --example incremental</code> should produce output like:</p>
-<pre><code>   Compiling pie v0.1.0 (/private/pie)
-    Finished dev [unoptimized + debuginfo] target(s) in 0.60s
-     Running `/private/pie/target/debug/examples/incremental`
+<pre><code>   Compiling pie v0.1.0 (/pie)
+    Finished dev [unoptimized + debuginfo] target(s) in 0.55s
+     Running `/pie/target/debug/examples/incremental`
 A) New task: expect `read_task` to execute
 Reading from input.txt with Modified stamper
 
@@ -835,9 +813,9 @@ We expect <code>read_task_b_modified</code> to be executed, but <code>read_task_
 This shows that tasks can depend on the same file with different stampers, which influences whether the tasks are affected by a file change individually.</p>
 <p>Of course, using an <code>Exists</code> stamper for <code>ReadStringFromFile</code> does not make a lot of sense, but this is for demonstration purposes only.</p>
 <p>Running <code>cargo run --example incremental</code> now should produce output like:</p>
-<pre><code>   Compiling pie v0.1.0 (/private/pie)
-    Finished dev [unoptimized + debuginfo] target(s) in 0.68s
-     Running `/private/pie/target/debug/examples/incremental`
+<pre><code>   Compiling pie v0.1.0 (/pie)
+    Finished dev [unoptimized + debuginfo] target(s) in 0.59s
+     Running `/pie/target/debug/examples/incremental`
 A) New task: expect `read_task` to execute
 Reading from input.txt with Modified stamper
 

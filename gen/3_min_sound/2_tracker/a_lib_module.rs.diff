@@ -1,14 +1,10 @@
---- original
-+++ modified
-@@ -8,10 +8,11 @@
-
- use crate::context::top_down::TopDownContext;
+--- pie/src/lib.rs
++++ pie/src/lib.rs
+@@ -10,6 +10,7 @@
  use crate::store::{Store, TaskNode};
-
+ 
  pub mod stamp;
 +pub mod tracker;
  mod context;
  mod fs;
  mod dependency;
- mod store;
-

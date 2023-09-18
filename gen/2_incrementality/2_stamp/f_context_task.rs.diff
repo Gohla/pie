@@ -1,11 +1,9 @@
---- original
-+++ modified
-@@ -39,8 +39,16 @@
-   ///   if there was an error stamping the file.
-   fn require_file_with_stamper<P: AsRef<Path>>(&mut self, path: P, stamper: FileStamper) -> Result<Option<File>, io::Error>;
+--- pie/src/lib.rs
++++ pie/src/lib.rs
+@@ -41,6 +41,14 @@
    /// Returns the default require file stamper.
    fn default_require_file_stamper(&self) -> FileStamper { FileStamper::Modified }
-
+ 
 -  /// Requires given `task`, recording a dependency and selectively executing it. Returns its up-to-date output.
 -  fn require_task(&mut self, task: &T) -> T::Output;
 +  /// Requires given `task`, recording a dependency (using the default output stamper) and selectively executing it. 

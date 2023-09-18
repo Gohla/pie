@@ -194,11 +194,9 @@ The implementation in the <code>incremental-topo</code> library is based on a <a
 </div>
 </details>
 <p>Add the <code>pie_graph</code> dependency to <code>pie/Cargo.toml</code>:</p>
-<pre><code class="language-rust customdiff"> [package]
- name = &quot;pie&quot;
- version = &quot;0.1.0&quot;
+<pre><code class="language-rust customdiff"> version = &quot;0.1.0&quot;
  edition = &quot;2021&quot;
-
+ 
 +[dependencies]
 +pie_graph = &quot;0.0.1&quot;
 +
@@ -207,17 +205,13 @@ The implementation in the <code>incremental-topo</code> library is based on a <a
  assert_matches = &quot;1&quot;</code></pre>
 <h2 id="store-basics"><a class="header" href="#store-basics">Store basics</a></h2>
 <p>Add the <code>store</code> module to <code>pie/src/lib.rs</code>:</p>
-<pre><code class="language-rust customdiff">
- pub mod stamp;
- pub mod context;
+<pre><code class="language-rust customdiff"> pub mod context;
  mod fs;
  mod dependency;
 +mod store;
-
+ 
  /// A unit of computation in a programmatic incremental build system.
- pub trait Task: Clone + Eq + Hash + Debug {
-   /// Type of output this task returns when executed.
-   type Output: Clone + Eq + Debug;</code></pre>
+ pub trait Task: Clone + Eq + Hash + Debug {</code></pre>
 <p>This module is private, as users of the library should not interact with the store.
 Only <code>Context</code> implementations will use the store.</p>
 <p>Create the <code>pie/src/store.rs</code> file and add the following to get started:</p>
@@ -283,12 +277,12 @@ This is also the reason for the <code>Eq</code> and <code>Hash</code> trait boun
 <p>Change <code>pie/src/store.rs</code> to add hash maps to map between these things:</p>
 <pre><code class="language-rust customdiff">+use std::collections::HashMap;
  use std::path::{Path, PathBuf};
-
+ 
  use pie_graph::{DAG, Node};
-
+ 
  use crate::dependency::{Dependency, FileDependency, TaskDependency};
  use crate::Task;
-
+ 
  /// Stores files and tasks, and their dependencies, in a DAG (directed acyclic graph). Provides operations to mutate
  /// and query this graph.
  pub struct Store&lt;T, O&gt; {
@@ -296,7 +290,7 @@ This is also the reason for the <code>Eq</code> and <code>Hash</code> trait boun
 +  file_to_node: HashMap&lt;PathBuf, Node&gt;,
 +  task_to_node: HashMap&lt;T, Node&gt;,
  }
-
+ 
  #[derive(Debug)]
  enum NodeData&lt;T, O&gt; {
    File(PathBuf),
@@ -305,7 +299,7 @@ This is also the reason for the <code>Eq</code> and <code>Hash</code> trait boun
      output: Option&lt;O&gt;,
    },
  }
-
+ 
  impl&lt;T: Task&gt; Default for Store&lt;T, T::Output&gt; {
    fn default() -&gt; Self {
      Self {
@@ -315,17 +309,17 @@ This is also the reason for the <code>Eq</code> and <code>Hash</code> trait boun
      }
    }
  }
-</code></pre>
+ </code></pre>
 <p>To prevent accidentally using a file node as a task node, and vice versa, change <code>pie/src/store.rs</code> to add specific types of nodes:</p>
 <pre><code class="language-rust customdiff">+use std::borrow::Borrow;
  use std::collections::HashMap;
  use std::path::{Path, PathBuf};
-
+ 
  use pie_graph::{DAG, Node};
-
+ 
  use crate::dependency::{Dependency, FileDependency, TaskDependency};
  use crate::Task;
-
+ 
  /// Stores files and tasks, and their dependencies, in a DAG (directed acyclic graph). Provides operations to mutate
  /// and query this graph.
  pub struct Store&lt;T, O&gt; {
@@ -335,7 +329,7 @@ This is also the reason for the <code>Eq</code> and <code>Hash</code> trait boun
 +  file_to_node: HashMap&lt;PathBuf, FileNode&gt;,
 +  task_to_node: HashMap&lt;T, TaskNode&gt;,
  }
-
+ 
  #[derive(Debug)]
  enum NodeData&lt;T, O&gt; {
    File(PathBuf),
@@ -344,7 +338,7 @@ This is also the reason for the <code>Eq</code> and <code>Hash</code> trait boun
      output: Option&lt;O&gt;,
    },
  }
-
+ 
 +/// Newtype for file `Node`s.
 +#[repr(transparent)]
 +#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
@@ -372,7 +366,7 @@ This is also the reason for the <code>Eq</code> and <code>Hash</code> trait boun
      }
    }
  }
-</code></pre>
+ </code></pre>
 <p>The <code>FileNode</code> and <code>TaskNode</code> types are <a href="https://rust-unofficial.github.io/patterns/patterns/behavioural/newtype.html">newtypes</a> that wrap a <code>Node</code> into a specific type of node.
 The <code>Borrow</code> implementations will make subsequent code a bit more concise by automatically converting <code>&amp;FileNode</code> and <code>&amp;TaskNode</code>s to <code>&amp;Node</code>s.</p>
 <details id="admonition-newtypes" class="admonition info">
