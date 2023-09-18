@@ -2,7 +2,7 @@
 
 //! A modified version of the `incremental-topo` crate for use in PIE and the
 //! PIE tutorial.
-//! 
+//!
 //! The purpose of this crate is to maintain an topological order in the face
 //! of single updates, like adding new nodes, adding new edges, deleting
 //! edges, and deleting nodes.
@@ -105,7 +105,7 @@ use slotmap::{DefaultKey, SlotMap};
 type TopoOrder = u32;
 
 
-/// Data structure for maintaining a directed-acyclic graph (DAG) with topological ordering, maintained in an 
+/// Data structure for maintaining a directed-acyclic graph (DAG) with topological ordering, maintained in an
 /// incremental fashion.
 ///
 /// When iterating over edges or their associated data, the order is the insertion order.
@@ -128,7 +128,7 @@ pub struct DAG<N, E, H = RandomState> {
 
 /// A node (identifier) in the [`DAG`].
 ///
-/// This identifier contains metadata so that a node which has been passed to [`DAG::delete_node`] 
+/// This identifier contains metadata so that a node which has been passed to [`DAG::delete_node`]
 /// will not be confused with a node created later.
 #[repr(transparent)]
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
@@ -164,7 +164,7 @@ impl<N, H: BuildHasher + Default> NodeInfo<N, H> {
 /// Different types of failures that can occur while updating or querying the graph.
 #[derive(Debug, PartialEq, Eq)]
 pub enum Error {
-  /// The given node was not found in the topological order. This usually means that the node was deleted, but a 
+  /// The given node was not found in the topological order. This usually means that the node was deleted, but a
   /// reference was kept around after which is now invalid.
   NodeMissing,
   /// Cycles of nodes may not be formed in the graph.
@@ -215,7 +215,7 @@ impl<N, E> DAG<N, E> {
 impl<N, E, H: BuildHasher + Default> DAG<N, E, H> {
   /// Add a new node with `data` to the graph and return a unique [`Node`] which identifies it.
   ///
-  /// Initially this node will not have any order relative to the nodes that are already in the graph. Only when 
+  /// Initially this node will not have any order relative to the nodes that are already in the graph. Only when
   /// relations are added with [`add_dependency`] will the order begin to matter.
   ///
   /// # Examples
@@ -334,10 +334,10 @@ impl<N, E, H: BuildHasher + Default> DAG<N, E, H> {
 
   /// Add a directed edge from `src` to `dst` with edge `data`.
   ///
-  /// This edge indicates an ordering constraint on the two nodes, now `src` must always come before `dst` in the 
+  /// This edge indicates an ordering constraint on the two nodes, now `src` must always come before `dst` in the
   /// ordering.
   ///
-  /// Returns `Ok(true)` if the graph did not previously contain this edge. Returns `Ok(false)` if the graph did 
+  /// Returns `Ok(true)` if the graph did not previously contain this edge. Returns `Ok(false)` if the graph did
   /// have a previous edge between these two nodes.
   ///
   /// # Errors
@@ -462,7 +462,7 @@ impl<N, E, H: BuildHasher + Default> DAG<N, E, H> {
 
   /// Returns true if the graph contains a transitive edge from `src` to `dst`.
   ///
-  /// In this context a transitive dependency means that `succ` exists as a descendant of `pred`, with some chain of 
+  /// In this context a transitive dependency means that `succ` exists as a descendant of `pred`, with some chain of
   /// other nodes in between.
   ///
   /// Returns false if either node is not found in the graph, or there is no transitive dependency.
@@ -635,7 +635,7 @@ impl<N, E, H: BuildHasher + Default> DAG<N, E, H> {
   }
 
 
-  /// Attempt to remove the edge from `src` to `dst` from the graph, returning `Some(edge_data)` if the edge was 
+  /// Attempt to remove the edge from `src` to `dst` from the graph, returning `Some(edge_data)` if the edge was
   /// removed, or `None` otherwise.
   ///
   /// Returns `false` is either node is not found in the graph.
@@ -677,7 +677,7 @@ impl<N, E, H: BuildHasher + Default> DAG<N, E, H> {
     self.edge_data.remove(&(*src, *dst))
   }
 
-  /// Attempt to remove all outgoing edges of `src` from the graph, returning `Some(edge_data)` if any edges were 
+  /// Attempt to remove all outgoing edges of `src` from the graph, returning `Some(edge_data)` if any edges were
   /// removed, or `None` if the node does not exist or does not have any edges.
   pub fn remove_outgoing_edges_of_node(&mut self, src: impl Borrow<Node>) -> Option<Vec<(Node, E)>> { // TODO: test!
     let pred_id = src.borrow();
@@ -1021,7 +1021,7 @@ impl<N, E, H: BuildHasher + Default> DAG<N, E, H> {
   }
 }
 
-/// An iterator over the descendants of a node in the graph, which outputs the nodes in an unsorted order with their 
+/// An iterator over the descendants of a node in the graph, which outputs the nodes in an unsorted order with their
 /// topological ranking.
 ///
 /// # Examples
@@ -1076,7 +1076,7 @@ impl<'a, N, E, H: BuildHasher> Iterator for DescendantsUnsorted<'a, N, E, H> {
   }
 }
 
-/// An iterator over the descendants of a node in the graph, which outputs the nodes in a sorted order by their 
+/// An iterator over the descendants of a node in the graph, which outputs the nodes in a sorted order by their
 /// topological ranking.
 ///
 /// # Examples
@@ -1153,8 +1153,6 @@ impl<T, H> StackVisitedScratchSpace<T, H> {
 
 #[cfg(test)]
 mod tests {
-  extern crate pretty_env_logger;
-
   use super::*;
 
   fn get_basic_dag() -> Result<([Node; 7], DAG<(), ()>), Error> {
