@@ -195,7 +195,7 @@ edition = &quot;2021&quot;
 <p>Run <code>cargo build</code> to test if the project was set up correctly.
 The output should look something like:</p>
 <pre><code class="language-shell ">   Compiling pie v0.1.0 (/pie)
-    Finished dev [unoptimized + debuginfo] target(s) in 0.12s
+    Finished dev [unoptimized + debuginfo] target(s) in 0.11s
 </code></pre>
 <details id="admonition-download-source-code" class="admonition example">
 <summary class="admonition-title">
@@ -276,7 +276,7 @@ Because of this, the context reference passed to <code>Task::execute</code> is a
 <p>Build the project by running <code>cargo build</code>.
 The output should look something like:</p>
 <pre><code class="language-shell ">   Compiling pie v0.1.0 (/pie)
-    Finished dev [unoptimized + debuginfo] target(s) in 0.06s
+    Finished dev [unoptimized + debuginfo] target(s) in 0.05s
 </code></pre>
 <details id="admonition-rust-help" class="admonition info">
 <summary class="admonition-title">
@@ -419,7 +419,7 @@ It returns the output of the task, which we test with <code>assert_eq!</code>.</
 <p>Run the test by running <code>cargo test</code>.
 The output should look something like:</p>
 <pre><code class="language-shell ">   Compiling pie v0.1.0 (/pie)
-    Finished test [unoptimized + debuginfo] target(s) in 0.46s
+    Finished test [unoptimized + debuginfo] target(s) in 0.41s
      Running unittests src/lib.rs (/pie/target/debug/deps/pie-2022d1785b8ce336)
 
 running 1 test
@@ -2883,7 +2883,7 @@ Run this example with <code>cargo run --example incremental</code>.
 You should see the <code>println!</code> in <code>ReadStringFromFile</code> appear in your console as the incremental context correctly determines that this task is new (i.e., has no output) and must be executed.
 It should look something like:</p>
 <pre><code>   Compiling pie v0.1.0 (/pie)
-    Finished dev [unoptimized + debuginfo] target(s) in 1.38s
+    Finished dev [unoptimized + debuginfo] target(s) in 1.16s
      Running `/pie/target/debug/examples/incremental`
 A) New task: expect `read_task` to execute
 Reading from input.txt with Modified stamper
@@ -2899,7 +2899,7 @@ Reading from input.txt with Modified stamper
 </code></pre>
 <p>Running with <code>cargo run --example incremental</code> should produce output like:</p>
 <pre><code>   Compiling pie v0.1.0 (/pie)
-    Finished dev [unoptimized + debuginfo] target(s) in 0.65s
+    Finished dev [unoptimized + debuginfo] target(s) in 0.58s
      Running `/pie/target/debug/examples/incremental`
 A) New task: expect `read_task` to execute
 Reading from input.txt with Modified stamper
@@ -3052,7 +3052,7 @@ This shows that tasks can depend on the same file with different stampers, which
 <p>Of course, using an <code>Exists</code> stamper for <code>ReadStringFromFile</code> does not make a lot of sense, but this is for demonstration purposes only.</p>
 <p>Running <code>cargo run --example incremental</code> now should produce output like:</p>
 <pre><code>   Compiling pie v0.1.0 (/pie)
-    Finished dev [unoptimized + debuginfo] target(s) in 0.74s
+    Finished dev [unoptimized + debuginfo] target(s) in 0.65s
      Running `/pie/target/debug/examples/incremental`
 A) New task: expect `read_task` to execute
 Reading from input.txt with Modified stamper
