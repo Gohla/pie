@@ -13,6 +13,7 @@
 }
 
 /* Red */
+/* CHANGE: remove hljs-variable coloring, as this class is sometimes used in Diff2Html. */
 /*.hljs-variable,*/
 .hljs-template-variable,
 .hljs-attribute,
@@ -58,7 +59,8 @@
 
 .hljs {
   display: block;
-  overflow-x: auto;
+  /* CHANGE: remove overflow-x here, moved to code blocks */
+  /*overflow-x: auto;*/
   background: #f6f7f6;
   color: #000;
 }

@@ -72,15 +72,12 @@ Modifications to get it working:
   - Place that file in `theme/highlight.js`.
   - I did not replace the highlight.js theme (which would go in the `theme/highlight.css` file), as it seems to be working.
   - See [this page](https://cdnjs.com/libraries/highlight.js) for version specific downloads.
-- Styling modifications
-  - Initialize the default mdBook [theme](https://rust-lang.github.io/mdBook/format/theme/index.html) into `theme`.
-  - Remove things that we don't need to override: *.hbs files, favicon, fonts.
-  - Disable table styling for Diff2Html from `theme/general.css` using `table:not(.d2h-diff-table)`.
-  - Disable inline code styling for Diff2Html from `theme/chrome.css` using `:not(pre, .d2h-code-side-line) > .hljs` and `:not(pre, a, .d2h-code-side-line) > .hljs`.
-  - Add `table.d2h-diff-table td, th { padding: 0; }` to `src/custom.css`.
-- Install mdbook-diff2html
-  - `cargo install --path mdbook-diff2html`
 - Install Diff2Html JS and CSS files
   - [Download diff2html-ui-base.min.js](https://cdn.jsdelivr.net/npm/diff2html@3.4.42/bundles/js/diff2html-ui-base.min.js) into `src/diff2html-ui-base-.min.js`.
   - [Download diff2html.min.css](https://cdn.jsdelivr.net/npm/diff2html@3.4.42/bundles/css/diff2html.min.css) into `src/diff2html.min.css`.
   - Add those to custom JS and CSS files in `book.toml`.
+- Styling modifications
+  - Initialize the default mdBook [theme](https://rust-lang.github.io/mdBook/format/theme/index.html) into `theme`.
+  - Remove things that we don't need to override: *.hbs files, favicon, fonts.
+  - Modify `theme/general.css`, `theme/chrome.css`, `theme/highlight.css`, and `src/diff2html.min.css`. Changes are denoted with `CHANGE`.
+  - Note that we're modifying generated files here: `theme/highlight.css`, `src/diff2html.min.css`. Updating will be difficult.

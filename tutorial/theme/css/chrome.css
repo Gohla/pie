@@ -194,6 +194,7 @@ a > .hljs {
 
 /* Inline code */
 
+/* CHANGE: make inline code styling not apply to .d2h-code-side-line */
 :not(pre, .d2h-code-side-line) > .hljs {
     display: inline;
     padding: 0.1em 0.3em;

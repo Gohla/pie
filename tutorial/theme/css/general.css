@@ -25,6 +25,8 @@ body {
 code {
     font-family: var(--mono-font) !important;
     font-size: var(--code-font-size);
+    /* CHANGE: add overflow-x here, instead of it being defined on .hljs in highlight.js */
+    overflow-x: auto;
 }
 
 /* make long words/inline code not x overflow */
@@ -113,6 +115,7 @@ h6:target::before {
     text-decoration: none;
 }
 
+/* CHANGE: make table styling not apply to .d2h-diff-table */
 table:not(.d2h-diff-table) {
     margin: 0 auto;
     border-collapse: collapse;
