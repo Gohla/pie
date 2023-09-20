@@ -3,8 +3,9 @@
 }
 
 .d2h-file-header {
-  background-color: #f7f7f7;
-  border-bottom: 1px solid #d8d8d8;
+  /* CHANGE: use variables */
+  background-color: var(--table-header-bg);
+  border-bottom: 1px solid var(--code-border-color);
   display: -webkit-box;
   display: -ms-flexbox;
   display: flex;
@@ -29,7 +30,8 @@
 
 .d2h-lines-added {
   border: 1px solid #b4e2b4;
-  border-radius: 5px 0 0 5px;
+  /* CHANGE: remove radius */
+  /*border-radius: 5px 0 0 5px;*/
   color: #399839;
   padding: 2px;
   text-align: right;
@@ -38,7 +40,8 @@
 
 .d2h-lines-deleted {
   border: 1px solid #e9aeae;
-  border-radius: 0 5px 5px 0;
+  /* CHANGE: remove radius */
+  /*border-radius: 0 5px 5px 0;*/
   color: #c33;
   margin-left: 1px;
   padding: 2px;
@@ -64,8 +67,10 @@
 }
 
 .d2h-file-wrapper {
-  border: 1px solid #ddd;
-  border-radius: 3px;
+  /* CHANGE: use variables */
+  border: 1px solid var(--code-border-color);
+  /* CHANGE: remove radius */
+  /*border-radius: 3px;*/
   margin-bottom: 1em
 }
 
@@ -76,7 +81,8 @@
   -ms-flex-align: center;
   align-items: center;
   border: 1px solid #ddd;
-  border-radius: 3px;
+  /* CHANGE: remove radius */
+  /*border-radius: 3px;*/
   cursor: pointer;
   display: none;
   font-size: 12px;
@@ -94,7 +100,7 @@
 
 .d2h-diff-table {
   border-collapse: collapse;
-  /* CHANGE: sync font family and size with the book */
+  /* CHANGE: use variables */
   font-family: var(--mono-font);
   font-size: var(--code-font-size);
   width: 100%;
@@ -122,7 +128,8 @@ table.d2h-diff-table td, th {
 
 .d2h-file-side-diff {
   display: inline-block;
-  overflow-x: scroll;
+  /* CHANGE: overflow-x can be auto to hide scroll on small diffs */
+  overflow-x: auto;
   overflow-y: hidden;
   width: 50%
 }
@@ -162,11 +169,13 @@ table.d2h-diff-table td, th {
 }
 
 .d2h-code-line del, .d2h-code-side-line del {
-  background-color: #ffb6ba
+  /* CHANGE: use variables */
+  background-color: var(--code-del-bg);
 }
 
 .d2h-code-line del, .d2h-code-line ins, .d2h-code-side-line del, .d2h-code-side-line ins {
-  border-radius: .2em;
+  /* CHANGE: remove radius */
+  /*border-radius: .2em;*/
   display: inline-block;
   margin-top: -1px;
   -webkit-text-decoration: none;
@@ -174,7 +183,8 @@ table.d2h-diff-table td, th {
 }
 
 .d2h-code-line ins, .d2h-code-side-line ins {
-  background-color: #97f295;
+  /* CHANGE: use variables */
+  background-color: var(--code-ins-bg);
   text-align: left
 }
 
@@ -204,13 +214,13 @@ table.d2h-diff-table td, th {
 }
 
 .d2h-code-linenumber {
-  background-color: #fff;
+  /* CHANGE: use variables */
+  background-color: var(--table-alternate-bg);
   border: solid #eee;
   border-width: 0 1px;
   -webkit-box-sizing: border-box;
   box-sizing: border-box;
   color: rgba(0, 0, 0, .3);
-  cursor: pointer;
   display: inline-block;
   position: absolute;
   text-align: right;
@@ -222,13 +232,14 @@ table.d2h-diff-table td, th {
 }
 
 .d2h-code-side-linenumber {
-  background-color: #fff;
-  border: solid #eee;
+  /* CHANGE: use variables */
+  background-color: var(--table-alternate-bg);
+  border: solid var(--code-border-color);
   border-width: 0 1px;
   -webkit-box-sizing: border-box;
   box-sizing: border-box;
-  color: rgba(0, 0, 0, .3);
-  cursor: pointer;
+  /* CHANGE: use variables */
+  color: var(--fg);
   display: inline-block;
   overflow: hidden;
   padding: 0 .5em;
@@ -238,13 +249,19 @@ table.d2h-diff-table td, th {
   width: 4em
 }
 
+/* CHANGE: prevent double border on the left side */
+.d2h-file-side-diff:first-of-type .d2h-code-side-linenumber {
+  border-width: 0 1px 0 0 !important;
+}
+
 .d2h-code-side-linenumber:after {
   content: "\200b"
 }
 
 .d2h-code-side-emptyplaceholder, .d2h-emptyplaceholder {
-  background-color: #f1f1f1;
-  border-color: #e1e1e1
+  /* CHANGE: use variables */
+  background-color: var(--table-alternate-bg);
+  border-color: var(--code-border-color)
 }
 
 .d2h-code-line-prefix, .d2h-code-linenumber, .d2h-code-side-linenumber, .d2h-emptyplaceholder {
@@ -264,19 +281,22 @@ table.d2h-diff-table td, th {
 }
 
 .d2h-del {
-  background-color: #fee8e9;
-  border-color: #e9aeae
+  /* CHANGE: use variables */
+  background-color: var(--code-del-line-bg);
+  border-color: var(--code-del-bg);
 }
 
 .d2h-ins {
-  background-color: #dfd;
-  border-color: #b4e2b4
+  /* CHANGE: use variables */
+  background-color: var(--code-ins-line-bg);
+  border-color: var(--code-ins-bg);
 }
 
 .d2h-info {
-  background-color: #f8fafd;
-  border-color: #d5e4f2;
-  color: rgba(0, 0, 0, .3)
+  /* CHANGE: use variables */
+  background-color: var(--table-alternate-bg);
+  border-color: var(--code-border-color);
+  color: var(--fg)
 }
 
 .d2h-file-diff .d2h-del.d2h-change {

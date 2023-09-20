@@ -59,10 +59,10 @@
 
 .hljs {
   display: block;
-  /* CHANGE: remove overflow-x here, moved to code blocks */
+  /* CHANGE: remove styling here, moved to theme */
   /*overflow-x: auto;*/
-  background: #f6f7f6;
-  color: #000;
+  /*background: #f6f7f6;*/
+  /*color: #000;*/
 }
 
 .hljs-emphasis {

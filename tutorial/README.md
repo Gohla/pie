@@ -62,12 +62,13 @@ Structure:
   - `src/*`: markdown files and code (diff) fragments of the book.
 - `stepper`: command-line application (in Rust) that checks all source code (additions, insertions, diffs) by stepping over them in order and building them with cargo, ensuring that the code in the book is actually valid. It also generates diffs between source code fragments and produces outputs (such as cargo stdout) and stores them in `src/gen`.
   - `stepper/src/app.rs`: stepper instructions. Modify this to modify what/how the source code fragments of the book are checked.
-- `mdbook-diff2html`: mdBook preprocessor that renders diffs with [Diff2Html]()
+- `mdbook-diff2html`: mdBook preprocessor that renders diffs with [Diff2Html](https://github.com/rtfpessoa/diff2html)
 
 ### Diff2Html
 
 Modifications to get it working:
 
+- Initialize the default mdBook [theme](https://rust-lang.github.io/mdBook/format/theme/index.html) into `theme`.
 - Replace highlight.js with the newest version, [11.8.0](https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js) at the time of writing.
   - Place that file in `theme/highlight.js`.
   - I did not replace the highlight.js theme (which would go in the `theme/highlight.css` file), as it seems to be working.
@@ -75,9 +76,9 @@ Modifications to get it working:
 - Install Diff2Html JS and CSS files
   - [Download diff2html-ui-base.min.js](https://cdn.jsdelivr.net/npm/diff2html@3.4.42/bundles/js/diff2html-ui-base.min.js) into `src/diff2html-ui-base-.min.js`.
   - [Download diff2html.min.css](https://cdn.jsdelivr.net/npm/diff2html@3.4.42/bundles/css/diff2html.min.css) into `src/diff2html.min.css`.
-  - Add those to custom JS and CSS files in `book.toml`.
+  - Added those to custom JS and CSS files in `book.toml`.
 - Styling modifications
-  - Initialize the default mdBook [theme](https://rust-lang.github.io/mdBook/format/theme/index.html) into `theme`.
-  - Remove things that we don't need to override: *.hbs files, favicon, fonts.
-  - Modify `theme/general.css`, `theme/chrome.css`, `theme/highlight.css`, and `src/diff2html.min.css`. Changes are denoted with `CHANGE`.
-  - Note that we're modifying generated files here: `theme/highlight.css`, `src/diff2html.min.css`. Updating will be difficult.
+  - Remove things that we don't need to override: favicon, fonts.
+  - Copy `ayu-highlight.css` into `theme/ayu-highlight.css`.
+  - Modify files to change and fix styling. Changes are denoted with `CHANGE`.
+  - Note that we're modifying some generated files, so updating will be difficult.
