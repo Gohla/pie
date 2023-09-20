@@ -71,7 +71,10 @@
   border: 1px solid var(--code-border-color);
   /* CHANGE: remove radius */
   /*border-radius: 3px;*/
-  margin-bottom: 1em
+  margin-bottom: 1em;
+  /* CHANGE: make resizable */
+  resize: horizontal;
+  overflow-x: auto;
 }
 
 .d2h-file-collapse {

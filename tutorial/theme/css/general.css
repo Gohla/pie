@@ -27,6 +27,9 @@ code {
   font-size: var(--code-font-size);
   /* CHANGE: set background here, instead of it being defined on .hljs in highlight.js */
   background-color: var(--code-bg);
+  /* CHANGE: make resizable */
+  resize: horizontal;
+  overflow-x: auto;
 }
 
 pre > code {

@@ -102,7 +102,7 @@ fn to_absolute_path(source_directory: &Path, source_file_path: Option<&Path>, re
 fn diff_to_html(diff: &str, div_id_counter: usize) -> String {
   let diff = diff.replace('$', r#"${"$"}"#);
   let diff = diff.replace('`', r#"${"`"}"#);
-  format!(r#"<div id="diff2html_{div_id_counter}"></div>
+  format!(r#"<div class="diff2html" id="diff2html_{div_id_counter}"></div>
 
 <script>
   document.addEventListener('DOMContentLoaded', function () {{
