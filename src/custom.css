@@ -3,23 +3,25 @@
   --content-max-width: 1200px;
 }
 
-/* Set Diff2Html table padding to 0 */
+/* Diff2Html fixes */
+/* Reset table padding to 0 */
 table.d2h-diff-table td, th {
   padding: 0;
 }
-
-/* Make Diff2Html use font family and size that is defined by the book */
+/* Use font family and size that is defined by the book */
 .d2h-diff-table {
   font-family: var(--mono-font) !important;
   font-size: var(--code-font-size) !important;
 }
-
-/* Unset vertical align to fix Diff2Html alignment issues */
+/* Unset vertical align, fixing alignment issues */
 .d2h-code-line-ctn {
   vertical-align: unset !important;
 }
-
-/* Unset overflow-x to fix a lot of issues with Diff2Html */
+/* Unset highlight.js overflow-x to fix a lot of issues */
 .hljs {
   overflow-x: unset !important;
+}
+/* Fix empty placeholder lines being selectable */
+.d2h-emptyplaceholder .d2h-code-line-ctn {
+  user-select: none !important;
 }
