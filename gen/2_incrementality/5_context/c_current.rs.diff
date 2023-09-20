@@ -1,11 +1,6 @@
 --- pie/src/context/top_down.rs
 +++ pie/src/context/top_down.rs
-@@ -4,27 +4,32 @@
- 
- use crate::{Context, fs, Task};
- use crate::dependency::{FileDependency, TaskDependency};
- use crate::stamp::{FileStamper, OutputStamper};
- use crate::store::{Store, TaskNode};
+@@ -9,18 +9,23 @@
  
  pub struct TopDownContext<T, O> {
    store: Store<T, O>,
@@ -29,7 +24,3 @@
      todo!()
    }
  
-   fn require_task_with_stamper(&mut self, task: &T, stamper: OutputStamper) -> T::Output {
-     todo!()
-   }
- }

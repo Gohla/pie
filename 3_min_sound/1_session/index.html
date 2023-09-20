@@ -211,7 +211,7 @@ Furthermore, it is also an optimisation, as requiring the same task many times o
       fileListToggle: false,
       fileContentToggle: false,
 
-      outputFormat: 'side-by-side',
+      outputFormat: 'line-by-line',
       matching: 'lines',
     };
     let diff2htmlUi = new Diff2HtmlUI(target, diff, configuration, hljs);
@@ -547,14 +547,7 @@ We need to update the incrementality example to work with these changes.</p>
   document.addEventListener('DOMContentLoaded', function () {
     let diff = String.raw`--- pie/examples/incremental.rs
 +++ pie/examples/incremental.rs
-@@ -65,95 +65,97 @@
-     Ok(())
-   }
- }
- 
- fn main() -> Result<(), io::Error> {
-   let temp_dir = create_temp_dir()?;
-   let input_file = temp_dir.path().join("input.txt");
+@@ -72,30 +72,30 @@
    write(&input_file, "Hi")?;
    let output_file = temp_dir.path().join("output.txt");
  
@@ -590,7 +583,7 @@ We need to update the incrementality example to work with these changes.</p>
    assert_eq!(&read_to_string(&output_file)?, "Hello");
  
    write_until_modified(&input_file, "Hello, World!")?;
-   println!("\nE) Inconsistent file and task dependency: expect both tasks to execute");
+@@ -103,7 +103,7 @@
    // The file dependency of ${"`"}read_task${"`"} is inconsistent. Then, the task dependency from ${"`"}write_task${"`"} to ${"`"}read_task${"`"} is 
    // inconsistent because ${"`"}read_task${"`"} now returns ${"`"}"Hello, World!"${"`"} as output instead of "Hello", and thus its equals 
    // output stamp is different.
@@ -599,8 +592,7 @@ We need to update the incrementality example to work with these changes.</p>
    assert_eq!(&read_to_string(&output_file)?, "Hello, World!");
  
    write_until_modified(&input_file, "Hello, World!")?; // Note: writing same file contents!
-   println!("\nF) Early cutoff: expect only ${"`"}read_task${"`"} to execute");
-   // File dependency of ${"`"}read_task${"`"} is inconsistent because the modified time changed, but it returns the same output 
+@@ -112,20 +112,20 @@
    // ${"`"}"Hello, World!"${"`"} because the contents of the file have not actually changed. Then, the task dependency from 
    // ${"`"}write_task${"`"} to ${"`"}read_task${"`"} is consistent because its output did not change, and thus the equality output stamp is 
    // the same.
@@ -624,10 +616,7 @@ We need to update the incrementality example to work with these changes.</p>
    assert_eq!(&read_to_string(&output_file)?, "Hello, World!");
  
    let input_file_b = temp_dir.path().join("input_b.txt");
-   write(&input_file_b, "Test")?;
-   let read_task_b_modified = ReadStringFromFile::new(&input_file_b, FileStamper::Modified);
-   let read_task_b_exists = ReadStringFromFile::new(&input_file_b, FileStamper::Exists);
-   println!("\nI) Different tasks: expect ${"`"}read_task_b_modified${"`"} and ${"`"}read_task_b_exists${"`"} to execute");
+@@ -136,9 +136,10 @@
    // Task ${"`"}read_task${"`"}, ${"`"}read_task_b_modified${"`"} and ${"`"}read_task_b_exists${"`"} are different, due to their ${"`"}Eq${"`"} implementation 
    // determining that their paths and stampers are different. Therefore, ${"`"}read_task_b_modified${"`"} and ${"`"}read_task_b_exists${"`"}
    // are new tasks, and must be executed.
@@ -640,11 +629,7 @@ We need to update the incrementality example to work with these changes.</p>
    assert_eq!(&output, "Test");
  
    write_until_modified(&input_file_b, "Test Test")?;
-   println!("\nJ) Different stampers: expect only ${"`"}read_task_b_modified${"`"} to execute");
-   // Both ${"`"}read_task_b_modified${"`"} and ${"`"}read_task_b_exists${"`"} read from the same file, but they use different stampers.
-   // Therefore, ${"`"}read_task_b_modified${"`"} must be executed because the modified time has changed, but ${"`"}read_task_b_exists${"`"}
-   // will not be executed because its file dependency stamper only checks for existence of the file, and the existence 
-   // of the file has not changed.
+@@ -150,9 +151,10 @@
    //
    // Note that using an ${"`"}Exists${"`"} stamper for this task does not make a lot of sense, since it will only read the file 
    // on first execute and when it is recreated. But this is just to demonstrate different stampers.
@@ -657,7 +642,6 @@ We need to update the incrementality example to work with these changes.</p>
    assert_eq!(&output, "Test");
  
    Ok(())
- }
 `;
     let target = document.getElementById('diff2html_6');
     let configuration = {

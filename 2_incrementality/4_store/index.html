@@ -216,7 +216,7 @@ The implementation in the <code>incremental-topo</code> library is based on a <a
       fileListToggle: false,
       fileContentToggle: false,
 
-      outputFormat: 'side-by-side',
+      outputFormat: 'line-by-line',
       matching: 'lines',
     };
     let diff2htmlUi = new Diff2HtmlUI(target, diff, configuration, hljs);
@@ -245,7 +245,7 @@ The implementation in the <code>incremental-topo</code> library is based on a <a
       fileListToggle: false,
       fileContentToggle: false,
 
-      outputFormat: 'side-by-side',
+      outputFormat: 'line-by-line',
       matching: 'lines',
     };
     let diff2htmlUi = new Diff2HtmlUI(target, diff, configuration, hljs);
@@ -320,16 +320,12 @@ This is also the reason for the <code>Eq</code> and <code>Hash</code> trait boun
   document.addEventListener('DOMContentLoaded', function () {
     let diff = String.raw`--- pie/src/store.rs
 +++ pie/src/store.rs
-@@ -1,30 +1,35 @@
+@@ -1,3 +1,4 @@
 +use std::collections::HashMap;
  use std::path::{Path, PathBuf};
  
  use pie_graph::{DAG, Node};
- 
- use crate::dependency::{Dependency, FileDependency, TaskDependency};
- use crate::Task;
- 
- /// Stores files and tasks, and their dependencies, in a DAG (directed acyclic graph). Provides operations to mutate
+@@ -9,6 +10,8 @@
  /// and query this graph.
  pub struct Store<T, O> {
    graph: DAG<NodeData<T, O>, Dependency<T, O>>,
@@ -338,15 +334,7 @@ This is also the reason for the <code>Eq</code> and <code>Hash</code> trait boun
  }
  
  #[derive(Debug)]
- enum NodeData<T, O> {
-   File(PathBuf),
-   Task {
-     task: T,
-     output: Option<O>,
-   },
- }
- 
- impl<T: Task> Default for Store<T, T::Output> {
+@@ -24,6 +27,8 @@
    fn default() -> Self {
      Self {
        graph: DAG::default(),
@@ -355,7 +343,6 @@ This is also the reason for the <code>Eq</code> and <code>Hash</code> trait boun
      }
    }
  }
- 
 `;
     let target = document.getElementById('diff2html_2');
     let configuration = {
@@ -376,17 +363,12 @@ This is also the reason for the <code>Eq</code> and <code>Hash</code> trait boun
   document.addEventListener('DOMContentLoaded', function () {
     let diff = String.raw`--- pie/src/store.rs
 +++ pie/src/store.rs
-@@ -1,35 +1,54 @@
+@@ -1,3 +1,4 @@
 +use std::borrow::Borrow;
  use std::collections::HashMap;
  use std::path::{Path, PathBuf};
  
- use pie_graph::{DAG, Node};
- 
- use crate::dependency::{Dependency, FileDependency, TaskDependency};
- use crate::Task;
- 
- /// Stores files and tasks, and their dependencies, in a DAG (directed acyclic graph). Provides operations to mutate
+@@ -10,8 +11,8 @@
  /// and query this graph.
  pub struct Store<T, O> {
    graph: DAG<NodeData<T, O>, Dependency<T, O>>,
@@ -397,11 +379,7 @@ This is also the reason for the <code>Eq</code> and <code>Hash</code> trait boun
  }
  
  #[derive(Debug)]
- enum NodeData<T, O> {
-   File(PathBuf),
-   Task {
-     task: T,
-     output: Option<O>,
+@@ -23,6 +24,24 @@
    },
  }
  
@@ -426,13 +404,6 @@ This is also the reason for the <code>Eq</code> and <code>Hash</code> trait boun
  impl<T: Task> Default for Store<T, T::Output> {
    fn default() -> Self {
      Self {
-       graph: DAG::default(),
-       file_to_node: HashMap::default(),
-       task_to_node: HashMap::default(),
-     }
-   }
- }
- 
 `;
     let target = document.getElementById('diff2html_3');
     let configuration = {

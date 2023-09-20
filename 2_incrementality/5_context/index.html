@@ -246,12 +246,7 @@ Therefore, we will need to keep track of the current executing task.</p>
   document.addEventListener('DOMContentLoaded', function () {
     let diff = String.raw`--- pie/src/context/top_down.rs
 +++ pie/src/context/top_down.rs
-@@ -4,27 +4,32 @@
- 
- use crate::{Context, fs, Task};
- use crate::dependency::{FileDependency, TaskDependency};
- use crate::stamp::{FileStamper, OutputStamper};
- use crate::store::{Store, TaskNode};
+@@ -9,18 +9,23 @@
  
  pub struct TopDownContext<T, O> {
    store: Store<T, O>,
@@ -275,10 +270,6 @@ Therefore, we will need to keep track of the current executing task.</p>
      todo!()
    }
  
-   fn require_task_with_stamper(&mut self, task: &T, stamper: OutputStamper) -> T::Output {
-     todo!()
-   }
- }
 `;
     let target = document.getElementById('diff2html_1');
     let configuration = {
@@ -413,7 +404,7 @@ Finally, we return the output.</p>
       fileListToggle: false,
       fileContentToggle: false,
 
-      outputFormat: 'side-by-side',
+      outputFormat: 'line-by-line',
       matching: 'lines',
     };
     let diff2htmlUi = new Diff2HtmlUI(target, diff, configuration, hljs);
@@ -504,7 +495,7 @@ Furthermore, some platforms do not have access to threads, such as WASM, where t
       fileListToggle: false,
       fileContentToggle: false,
 
-      outputFormat: 'side-by-side',
+      outputFormat: 'line-by-line',
       matching: 'lines',
     };
     let diff2htmlUi = new Diff2HtmlUI(target, diff, configuration, hljs);
@@ -805,7 +796,7 @@ Run this example with <code>cargo run --example incremental</code>.
 You should see the <code>println!</code> in <code>ReadStringFromFile</code> appear in your console as the incremental context correctly determines that this task is new (i.e., has no output) and must be executed.
 It should look something like:</p>
 <pre><code>   Compiling pie v0.1.0 (/pie)
-    Finished dev [unoptimized + debuginfo] target(s) in 1.42s
+    Finished dev [unoptimized + debuginfo] target(s) in 0.94s
      Running `/pie/target/debug/examples/incremental`
 A) New task: expect `read_task` to execute
 Reading from input.txt with Modified stamper
@@ -821,7 +812,7 @@ Reading from input.txt with Modified stamper
 </code></pre>
 <p>Running with <code>cargo run --example incremental</code> should produce output like:</p>
 <pre><code>   Compiling pie v0.1.0 (/pie)
-    Finished dev [unoptimized + debuginfo] target(s) in 0.69s
+    Finished dev [unoptimized + debuginfo] target(s) in 0.45s
      Running `/pie/target/debug/examples/incremental`
 A) New task: expect `read_task` to execute
 Reading from input.txt with Modified stamper
@@ -974,7 +965,7 @@ This shows that tasks can depend on the same file with different stampers, which
 <p>Of course, using an <code>Exists</code> stamper for <code>ReadStringFromFile</code> does not make a lot of sense, but this is for demonstration purposes only.</p>
 <p>Running <code>cargo run --example incremental</code> now should produce output like:</p>
 <pre><code>   Compiling pie v0.1.0 (/pie)
-    Finished dev [unoptimized + debuginfo] target(s) in 0.81s
+    Finished dev [unoptimized + debuginfo] target(s) in 0.50s
      Running `/pie/target/debug/examples/incremental`
 A) New task: expect `read_task` to execute
 Reading from input.txt with Modified stamper

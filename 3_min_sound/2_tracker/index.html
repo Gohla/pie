@@ -209,7 +209,7 @@ In this section, we will change that by tracking build events for debugging and 
       fileListToggle: false,
       fileContentToggle: false,
 
-      outputFormat: 'side-by-side',
+      outputFormat: 'line-by-line',
       matching: 'lines',
     };
     let diff2htmlUi = new Diff2HtmlUI(target, diff, configuration, hljs);
@@ -300,14 +300,7 @@ If you care about performance here, be sure to annotate those default empty meth
   document.addEventListener('DOMContentLoaded', function () {
     let diff = String.raw`--- pie/src/lib.rs
 +++ pie/src/lib.rs
-@@ -1,20 +1,21 @@
- use std::fmt::Debug;
- use std::fs::File;
- use std::hash::Hash;
- use std::io;
- use std::path::Path;
- 
- use stamp::{FileStamper, OutputStamper};
+@@ -8,6 +8,7 @@
  
  use crate::context::top_down::TopDownContext;
  use crate::store::{Store, TaskNode};
@@ -315,21 +308,7 @@ If you care about performance here, be sure to annotate those default empty meth
  
  pub mod stamp;
  pub mod tracker;
- mod context;
- mod fs;
- mod dependency;
- mod store;
- 
- /// A unit of computation in a programmatic incremental build system.
- pub trait Task: Clone + Eq + Hash + Debug {
-@@ -53,53 +54,68 @@
-     self.require_task_with_stamper(task, self.default_output_stamper())
-   }
-   /// Requires given ${"`"}task${"`"}, recording a dependency (using given ${"`"}stamper${"`"}) and selectively executing it. Returns its
-   /// up-to-date output.
-   fn require_task_with_stamper(&mut self, task: &T, stamper: OutputStamper) -> T::Output;
-   /// Returns the default output stamper.
-   fn default_output_stamper(&self) -> OutputStamper { OutputStamper::Equals }
+@@ -60,35 +61,46 @@
  }
  
  /// Main entry point into PIE, a sound and incremental programmatic build system.
@@ -384,11 +363,7 @@ If you care about performance here, be sure to annotate those default empty meth
        current_executing_task: None,
        dependency_check_errors: Vec::default(),
      }
-   }
- 
-   /// Requires ${"`"}task${"`"}, returning its up-to-date output.
-   pub fn require(&mut self, task: &T) -> T::Output {
-     self.current_executing_task = None;
+@@ -100,6 +112,10 @@
      TopDownContext::new(self).require_initial(task)
    }
  
@@ -435,12 +410,7 @@ Modify <code>pie/src/context/top_down.rs</code>:</p>
   document.addEventListener('DOMContentLoaded', function () {
     let diff = String.raw`--- pie/src/context/top_down.rs
 +++ pie/src/context/top_down.rs
-@@ -1,75 +1,86 @@
- use std::fs::File;
- use std::io;
- use std::path::Path;
- 
- use crate::{Context, fs, Session, Task};
+@@ -6,21 +6,25 @@
  use crate::dependency::{FileDependency, TaskDependency};
  use crate::stamp::{FileStamper, OutputStamper};
  use crate::store::TaskNode;
@@ -472,7 +442,7 @@ Modify <code>pie/src/context/top_down.rs</code>:</p>
    fn require_file_with_stamper<P: AsRef<Path>>(&mut self, path: P, stamper: FileStamper) -> Result<Option<File>, io::Error> {
      let Some(current_executing_task_node) = &self.session.current_executing_task else {
        return fs::open_if_file(path); // No current executing task, so no dependency needs to be made.
-     };
+@@ -28,20 +32,25 @@
      let path = path.as_ref();
      let node = self.session.store.get_or_create_file_node(path);
      let (dependency, file) = FileDependency::new_with_file(path, stamper)?;
@@ -499,7 +469,7 @@ Modify <code>pie/src/context/top_down.rs</code>:</p>
        output
      } else {
        // Correctness: when ${"`"}should_execute_task${"`"} returns ${"`"}true${"`"}, the above block is executed. Otherwise this block is 
-       // executed and ${"`"}should_execute_task${"`"} ensures that the task has an output.
+@@ -49,9 +58,11 @@
        self.session.store.get_task_output(&node).clone()
      };
  
@@ -512,10 +482,7 @@ Modify <code>pie/src/context/top_down.rs</code>:</p>
        if self.session.store.add_task_require_dependency(current_executing_task_node, &node, dependency).is_err() {
          let current_executing_task = self.session.store.get_task(current_executing_task_node);
          panic!("Cyclic task dependency; current executing task '{:?}' is requiring task '{:?}' which was already required", current_executing_task, task);
-       }
-     }
- 
-     output
+@@ -62,7 +73,7 @@
    }
  }
  
@@ -524,13 +491,6 @@ Modify <code>pie/src/context/top_down.rs</code>:</p>
    /// Checks whether given task should be executed, returning ${"`"}true${"`"} if it should be executed. A task should be executed
    /// if any of its dependencies are inconsistent, or when it has no output.
    fn should_execute_task(&mut self, node: &TaskNode) -> bool {
-     // Borrow: because we pass ${"`"}self${"`"} (which is ${"`"}&mut self${"`"}) to ${"`"}is_inconsistent${"`"} for recursive consistency checking, 
-     //         we need to clone and collect dependencies into a ${"`"}Vec${"`"}. Otherwise we have an immutable borrow of ${"`"}self${"`"}
-     //         through ${"`"}self.store${"`"} while we create a mutable borrow of ${"`"}self${"`"}, which is not allowed.
-     let dependencies: Vec<_> = self.session.store.get_dependencies_of_task(node).cloned().collect();
-     for dependency in dependencies {
-       match dependency.is_inconsistent(self) {
-         Ok(Some(_)) => return true,
 `;
     let target = document.getElementById('diff2html_2');
     let configuration = {
@@ -581,7 +541,7 @@ We start with a simple <code>WritingTracker</code> that writes build events to s
       fileListToggle: false,
       fileContentToggle: false,
 
-      outputFormat: 'side-by-side',
+      outputFormat: 'line-by-line',
       matching: 'lines',
     };
     let diff2htmlUi = new Diff2HtmlUI(target, diff, configuration, hljs);
@@ -717,14 +677,7 @@ But in this tutorial, we will keep it simple like this.</p>
   document.addEventListener('DOMContentLoaded', function () {
     let diff = String.raw`--- pie/examples/incremental.rs
 +++ pie/examples/incremental.rs
-@@ -28,21 +28,20 @@
- 
- /// Pseudo-task that reads a string from a file.
- #[derive(Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Debug)]
- struct ReadStringFromFile(PathBuf, FileStamper);
- 
- impl ReadStringFromFile {
-   fn new(path: impl AsRef<Path>, stamper: FileStamper) -> FileTask {
+@@ -35,7 +35,6 @@
      FileTask::ReadStringFromFile(Self(path.as_ref().to_path_buf(), stamper))
    }
    fn execute<C: Context<FileTask>>(&self, context: &mut C) -> Result<String, io::ErrorKind> {
@@ -732,21 +685,7 @@ But in this tutorial, we will keep it simple like this.</p>
      let file = context.require_file_with_stamper(&self.0, self.1).map_err(|e| e.kind())?;
      if let Some(mut file) = file {
        let mut string = String::new();
-       file.read_to_string(&mut string).map_err(|e| e.kind())?;
-       Ok(string)
-     } else {
-       Err(io::ErrorKind::NotFound)
-     }
-   }
- }
-@@ -50,36 +49,35 @@
- /// Pseudo-task that writes a string to a file, where the string is provided by another task. The string provider is 
- /// boxed to prevent a cyclic definition of infinite size, due to this type being used in [${"`"}FileTask${"`"}].
- #[derive(Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Debug)]
- struct WriteStringToFile(Box<FileTask>, PathBuf, FileStamper);
- 
- impl WriteStringToFile {
-   fn new(string_provider: impl Into<Box<FileTask>>, path: impl Into<PathBuf>, stamper: FileStamper) -> FileTask {
+@@ -57,7 +56,6 @@
      FileTask::WriteStringToFile(Self(string_provider.into(), path.into(), stamper))
    }
    fn execute<C: Context<FileTask>>(&self, context: &mut C) -> Result<(), io::ErrorKind> {
@@ -754,14 +693,7 @@ But in this tutorial, we will keep it simple like this.</p>
      let string = context.require_task(&self.0)?;
      let mut file = File::create(&self.1).map_err(|e| e.kind())?;
      file.write_all(string.as_bytes()).map_err(|e| e.kind())?;
-     context.require_file_with_stamper(&self.1, self.2).map_err(|e| e.kind())?;
-     Ok(())
-   }
- }
- 
- fn main() -> Result<(), io::Error> {
-   let temp_dir = create_temp_dir()?;
-   let input_file = temp_dir.path().join("input.txt");
+@@ -72,7 +70,7 @@
    write(&input_file, "Hi")?;
    let output_file = temp_dir.path().join("output.txt");
  
@@ -770,13 +702,6 @@ But in this tutorial, we will keep it simple like this.</p>
    let read_task = ReadStringFromFile::new(&input_file, FileStamper::Modified);
    let write_task = WriteStringToFile::new(read_task.clone(), &output_file, FileStamper::Modified);
  
-   println!("A) New task: expect ${"`"}read_task${"`"} to execute");
-   // ${"`"}read_task${"`"} is new, meaning that we have no cached output for it, thus it must be executed.
-   let output = pie.new_session().require(&read_task)?;
-   assert_eq!(&output, "Hi");
- 
-   println!("\nB) Reuse: expect no execution");
-   // ${"`"}read_task${"`"} is not new and its file dependency is still consistent. It is consistent because the modified time of 
 `;
     let target = document.getElementById('diff2html_4');
     let configuration = {
@@ -818,7 +743,7 @@ Therefore, we will implement the <code>EventTracker</code> that stores build eve
       fileListToggle: false,
       fileContentToggle: false,
 
-      outputFormat: 'side-by-side',
+      outputFormat: 'line-by-line',
       matching: 'lines',
     };
     let diff2htmlUi = new Diff2HtmlUI(target, diff, configuration, hljs);

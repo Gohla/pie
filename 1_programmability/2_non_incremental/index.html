@@ -202,14 +202,14 @@ Create the <code>context</code> module by adding a module to <code>pie/src/lib.r
       fileListToggle: false,
       fileContentToggle: false,
 
-      outputFormat: 'side-by-side',
+      outputFormat: 'line-by-line',
       matching: 'lines',
     };
     let diff2htmlUi = new Diff2HtmlUI(target, diff, configuration, hljs);
     diff2htmlUi.draw();
   });
 </script>
-<p>This is a diff over <code>pie/src/lib.rs</code> where lines with a green background are additions, lines with a red background are removals, and lines with a grey background are context on where to add/remove lines, similar to diffs on source code hubs like GitHub.</p>
+<p>This is a diff over <code>pie/src/lib.rs</code> where lines with a green background are additions, lines with a red background are removals, lines without a special background are context on where to add/remove lines, and lines starting with <code>@@</code> denote changed lines (in unified diff style). This is similar to diffs on source code hubs like GitHub.</p>
 <p>Create the <code>pie/src/context</code> directory, and in it, create the <code>pie/src/context/mod.rs</code> file with the following contents:</p>
 <pre><code class="language-rust ">pub mod non_incremental;</code></pre>
 <p>Both modules are public so that users of our library can access context implementations.</p>
@@ -300,7 +300,7 @@ It returns the output of the task, which we test with <code>assert_eq!</code>.</
 <p>Run the test by running <code>cargo test</code>.
 The output should look something like:</p>
 <pre><code class="language-shell ">   Compiling pie v0.1.0 (/pie)
-    Finished test [unoptimized + debuginfo] target(s) in 0.47s
+    Finished test [unoptimized + debuginfo] target(s) in 0.31s
      Running unittests src/lib.rs (/pie/target/debug/deps/pie-6c9d55a7ef727e00)
 
 running 1 test
@@ -382,7 +382,7 @@ Add the following test:</p>
       fileListToggle: false,
       fileContentToggle: false,
 
-      outputFormat: 'side-by-side',
+      outputFormat: 'line-by-line',
       matching: 'lines',
     };
     let diff2htmlUi = new Diff2HtmlUI(target, diff, configuration, hljs);
@@ -486,17 +486,17 @@ This solution is more feasible, but still introduces a lot of complexity which i
 </div>
 </details>
 <p>For now, we will solve this by just using a single task type which is an enumeration of the different possible tasks.
-Replace the test with the following:</p>
+First remove the problematic test:</p>
 <div class="diff2html" id="diff2html_3"></div>
 <script>
   document.addEventListener('DOMContentLoaded', function () {
-    let diff = String.raw`--- original
-+++ modified
-@@ -0,28 +0,27 @@
+    let diff = String.raw`--- pie/src/context/non_incremental.rs
++++ pie/src/context/non_incremental.rs
+@@ -17,28 +17,4 @@
      let mut context = NonIncrementalContext;
      assert_eq!("Hello World!", context.require_task(&ReturnHelloWorld));
    }
-
+-
 -  #[test]
 -  fn test_require_task_problematic() {
 -    #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -520,6 +520,32 @@ Replace the test with the following:</p>
 -    let mut context = NonIncrementalContext;
 -    assert_eq!("hello world!", context.require_task(&ToLowerCase));
 -  }
+ }
+`;
+    let target = document.getElementById('diff2html_3');
+    let configuration = {
+      drawFileList: false,
+      fileListToggle: false,
+      fileContentToggle: false,
+
+      outputFormat: 'line-by-line',
+      matching: 'lines',
+    };
+    let diff2htmlUi = new Diff2HtmlUI(target, diff, configuration, hljs);
+    diff2htmlUi.draw();
+  });
+</script>
+<p>Then add the following test:</p>
+<div class="diff2html" id="diff2html_4"></div>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    let diff = String.raw`--- pie/src/context/non_incremental.rs
++++ pie/src/context/non_incremental.rs
+@@ -17,4 +17,27 @@
+     let mut context = NonIncrementalContext;
+     assert_eq!("Hello World!", context.require_task(&ReturnHelloWorld));
+   }
++
 +  #[test]
 +  fn test_require_task() {
 +    #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -544,13 +570,13 @@ Replace the test with the following:</p>
 +  }
  }
 `;
-    let target = document.getElementById('diff2html_3');
+    let target = document.getElementById('diff2html_4');
     let configuration = {
       drawFileList: false,
       fileListToggle: false,
       fileContentToggle: false,
 
-      outputFormat: 'side-by-side',
+      outputFormat: 'line-by-line',
       matching: 'lines',
     };
     let diff2htmlUi = new Diff2HtmlUI(target, diff, configuration, hljs);

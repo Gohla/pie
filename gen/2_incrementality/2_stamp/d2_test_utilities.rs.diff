@@ -1,6 +1,6 @@
 --- dev_shared/src/lib.rs
 +++ dev_shared/src/lib.rs
-@@ -1,9 +1,38 @@
+@@ -1,4 +1,7 @@
 +use std::fs::{metadata, write};
  use std::io;
 +use std::path::Path;
@@ -8,8 +8,7 @@
  
  use tempfile::{NamedTempFile, TempDir};
  
- /// Creates a new temporary file that gets cleaned up when dropped.
- pub fn create_temp_file() -> Result<NamedTempFile, io::Error> { NamedTempFile::new() }
+@@ -7,3 +10,29 @@
  
  /// Creates a new temporary directory that gets cleaned up when dropped.
  pub fn create_temp_dir() -> Result<TempDir, io::Error> { TempDir::new() }

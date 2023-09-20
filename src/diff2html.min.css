@@ -10,7 +10,7 @@
   display: -ms-flexbox;
   display: flex;
   font-family: Source Sans Pro, Helvetica Neue, Helvetica, Arial, sans-serif;
-  height: 35px;
+  height: 25px;
   padding: 5px 10px
 }
 
@@ -219,11 +219,12 @@ table.d2h-diff-table td, th {
 .d2h-code-linenumber {
   /* CHANGE: use variables */
   background-color: var(--table-alternate-bg);
-  border: solid #eee;
-  border-width: 0 1px;
+  border: solid var(--code-border-color);
+  /* CHANGE: remove left border */
+  border-width: 0 1px 0 0;
   -webkit-box-sizing: border-box;
   box-sizing: border-box;
-  color: rgba(0, 0, 0, .3);
+  color: var(--fg);
   display: inline-block;
   position: absolute;
   text-align: right;
@@ -384,7 +385,7 @@ table.d2h-diff-table td, th {
 }
 
 .d2h-tag {
-  background-color: #fff;
+  background-color: var(--bg);
   display: -webkit-box;
   display: -ms-flexbox;
   display: flex;

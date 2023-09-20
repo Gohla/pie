@@ -195,7 +195,7 @@ edition = &quot;2021&quot;
 <p>Run <code>cargo build</code> to test if the project was set up correctly.
 The output should look something like:</p>
 <pre><code class="language-shell ">   Compiling pie v0.1.0 (/pie)
-    Finished dev [unoptimized + debuginfo] target(s) in 0.12s
+    Finished dev [unoptimized + debuginfo] target(s) in 0.08s
 </code></pre>
 <details id="admonition-download-source-code" class="admonition example">
 <summary class="admonition-title">
@@ -276,7 +276,7 @@ Because of this, the context reference passed to <code>Task::execute</code> is a
 <p>Build the project by running <code>cargo build</code>.
 The output should look something like:</p>
 <pre><code class="language-shell ">   Compiling pie v0.1.0 (/pie)
-    Finished dev [unoptimized + debuginfo] target(s) in 0.06s
+    Finished dev [unoptimized + debuginfo] target(s) in 0.04s
 </code></pre>
 <details id="admonition-rust-help" class="admonition info">
 <summary class="admonition-title">
@@ -341,14 +341,14 @@ Create the <code>context</code> module by adding a module to <code>pie/src/lib.r
       fileListToggle: false,
       fileContentToggle: false,
 
-      outputFormat: 'side-by-side',
+      outputFormat: 'line-by-line',
       matching: 'lines',
     };
     let diff2htmlUi = new Diff2HtmlUI(target, diff, configuration, hljs);
     diff2htmlUi.draw();
   });
 </script>
-<p>This is a diff over <code>pie/src/lib.rs</code> where lines with a green background are additions, lines with a red background are removals, and lines with a grey background are context on where to add/remove lines, similar to diffs on source code hubs like GitHub.</p>
+<p>This is a diff over <code>pie/src/lib.rs</code> where lines with a green background are additions, lines with a red background are removals, lines without a special background are context on where to add/remove lines, and lines starting with <code>@@</code> denote changed lines (in unified diff style). This is similar to diffs on source code hubs like GitHub.</p>
 <p>Create the <code>pie/src/context</code> directory, and in it, create the <code>pie/src/context/mod.rs</code> file with the following contents:</p>
 <pre><code class="language-rust ">pub mod non_incremental;</code></pre>
 <p>Both modules are public so that users of our library can access context implementations.</p>
@@ -439,7 +439,7 @@ It returns the output of the task, which we test with <code>assert_eq!</code>.</
 <p>Run the test by running <code>cargo test</code>.
 The output should look something like:</p>
 <pre><code class="language-shell ">   Compiling pie v0.1.0 (/pie)
-    Finished test [unoptimized + debuginfo] target(s) in 0.47s
+    Finished test [unoptimized + debuginfo] target(s) in 0.31s
      Running unittests src/lib.rs (/pie/target/debug/deps/pie-6c9d55a7ef727e00)
 
 running 1 test
@@ -521,7 +521,7 @@ Add the following test:</p>
       fileListToggle: false,
       fileContentToggle: false,
 
-      outputFormat: 'side-by-side',
+      outputFormat: 'line-by-line',
       matching: 'lines',
     };
     let diff2htmlUi = new Diff2HtmlUI(target, diff, configuration, hljs);
@@ -625,17 +625,17 @@ This solution is more feasible, but still introduces a lot of complexity which i
 </div>
 </details>
 <p>For now, we will solve this by just using a single task type which is an enumeration of the different possible tasks.
-Replace the test with the following:</p>
+First remove the problematic test:</p>
 <div class="diff2html" id="diff2html_3"></div>
 <script>
   document.addEventListener('DOMContentLoaded', function () {
-    let diff = String.raw`--- original
-+++ modified
-@@ -0,28 +0,27 @@
+    let diff = String.raw`--- pie/src/context/non_incremental.rs
++++ pie/src/context/non_incremental.rs
+@@ -17,28 +17,4 @@
      let mut context = NonIncrementalContext;
      assert_eq!("Hello World!", context.require_task(&ReturnHelloWorld));
    }
-
+-
 -  #[test]
 -  fn test_require_task_problematic() {
 -    #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -659,6 +659,32 @@ Replace the test with the following:</p>
 -    let mut context = NonIncrementalContext;
 -    assert_eq!("hello world!", context.require_task(&ToLowerCase));
 -  }
+ }
+`;
+    let target = document.getElementById('diff2html_3');
+    let configuration = {
+      drawFileList: false,
+      fileListToggle: false,
+      fileContentToggle: false,
+
+      outputFormat: 'line-by-line',
+      matching: 'lines',
+    };
+    let diff2htmlUi = new Diff2HtmlUI(target, diff, configuration, hljs);
+    diff2htmlUi.draw();
+  });
+</script>
+<p>Then add the following test:</p>
+<div class="diff2html" id="diff2html_4"></div>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    let diff = String.raw`--- pie/src/context/non_incremental.rs
++++ pie/src/context/non_incremental.rs
+@@ -17,4 +17,27 @@
+     let mut context = NonIncrementalContext;
+     assert_eq!("Hello World!", context.require_task(&ReturnHelloWorld));
+   }
++
 +  #[test]
 +  fn test_require_task() {
 +    #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -683,13 +709,13 @@ Replace the test with the following:</p>
 +  }
  }
 `;
-    let target = document.getElementById('diff2html_3');
+    let target = document.getElementById('diff2html_4');
     let configuration = {
       drawFileList: false,
       fileListToggle: false,
       fileContentToggle: false,
 
-      outputFormat: 'side-by-side',
+      outputFormat: 'line-by-line',
       matching: 'lines',
     };
     let diff2htmlUi = new Diff2HtmlUI(target, diff, configuration, hljs);
@@ -757,7 +783,7 @@ Therefore, we will extend the <code>Context</code> API with methods to <em>requi
   document.addEventListener('DOMContentLoaded', function () {
     let diff = String.raw`--- pie/src/lib.rs
 +++ pie/src/lib.rs
-@@ -1,19 +1,29 @@
+@@ -1,5 +1,8 @@
  use std::fmt::Debug;
 +use std::fs::File;
  use std::hash::Hash;
@@ -766,14 +792,7 @@ Therefore, we will extend the <code>Context</code> API with methods to <em>requi
  
  pub mod context;
  
- /// A unit of computation in a programmatic incremental build system.
- pub trait Task: Clone + Eq + Hash + Debug {
-   /// Type of output this task returns when executed.
-   type Output: Clone + Eq + Debug;
-   /// Execute the task, using ${"`"}context${"`"} to specify dynamic dependencies, returning ${"`"}Self::Output${"`"}.
-   fn execute<C: Context<Self>>(&self, context: &mut C) -> Self::Output;
- }
- 
+@@ -14,6 +17,13 @@
  /// Programmatic incremental build context, enabling tasks to create dynamic dependencies that context implementations 
  /// use for incremental execution.
  pub trait Context<T: Task> {
@@ -850,7 +869,7 @@ However, because we will be performing similar file system operations in the inc
       fileListToggle: false,
       fileContentToggle: false,
 
-      outputFormat: 'side-by-side',
+      outputFormat: 'line-by-line',
       matching: 'lines',
     };
     let diff2htmlUi = new Diff2HtmlUI(target, diff, configuration, hljs);
@@ -977,7 +996,7 @@ pub fn create_temp_dir() -&gt; Result&lt;TempDir, io::Error&gt; { TempDir::new()
       fileListToggle: false,
       fileContentToggle: false,
 
-      outputFormat: 'side-by-side',
+      outputFormat: 'line-by-line',
       matching: 'lines',
     };
     let diff2htmlUi = new Diff2HtmlUI(target, diff, configuration, hljs);
@@ -1137,7 +1156,7 @@ Therefore, we will implement a <code>FileStamper</code> that stamps files and pr
       fileListToggle: false,
       fileContentToggle: false,
 
-      outputFormat: 'side-by-side',
+      outputFormat: 'line-by-line',
       matching: 'lines',
     };
     let diff2htmlUi = new Diff2HtmlUI(target, diff, configuration, hljs);
@@ -1312,8 +1331,16 @@ mod test {
 }</code></pre>
 <p>We test file stamps by creating a stamp, changing the file, creating a new stamp, and then compare the stamps.
 We test task output stamps by just passing a different output value to the <code>stamp</code> function, and then compare the stamps.</p>
-<p>Run <code>cargo test</code> to confirm the stamp implementation.
-If test <code>test_modified_file_stamper</code> fails, do continue to the next section, because we're going to fix it!</p>
+<p>Run <code>cargo test</code> to confirm the stamp implementation.</p>
+<div id="admonition-warning" class="admonition warning">
+<div class="admonition-title">
+<p>Warning</p>
+<p><a class="admonition-anchor-link" href="2_incrementality/2_stamp/index.html#admonition-warning"></a></p>
+</div>
+<div>
+<p>Test <code>test_modified_file_stamper</code> will likely fail. Do continue to the next section, because we're going to fix it!</p>
+</div>
+</div>
 <h2 id="testing-with-file-modified-time-correctly"><a class="header" href="#testing-with-file-modified-time-correctly">Testing with file modified time, correctly</a></h2>
 <p>Unfortunately, these tests may fail on some operating systems (Linux and Windows in my testing), due to an imprecise file last modified timer.
 What can happen is that we write to a file, making the OS update its modified time to <code>1000</code> (as an example, not a real timestamp), then very quickly write to the file again, making the OS update its modified time to <code>1000</code> again.
@@ -1327,7 +1354,7 @@ Change <code>dev_shared/src/lib.rs</code>:</p>
   document.addEventListener('DOMContentLoaded', function () {
     let diff = String.raw`--- dev_shared/src/lib.rs
 +++ dev_shared/src/lib.rs
-@@ -1,9 +1,38 @@
+@@ -1,4 +1,7 @@
 +use std::fs::{metadata, write};
  use std::io;
 +use std::path::Path;
@@ -1335,8 +1362,7 @@ Change <code>dev_shared/src/lib.rs</code>:</p>
  
  use tempfile::{NamedTempFile, TempDir};
  
- /// Creates a new temporary file that gets cleaned up when dropped.
- pub fn create_temp_file() -> Result<NamedTempFile, io::Error> { NamedTempFile::new() }
+@@ -7,3 +10,29 @@
  
  /// Creates a new temporary directory that gets cleaned up when dropped.
  pub fn create_temp_dir() -> Result<TempDir, io::Error> { TempDir::new() }
@@ -1373,7 +1399,7 @@ Change <code>dev_shared/src/lib.rs</code>:</p>
       fileListToggle: false,
       fileContentToggle: false,
 
-      outputFormat: 'side-by-side',
+      outputFormat: 'line-by-line',
       matching: 'lines',
     };
     let diff2htmlUi = new Diff2HtmlUI(target, diff, configuration, hljs);
@@ -1387,7 +1413,7 @@ Now change the tests in <code>pie/src/stamp.rs</code> to use this function:</p>
   document.addEventListener('DOMContentLoaded', function () {
     let diff = String.raw`--- pie/src/stamp.rs
 +++ pie/src/stamp.rs
-@@ -1,50 +1,52 @@
+@@ -1,9 +1,9 @@
  #[cfg(test)]
  mod test {
 -  use std::fs::{remove_file, write};
@@ -1399,23 +1425,7 @@ Now change the tests in <code>pie/src/stamp.rs</code> to use this function:</p>
  
    use super::*;
  
-   #[test]
-   fn test_exists_file_stamper() -> Result<(), io::Error> {
-     let stamper = FileStamper::Exists;
-     let temp_file = create_temp_file()?;
-     let stamp = stamper.stamp(&temp_file)?;
-     assert_eq!(stamp, stamper.stamp(&temp_file)?);
- 
-     remove_file(&temp_file)?;
-     assert_ne!(stamp, stamper.stamp(&temp_file)?);
- 
-     Ok(())
-   }
- 
-   #[test]
-   fn test_modified_file_stamper() -> Result<(), io::Error> {
-     let stamper = FileStamper::Modified;
-     let temp_file = create_temp_file()?;
+@@ -27,7 +27,9 @@
      let stamp = stamper.stamp(&temp_file)?;
      assert_eq!(stamp, stamper.stamp(&temp_file)?);
  
@@ -1426,23 +1436,6 @@ Now change the tests in <code>pie/src/stamp.rs</code> to use this function:</p>
      let new_stamp = stamper.stamp(&temp_file)?;
      assert_ne!(stamp, new_stamp);
      let stamp = new_stamp;
- 
-     remove_file(&temp_file)?;
-     assert_ne!(stamp, stamper.stamp(&temp_file)?);
- 
-     Ok(())
-   }
- 
-   #[test]
-   fn test_inconsequential_output_stamper() {
-     let stamper = OutputStamper::Inconsequential;
-     let stamp = stamper.stamp(&1);
-     assert_eq!(stamp, stamper.stamp(&1));
-     assert_eq!(stamp, stamper.stamp(&2));
-   }
- 
-   #[test]
-   fn test_equals_output_stamper() {
 `;
     let target = document.getElementById('diff2html_2');
     let configuration = {
@@ -1469,10 +1462,7 @@ Therefore, we need to update the <code>Context</code> trait to allow passing in 
   document.addEventListener('DOMContentLoaded', function () {
     let diff = String.raw`--- pie/src/lib.rs
 +++ pie/src/lib.rs
-@@ -1,31 +1,46 @@
- use std::fmt::Debug;
- use std::fs::File;
- use std::hash::Hash;
+@@ -4,6 +4,8 @@
  use std::io;
  use std::path::Path;
  
@@ -1481,15 +1471,7 @@ Therefore, we need to update the <code>Context</code> trait to allow passing in 
  pub mod stamp;
  pub mod context;
  mod fs;
- 
- /// A unit of computation in a programmatic incremental build system.
- pub trait Task: Clone + Eq + Hash + Debug {
-   /// Type of output this task returns when executed.
-   type Output: Clone + Eq + Debug;
-   /// Execute the task, using ${"`"}context${"`"} to specify dynamic dependencies, returning ${"`"}Self::Output${"`"}.
-   fn execute<C: Context<Self>>(&self, context: &mut C) -> Self::Output;
- }
- 
+@@ -19,12 +21,25 @@
  /// Programmatic incremental build context, enabling tasks to create dynamic dependencies that context implementations 
  /// use for incremental execution.
  pub trait Context<T: Task> {
@@ -1519,7 +1501,6 @@ Therefore, we need to update the <code>Context</code> trait to allow passing in 
  
    /// Requires given ${"`"}task${"`"}, recording a dependency and selectively executing it. Returns its up-to-date output.
    fn require_task(&mut self, task: &T) -> T::Output;
- }
 `;
     let target = document.getElementById('diff2html_3');
     let configuration = {
@@ -1653,7 +1634,7 @@ We will also implement a <code>Dependency</code> type that abstracts over <code>
       fileListToggle: false,
       fileContentToggle: false,
 
-      outputFormat: 'side-by-side',
+      outputFormat: 'line-by-line',
       matching: 'lines',
     };
     let diff2htmlUi = new Diff2HtmlUI(target, diff, configuration, hljs);
@@ -2002,7 +1983,7 @@ The implementation in the <code>incremental-topo</code> library is based on a <a
       fileListToggle: false,
       fileContentToggle: false,
 
-      outputFormat: 'side-by-side',
+      outputFormat: 'line-by-line',
       matching: 'lines',
     };
     let diff2htmlUi = new Diff2HtmlUI(target, diff, configuration, hljs);
@@ -2031,7 +2012,7 @@ The implementation in the <code>incremental-topo</code> library is based on a <a
       fileListToggle: false,
       fileContentToggle: false,
 
-      outputFormat: 'side-by-side',
+      outputFormat: 'line-by-line',
       matching: 'lines',
     };
     let diff2htmlUi = new Diff2HtmlUI(target, diff, configuration, hljs);
@@ -2106,16 +2087,12 @@ This is also the reason for the <code>Eq</code> and <code>Hash</code> trait boun
   document.addEventListener('DOMContentLoaded', function () {
     let diff = String.raw`--- pie/src/store.rs
 +++ pie/src/store.rs
-@@ -1,30 +1,35 @@
+@@ -1,3 +1,4 @@
 +use std::collections::HashMap;
  use std::path::{Path, PathBuf};
  
  use pie_graph::{DAG, Node};
- 
- use crate::dependency::{Dependency, FileDependency, TaskDependency};
- use crate::Task;
- 
- /// Stores files and tasks, and their dependencies, in a DAG (directed acyclic graph). Provides operations to mutate
+@@ -9,6 +10,8 @@
  /// and query this graph.
  pub struct Store<T, O> {
    graph: DAG<NodeData<T, O>, Dependency<T, O>>,
@@ -2124,15 +2101,7 @@ This is also the reason for the <code>Eq</code> and <code>Hash</code> trait boun
  }
  
  #[derive(Debug)]
- enum NodeData<T, O> {
-   File(PathBuf),
-   Task {
-     task: T,
-     output: Option<O>,
-   },
- }
- 
- impl<T: Task> Default for Store<T, T::Output> {
+@@ -24,6 +27,8 @@
    fn default() -> Self {
      Self {
        graph: DAG::default(),
@@ -2141,7 +2110,6 @@ This is also the reason for the <code>Eq</code> and <code>Hash</code> trait boun
      }
    }
  }
- 
 `;
     let target = document.getElementById('diff2html_2');
     let configuration = {
@@ -2162,17 +2130,12 @@ This is also the reason for the <code>Eq</code> and <code>Hash</code> trait boun
   document.addEventListener('DOMContentLoaded', function () {
     let diff = String.raw`--- pie/src/store.rs
 +++ pie/src/store.rs
-@@ -1,35 +1,54 @@
+@@ -1,3 +1,4 @@
 +use std::borrow::Borrow;
  use std::collections::HashMap;
  use std::path::{Path, PathBuf};
  
- use pie_graph::{DAG, Node};
- 
- use crate::dependency::{Dependency, FileDependency, TaskDependency};
- use crate::Task;
- 
- /// Stores files and tasks, and their dependencies, in a DAG (directed acyclic graph). Provides operations to mutate
+@@ -10,8 +11,8 @@
  /// and query this graph.
  pub struct Store<T, O> {
    graph: DAG<NodeData<T, O>, Dependency<T, O>>,
@@ -2183,11 +2146,7 @@ This is also the reason for the <code>Eq</code> and <code>Hash</code> trait boun
  }
  
  #[derive(Debug)]
- enum NodeData<T, O> {
-   File(PathBuf),
-   Task {
-     task: T,
-     output: Option<O>,
+@@ -23,6 +24,24 @@
    },
  }
  
@@ -2212,13 +2171,6 @@ This is also the reason for the <code>Eq</code> and <code>Hash</code> trait boun
  impl<T: Task> Default for Store<T, T::Output> {
    fn default() -> Self {
      Self {
-       graph: DAG::default(),
-       file_to_node: HashMap::default(),
-       task_to_node: HashMap::default(),
-     }
-   }
- }
- 
 `;
     let target = document.getElementById('diff2html_3');
     let configuration = {
@@ -2847,12 +2799,7 @@ Therefore, we will need to keep track of the current executing task.</p>
   document.addEventListener('DOMContentLoaded', function () {
     let diff = String.raw`--- pie/src/context/top_down.rs
 +++ pie/src/context/top_down.rs
-@@ -4,27 +4,32 @@
- 
- use crate::{Context, fs, Task};
- use crate::dependency::{FileDependency, TaskDependency};
- use crate::stamp::{FileStamper, OutputStamper};
- use crate::store::{Store, TaskNode};
+@@ -9,18 +9,23 @@
  
  pub struct TopDownContext<T, O> {
    store: Store<T, O>,
@@ -2876,10 +2823,6 @@ Therefore, we will need to keep track of the current executing task.</p>
      todo!()
    }
  
-   fn require_task_with_stamper(&mut self, task: &T, stamper: OutputStamper) -> T::Output {
-     todo!()
-   }
- }
 `;
     let target = document.getElementById('diff2html_1');
     let configuration = {
@@ -3014,7 +2957,7 @@ Finally, we return the output.</p>
       fileListToggle: false,
       fileContentToggle: false,
 
-      outputFormat: 'side-by-side',
+      outputFormat: 'line-by-line',
       matching: 'lines',
     };
     let diff2htmlUi = new Diff2HtmlUI(target, diff, configuration, hljs);
@@ -3105,7 +3048,7 @@ Furthermore, some platforms do not have access to threads, such as WASM, where t
       fileListToggle: false,
       fileContentToggle: false,
 
-      outputFormat: 'side-by-side',
+      outputFormat: 'line-by-line',
       matching: 'lines',
     };
     let diff2htmlUi = new Diff2HtmlUI(target, diff, configuration, hljs);
@@ -3406,7 +3349,7 @@ Run this example with <code>cargo run --example incremental</code>.
 You should see the <code>println!</code> in <code>ReadStringFromFile</code> appear in your console as the incremental context correctly determines that this task is new (i.e., has no output) and must be executed.
 It should look something like:</p>
 <pre><code>   Compiling pie v0.1.0 (/pie)
-    Finished dev [unoptimized + debuginfo] target(s) in 1.42s
+    Finished dev [unoptimized + debuginfo] target(s) in 0.94s
      Running `/pie/target/debug/examples/incremental`
 A) New task: expect `read_task` to execute
 Reading from input.txt with Modified stamper
@@ -3422,7 +3365,7 @@ Reading from input.txt with Modified stamper
 </code></pre>
 <p>Running with <code>cargo run --example incremental</code> should produce output like:</p>
 <pre><code>   Compiling pie v0.1.0 (/pie)
-    Finished dev [unoptimized + debuginfo] target(s) in 0.69s
+    Finished dev [unoptimized + debuginfo] target(s) in 0.45s
      Running `/pie/target/debug/examples/incremental`
 A) New task: expect `read_task` to execute
 Reading from input.txt with Modified stamper
@@ -3575,7 +3518,7 @@ This shows that tasks can depend on the same file with different stampers, which
 <p>Of course, using an <code>Exists</code> stamper for <code>ReadStringFromFile</code> does not make a lot of sense, but this is for demonstration purposes only.</p>
 <p>Running <code>cargo run --example incremental</code> now should produce output like:</p>
 <pre><code>   Compiling pie v0.1.0 (/pie)
-    Finished dev [unoptimized + debuginfo] target(s) in 0.81s
+    Finished dev [unoptimized + debuginfo] target(s) in 0.50s
      Running `/pie/target/debug/examples/incremental`
 A) New task: expect `read_task` to execute
 Reading from input.txt with Modified stamper
@@ -3705,7 +3648,7 @@ Furthermore, it is also an optimisation, as requiring the same task many times o
       fileListToggle: false,
       fileContentToggle: false,
 
-      outputFormat: 'side-by-side',
+      outputFormat: 'line-by-line',
       matching: 'lines',
     };
     let diff2htmlUi = new Diff2HtmlUI(target, diff, configuration, hljs);
@@ -4041,14 +3984,7 @@ We need to update the incrementality example to work with these changes.</p>
   document.addEventListener('DOMContentLoaded', function () {
     let diff = String.raw`--- pie/examples/incremental.rs
 +++ pie/examples/incremental.rs
-@@ -65,95 +65,97 @@
-     Ok(())
-   }
- }
- 
- fn main() -> Result<(), io::Error> {
-   let temp_dir = create_temp_dir()?;
-   let input_file = temp_dir.path().join("input.txt");
+@@ -72,30 +72,30 @@
    write(&input_file, "Hi")?;
    let output_file = temp_dir.path().join("output.txt");
  
@@ -4084,7 +4020,7 @@ We need to update the incrementality example to work with these changes.</p>
    assert_eq!(&read_to_string(&output_file)?, "Hello");
  
    write_until_modified(&input_file, "Hello, World!")?;
-   println!("\nE) Inconsistent file and task dependency: expect both tasks to execute");
+@@ -103,7 +103,7 @@
    // The file dependency of ${"`"}read_task${"`"} is inconsistent. Then, the task dependency from ${"`"}write_task${"`"} to ${"`"}read_task${"`"} is 
    // inconsistent because ${"`"}read_task${"`"} now returns ${"`"}"Hello, World!"${"`"} as output instead of "Hello", and thus its equals 
    // output stamp is different.
@@ -4093,8 +4029,7 @@ We need to update the incrementality example to work with these changes.</p>
    assert_eq!(&read_to_string(&output_file)?, "Hello, World!");
  
    write_until_modified(&input_file, "Hello, World!")?; // Note: writing same file contents!
-   println!("\nF) Early cutoff: expect only ${"`"}read_task${"`"} to execute");
-   // File dependency of ${"`"}read_task${"`"} is inconsistent because the modified time changed, but it returns the same output 
+@@ -112,20 +112,20 @@
    // ${"`"}"Hello, World!"${"`"} because the contents of the file have not actually changed. Then, the task dependency from 
    // ${"`"}write_task${"`"} to ${"`"}read_task${"`"} is consistent because its output did not change, and thus the equality output stamp is 
    // the same.
@@ -4118,10 +4053,7 @@ We need to update the incrementality example to work with these changes.</p>
    assert_eq!(&read_to_string(&output_file)?, "Hello, World!");
  
    let input_file_b = temp_dir.path().join("input_b.txt");
-   write(&input_file_b, "Test")?;
-   let read_task_b_modified = ReadStringFromFile::new(&input_file_b, FileStamper::Modified);
-   let read_task_b_exists = ReadStringFromFile::new(&input_file_b, FileStamper::Exists);
-   println!("\nI) Different tasks: expect ${"`"}read_task_b_modified${"`"} and ${"`"}read_task_b_exists${"`"} to execute");
+@@ -136,9 +136,10 @@
    // Task ${"`"}read_task${"`"}, ${"`"}read_task_b_modified${"`"} and ${"`"}read_task_b_exists${"`"} are different, due to their ${"`"}Eq${"`"} implementation 
    // determining that their paths and stampers are different. Therefore, ${"`"}read_task_b_modified${"`"} and ${"`"}read_task_b_exists${"`"}
    // are new tasks, and must be executed.
@@ -4134,11 +4066,7 @@ We need to update the incrementality example to work with these changes.</p>
    assert_eq!(&output, "Test");
  
    write_until_modified(&input_file_b, "Test Test")?;
-   println!("\nJ) Different stampers: expect only ${"`"}read_task_b_modified${"`"} to execute");
-   // Both ${"`"}read_task_b_modified${"`"} and ${"`"}read_task_b_exists${"`"} read from the same file, but they use different stampers.
-   // Therefore, ${"`"}read_task_b_modified${"`"} must be executed because the modified time has changed, but ${"`"}read_task_b_exists${"`"}
-   // will not be executed because its file dependency stamper only checks for existence of the file, and the existence 
-   // of the file has not changed.
+@@ -150,9 +151,10 @@
    //
    // Note that using an ${"`"}Exists${"`"} stamper for this task does not make a lot of sense, since it will only read the file 
    // on first execute and when it is recreated. But this is just to demonstrate different stampers.
@@ -4151,7 +4079,6 @@ We need to update the incrementality example to work with these changes.</p>
    assert_eq!(&output, "Test");
  
    Ok(())
- }
 `;
     let target = document.getElementById('diff2html_6');
     let configuration = {
@@ -4225,7 +4152,7 @@ In this section, we will change that by tracking build events for debugging and 
       fileListToggle: false,
       fileContentToggle: false,
 
-      outputFormat: 'side-by-side',
+      outputFormat: 'line-by-line',
       matching: 'lines',
     };
     let diff2htmlUi = new Diff2HtmlUI(target, diff, configuration, hljs);
@@ -4316,14 +4243,7 @@ If you care about performance here, be sure to annotate those default empty meth
   document.addEventListener('DOMContentLoaded', function () {
     let diff = String.raw`--- pie/src/lib.rs
 +++ pie/src/lib.rs
-@@ -1,20 +1,21 @@
- use std::fmt::Debug;
- use std::fs::File;
- use std::hash::Hash;
- use std::io;
- use std::path::Path;
- 
- use stamp::{FileStamper, OutputStamper};
+@@ -8,6 +8,7 @@
  
  use crate::context::top_down::TopDownContext;
  use crate::store::{Store, TaskNode};
@@ -4331,21 +4251,7 @@ If you care about performance here, be sure to annotate those default empty meth
  
  pub mod stamp;
  pub mod tracker;
- mod context;
- mod fs;
- mod dependency;
- mod store;
- 
- /// A unit of computation in a programmatic incremental build system.
- pub trait Task: Clone + Eq + Hash + Debug {
-@@ -53,53 +54,68 @@
-     self.require_task_with_stamper(task, self.default_output_stamper())
-   }
-   /// Requires given ${"`"}task${"`"}, recording a dependency (using given ${"`"}stamper${"`"}) and selectively executing it. Returns its
-   /// up-to-date output.
-   fn require_task_with_stamper(&mut self, task: &T, stamper: OutputStamper) -> T::Output;
-   /// Returns the default output stamper.
-   fn default_output_stamper(&self) -> OutputStamper { OutputStamper::Equals }
+@@ -60,35 +61,46 @@
  }
  
  /// Main entry point into PIE, a sound and incremental programmatic build system.
@@ -4400,11 +4306,7 @@ If you care about performance here, be sure to annotate those default empty meth
        current_executing_task: None,
        dependency_check_errors: Vec::default(),
      }
-   }
- 
-   /// Requires ${"`"}task${"`"}, returning its up-to-date output.
-   pub fn require(&mut self, task: &T) -> T::Output {
-     self.current_executing_task = None;
+@@ -100,6 +112,10 @@
      TopDownContext::new(self).require_initial(task)
    }
  
@@ -4451,12 +4353,7 @@ Modify <code>pie/src/context/top_down.rs</code>:</p>
   document.addEventListener('DOMContentLoaded', function () {
     let diff = String.raw`--- pie/src/context/top_down.rs
 +++ pie/src/context/top_down.rs
-@@ -1,75 +1,86 @@
- use std::fs::File;
- use std::io;
- use std::path::Path;
- 
- use crate::{Context, fs, Session, Task};
+@@ -6,21 +6,25 @@
  use crate::dependency::{FileDependency, TaskDependency};
  use crate::stamp::{FileStamper, OutputStamper};
  use crate::store::TaskNode;
@@ -4488,7 +4385,7 @@ Modify <code>pie/src/context/top_down.rs</code>:</p>
    fn require_file_with_stamper<P: AsRef<Path>>(&mut self, path: P, stamper: FileStamper) -> Result<Option<File>, io::Error> {
      let Some(current_executing_task_node) = &self.session.current_executing_task else {
        return fs::open_if_file(path); // No current executing task, so no dependency needs to be made.
-     };
+@@ -28,20 +32,25 @@
      let path = path.as_ref();
      let node = self.session.store.get_or_create_file_node(path);
      let (dependency, file) = FileDependency::new_with_file(path, stamper)?;
@@ -4515,7 +4412,7 @@ Modify <code>pie/src/context/top_down.rs</code>:</p>
        output
      } else {
        // Correctness: when ${"`"}should_execute_task${"`"} returns ${"`"}true${"`"}, the above block is executed. Otherwise this block is 
-       // executed and ${"`"}should_execute_task${"`"} ensures that the task has an output.
+@@ -49,9 +58,11 @@
        self.session.store.get_task_output(&node).clone()
      };
  
@@ -4528,10 +4425,7 @@ Modify <code>pie/src/context/top_down.rs</code>:</p>
        if self.session.store.add_task_require_dependency(current_executing_task_node, &node, dependency).is_err() {
          let current_executing_task = self.session.store.get_task(current_executing_task_node);
          panic!("Cyclic task dependency; current executing task '{:?}' is requiring task '{:?}' which was already required", current_executing_task, task);
-       }
-     }
- 
-     output
+@@ -62,7 +73,7 @@
    }
  }
  
@@ -4540,13 +4434,6 @@ Modify <code>pie/src/context/top_down.rs</code>:</p>
    /// Checks whether given task should be executed, returning ${"`"}true${"`"} if it should be executed. A task should be executed
    /// if any of its dependencies are inconsistent, or when it has no output.
    fn should_execute_task(&mut self, node: &TaskNode) -> bool {
-     // Borrow: because we pass ${"`"}self${"`"} (which is ${"`"}&mut self${"`"}) to ${"`"}is_inconsistent${"`"} for recursive consistency checking, 
-     //         we need to clone and collect dependencies into a ${"`"}Vec${"`"}. Otherwise we have an immutable borrow of ${"`"}self${"`"}
-     //         through ${"`"}self.store${"`"} while we create a mutable borrow of ${"`"}self${"`"}, which is not allowed.
-     let dependencies: Vec<_> = self.session.store.get_dependencies_of_task(node).cloned().collect();
-     for dependency in dependencies {
-       match dependency.is_inconsistent(self) {
-         Ok(Some(_)) => return true,
 `;
     let target = document.getElementById('diff2html_2');
     let configuration = {
@@ -4597,7 +4484,7 @@ We start with a simple <code>WritingTracker</code> that writes build events to s
       fileListToggle: false,
       fileContentToggle: false,
 
-      outputFormat: 'side-by-side',
+      outputFormat: 'line-by-line',
       matching: 'lines',
     };
     let diff2htmlUi = new Diff2HtmlUI(target, diff, configuration, hljs);
@@ -4733,14 +4620,7 @@ But in this tutorial, we will keep it simple like this.</p>
   document.addEventListener('DOMContentLoaded', function () {
     let diff = String.raw`--- pie/examples/incremental.rs
 +++ pie/examples/incremental.rs
-@@ -28,21 +28,20 @@
- 
- /// Pseudo-task that reads a string from a file.
- #[derive(Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Debug)]
- struct ReadStringFromFile(PathBuf, FileStamper);
- 
- impl ReadStringFromFile {
-   fn new(path: impl AsRef<Path>, stamper: FileStamper) -> FileTask {
+@@ -35,7 +35,6 @@
      FileTask::ReadStringFromFile(Self(path.as_ref().to_path_buf(), stamper))
    }
    fn execute<C: Context<FileTask>>(&self, context: &mut C) -> Result<String, io::ErrorKind> {
@@ -4748,21 +4628,7 @@ But in this tutorial, we will keep it simple like this.</p>
      let file = context.require_file_with_stamper(&self.0, self.1).map_err(|e| e.kind())?;
      if let Some(mut file) = file {
        let mut string = String::new();
-       file.read_to_string(&mut string).map_err(|e| e.kind())?;
-       Ok(string)
-     } else {
-       Err(io::ErrorKind::NotFound)
-     }
-   }
- }
-@@ -50,36 +49,35 @@
- /// Pseudo-task that writes a string to a file, where the string is provided by another task. The string provider is 
- /// boxed to prevent a cyclic definition of infinite size, due to this type being used in [${"`"}FileTask${"`"}].
- #[derive(Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Debug)]
- struct WriteStringToFile(Box<FileTask>, PathBuf, FileStamper);
- 
- impl WriteStringToFile {
-   fn new(string_provider: impl Into<Box<FileTask>>, path: impl Into<PathBuf>, stamper: FileStamper) -> FileTask {
+@@ -57,7 +56,6 @@
      FileTask::WriteStringToFile(Self(string_provider.into(), path.into(), stamper))
    }
    fn execute<C: Context<FileTask>>(&self, context: &mut C) -> Result<(), io::ErrorKind> {
@@ -4770,14 +4636,7 @@ But in this tutorial, we will keep it simple like this.</p>
      let string = context.require_task(&self.0)?;
      let mut file = File::create(&self.1).map_err(|e| e.kind())?;
      file.write_all(string.as_bytes()).map_err(|e| e.kind())?;
-     context.require_file_with_stamper(&self.1, self.2).map_err(|e| e.kind())?;
-     Ok(())
-   }
- }
- 
- fn main() -> Result<(), io::Error> {
-   let temp_dir = create_temp_dir()?;
-   let input_file = temp_dir.path().join("input.txt");
+@@ -72,7 +70,7 @@
    write(&input_file, "Hi")?;
    let output_file = temp_dir.path().join("output.txt");
  
@@ -4786,13 +4645,6 @@ But in this tutorial, we will keep it simple like this.</p>
    let read_task = ReadStringFromFile::new(&input_file, FileStamper::Modified);
    let write_task = WriteStringToFile::new(read_task.clone(), &output_file, FileStamper::Modified);
  
-   println!("A) New task: expect ${"`"}read_task${"`"} to execute");
-   // ${"`"}read_task${"`"} is new, meaning that we have no cached output for it, thus it must be executed.
-   let output = pie.new_session().require(&read_task)?;
-   assert_eq!(&output, "Hi");
- 
-   println!("\nB) Reuse: expect no execution");
-   // ${"`"}read_task${"`"} is not new and its file dependency is still consistent. It is consistent because the modified time of 
 `;
     let target = document.getElementById('diff2html_4');
     let configuration = {
@@ -4834,7 +4686,7 @@ Therefore, we will implement the <code>EventTracker</code> that stores build eve
       fileListToggle: false,
       fileContentToggle: false,
 
-      outputFormat: 'side-by-side',
+      outputFormat: 'line-by-line',
       matching: 'lines',
     };
     let diff2htmlUi = new Diff2HtmlUI(target, diff, configuration, hljs);

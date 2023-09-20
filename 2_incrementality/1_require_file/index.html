@@ -184,7 +184,7 @@ Therefore, we will extend the <code>Context</code> API with methods to <em>requi
   document.addEventListener('DOMContentLoaded', function () {
     let diff = String.raw`--- pie/src/lib.rs
 +++ pie/src/lib.rs
-@@ -1,19 +1,29 @@
+@@ -1,5 +1,8 @@
  use std::fmt::Debug;
 +use std::fs::File;
  use std::hash::Hash;
@@ -193,14 +193,7 @@ Therefore, we will extend the <code>Context</code> API with methods to <em>requi
  
  pub mod context;
  
- /// A unit of computation in a programmatic incremental build system.
- pub trait Task: Clone + Eq + Hash + Debug {
-   /// Type of output this task returns when executed.
-   type Output: Clone + Eq + Debug;
-   /// Execute the task, using ${"`"}context${"`"} to specify dynamic dependencies, returning ${"`"}Self::Output${"`"}.
-   fn execute<C: Context<Self>>(&self, context: &mut C) -> Self::Output;
- }
- 
+@@ -14,6 +17,13 @@
  /// Programmatic incremental build context, enabling tasks to create dynamic dependencies that context implementations 
  /// use for incremental execution.
  pub trait Context<T: Task> {
@@ -277,7 +270,7 @@ However, because we will be performing similar file system operations in the inc
       fileListToggle: false,
       fileContentToggle: false,
 
-      outputFormat: 'side-by-side',
+      outputFormat: 'line-by-line',
       matching: 'lines',
     };
     let diff2htmlUi = new Diff2HtmlUI(target, diff, configuration, hljs);
@@ -404,7 +397,7 @@ pub fn create_temp_dir() -&gt; Result&lt;TempDir, io::Error&gt; { TempDir::new()
       fileListToggle: false,
       fileContentToggle: false,
 
-      outputFormat: 'side-by-side',
+      outputFormat: 'line-by-line',
       matching: 'lines',
     };
     let diff2htmlUi = new Diff2HtmlUI(target, diff, configuration, hljs);

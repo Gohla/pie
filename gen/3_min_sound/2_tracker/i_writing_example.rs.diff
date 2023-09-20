@@ -1,13 +1,6 @@
 --- pie/examples/incremental.rs
 +++ pie/examples/incremental.rs
-@@ -28,21 +28,20 @@
- 
- /// Pseudo-task that reads a string from a file.
- #[derive(Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Debug)]
- struct ReadStringFromFile(PathBuf, FileStamper);
- 
- impl ReadStringFromFile {
-   fn new(path: impl AsRef<Path>, stamper: FileStamper) -> FileTask {
+@@ -35,7 +35,6 @@
      FileTask::ReadStringFromFile(Self(path.as_ref().to_path_buf(), stamper))
    }
    fn execute<C: Context<FileTask>>(&self, context: &mut C) -> Result<String, io::ErrorKind> {
@@ -15,21 +8,7 @@
      let file = context.require_file_with_stamper(&self.0, self.1).map_err(|e| e.kind())?;
      if let Some(mut file) = file {
        let mut string = String::new();
-       file.read_to_string(&mut string).map_err(|e| e.kind())?;
-       Ok(string)
-     } else {
-       Err(io::ErrorKind::NotFound)
-     }
-   }
- }
-@@ -50,36 +49,35 @@
- /// Pseudo-task that writes a string to a file, where the string is provided by another task. The string provider is 
- /// boxed to prevent a cyclic definition of infinite size, due to this type being used in [`FileTask`].
- #[derive(Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Debug)]
- struct WriteStringToFile(Box<FileTask>, PathBuf, FileStamper);
- 
- impl WriteStringToFile {
-   fn new(string_provider: impl Into<Box<FileTask>>, path: impl Into<PathBuf>, stamper: FileStamper) -> FileTask {
+@@ -57,7 +56,6 @@
      FileTask::WriteStringToFile(Self(string_provider.into(), path.into(), stamper))
    }
    fn execute<C: Context<FileTask>>(&self, context: &mut C) -> Result<(), io::ErrorKind> {
@@ -37,14 +16,7 @@
      let string = context.require_task(&self.0)?;
      let mut file = File::create(&self.1).map_err(|e| e.kind())?;
      file.write_all(string.as_bytes()).map_err(|e| e.kind())?;
-     context.require_file_with_stamper(&self.1, self.2).map_err(|e| e.kind())?;
-     Ok(())
-   }
- }
- 
- fn main() -> Result<(), io::Error> {
-   let temp_dir = create_temp_dir()?;
-   let input_file = temp_dir.path().join("input.txt");
+@@ -72,7 +70,7 @@
    write(&input_file, "Hi")?;
    let output_file = temp_dir.path().join("output.txt");
  
@@ -53,10 +25,3 @@
    let read_task = ReadStringFromFile::new(&input_file, FileStamper::Modified);
    let write_task = WriteStringToFile::new(read_task.clone(), &output_file, FileStamper::Modified);
  
-   println!("A) New task: expect `read_task` to execute");
-   // `read_task` is new, meaning that we have no cached output for it, thus it must be executed.
-   let output = pie.new_session().require(&read_task)?;
-   assert_eq!(&output, "Hi");
- 
-   println!("\nB) Reuse: expect no execution");
-   // `read_task` is not new and its file dependency is still consistent. It is consistent because the modified time of 

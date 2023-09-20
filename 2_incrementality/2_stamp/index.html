@@ -201,7 +201,7 @@ Therefore, we will implement a <code>FileStamper</code> that stamps files and pr
       fileListToggle: false,
       fileContentToggle: false,
 
-      outputFormat: 'side-by-side',
+      outputFormat: 'line-by-line',
       matching: 'lines',
     };
     let diff2htmlUi = new Diff2HtmlUI(target, diff, configuration, hljs);
@@ -376,8 +376,16 @@ mod test {
 }</code></pre>
 <p>We test file stamps by creating a stamp, changing the file, creating a new stamp, and then compare the stamps.
 We test task output stamps by just passing a different output value to the <code>stamp</code> function, and then compare the stamps.</p>
-<p>Run <code>cargo test</code> to confirm the stamp implementation.
-If test <code>test_modified_file_stamper</code> fails, do continue to the next section, because we're going to fix it!</p>
+<p>Run <code>cargo test</code> to confirm the stamp implementation.</p>
+<div id="admonition-warning" class="admonition warning">
+<div class="admonition-title">
+<p>Warning</p>
+<p><a class="admonition-anchor-link" href="#admonition-warning"></a></p>
+</div>
+<div>
+<p>Test <code>test_modified_file_stamper</code> will likely fail. Do continue to the next section, because we're going to fix it!</p>
+</div>
+</div>
 <h2 id="testing-with-file-modified-time-correctly"><a class="header" href="#testing-with-file-modified-time-correctly">Testing with file modified time, correctly</a></h2>
 <p>Unfortunately, these tests may fail on some operating systems (Linux and Windows in my testing), due to an imprecise file last modified timer.
 What can happen is that we write to a file, making the OS update its modified time to <code>1000</code> (as an example, not a real timestamp), then very quickly write to the file again, making the OS update its modified time to <code>1000</code> again.
@@ -391,7 +399,7 @@ Change <code>dev_shared/src/lib.rs</code>:</p>
   document.addEventListener('DOMContentLoaded', function () {
     let diff = String.raw`--- dev_shared/src/lib.rs
 +++ dev_shared/src/lib.rs
-@@ -1,9 +1,38 @@
+@@ -1,4 +1,7 @@
 +use std::fs::{metadata, write};
  use std::io;
 +use std::path::Path;
@@ -399,8 +407,7 @@ Change <code>dev_shared/src/lib.rs</code>:</p>
  
  use tempfile::{NamedTempFile, TempDir};
  
- /// Creates a new temporary file that gets cleaned up when dropped.
- pub fn create_temp_file() -> Result<NamedTempFile, io::Error> { NamedTempFile::new() }
+@@ -7,3 +10,29 @@
  
  /// Creates a new temporary directory that gets cleaned up when dropped.
  pub fn create_temp_dir() -> Result<TempDir, io::Error> { TempDir::new() }
@@ -437,7 +444,7 @@ Change <code>dev_shared/src/lib.rs</code>:</p>
       fileListToggle: false,
       fileContentToggle: false,
 
-      outputFormat: 'side-by-side',
+      outputFormat: 'line-by-line',
       matching: 'lines',
     };
     let diff2htmlUi = new Diff2HtmlUI(target, diff, configuration, hljs);
@@ -451,7 +458,7 @@ Now change the tests in <code>pie/src/stamp.rs</code> to use this function:</p>
   document.addEventListener('DOMContentLoaded', function () {
     let diff = String.raw`--- pie/src/stamp.rs
 +++ pie/src/stamp.rs
-@@ -1,50 +1,52 @@
+@@ -1,9 +1,9 @@
  #[cfg(test)]
  mod test {
 -  use std::fs::{remove_file, write};
@@ -463,23 +470,7 @@ Now change the tests in <code>pie/src/stamp.rs</code> to use this function:</p>
  
    use super::*;
  
-   #[test]
-   fn test_exists_file_stamper() -> Result<(), io::Error> {
-     let stamper = FileStamper::Exists;
-     let temp_file = create_temp_file()?;
-     let stamp = stamper.stamp(&temp_file)?;
-     assert_eq!(stamp, stamper.stamp(&temp_file)?);
- 
-     remove_file(&temp_file)?;
-     assert_ne!(stamp, stamper.stamp(&temp_file)?);
- 
-     Ok(())
-   }
- 
-   #[test]
-   fn test_modified_file_stamper() -> Result<(), io::Error> {
-     let stamper = FileStamper::Modified;
-     let temp_file = create_temp_file()?;
+@@ -27,7 +27,9 @@
      let stamp = stamper.stamp(&temp_file)?;
      assert_eq!(stamp, stamper.stamp(&temp_file)?);
  
@@ -490,23 +481,6 @@ Now change the tests in <code>pie/src/stamp.rs</code> to use this function:</p>
      let new_stamp = stamper.stamp(&temp_file)?;
      assert_ne!(stamp, new_stamp);
      let stamp = new_stamp;
- 
-     remove_file(&temp_file)?;
-     assert_ne!(stamp, stamper.stamp(&temp_file)?);
- 
-     Ok(())
-   }
- 
-   #[test]
-   fn test_inconsequential_output_stamper() {
-     let stamper = OutputStamper::Inconsequential;
-     let stamp = stamper.stamp(&1);
-     assert_eq!(stamp, stamper.stamp(&1));
-     assert_eq!(stamp, stamper.stamp(&2));
-   }
- 
-   #[test]
-   fn test_equals_output_stamper() {
 `;
     let target = document.getElementById('diff2html_2');
     let configuration = {
@@ -533,10 +507,7 @@ Therefore, we need to update the <code>Context</code> trait to allow passing in 
   document.addEventListener('DOMContentLoaded', function () {
     let diff = String.raw`--- pie/src/lib.rs
 +++ pie/src/lib.rs
-@@ -1,31 +1,46 @@
- use std::fmt::Debug;
- use std::fs::File;
- use std::hash::Hash;
+@@ -4,6 +4,8 @@
  use std::io;
  use std::path::Path;
  
@@ -545,15 +516,7 @@ Therefore, we need to update the <code>Context</code> trait to allow passing in 
  pub mod stamp;
  pub mod context;
  mod fs;
- 
- /// A unit of computation in a programmatic incremental build system.
- pub trait Task: Clone + Eq + Hash + Debug {
-   /// Type of output this task returns when executed.
-   type Output: Clone + Eq + Debug;
-   /// Execute the task, using ${"`"}context${"`"} to specify dynamic dependencies, returning ${"`"}Self::Output${"`"}.
-   fn execute<C: Context<Self>>(&self, context: &mut C) -> Self::Output;
- }
- 
+@@ -19,12 +21,25 @@
  /// Programmatic incremental build context, enabling tasks to create dynamic dependencies that context implementations 
  /// use for incremental execution.
  pub trait Context<T: Task> {
@@ -583,7 +546,6 @@ Therefore, we need to update the <code>Context</code> trait to allow passing in 
  
    /// Requires given ${"`"}task${"`"}, recording a dependency and selectively executing it. Returns its up-to-date output.
    fn require_task(&mut self, task: &T) -> T::Output;
- }
 `;
     let target = document.getElementById('diff2html_3');
     let configuration = {

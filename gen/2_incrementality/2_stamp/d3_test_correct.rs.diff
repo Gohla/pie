@@ -1,6 +1,6 @@
 --- pie/src/stamp.rs
 +++ pie/src/stamp.rs
-@@ -1,50 +1,52 @@
+@@ -1,9 +1,9 @@
  #[cfg(test)]
  mod test {
 -  use std::fs::{remove_file, write};
@@ -12,23 +12,7 @@
  
    use super::*;
  
-   #[test]
-   fn test_exists_file_stamper() -> Result<(), io::Error> {
-     let stamper = FileStamper::Exists;
-     let temp_file = create_temp_file()?;
-     let stamp = stamper.stamp(&temp_file)?;
-     assert_eq!(stamp, stamper.stamp(&temp_file)?);
- 
-     remove_file(&temp_file)?;
-     assert_ne!(stamp, stamper.stamp(&temp_file)?);
- 
-     Ok(())
-   }
- 
-   #[test]
-   fn test_modified_file_stamper() -> Result<(), io::Error> {
-     let stamper = FileStamper::Modified;
-     let temp_file = create_temp_file()?;
+@@ -27,7 +27,9 @@
      let stamp = stamper.stamp(&temp_file)?;
      assert_eq!(stamp, stamper.stamp(&temp_file)?);
  
@@ -39,20 +23,3 @@
      let new_stamp = stamper.stamp(&temp_file)?;
      assert_ne!(stamp, new_stamp);
      let stamp = new_stamp;
- 
-     remove_file(&temp_file)?;
-     assert_ne!(stamp, stamper.stamp(&temp_file)?);
- 
-     Ok(())
-   }
- 
-   #[test]
-   fn test_inconsequential_output_stamper() {
-     let stamper = OutputStamper::Inconsequential;
-     let stamp = stamper.stamp(&1);
-     assert_eq!(stamp, stamper.stamp(&1));
-     assert_eq!(stamp, stamper.stamp(&2));
-   }
- 
-   #[test]
-   fn test_equals_output_stamper() {
