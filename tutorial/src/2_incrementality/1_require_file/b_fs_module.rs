@@ -24,6 +24,7 @@ pub trait Context<T: Task> {
   /// - `Ok(None)` if no file exists at given `path` (but a directory could exist at given `path`),
   /// - `Err(e)` if there was an error getting the metadata for given `path`, or if there was an error opening the file. 
   fn require_file<P: AsRef<Path>>(&mut self, path: P) -> Result<Option<File>, io::Error>;
+
   /// Requires given `task`, recording a dependency and selectively executing it. Returns its up-to-date output.
   fn require_task(&mut self, task: &T) -> T::Output;
 }

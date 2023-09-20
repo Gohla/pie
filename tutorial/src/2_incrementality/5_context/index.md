@@ -7,8 +7,8 @@ Now we will create the `TopDownContext` type which implements the `Context` trai
 
 Add the `top_down` module to `pie/src/context/mod.rs`:
 
-```rust,customdiff
-{{#include ../../gen/2_incrementality/5_context/a_module.rs.diff:4:}}
+```diff2html fromfile
+../../gen/2_incrementality/5_context/a_module.rs.diff
 ```
 
 Create the `pie/src/context/top_down.rs` file and add the following to get started:
@@ -30,8 +30,8 @@ Therefore, we will need to keep track of the current executing task.
  
 Change `pie/src/context/mod.rs` to add a field for tracking the current executing task, and use it in `require_file_with_stamper`:
 
-```rust,customdiff
-{{#include ../../gen/2_incrementality/5_context/c_current.rs.diff:4:}}
+```diff2html fromfile
+../../gen/2_incrementality/5_context/c_current.rs.diff
 ```
 
 We're not setting `current_executing_task` yet, as that is the responsibility of `require_task_with_stamper` which we will implement later.
@@ -40,8 +40,8 @@ If there is no current executing task, which only happens if a user directly cal
 
 Now we need to add the file dependency, change `pie/src/context/mod.rs` to do this: 
 
-```rust,customdiff
-{{#include ../../gen/2_incrementality/5_context/d_file.rs.diff:4:}}
+```diff2html fromfile
+../../gen/2_incrementality/5_context/d_file.rs.diff
 ```
 
 We simply create or get an existing file node, create a file dependency, and add the file require dependency to the graph via `store`.
@@ -55,8 +55,8 @@ If we don't execute it, then it must have an output value and all its dependenci
 
 Change `pie/src/context/mod.rs` to implement this logic:
 
-```rust,customdiff
-{{#include ../../gen/2_incrementality/5_context/e_task.rs.diff:4:}}
+```diff2html fromfile
+../../gen/2_incrementality/5_context/e_task.rs.diff
 ```
 
 We first create or get an existing file node.
@@ -68,8 +68,8 @@ Finally, we return the output.
 
 We still need to create a task dependency. Change `pie/src/context/mod.rs` to add the dependency:
 
-```rust,customdiff
-{{#include ../../gen/2_incrementality/5_context/f_task_dep.rs.diff:4:}}
+```diff2html fromfile
+../../gen/2_incrementality/5_context/f_task_dep.rs.diff
 ```
 
 If there is no current executing task, which occurs when a user requires the initial task, we skip creating a dependency.
@@ -129,10 +129,10 @@ A final note is that care must be taken when [unwiding panics across foreign fun
 
 The final piece to our puzzle is the `should_execute_task` implementation.
 
-Add the following code to `pie/src/context/mod.rs`:
+Add the following code to `pie/src/context/top_down.rs`:
 
-```rust,customdiff,
-{{#include ../../gen/2_incrementality/5_context/g_check.rs.diff:4:}}
+```diff2html fromfile
+../../gen/2_incrementality/5_context/g_check.rs.diff
 ```
 
 The premise of `should_execute_task` is simple: go over the dependencies of a task until `dependency.is_inconsistent` is true, at which we return true.
@@ -208,14 +208,14 @@ When dependency checking result in an error, we should store the error for the u
 
 Change `pie/src/context/mod.rs` to store dependency check errors and give users access to it:
 
-```rust,customdiff
-{{#include ../../gen/2_incrementality/5_context/h_error_field.rs.diff:4:}}
+```diff2html fromfile
+../../gen/2_incrementality/5_context/h_error_field.rs.diff
 ```
 
 And then change `pie/src/context/mod.rs` to store these errors:
 
-```rust,customdiff
-{{#include ../../gen/2_incrementality/5_context/i_error_store.rs.diff:4:}}
+```diff2html fromfile
+../../gen/2_incrementality/5_context/i_error_store.rs.diff
 ```
 
 It took us a while, but now we've implemented an incremental build system with dynamic dependencies 🎉.

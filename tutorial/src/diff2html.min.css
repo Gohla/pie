@@ -294,8 +294,7 @@ table.d2h-diff-table td, th {
 
 .d2h-info {
   /* CHANGE: use variables */
-  background-color: var(--table-alternate-bg);
-  border-color: var(--code-border-color);
+  background-color: var(--table-header-bg);
   color: var(--fg)
 }
 

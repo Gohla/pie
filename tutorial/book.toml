@@ -9,8 +9,8 @@ title = "Build your own Programmatic Incremental Build System"
 create-missing = false
 
 [output.html]
-additional-js = ["src/diff2html-ui-base.min.js", "src/diff.js"]
-additional-css = ["src/diff2html.min.css", "src/mdbook-admonish.css", "src/custom.css"]
+additional-js = ["src/diff2html-ui-base.min.js"]
+additional-css = ["src/diff2html.min.css", "src/mdbook-admonish.css"]
 git-repository-url = "https://github.com/Gohla/pie/"
 edit-url-template = "https://github.com/Gohla/pie/edit/master/tutorial/{path}"
 

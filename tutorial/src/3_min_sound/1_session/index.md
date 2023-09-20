@@ -19,8 +19,8 @@ We will implement the `Session` type to hold all session data, and the `Pie` typ
 
 Change the imports in `pie/src/lib.rs`: 
 
-```rust,customdiff,
-{{#include ../../gen/3_min_sound/1_session/a_lib_import.rs.diff:4:}}
+```diff2html fromfile
+../../gen/3_min_sound/1_session/a_lib_import.rs.diff
 ```
 
 Now add the `Pie` and `Session` types to `pie/src/lib.rs`:
@@ -51,8 +51,8 @@ Now we need to modify `TopDownContext` to work with `Session`.
 
 Change `TopDownContext` to only contain a mutable reference to `Session` in `pie/src/context/top_down.rs`:
 
-```rust,customdiff,
-{{#include ../../gen/3_min_sound/1_session/c_top_down_new.rs.diff:4:}}
+```diff2html fromfile
+../../gen/3_min_sound/1_session/c_top_down_new.rs.diff
 ```
 
 Here, we use lifetime `'s` to denote the lifetime of a session, and make `TopDownContext` generic over it.
@@ -65,8 +65,8 @@ You could do this with the following find-replace regex: `self\.([\w\d_]+)\.` ->
 
 Change `pie/src/context/top_down.rs`:
 
-```rust,customdiff,
-{{#include ../../gen/3_min_sound/1_session/d_top_down_fix.rs.diff:4:}}
+```diff2html fromfile
+../../gen/3_min_sound/1_session/d_top_down_fix.rs.diff
 ```
 
 Now we change `Session` to use `TopDownContext`. 
@@ -75,8 +75,8 @@ Now we change `Session` to use `TopDownContext`.
 
 Change `pie/src/lib.rs`:
 
-```rust,customdiff,
-{{#include ../../gen/3_min_sound/1_session/e_lib_require.rs.diff:4:}}
+```diff2html fromfile
+../../gen/3_min_sound/1_session/e_lib_require.rs.diff
 ```
 
 We reset the `current_executing_task` to `None`, to be sure that we start a build without an executing task.
@@ -85,8 +85,8 @@ Then, we just create a `TopDownContext` and call `require_initial`.
 Finally, we can now make the `context` module private, as users of the library run builds using `Session`, instead of having to create a context implementation.
 Change `pie/src/lib.rs`:
 
-```rust,customdiff,
-{{#include ../../gen/3_min_sound/1_session/f_lib_private_module.rs.diff:4:}}
+```diff2html fromfile
+../../gen/3_min_sound/1_session/f_lib_private_module.rs.diff
 ```
 
 Check that the code compiles with `cargo check --lib`.
@@ -97,14 +97,14 @@ We need to update the incrementality example to work with these changes.
 
 First change some imports in `pie/examples/incremental.rs`:
 
-```rust,customdiff,
-{{#include ../../gen/3_min_sound/1_session/g_example_import.rs.diff:4:}}
+```diff2html fromfile
+../../gen/3_min_sound/1_session/g_example_import.rs.diff
 ```
 
 Then, change `pie/examples/incremental.rs` to use sessions:
 
-```rust,customdiff,
-{{#include ../../gen/3_min_sound/1_session/h_example.rs.diff:4:}}
+```diff2html fromfile
+../../gen/3_min_sound/1_session/h_example.rs.diff
 ```
 
 When we only require one task, we replace `context.require_task` with `pie.new_session().require`.
