@@ -29,9 +29,8 @@
         <link rel="stylesheet" href="../../ayu-highlight.css">
 
         <!-- Custom theme stylesheets -->
-        <link rel="stylesheet" href="../../src/mdbook-admonish.css">
         <link rel="stylesheet" href="../../src/diff2html.min.css">
-        <link rel="stylesheet" href="../../src/custom.css">
+        <link rel="stylesheet" href="../../src/mdbook-admonish.css">
 
     </head>
     <body>
@@ -127,10 +126,11 @@
                         </button>
                         <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
                             <li role="none"><button role="menuitem" class="theme" id="light">Light</button></li>
-                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
-                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
-                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
-                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+<!-- CHANGE: removed all but light and ayu theme, and renamed ayu to dark -->                          
+<!--                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>-->
+<!--                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>-->
+<!--                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>-->
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Dark</button></li>
                         </ul>
                         <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
                             <i class="fa fa-search"></i>
@@ -197,7 +197,7 @@ edition = &quot;2021&quot;
 <p>Run <code>cargo build</code> to test if the project was set up correctly.
 The output should look something like:</p>
 <pre><code class="language-shell ">   Compiling pie v0.1.0 (/pie)
-    Finished dev [unoptimized + debuginfo] target(s) in 0.09s
+    Finished dev [unoptimized + debuginfo] target(s) in 0.12s
 </code></pre>
 <details id="admonition-download-source-code" class="admonition example">
 <summary class="admonition-title">
@@ -250,7 +250,6 @@ The output should look something like:</p>
 
         <!-- Custom JS scripts -->
         <script src="../../src/diff2html-ui-base.min.js"></script>
-        <script src="../../src/diff.js"></script>
 
 
     </div>

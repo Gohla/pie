@@ -29,9 +29,8 @@
         <link rel="stylesheet" href="../../ayu-highlight.css">
 
         <!-- Custom theme stylesheets -->
-        <link rel="stylesheet" href="../../src/mdbook-admonish.css">
         <link rel="stylesheet" href="../../src/diff2html.min.css">
-        <link rel="stylesheet" href="../../src/custom.css">
+        <link rel="stylesheet" href="../../src/mdbook-admonish.css">
 
     </head>
     <body>
@@ -127,10 +126,11 @@
                         </button>
                         <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
                             <li role="none"><button role="menuitem" class="theme" id="light">Light</button></li>
-                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
-                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
-                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
-                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+<!-- CHANGE: removed all but light and ayu theme, and renamed ayu to dark -->                          
+<!--                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>-->
+<!--                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>-->
+<!--                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>-->
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Dark</button></li>
                         </ul>
                         <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
                             <i class="fa fa-search"></i>
@@ -182,13 +182,33 @@ Therefore, dependencies need to keep track of their stamper and their previous s
 To that end, we will implement the <code>FileDependency</code> and <code>TaskDependency</code> types with methods for consistency checking.
 We will also implement a <code>Dependency</code> type that abstracts over <code>FileDependency</code> and <code>TaskDependency</code>, which we will need for the dependency graph implementation in the next chapter.</p>
 <p>Add the <code>dependency</code> module to <code>pie/src/lib.rs</code>:</p>
-<pre><code class="language-rust customdiff"> pub mod stamp;
+<div id="diff2html_0"></div>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    let diff = String.raw`--- pie/src/lib.rs
++++ pie/src/lib.rs
+@@ -9,6 +9,7 @@
+ pub mod stamp;
  pub mod context;
  mod fs;
 +mod dependency;
  
  /// A unit of computation in a programmatic incremental build system.
- pub trait Task: Clone + Eq + Hash + Debug {</code></pre>
+ pub trait Task: Clone + Eq + Hash + Debug {
+`;
+    let target = document.getElementById('diff2html_0');
+    let configuration = {
+      drawFileList: false,
+      fileListToggle: false,
+      fileContentToggle: false,
+
+      outputFormat: 'side-by-side',
+      matching: 'lines',
+    };
+    let diff2htmlUi = new Diff2HtmlUI(target, diff, configuration, hljs);
+    diff2htmlUi.draw();
+  });
+</script>
 <p>This module is private, as users of the library should not construct dependencies.
 They should only create dependencies (and choose stampers) via <code>Context</code> methods.</p>
 <h2 id="file-dependencies"><a class="header" href="#file-dependencies">File dependencies</a></h2>
@@ -538,7 +558,6 @@ You will get some warnings about unused things, but that is ok as we will use th
 
         <!-- Custom JS scripts -->
         <script src="../../src/diff2html-ui-base.min.js"></script>
-        <script src="../../src/diff.js"></script>
 
 
     </div>

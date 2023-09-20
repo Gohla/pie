@@ -29,9 +29,8 @@
         <link rel="stylesheet" href="../../ayu-highlight.css">
 
         <!-- Custom theme stylesheets -->
-        <link rel="stylesheet" href="../../src/mdbook-admonish.css">
         <link rel="stylesheet" href="../../src/diff2html.min.css">
-        <link rel="stylesheet" href="../../src/custom.css">
+        <link rel="stylesheet" href="../../src/mdbook-admonish.css">
 
     </head>
     <body>
@@ -127,10 +126,11 @@
                         </button>
                         <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
                             <li role="none"><button role="menuitem" class="theme" id="light">Light</button></li>
-                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
-                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
-                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
-                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+<!-- CHANGE: removed all but light and ayu theme, and renamed ayu to dark -->                          
+<!--                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>-->
+<!--                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>-->
+<!--                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>-->
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Dark</button></li>
                         </ul>
                         <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
                             <i class="fa fa-search"></i>
@@ -181,14 +181,34 @@ However, incrementality is <em>hard</em>, so let's start with an extremely simpl
 <h2 id="context-module"><a class="header" href="#context-module">Context module</a></h2>
 <p>Since we will be implementing three different contexts in this tutorial, we will separate them in different modules.
 Create the <code>context</code> module by adding a module to <code>pie/src/lib.rs</code>:</p>
-<pre><code class="language-rust customdiff"> use std::fmt::Debug;
+<div id="diff2html_0"></div>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    let diff = String.raw`--- pie/src/lib.rs
++++ pie/src/lib.rs
+@@ -1,6 +1,8 @@
+ use std::fmt::Debug;
  use std::hash::Hash;
  
 +pub mod context;
 +
  /// A unit of computation in a programmatic incremental build system.
  pub trait Task: Clone + Eq + Hash + Debug {
-   /// Type of output this task returns when executed.</code></pre>
+   /// Type of output this task returns when executed.
+`;
+    let target = document.getElementById('diff2html_0');
+    let configuration = {
+      drawFileList: false,
+      fileListToggle: false,
+      fileContentToggle: false,
+
+      outputFormat: 'side-by-side',
+      matching: 'lines',
+    };
+    let diff2htmlUi = new Diff2HtmlUI(target, diff, configuration, hljs);
+    diff2htmlUi.draw();
+  });
+</script>
 <p>This is a diff over <code>pie/src/lib.rs</code> where lines with a green background are additions, lines with a red background are removals, and lines with a grey background are context on where to add/remove lines, similar to diffs on source code hubs like GitHub.</p>
 <p>Create the <code>pie/src/context</code> directory, and in it, create the <code>pie/src/context/mod.rs</code> file with the following contents:</p>
 <pre><code class="language-rust ">pub mod non_incremental;</code></pre>
@@ -280,7 +300,7 @@ It returns the output of the task, which we test with <code>assert_eq!</code>.</
 <p>Run the test by running <code>cargo test</code>.
 The output should look something like:</p>
 <pre><code class="language-shell ">   Compiling pie v0.1.0 (/pie)
-    Finished test [unoptimized + debuginfo] target(s) in 0.33s
+    Finished test [unoptimized + debuginfo] target(s) in 0.44s
      Running unittests src/lib.rs (/pie/target/debug/deps/pie-6c9d55a7ef727e00)
 
 running 1 test
@@ -321,8 +341,14 @@ This macro is typically <a href="https://doc.rust-lang.org/book/ch11-01-writing-
 <h2 id="test-with-multiple-tasks"><a class="header" href="#test-with-multiple-tasks">Test with Multiple Tasks</a></h2>
 <p>Our first test only tests a single task that does not use the context, so let's write a test with two tasks where one requires the other to increase our test coverage.
 Add the following test:</p>
-<pre><code class="language-rust customdiff">     let mut context = NonIncrementalContext;
-     assert_eq!(&quot;Hello World!&quot;, context.require_task(&amp;ReturnHelloWorld));
+<div id="diff2html_1"></div>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    let diff = String.raw`--- pie/src/context/non_incremental.rs
++++ pie/src/context/non_incremental.rs
+@@ -17,4 +17,28 @@
+     let mut context = NonIncrementalContext;
+     assert_eq!("Hello World!", context.require_task(&ReturnHelloWorld));
    }
 +
 +  #[test]
@@ -331,8 +357,8 @@ Add the following test:</p>
 +    struct ReturnHelloWorld;
 +    impl Task for ReturnHelloWorld {
 +      type Output = String;
-+      fn execute&lt;C: Context&lt;Self&gt;&gt;(&amp;self, _context: &amp;mut C) -&gt; Self::Output {
-+        &quot;Hello World!&quot;.to_string()
++      fn execute<C: Context<Self>>(&self, _context: &mut C) -> Self::Output {
++        "Hello World!".to_string()
 +      }
 +    }
 +
@@ -340,15 +366,29 @@ Add the following test:</p>
 +    struct ToLowerCase;
 +    impl Task for ToLowerCase {
 +      type Output = String;
-+      fn execute&lt;C: Context&lt;Self&gt;&gt;(&amp;self, context: &amp;mut C) -&gt; Self::Output {
-+        context.require_task(&amp;ReturnHelloWorld).to_lowercase()
++      fn execute<C: Context<Self>>(&self, context: &mut C) -> Self::Output {
++        context.require_task(&ReturnHelloWorld).to_lowercase()
 +      }
 +    }
 +
 +    let mut context = NonIncrementalContext;
-+    assert_eq!(&quot;hello world!&quot;, context.require_task(&amp;ToLowerCase));
++    assert_eq!("hello world!", context.require_task(&ToLowerCase));
 +  }
- }</code></pre>
+ }
+`;
+    let target = document.getElementById('diff2html_1');
+    let configuration = {
+      drawFileList: false,
+      fileListToggle: false,
+      fileContentToggle: false,
+
+      outputFormat: 'side-by-side',
+      matching: 'lines',
+    };
+    let diff2htmlUi = new Diff2HtmlUI(target, diff, configuration, hljs);
+    diff2htmlUi.draw();
+  });
+</script>
 <p>We use the same <code>ReturnHelloWorld</code> task as before, but now also have a <code>ToLowerCase</code> task which requires <code>ReturnHelloWorld</code> and then turn its string lowercase.
 However, due to the way we've set up the types between <code>Task</code> and <code>Context</code>, we will run into a problem.
 Running <code>cargo test</code>, you should get these errors:</p>
@@ -375,14 +415,34 @@ error: could not compile `pie` (lib test) due to previous error
 <p>The problem is that <code>execute</code> of <code>ToLowerCase</code> takes a <code>Context&lt;Self&gt;</code>, so in <code>impl Task for ToLowerCase</code> it takes a <code>Context&lt;ToLowerCase&gt;</code>, while we're trying to require <code>&amp;ReturnHelloWorld</code> through the context.
 This doesn't work as <code>Context&lt;ToLowerCase&gt;::require_task</code> only takes a <code>&amp;ToLowerCase</code> as input.</p>
 <p>We could change <code>execute</code> of <code>ToLowerCase</code> to take <code>Context&lt;ReturnHelloWorld&gt;</code>:</p>
-<pre><code class="language-rust customdiff">     struct ToLowerCase;
+<div id="diff2html_2"></div>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    let diff = String.raw`--- pie/src/context/non_incremental.rs
++++ pie/src/context/non_incremental.rs
+@@ -33,7 +33,7 @@
+     struct ToLowerCase;
      impl Task for ToLowerCase {
        type Output = String;
--      fn execute&lt;C: Context&lt;Self&gt;&gt;(&amp;self, context: &amp;mut C) -&gt; Self::Output {
-+      fn execute&lt;C: Context&lt;ReturnHelloWorld&gt;&gt;(&amp;self, context: &amp;mut C) -&gt; Self::Output {
-         context.require_task(&amp;ReturnHelloWorld).to_lowercase()
+-      fn execute<C: Context<Self>>(&self, context: &mut C) -> Self::Output {
++      fn execute<C: Context<ReturnHelloWorld>>(&self, context: &mut C) -> Self::Output {
+         context.require_task(&ReturnHelloWorld).to_lowercase()
        }
-     }</code></pre>
+     }
+`;
+    let target = document.getElementById('diff2html_2');
+    let configuration = {
+      drawFileList: false,
+      fileListToggle: false,
+      fileContentToggle: false,
+
+      outputFormat: 'side-by-side',
+      matching: 'lines',
+    };
+    let diff2htmlUi = new Diff2HtmlUI(target, diff, configuration, hljs);
+    diff2htmlUi.draw();
+  });
+</script>
 <p>But that is not allowed:</p>
 <pre><code class="language-shell ">   Compiling pie v0.1.0 (/pie)
 error[E0276]: impl has stricter requirements than trait
@@ -427,8 +487,14 @@ This solution is more feasible, but still introduces a lot of complexity which i
 </details>
 <p>For now, we will solve this by just using a single task type which is an enumeration of the different possible tasks.
 Replace the test with the following:</p>
-<pre><code class="language-rust customdiff">     let mut context = NonIncrementalContext;
-     assert_eq!(&quot;Hello World!&quot;, context.require_task(&amp;ReturnHelloWorld));
+<div id="diff2html_3"></div>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    let diff = String.raw`--- original
++++ modified
+@@ -0,28 +0,27 @@
+     let mut context = NonIncrementalContext;
+     assert_eq!("Hello World!", context.require_task(&ReturnHelloWorld));
    }
 
 -  #[test]
@@ -437,8 +503,8 @@ Replace the test with the following:</p>
 -    struct ReturnHelloWorld;
 -    impl Task for ReturnHelloWorld {
 -      type Output = String;
--      fn execute&lt;C: Context&lt;Self&gt;&gt;(&amp;self, _context: &amp;mut C) -&gt; Self::Output {
--        &quot;Hello World!&quot;.to_string()
+-      fn execute<C: Context<Self>>(&self, _context: &mut C) -> Self::Output {
+-        "Hello World!".to_string()
 -      }
 -    }
 -
@@ -446,13 +512,13 @@ Replace the test with the following:</p>
 -    struct ToLowerCase;
 -    impl Task for ToLowerCase {
 -      type Output = String;
--      fn execute&lt;C: Context&lt;ReturnHelloWorld&gt;&gt;(&amp;self, context: &amp;mut C) -&gt; Self::Output {
--        context.require_task(&amp;ReturnHelloWorld).to_lowercase()
+-      fn execute<C: Context<ReturnHelloWorld>>(&self, context: &mut C) -> Self::Output {
+-        context.require_task(&ReturnHelloWorld).to_lowercase()
 -      }
 -    }
 -
 -    let mut context = NonIncrementalContext;
--    assert_eq!(&quot;hello world!&quot;, context.require_task(&amp;ToLowerCase));
+-    assert_eq!("hello world!", context.require_task(&ToLowerCase));
 -  }
 +  #[test]
 +  fn test_require_task() {
@@ -464,19 +530,33 @@ Replace the test with the following:</p>
 +
 +    impl Task for Test {
 +      type Output = String;
-+      fn execute&lt;C: Context&lt;Self&gt;&gt;(&amp;self, context: &amp;mut C) -&gt; Self::Output {
++      fn execute<C: Context<Self>>(&self, context: &mut C) -> Self::Output {
 +        match self {
-+          Self::ReturnHelloWorld =&gt; &quot;Hello World!&quot;.to_string(),
-+          Self::ToLowerCase =&gt; context.require_task(&amp;Self::ReturnHelloWorld).to_lowercase(),
++          Self::ReturnHelloWorld => "Hello World!".to_string(),
++          Self::ToLowerCase => context.require_task(&Self::ReturnHelloWorld).to_lowercase(),
 +        }
 +      }
 +    }
 +
 +    let mut context = NonIncrementalContext;
-+    assert_eq!(&quot;Hello World!&quot;, context.require_task(&amp;Test::ReturnHelloWorld));
-+    assert_eq!(&quot;hello world!&quot;, context.require_task(&amp;Test::ToLowerCase));
++    assert_eq!("Hello World!", context.require_task(&Test::ReturnHelloWorld));
++    assert_eq!("hello world!", context.require_task(&Test::ToLowerCase));
 +  }
- }</code></pre>
+ }
+`;
+    let target = document.getElementById('diff2html_3');
+    let configuration = {
+      drawFileList: false,
+      fileListToggle: false,
+      fileContentToggle: false,
+
+      outputFormat: 'side-by-side',
+      matching: 'lines',
+    };
+    let diff2htmlUi = new Diff2HtmlUI(target, diff, configuration, hljs);
+    diff2htmlUi.draw();
+  });
+</script>
 <p>Here, we instead define a single task <code>Test</code> which is an <code>enum</code> with two variants.
 In its <code>Task</code> implementation, we match ourselves and return <code>&quot;Hello World!&quot;</code> when the variant is <code>ReturnHelloWorld</code>.
 When the variant is <code>ReturnHelloWorld</code>, we require <code>&amp;Self::ReturnHelloWorld</code> through the context, which is now valid because it is an instance of <code>Test</code>, and turn its string lowercase and return that.
@@ -551,7 +631,6 @@ We're now ready to start implementing an incremental context in the next chapter
 
         <!-- Custom JS scripts -->
         <script src="../../src/diff2html-ui-base.min.js"></script>
-        <script src="../../src/diff.js"></script>
 
 
     </div>

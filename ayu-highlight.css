@@ -5,18 +5,21 @@ Original by Dempfi (https://github.com/dempfi/ayu)
 
 .hljs {
   display: block;
-  overflow-x: auto;
-  background: #191f26;
-  color: #e6e1cf;
+  /* CHANGE: remove styling here, moved to theme */
+  /*overflow-x: auto;*/
+  /*background: #191f26;*/
+  /*color: #e6e1cf;*/
 }
 
 .hljs-comment,
 .hljs-quote {
-  color: #5c6773;
+  /* CHANGE: increase brightness */
+  color: #7a8a99;
   font-style: italic;
 }
 
-.hljs-variable,
+/* CHANGE: remove hljs-variable coloring, as this class is sometimes used in Diff2Html. */
+/*.hljs-variable,*/
 .hljs-template-variable,
 .hljs-attribute,
 .hljs-attr,

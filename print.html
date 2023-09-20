@@ -30,9 +30,8 @@
         <link rel="stylesheet" href="ayu-highlight.css">
 
         <!-- Custom theme stylesheets -->
-        <link rel="stylesheet" href="src/mdbook-admonish.css">
         <link rel="stylesheet" href="src/diff2html.min.css">
-        <link rel="stylesheet" href="src/custom.css">
+        <link rel="stylesheet" href="src/mdbook-admonish.css">
 
     </head>
     <body>
@@ -128,10 +127,11 @@
                         </button>
                         <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
                             <li role="none"><button role="menuitem" class="theme" id="light">Light</button></li>
-                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
-                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
-                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
-                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+<!-- CHANGE: removed all but light and ayu theme, and renamed ayu to dark -->                          
+<!--                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>-->
+<!--                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>-->
+<!--                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>-->
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Dark</button></li>
                         </ul>
                         <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
                             <i class="fa fa-search"></i>
@@ -195,7 +195,7 @@ edition = &quot;2021&quot;
 <p>Run <code>cargo build</code> to test if the project was set up correctly.
 The output should look something like:</p>
 <pre><code class="language-shell ">   Compiling pie v0.1.0 (/pie)
-    Finished dev [unoptimized + debuginfo] target(s) in 0.09s
+    Finished dev [unoptimized + debuginfo] target(s) in 0.12s
 </code></pre>
 <details id="admonition-download-source-code" class="admonition example">
 <summary class="admonition-title">
@@ -276,7 +276,7 @@ Because of this, the context reference passed to <code>Task::execute</code> is a
 <p>Build the project by running <code>cargo build</code>.
 The output should look something like:</p>
 <pre><code class="language-shell ">   Compiling pie v0.1.0 (/pie)
-    Finished dev [unoptimized + debuginfo] target(s) in 0.04s
+    Finished dev [unoptimized + debuginfo] target(s) in 0.06s
 </code></pre>
 <details id="admonition-rust-help" class="admonition info">
 <summary class="admonition-title">
@@ -320,14 +320,34 @@ However, incrementality is <em>hard</em>, so let's start with an extremely simpl
 <h2 id="context-module"><a class="header" href="#context-module">Context module</a></h2>
 <p>Since we will be implementing three different contexts in this tutorial, we will separate them in different modules.
 Create the <code>context</code> module by adding a module to <code>pie/src/lib.rs</code>:</p>
-<pre><code class="language-rust customdiff"> use std::fmt::Debug;
+<div id="diff2html_0"></div>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    let diff = String.raw`--- pie/src/lib.rs
++++ pie/src/lib.rs
+@@ -1,6 +1,8 @@
+ use std::fmt::Debug;
  use std::hash::Hash;
  
 +pub mod context;
 +
  /// A unit of computation in a programmatic incremental build system.
  pub trait Task: Clone + Eq + Hash + Debug {
-   /// Type of output this task returns when executed.</code></pre>
+   /// Type of output this task returns when executed.
+`;
+    let target = document.getElementById('diff2html_0');
+    let configuration = {
+      drawFileList: false,
+      fileListToggle: false,
+      fileContentToggle: false,
+
+      outputFormat: 'side-by-side',
+      matching: 'lines',
+    };
+    let diff2htmlUi = new Diff2HtmlUI(target, diff, configuration, hljs);
+    diff2htmlUi.draw();
+  });
+</script>
 <p>This is a diff over <code>pie/src/lib.rs</code> where lines with a green background are additions, lines with a red background are removals, and lines with a grey background are context on where to add/remove lines, similar to diffs on source code hubs like GitHub.</p>
 <p>Create the <code>pie/src/context</code> directory, and in it, create the <code>pie/src/context/mod.rs</code> file with the following contents:</p>
 <pre><code class="language-rust ">pub mod non_incremental;</code></pre>
@@ -419,7 +439,7 @@ It returns the output of the task, which we test with <code>assert_eq!</code>.</
 <p>Run the test by running <code>cargo test</code>.
 The output should look something like:</p>
 <pre><code class="language-shell ">   Compiling pie v0.1.0 (/pie)
-    Finished test [unoptimized + debuginfo] target(s) in 0.33s
+    Finished test [unoptimized + debuginfo] target(s) in 0.44s
      Running unittests src/lib.rs (/pie/target/debug/deps/pie-6c9d55a7ef727e00)
 
 running 1 test
@@ -460,8 +480,14 @@ This macro is typically <a href="https://doc.rust-lang.org/book/ch11-01-writing-
 <h2 id="test-with-multiple-tasks"><a class="header" href="#test-with-multiple-tasks">Test with Multiple Tasks</a></h2>
 <p>Our first test only tests a single task that does not use the context, so let's write a test with two tasks where one requires the other to increase our test coverage.
 Add the following test:</p>
-<pre><code class="language-rust customdiff">     let mut context = NonIncrementalContext;
-     assert_eq!(&quot;Hello World!&quot;, context.require_task(&amp;ReturnHelloWorld));
+<div id="diff2html_1"></div>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    let diff = String.raw`--- pie/src/context/non_incremental.rs
++++ pie/src/context/non_incremental.rs
+@@ -17,4 +17,28 @@
+     let mut context = NonIncrementalContext;
+     assert_eq!("Hello World!", context.require_task(&ReturnHelloWorld));
    }
 +
 +  #[test]
@@ -470,8 +496,8 @@ Add the following test:</p>
 +    struct ReturnHelloWorld;
 +    impl Task for ReturnHelloWorld {
 +      type Output = String;
-+      fn execute&lt;C: Context&lt;Self&gt;&gt;(&amp;self, _context: &amp;mut C) -&gt; Self::Output {
-+        &quot;Hello World!&quot;.to_string()
++      fn execute<C: Context<Self>>(&self, _context: &mut C) -> Self::Output {
++        "Hello World!".to_string()
 +      }
 +    }
 +
@@ -479,15 +505,29 @@ Add the following test:</p>
 +    struct ToLowerCase;
 +    impl Task for ToLowerCase {
 +      type Output = String;
-+      fn execute&lt;C: Context&lt;Self&gt;&gt;(&amp;self, context: &amp;mut C) -&gt; Self::Output {
-+        context.require_task(&amp;ReturnHelloWorld).to_lowercase()
++      fn execute<C: Context<Self>>(&self, context: &mut C) -> Self::Output {
++        context.require_task(&ReturnHelloWorld).to_lowercase()
 +      }
 +    }
 +
 +    let mut context = NonIncrementalContext;
-+    assert_eq!(&quot;hello world!&quot;, context.require_task(&amp;ToLowerCase));
++    assert_eq!("hello world!", context.require_task(&ToLowerCase));
 +  }
- }</code></pre>
+ }
+`;
+    let target = document.getElementById('diff2html_1');
+    let configuration = {
+      drawFileList: false,
+      fileListToggle: false,
+      fileContentToggle: false,
+
+      outputFormat: 'side-by-side',
+      matching: 'lines',
+    };
+    let diff2htmlUi = new Diff2HtmlUI(target, diff, configuration, hljs);
+    diff2htmlUi.draw();
+  });
+</script>
 <p>We use the same <code>ReturnHelloWorld</code> task as before, but now also have a <code>ToLowerCase</code> task which requires <code>ReturnHelloWorld</code> and then turn its string lowercase.
 However, due to the way we've set up the types between <code>Task</code> and <code>Context</code>, we will run into a problem.
 Running <code>cargo test</code>, you should get these errors:</p>
@@ -514,14 +554,34 @@ error: could not compile `pie` (lib test) due to previous error
 <p>The problem is that <code>execute</code> of <code>ToLowerCase</code> takes a <code>Context&lt;Self&gt;</code>, so in <code>impl Task for ToLowerCase</code> it takes a <code>Context&lt;ToLowerCase&gt;</code>, while we're trying to require <code>&amp;ReturnHelloWorld</code> through the context.
 This doesn't work as <code>Context&lt;ToLowerCase&gt;::require_task</code> only takes a <code>&amp;ToLowerCase</code> as input.</p>
 <p>We could change <code>execute</code> of <code>ToLowerCase</code> to take <code>Context&lt;ReturnHelloWorld&gt;</code>:</p>
-<pre><code class="language-rust customdiff">     struct ToLowerCase;
+<div id="diff2html_2"></div>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    let diff = String.raw`--- pie/src/context/non_incremental.rs
++++ pie/src/context/non_incremental.rs
+@@ -33,7 +33,7 @@
+     struct ToLowerCase;
      impl Task for ToLowerCase {
        type Output = String;
--      fn execute&lt;C: Context&lt;Self&gt;&gt;(&amp;self, context: &amp;mut C) -&gt; Self::Output {
-+      fn execute&lt;C: Context&lt;ReturnHelloWorld&gt;&gt;(&amp;self, context: &amp;mut C) -&gt; Self::Output {
-         context.require_task(&amp;ReturnHelloWorld).to_lowercase()
+-      fn execute<C: Context<Self>>(&self, context: &mut C) -> Self::Output {
++      fn execute<C: Context<ReturnHelloWorld>>(&self, context: &mut C) -> Self::Output {
+         context.require_task(&ReturnHelloWorld).to_lowercase()
        }
-     }</code></pre>
+     }
+`;
+    let target = document.getElementById('diff2html_2');
+    let configuration = {
+      drawFileList: false,
+      fileListToggle: false,
+      fileContentToggle: false,
+
+      outputFormat: 'side-by-side',
+      matching: 'lines',
+    };
+    let diff2htmlUi = new Diff2HtmlUI(target, diff, configuration, hljs);
+    diff2htmlUi.draw();
+  });
+</script>
 <p>But that is not allowed:</p>
 <pre><code class="language-shell ">   Compiling pie v0.1.0 (/pie)
 error[E0276]: impl has stricter requirements than trait
@@ -566,8 +626,14 @@ This solution is more feasible, but still introduces a lot of complexity which i
 </details>
 <p>For now, we will solve this by just using a single task type which is an enumeration of the different possible tasks.
 Replace the test with the following:</p>
-<pre><code class="language-rust customdiff">     let mut context = NonIncrementalContext;
-     assert_eq!(&quot;Hello World!&quot;, context.require_task(&amp;ReturnHelloWorld));
+<div id="diff2html_3"></div>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    let diff = String.raw`--- original
++++ modified
+@@ -0,28 +0,27 @@
+     let mut context = NonIncrementalContext;
+     assert_eq!("Hello World!", context.require_task(&ReturnHelloWorld));
    }
 
 -  #[test]
@@ -576,8 +642,8 @@ Replace the test with the following:</p>
 -    struct ReturnHelloWorld;
 -    impl Task for ReturnHelloWorld {
 -      type Output = String;
--      fn execute&lt;C: Context&lt;Self&gt;&gt;(&amp;self, _context: &amp;mut C) -&gt; Self::Output {
--        &quot;Hello World!&quot;.to_string()
+-      fn execute<C: Context<Self>>(&self, _context: &mut C) -> Self::Output {
+-        "Hello World!".to_string()
 -      }
 -    }
 -
@@ -585,13 +651,13 @@ Replace the test with the following:</p>
 -    struct ToLowerCase;
 -    impl Task for ToLowerCase {
 -      type Output = String;
--      fn execute&lt;C: Context&lt;ReturnHelloWorld&gt;&gt;(&amp;self, context: &amp;mut C) -&gt; Self::Output {
--        context.require_task(&amp;ReturnHelloWorld).to_lowercase()
+-      fn execute<C: Context<ReturnHelloWorld>>(&self, context: &mut C) -> Self::Output {
+-        context.require_task(&ReturnHelloWorld).to_lowercase()
 -      }
 -    }
 -
 -    let mut context = NonIncrementalContext;
--    assert_eq!(&quot;hello world!&quot;, context.require_task(&amp;ToLowerCase));
+-    assert_eq!("hello world!", context.require_task(&ToLowerCase));
 -  }
 +  #[test]
 +  fn test_require_task() {
@@ -603,19 +669,33 @@ Replace the test with the following:</p>
 +
 +    impl Task for Test {
 +      type Output = String;
-+      fn execute&lt;C: Context&lt;Self&gt;&gt;(&amp;self, context: &amp;mut C) -&gt; Self::Output {
++      fn execute<C: Context<Self>>(&self, context: &mut C) -> Self::Output {
 +        match self {
-+          Self::ReturnHelloWorld =&gt; &quot;Hello World!&quot;.to_string(),
-+          Self::ToLowerCase =&gt; context.require_task(&amp;Self::ReturnHelloWorld).to_lowercase(),
++          Self::ReturnHelloWorld => "Hello World!".to_string(),
++          Self::ToLowerCase => context.require_task(&Self::ReturnHelloWorld).to_lowercase(),
 +        }
 +      }
 +    }
 +
 +    let mut context = NonIncrementalContext;
-+    assert_eq!(&quot;Hello World!&quot;, context.require_task(&amp;Test::ReturnHelloWorld));
-+    assert_eq!(&quot;hello world!&quot;, context.require_task(&amp;Test::ToLowerCase));
++    assert_eq!("Hello World!", context.require_task(&Test::ReturnHelloWorld));
++    assert_eq!("hello world!", context.require_task(&Test::ToLowerCase));
 +  }
- }</code></pre>
+ }
+`;
+    let target = document.getElementById('diff2html_3');
+    let configuration = {
+      drawFileList: false,
+      fileListToggle: false,
+      fileContentToggle: false,
+
+      outputFormat: 'side-by-side',
+      matching: 'lines',
+    };
+    let diff2htmlUi = new Diff2HtmlUI(target, diff, configuration, hljs);
+    diff2htmlUi.draw();
+  });
+</script>
 <p>Here, we instead define a single task <code>Test</code> which is an <code>enum</code> with two variants.
 In its <code>Task</code> implementation, we match ourselves and return <code>&quot;Hello World!&quot;</code> when the variant is <code>ReturnHelloWorld</code>.
 When the variant is <code>ReturnHelloWorld</code>, we require <code>&amp;Self::ReturnHelloWorld</code> through the context, which is now valid because it is an instance of <code>Test</code>, and turn its string lowercase and return that.
@@ -672,7 +752,13 @@ To check if a file dependency is consistent, we just stamp the file again and co
 <p>Since build systems frequently interact with files, and changes to files can affect tasks, we need to keep track of file dependencies.
 Therefore, we will extend the <code>Context</code> API with methods to <em>require files</em>, enabling tasks to specify dynamic dependencies to files.</p>
 <p>Add a method to the <code>Context</code> trait in <code>pie/src/lib.rs</code>:</p>
-<pre><code class="language-rust customdiff"> use std::fmt::Debug;
+<div id="diff2html_0"></div>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    let diff = String.raw`--- pie/src/lib.rs
++++ pie/src/lib.rs
+@@ -1,19 +1,29 @@
+ use std::fmt::Debug;
 +use std::fs::File;
  use std::hash::Hash;
 +use std::io;
@@ -684,23 +770,37 @@ Therefore, we will extend the <code>Context</code> API with methods to <em>requi
  pub trait Task: Clone + Eq + Hash + Debug {
    /// Type of output this task returns when executed.
    type Output: Clone + Eq + Debug;
-   /// Execute the task, using `context` to specify dynamic dependencies, returning `Self::Output`.
-   fn execute&lt;C: Context&lt;Self&gt;&gt;(&amp;self, context: &amp;mut C) -&gt; Self::Output;
+   /// Execute the task, using ${"`"}context${"`"} to specify dynamic dependencies, returning ${"`"}Self::Output${"`"}.
+   fn execute<C: Context<Self>>(&self, context: &mut C) -> Self::Output;
  }
  
  /// Programmatic incremental build context, enabling tasks to create dynamic dependencies that context implementations 
  /// use for incremental execution.
- pub trait Context&lt;T: Task&gt; {
-+  /// Requires file at given `path`, recording a dependency to it. Call this method *just before reading from the file*, 
+ pub trait Context<T: Task> {
++  /// Requires file at given ${"`"}path${"`"}, recording a dependency to it. Call this method *just before reading from the file*, 
 +  /// so that the dependency corresponds to the data that you are reading. Returns:
-+  /// - `Ok(Some(file))` if a file exists at given `path`, 
-+  /// - `Ok(None)` if no file exists at given `path` (but a directory could exist at given `path`),
-+  /// - `Err(e)` if there was an error getting the metadata for given `path`, or if there was an error opening the file. 
-+  fn require_file&lt;P: AsRef&lt;Path&gt;&gt;(&amp;mut self, path: P) -&gt; Result&lt;Option&lt;File&gt;, io::Error&gt;;
++  /// - ${"`"}Ok(Some(file))${"`"} if a file exists at given ${"`"}path${"`"}, 
++  /// - ${"`"}Ok(None)${"`"} if no file exists at given ${"`"}path${"`"} (but a directory could exist at given ${"`"}path${"`"}),
++  /// - ${"`"}Err(e)${"`"} if there was an error getting the metadata for given ${"`"}path${"`"}, or if there was an error opening the file. 
++  fn require_file<P: AsRef<Path>>(&mut self, path: P) -> Result<Option<File>, io::Error>;
 +
-   /// Requires given `task`, recording a dependency and selectively executing it. Returns its up-to-date output.
-   fn require_task(&amp;mut self, task: &amp;T) -&gt; T::Output;
- }</code></pre>
+   /// Requires given ${"`"}task${"`"}, recording a dependency and selectively executing it. Returns its up-to-date output.
+   fn require_task(&mut self, task: &T) -> T::Output;
+ }
+`;
+    let target = document.getElementById('diff2html_0');
+    let configuration = {
+      drawFileList: false,
+      fileListToggle: false,
+      fileContentToggle: false,
+
+      outputFormat: 'side-by-side',
+      matching: 'lines',
+    };
+    let diff2htmlUi = new Diff2HtmlUI(target, diff, configuration, hljs);
+    diff2htmlUi.draw();
+  });
+</script>
 <p><code>require_file</code> is similar to requiring a task, but instead takes a <code>path</code> to a file or directory on the filesystem as input.
 We use <code>AsRef&lt;Path&gt;</code> as the type for the path, so that we can pass anything in that can dereference to a path.
 For example, <code>str</code> has an <code>AsRef&lt;Path&gt;</code> implementation, so we can just use <code>&quot;test.txt&quot;</code> as a path.</p>
@@ -730,21 +830,33 @@ You can also see this as a kind of method overloading, without having to provide
 <p>Now we need to implement this method for <code>NonIncrementalContext</code>.
 However, because we will be performing similar file system operations in the incremental context as well, we will create some utility functions for this first.</p>
 <p>Add the <code>fs</code> module to <code>pie/src/lib.rs</code>:</p>
-<pre><code class="language-rust customdiff"> use std::path::Path;
+<div id="diff2html_1"></div>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    let diff = String.raw`--- pie/src/lib.rs
++++ pie/src/lib.rs
+@@ -5,6 +5,7 @@
+ use std::path::Path;
  
  pub mod context;
 +mod fs;
  
  /// A unit of computation in a programmatic incremental build system.
  pub trait Task: Clone + Eq + Hash + Debug {
-@@ -23,7 +24,6 @@
-   /// - `Ok(None)` if no file exists at given `path` (but a directory could exist at given `path`),
-   /// - `Err(e)` if there was an error getting the metadata for given `path`, or if there was an error opening the file. 
-   fn require_file&lt;P: AsRef&lt;Path&gt;&gt;(&amp;mut self, path: P) -&gt; Result&lt;Option&lt;File&gt;, io::Error&gt;;
--
-   /// Requires given `task`, recording a dependency and selectively executing it. Returns its up-to-date output.
-   fn require_task(&amp;mut self, task: &amp;T) -&gt; T::Output;
- }</code></pre>
+`;
+    let target = document.getElementById('diff2html_1');
+    let configuration = {
+      drawFileList: false,
+      fileListToggle: false,
+      fileContentToggle: false,
+
+      outputFormat: 'side-by-side',
+      matching: 'lines',
+    };
+    let diff2htmlUi = new Diff2HtmlUI(target, diff, configuration, hljs);
+    diff2htmlUi.draw();
+  });
+</script>
 <p>Create file <code>pie/src/fs.rs</code> with:</p>
 <pre><code class="language-rust ">use std::{fs, io};
 use std::fs::{File, Metadata};
@@ -845,14 +957,33 @@ pub fn create_temp_dir() -&gt; Result&lt;TempDir, io::Error&gt; { TempDir::new()
     └── Cargo.toml
 </code></pre>
 <p>To access these utility functions in the <code>pie</code> crate, add a dependency to <code>dev_shared</code> in <code>pie/Cargo.toml</code> along with another create that will help testing:</p>
-<pre><code class="language-toml customdiff "> name = &quot;pie&quot;
- version = &quot;0.1.0&quot;
- edition = &quot;2021&quot;
+<div id="diff2html_2"></div>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    let diff = String.raw`--- pie/Cargo.toml
++++ pie/Cargo.toml
+@@ -2,3 +2,7 @@
+ name = "pie"
+ version = "0.1.0"
+ edition = "2021"
 +
 +[dev-dependencies]
-+dev_shared = { path = &quot;../dev_shared&quot; }
-+assert_matches = &quot;1&quot;
-</code></pre>
++dev_shared = { path = "../dev_shared" }
++assert_matches = "1"
+`;
+    let target = document.getElementById('diff2html_2');
+    let configuration = {
+      drawFileList: false,
+      fileListToggle: false,
+      fileContentToggle: false,
+
+      outputFormat: 'side-by-side',
+      matching: 'lines',
+    };
+    let diff2htmlUi = new Diff2HtmlUI(target, diff, configuration, hljs);
+    diff2htmlUi.draw();
+  });
+</script>
 <p>We've also added the <a href="https://crates.io/crates/assert_matches">assert_matches</a> crate, which is a handy library for asserting that a value matches a pattern.
 Note that these dependencies are added under <code>dev-dependencies</code>, indicating that these dependencies are only available when running tests, benchmarks, and examples.
 Therefore, users of our library will not depend on these crates, which is good, because temporary file management and assertions are not necessary to users of the library.</p>
@@ -932,7 +1063,13 @@ This allows us to write more concise tests using error propagation.</p>
 </details>
 <p>Now we are done unwinding our stack and have filesystem and testing utilities.
 Make the non-incremental context compatible by changing <code>pie/src/context/non_incremental.rs</code>:</p>
-<pre><code class="language-rust customdiff">+use std::fs::File;
+<div id="diff2html_3"></div>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    let diff = String.raw`--- pie/src/context/non_incremental.rs
++++ pie/src/context/non_incremental.rs
+@@ -1,8 +1,17 @@
++use std::fs::File;
 +use std::io;
 +use std::path::Path;
 +
@@ -941,14 +1078,28 @@ Make the non-incremental context compatible by changing <code>pie/src/context/no
  
  pub struct NonIncrementalContext;
  
- impl&lt;T: Task&gt; Context&lt;T&gt; for NonIncrementalContext {
-+  fn require_file&lt;P: AsRef&lt;Path&gt;&gt;(&amp;mut self, path: P) -&gt; Result&lt;Option&lt;File&gt;, io::Error&gt; {
-+    open_if_file(&amp;path)
+ impl<T: Task> Context<T> for NonIncrementalContext {
++  fn require_file<P: AsRef<Path>>(&mut self, path: P) -> Result<Option<File>, io::Error> {
++    open_if_file(&path)
 +  }
 +
-   fn require_task(&amp;mut self, task: &amp;T) -&gt; T::Output {
+   fn require_task(&mut self, task: &T) -> T::Output {
      task.execute(self)
-   }</code></pre>
+   }
+`;
+    let target = document.getElementById('diff2html_3');
+    let configuration = {
+      drawFileList: false,
+      fileListToggle: false,
+      fileContentToggle: false,
+
+      outputFormat: 'side-by-side',
+      matching: 'lines',
+    };
+    let diff2htmlUi = new Diff2HtmlUI(target, diff, configuration, hljs);
+    diff2htmlUi.draw();
+  });
+</script>
 <p>Since the non-incremental context does not track anything, we only try to open the file and return it, matching the contract in the documentation comment of the <code>Context::require_file</code> trait method.</p>
 <p>Confirm everything works with <code>cargo test</code>.</p>
 <details id="admonition-download-source-code" class="admonition example">
@@ -966,21 +1117,33 @@ To make this consistency checking configurable, we will use stamps.
 A dependency is inconsistent if after stamping, the new stamp is different from the old stamp.
 Therefore, we will implement a <code>FileStamper</code> that stamps files and produces a <code>FileStamp</code>, and an <code>OutputStamper</code> that stamps task outputs and produces an <code>OutputStamp</code>.</p>
 <p>Add the <code>stamp</code> module to <code>pie/src/lib.rs</code>:</p>
-<pre><code class="language-rust customdiff"> use std::io;
+<div id="diff2html_0"></div>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    let diff = String.raw`--- pie/src/lib.rs
++++ pie/src/lib.rs
+@@ -4,6 +4,7 @@
+ use std::io;
  use std::path::Path;
  
 +pub mod stamp;
  pub mod context;
  mod fs;
  
-@@ -24,6 +25,7 @@
-   /// - `Ok(None)` if no file exists at given `path` (but a directory could exist at given `path`),
-   /// - `Err(e)` if there was an error getting the metadata for given `path`, or if there was an error opening the file. 
-   fn require_file&lt;P: AsRef&lt;Path&gt;&gt;(&amp;mut self, path: P) -&gt; Result&lt;Option&lt;File&gt;, io::Error&gt;;
-+
-   /// Requires given `task`, recording a dependency and selectively executing it. Returns its up-to-date output.
-   fn require_task(&amp;mut self, task: &amp;T) -&gt; T::Output;
- }</code></pre>
+`;
+    let target = document.getElementById('diff2html_0');
+    let configuration = {
+      drawFileList: false,
+      fileListToggle: false,
+      fileContentToggle: false,
+
+      outputFormat: 'side-by-side',
+      matching: 'lines',
+    };
+    let diff2htmlUi = new Diff2HtmlUI(target, diff, configuration, hljs);
+    diff2htmlUi.draw();
+  });
+</script>
 <p>This module is public as users of the library will construct stampers.</p>
 <h2 id="file-stamps"><a class="header" href="#file-stamps">File stamps</a></h2>
 <p>Create the <code>pie/src/stamp.rs</code> file and add:</p>
@@ -1159,7 +1322,13 @@ Then, our test will fail because the stamp didn't change even though we expect i
 Even worse, our test can be flaky, sometimes succeeding if we write in between those milliseconds, sometimes failing if we write within a millisecond.</p>
 <p>To solve this, add a function to the filesystem testing utility crate.
 Change <code>dev_shared/src/lib.rs</code>:</p>
-<pre><code class="language-rust customdiff ">+use std::fs::{metadata, write};
+<div id="diff2html_1"></div>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    let diff = String.raw`--- dev_shared/src/lib.rs
++++ dev_shared/src/lib.rs
+@@ -1,9 +1,38 @@
++use std::fs::{metadata, write};
  use std::io;
 +use std::path::Path;
 +use std::time::SystemTime;
@@ -1167,26 +1336,26 @@ Change <code>dev_shared/src/lib.rs</code>:</p>
  use tempfile::{NamedTempFile, TempDir};
  
  /// Creates a new temporary file that gets cleaned up when dropped.
- pub fn create_temp_file() -&gt; Result&lt;NamedTempFile, io::Error&gt; { NamedTempFile::new() }
+ pub fn create_temp_file() -> Result<NamedTempFile, io::Error> { NamedTempFile::new() }
  
  /// Creates a new temporary directory that gets cleaned up when dropped.
- pub fn create_temp_dir() -&gt; Result&lt;TempDir, io::Error&gt; { TempDir::new() }
+ pub fn create_temp_dir() -> Result<TempDir, io::Error> { TempDir::new() }
 +
-+/// Keeps writing `contents` to file at `path` until its last modified time changes, then returns the modified time.
++/// Keeps writing ${"`"}contents${"`"} to file at ${"`"}path${"`"} until its last modified time changes, then returns the modified time.
 +/// This is required because some OSs have imprecise modified timers, where the file modified time does not change when 
 +/// writing in quick succession.
 +///
 +/// # Errors
 +///
 +/// Returns an error when any file operation fails.
-+pub fn write_until_modified(path: impl AsRef&lt;Path&gt;, contents: impl AsRef&lt;[u8]&gt;) -&gt; Result&lt;SystemTime, io::Error&gt; {
++pub fn write_until_modified(path: impl AsRef<Path>, contents: impl AsRef<[u8]>) -> Result<SystemTime, io::Error> {
 +  let path = path.as_ref();
 +  let contents = contents.as_ref();
-+  fn get_modified(path: impl AsRef&lt;Path&gt;) -&gt; Result&lt;SystemTime, io::Error&gt; {
++  fn get_modified(path: impl AsRef<Path>) -> Result<SystemTime, io::Error> {
 +    let modified = match metadata(path) {
-+      Err(e) if e.kind() == io::ErrorKind::NotFound =&gt; SystemTime::UNIX_EPOCH,
-+      Err(e) =&gt; Err(e)?,
-+      Ok(m) =&gt; m.modified()?
++      Err(e) if e.kind() == io::ErrorKind::NotFound => SystemTime::UNIX_EPOCH,
++      Err(e) => Err(e)?,
++      Ok(m) => m.modified()?
 +    };
 +    Ok(modified)
 +  }
@@ -1196,10 +1365,30 @@ Change <code>dev_shared/src/lib.rs</code>:</p>
 +    if modified != get_modified(path)? { break; }
 +  }
 +  Ok(modified)
-+}</code></pre>
++}
+`;
+    let target = document.getElementById('diff2html_1');
+    let configuration = {
+      drawFileList: false,
+      fileListToggle: false,
+      fileContentToggle: false,
+
+      outputFormat: 'side-by-side',
+      matching: 'lines',
+    };
+    let diff2htmlUi = new Diff2HtmlUI(target, diff, configuration, hljs);
+    diff2htmlUi.draw();
+  });
+</script>
 <p>The <code>write_until_modified</code> function writes to the file, but ensures its modified time will change.
 Now change the tests in <code>pie/src/stamp.rs</code> to use this function:</p>
-<pre><code class="language-rust customdiff "> #[cfg(test)]
+<div id="diff2html_2"></div>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    let diff = String.raw`--- pie/src/stamp.rs
++++ pie/src/stamp.rs
+@@ -1,50 +1,52 @@
+ #[cfg(test)]
  mod test {
 -  use std::fs::{remove_file, write};
 +  use std::fs::remove_file;
@@ -1211,35 +1400,35 @@ Now change the tests in <code>pie/src/stamp.rs</code> to use this function:</p>
    use super::*;
  
    #[test]
-   fn test_exists_file_stamper() -&gt; Result&lt;(), io::Error&gt; {
+   fn test_exists_file_stamper() -> Result<(), io::Error> {
      let stamper = FileStamper::Exists;
      let temp_file = create_temp_file()?;
-     let stamp = stamper.stamp(&amp;temp_file)?;
-     assert_eq!(stamp, stamper.stamp(&amp;temp_file)?);
+     let stamp = stamper.stamp(&temp_file)?;
+     assert_eq!(stamp, stamper.stamp(&temp_file)?);
  
-     remove_file(&amp;temp_file)?;
-     assert_ne!(stamp, stamper.stamp(&amp;temp_file)?);
+     remove_file(&temp_file)?;
+     assert_ne!(stamp, stamper.stamp(&temp_file)?);
  
      Ok(())
    }
  
    #[test]
-   fn test_modified_file_stamper() -&gt; Result&lt;(), io::Error&gt; {
+   fn test_modified_file_stamper() -> Result<(), io::Error> {
      let stamper = FileStamper::Modified;
      let temp_file = create_temp_file()?;
-     let stamp = stamper.stamp(&amp;temp_file)?;
-     assert_eq!(stamp, stamper.stamp(&amp;temp_file)?);
+     let stamp = stamper.stamp(&temp_file)?;
+     assert_eq!(stamp, stamper.stamp(&temp_file)?);
  
--    write(&amp;temp_file, format!(&quot;{:?}&quot;, stamp))?;
+-    write(&temp_file, format!("{:?}", stamp))?;
 +    // Write until file modified time changes. Required on some OSs due to imprecise modified timer causing the modified 
 +    // stamp to be the same after fast consecutive writes.
-+    write_until_modified(&amp;temp_file, format!(&quot;{:?}&quot;, stamp))?;
-     let new_stamp = stamper.stamp(&amp;temp_file)?;
++    write_until_modified(&temp_file, format!("{:?}", stamp))?;
+     let new_stamp = stamper.stamp(&temp_file)?;
      assert_ne!(stamp, new_stamp);
      let stamp = new_stamp;
  
-     remove_file(&amp;temp_file)?;
-     assert_ne!(stamp, stamper.stamp(&amp;temp_file)?);
+     remove_file(&temp_file)?;
+     assert_ne!(stamp, stamper.stamp(&temp_file)?);
  
      Ok(())
    }
@@ -1247,13 +1436,27 @@ Now change the tests in <code>pie/src/stamp.rs</code> to use this function:</p>
    #[test]
    fn test_inconsequential_output_stamper() {
      let stamper = OutputStamper::Inconsequential;
-     let stamp = stamper.stamp(&amp;1);
-     assert_eq!(stamp, stamper.stamp(&amp;1));
-     assert_eq!(stamp, stamper.stamp(&amp;2));
+     let stamp = stamper.stamp(&1);
+     assert_eq!(stamp, stamper.stamp(&1));
+     assert_eq!(stamp, stamper.stamp(&2));
    }
  
    #[test]
-   fn test_equals_output_stamper() {</code></pre>
+   fn test_equals_output_stamper() {
+`;
+    let target = document.getElementById('diff2html_2');
+    let configuration = {
+      drawFileList: false,
+      fileListToggle: false,
+      fileContentToggle: false,
+
+      outputFormat: 'side-by-side',
+      matching: 'lines',
+    };
+    let diff2htmlUi = new Diff2HtmlUI(target, diff, configuration, hljs);
+    diff2htmlUi.draw();
+  });
+</script>
 <p>Now we use <code>write_until_modified</code> to write to the file, ensuring its modified time will change, ensuring the stamp will change when it should.
 Run <code>cargo test</code> to confirm the stamp implementation, which should succeed now.</p>
 <h2 id="stamps-in-context"><a class="header" href="#stamps-in-context">Stamps in Context</a></h2>
@@ -1261,7 +1464,13 @@ Run <code>cargo test</code> to confirm the stamp implementation, which should su
 However, stampers are constructed by users of the library that author tasks, and they need to pass in these stampers when creating dependencies.
 Therefore, we need to update the <code>Context</code> trait to allow passing in these stampers.</p>
 <p>Change <code>Context</code> in <code>pie/src/lib.rs</code>:</p>
-<pre><code class="language-rust customdiff"> use std::fmt::Debug;
+<div id="diff2html_3"></div>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    let diff = String.raw`--- pie/src/lib.rs
++++ pie/src/lib.rs
+@@ -1,31 +1,46 @@
+ use std::fmt::Debug;
  use std::fs::File;
  use std::hash::Hash;
  use std::io;
@@ -1277,81 +1486,135 @@ Therefore, we need to update the <code>Context</code> trait to allow passing in 
  pub trait Task: Clone + Eq + Hash + Debug {
    /// Type of output this task returns when executed.
    type Output: Clone + Eq + Debug;
-   /// Execute the task, using `context` to specify dynamic dependencies, returning `Self::Output`.
-   fn execute&lt;C: Context&lt;Self&gt;&gt;(&amp;self, context: &amp;mut C) -&gt; Self::Output;
+   /// Execute the task, using ${"`"}context${"`"} to specify dynamic dependencies, returning ${"`"}Self::Output${"`"}.
+   fn execute<C: Context<Self>>(&self, context: &mut C) -> Self::Output;
  }
  
  /// Programmatic incremental build context, enabling tasks to create dynamic dependencies that context implementations 
  /// use for incremental execution.
- pub trait Context&lt;T: Task&gt; {
--  /// Requires file at given `path`, recording a dependency to it. Call this method *just before reading from the file*, 
+ pub trait Context<T: Task> {
+-  /// Requires file at given ${"`"}path${"`"}, recording a dependency to it. Call this method *just before reading from the file*, 
 -  /// so that the dependency corresponds to the data that you are reading. Returns:
-+  /// Requires file at given `path`, recording a dependency to it (using the default require file stamper). Call this 
++  /// Requires file at given ${"`"}path${"`"}, recording a dependency to it (using the default require file stamper). Call this 
 +  /// method *just before reading from the file*, so that the dependency corresponds to the data that you are reading. 
 +  /// Returns:
-   /// - `Ok(Some(file))` if a file exists at given `path`, 
-   /// - `Ok(None)` if no file exists at given `path` (but a directory could exist at given `path`),
--  /// - `Err(e)` if there was an error getting the metadata for given `path`, or if there was an error opening the file. 
--  fn require_file&lt;P: AsRef&lt;Path&gt;&gt;(&amp;mut self, path: P) -&gt; Result&lt;Option&lt;File&gt;, io::Error&gt;;
-+  /// - `Err(e)` if there was an error getting the metadata for given `path`, if there was an error opening the file, or 
+   /// - ${"`"}Ok(Some(file))${"`"} if a file exists at given ${"`"}path${"`"}, 
+   /// - ${"`"}Ok(None)${"`"} if no file exists at given ${"`"}path${"`"} (but a directory could exist at given ${"`"}path${"`"}),
+-  /// - ${"`"}Err(e)${"`"} if there was an error getting the metadata for given ${"`"}path${"`"}, or if there was an error opening the file. 
+-  fn require_file<P: AsRef<Path>>(&mut self, path: P) -> Result<Option<File>, io::Error>;
++  /// - ${"`"}Err(e)${"`"} if there was an error getting the metadata for given ${"`"}path${"`"}, if there was an error opening the file, or 
 +  ///   if there was an error stamping the file.
-+  fn require_file&lt;P: AsRef&lt;Path&gt;&gt;(&amp;mut self, path: P) -&gt; Result&lt;Option&lt;File&gt;, io::Error&gt; {
++  fn require_file<P: AsRef<Path>>(&mut self, path: P) -> Result<Option<File>, io::Error> {
 +    self.require_file_with_stamper(path, self.default_require_file_stamper())
 +  }
-+  /// Requires file at given `path`, recording a dependency to it (using given `stamper`). Call this method 
++  /// Requires file at given ${"`"}path${"`"}, recording a dependency to it (using given ${"`"}stamper${"`"}). Call this method 
 +  /// *just before reading from the file*, so that the dependency corresponds to the data that you are reading. Returns:
-+  /// - `Ok(Some(file))` if a file exists at given `path`, 
-+  /// - `Ok(None)` if no file exists at given `path` (but a directory could exist at given `path`),
-+  /// - `Err(e)` if there was an error getting the metadata for given `path`, if there was an error opening the file, or 
++  /// - ${"`"}Ok(Some(file))${"`"} if a file exists at given ${"`"}path${"`"}, 
++  /// - ${"`"}Ok(None)${"`"} if no file exists at given ${"`"}path${"`"} (but a directory could exist at given ${"`"}path${"`"}),
++  /// - ${"`"}Err(e)${"`"} if there was an error getting the metadata for given ${"`"}path${"`"}, if there was an error opening the file, or 
 +  ///   if there was an error stamping the file.
-+  fn require_file_with_stamper&lt;P: AsRef&lt;Path&gt;&gt;(&amp;mut self, path: P, stamper: FileStamper) -&gt; Result&lt;Option&lt;File&gt;, io::Error&gt;;
++  fn require_file_with_stamper<P: AsRef<Path>>(&mut self, path: P, stamper: FileStamper) -> Result<Option<File>, io::Error>;
 +  /// Returns the default require file stamper.
-+  fn default_require_file_stamper(&amp;self) -&gt; FileStamper { FileStamper::Modified }
++  fn default_require_file_stamper(&self) -> FileStamper { FileStamper::Modified }
  
-   /// Requires given `task`, recording a dependency and selectively executing it. Returns its up-to-date output.
-   fn require_task(&amp;mut self, task: &amp;T) -&gt; T::Output;
- }</code></pre>
+   /// Requires given ${"`"}task${"`"}, recording a dependency and selectively executing it. Returns its up-to-date output.
+   fn require_task(&mut self, task: &T) -> T::Output;
+ }
+`;
+    let target = document.getElementById('diff2html_3');
+    let configuration = {
+      drawFileList: false,
+      fileListToggle: false,
+      fileContentToggle: false,
+
+      outputFormat: 'side-by-side',
+      matching: 'lines',
+    };
+    let diff2htmlUi = new Diff2HtmlUI(target, diff, configuration, hljs);
+    diff2htmlUi.draw();
+  });
+</script>
 <p>We add the <code>require_file_with_stamper</code> method which allow passing in a stamper.
 We add a default implementation for <code>require_file</code> that passes in a default stamper.
 The default is provided by <code>default_require_file_stamper</code> which can be overridden by context implementations.</p>
 <p>Now apply the same to tasks, changing <code>Context</code> again in <code>pie/src/lib.rs</code>:</p>
-<pre><code class="language-rust customdiff">   /// Returns the default require file stamper.
-   fn default_require_file_stamper(&amp;self) -&gt; FileStamper { FileStamper::Modified }
+<div id="diff2html_4"></div>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    let diff = String.raw`--- pie/src/lib.rs
++++ pie/src/lib.rs
+@@ -41,6 +41,14 @@
+   /// Returns the default require file stamper.
+   fn default_require_file_stamper(&self) -> FileStamper { FileStamper::Modified }
  
--  /// Requires given `task`, recording a dependency and selectively executing it. Returns its up-to-date output.
--  fn require_task(&amp;mut self, task: &amp;T) -&gt; T::Output;
-+  /// Requires given `task`, recording a dependency (using the default output stamper) and selectively executing it. 
+-  /// Requires given ${"`"}task${"`"}, recording a dependency and selectively executing it. Returns its up-to-date output.
+-  fn require_task(&mut self, task: &T) -> T::Output;
++  /// Requires given ${"`"}task${"`"}, recording a dependency (using the default output stamper) and selectively executing it. 
 +  /// Returns its up-to-date output.
-+  fn require_task(&amp;mut self, task: &amp;T) -&gt; T::Output {
++  fn require_task(&mut self, task: &T) -> T::Output {
 +    self.require_task_with_stamper(task, self.default_output_stamper())
 +  }
-+  /// Requires given `task`, recording a dependency (using given `stamper`) and selectively executing it. Returns its
++  /// Requires given ${"`"}task${"`"}, recording a dependency (using given ${"`"}stamper${"`"}) and selectively executing it. Returns its
 +  /// up-to-date output.
-+  fn require_task_with_stamper(&amp;mut self, task: &amp;T, stamper: OutputStamper) -&gt; T::Output;
++  fn require_task_with_stamper(&mut self, task: &T, stamper: OutputStamper) -> T::Output;
 +  /// Returns the default output stamper.
-+  fn default_output_stamper(&amp;self) -&gt; OutputStamper { OutputStamper::Equals }
- }</code></pre>
++  fn default_output_stamper(&self) -> OutputStamper { OutputStamper::Equals }
+ }
+`;
+    let target = document.getElementById('diff2html_4');
+    let configuration = {
+      drawFileList: false,
+      fileListToggle: false,
+      fileContentToggle: false,
+
+      outputFormat: 'side-by-side',
+      matching: 'lines',
+    };
+    let diff2htmlUi = new Diff2HtmlUI(target, diff, configuration, hljs);
+    diff2htmlUi.draw();
+  });
+</script>
 <p>Update <code>NonIncrementalContext</code> in <code>src/context/non_incremental.rs</code> to implement the new methods:</p>
-<pre><code class="language-rust customdiff"> 
+<div id="diff2html_5"></div>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    let diff = String.raw`--- pie/src/context/non_incremental.rs
++++ pie/src/context/non_incremental.rs
+@@ -4,15 +4,17 @@
+ 
  use crate::{Context, Task};
  use crate::fs::open_if_file;
 +use crate::stamp::{FileStamper, OutputStamper};
  
  pub struct NonIncrementalContext;
  
- impl&lt;T: Task&gt; Context&lt;T&gt; for NonIncrementalContext {
--  fn require_file&lt;P: AsRef&lt;Path&gt;&gt;(&amp;mut self, path: P) -&gt; Result&lt;Option&lt;File&gt;, io::Error&gt; {
--    open_if_file(&amp;path)
-+  fn require_file_with_stamper&lt;P: AsRef&lt;Path&gt;&gt;(&amp;mut self, path: P, _stamper: FileStamper) -&gt; Result&lt;Option&lt;File&gt;, io::Error&gt; {
-+    let file = open_if_file(&amp;path)?;
+ impl<T: Task> Context<T> for NonIncrementalContext {
+-  fn require_file<P: AsRef<Path>>(&mut self, path: P) -> Result<Option<File>, io::Error> {
+-    open_if_file(&path)
++  fn require_file_with_stamper<P: AsRef<Path>>(&mut self, path: P, _stamper: FileStamper) -> Result<Option<File>, io::Error> {
++    let file = open_if_file(&path)?;
 +    Ok(file)
    }
  
--  fn require_task(&amp;mut self, task: &amp;T) -&gt; T::Output {
-+  fn require_task_with_stamper(&amp;mut self, task: &amp;T, _stamper: OutputStamper) -&gt; T::Output {
+-  fn require_task(&mut self, task: &T) -> T::Output {
++  fn require_task_with_stamper(&mut self, task: &T, _stamper: OutputStamper) -> T::Output {
      task.execute(self)
    }
- }</code></pre>
+ }
+`;
+    let target = document.getElementById('diff2html_5');
+    let configuration = {
+      drawFileList: false,
+      fileListToggle: false,
+      fileContentToggle: false,
+
+      outputFormat: 'side-by-side',
+      matching: 'lines',
+    };
+    let diff2htmlUi = new Diff2HtmlUI(target, diff, configuration, hljs);
+    diff2htmlUi.draw();
+  });
+</script>
 <p>We just ignore the stampers in <code>NonIncrementalContext</code>, as they are only needed for incrementality.</p>
 <p>Run <code>cargo test</code> to confirm everything still works.</p>
 <details id="admonition-download-source-code" class="admonition example">
@@ -1370,13 +1633,33 @@ Therefore, dependencies need to keep track of their stamper and their previous s
 To that end, we will implement the <code>FileDependency</code> and <code>TaskDependency</code> types with methods for consistency checking.
 We will also implement a <code>Dependency</code> type that abstracts over <code>FileDependency</code> and <code>TaskDependency</code>, which we will need for the dependency graph implementation in the next chapter.</p>
 <p>Add the <code>dependency</code> module to <code>pie/src/lib.rs</code>:</p>
-<pre><code class="language-rust customdiff"> pub mod stamp;
+<div id="diff2html_0"></div>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    let diff = String.raw`--- pie/src/lib.rs
++++ pie/src/lib.rs
+@@ -9,6 +9,7 @@
+ pub mod stamp;
  pub mod context;
  mod fs;
 +mod dependency;
  
  /// A unit of computation in a programmatic incremental build system.
- pub trait Task: Clone + Eq + Hash + Debug {</code></pre>
+ pub trait Task: Clone + Eq + Hash + Debug {
+`;
+    let target = document.getElementById('diff2html_0');
+    let configuration = {
+      drawFileList: false,
+      fileListToggle: false,
+      fileContentToggle: false,
+
+      outputFormat: 'side-by-side',
+      matching: 'lines',
+    };
+    let diff2htmlUi = new Diff2HtmlUI(target, diff, configuration, hljs);
+    diff2htmlUi.draw();
+  });
+</script>
 <p>This module is private, as users of the library should not construct dependencies.
 They should only create dependencies (and choose stampers) via <code>Context</code> methods.</p>
 <h2 id="file-dependencies"><a class="header" href="#file-dependencies">File dependencies</a></h2>
@@ -1697,24 +1980,64 @@ The implementation in the <code>incremental-topo</code> library is based on a <a
 </div>
 </details>
 <p>Add the <code>pie_graph</code> dependency to <code>pie/Cargo.toml</code>:</p>
-<pre><code class="language-rust customdiff"> version = &quot;0.1.0&quot;
- edition = &quot;2021&quot;
+<div id="diff2html_0"></div>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    let diff = String.raw`--- pie/Cargo.toml
++++ pie/Cargo.toml
+@@ -3,6 +3,9 @@
+ version = "0.1.0"
+ edition = "2021"
  
 +[dependencies]
-+pie_graph = &quot;0.0.1&quot;
++pie_graph = "0.0.1"
 +
  [dev-dependencies]
- dev_shared = { path = &quot;../dev_shared&quot; }
- assert_matches = &quot;1&quot;</code></pre>
+ dev_shared = { path = "../dev_shared" }
+ assert_matches = "1"
+`;
+    let target = document.getElementById('diff2html_0');
+    let configuration = {
+      drawFileList: false,
+      fileListToggle: false,
+      fileContentToggle: false,
+
+      outputFormat: 'side-by-side',
+      matching: 'lines',
+    };
+    let diff2htmlUi = new Diff2HtmlUI(target, diff, configuration, hljs);
+    diff2htmlUi.draw();
+  });
+</script>
 <h2 id="store-basics"><a class="header" href="#store-basics">Store basics</a></h2>
 <p>Add the <code>store</code> module to <code>pie/src/lib.rs</code>:</p>
-<pre><code class="language-rust customdiff"> pub mod context;
+<div id="diff2html_1"></div>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    let diff = String.raw`--- pie/src/lib.rs
++++ pie/src/lib.rs
+@@ -10,6 +10,7 @@
+ pub mod context;
  mod fs;
  mod dependency;
 +mod store;
  
  /// A unit of computation in a programmatic incremental build system.
- pub trait Task: Clone + Eq + Hash + Debug {</code></pre>
+ pub trait Task: Clone + Eq + Hash + Debug {
+`;
+    let target = document.getElementById('diff2html_1');
+    let configuration = {
+      drawFileList: false,
+      fileListToggle: false,
+      fileContentToggle: false,
+
+      outputFormat: 'side-by-side',
+      matching: 'lines',
+    };
+    let diff2htmlUi = new Diff2HtmlUI(target, diff, configuration, hljs);
+    diff2htmlUi.draw();
+  });
+</script>
 <p>This module is private, as users of the library should not interact with the store.
 Only <code>Context</code> implementations will use the store.</p>
 <p>Create the <code>pie/src/store.rs</code> file and add the following to get started:</p>
@@ -1778,7 +2101,13 @@ We need this for incrementality so that if the build system encounters the same 
 <p>To ensure unique nodes, we need to maintain the reverse mapping from <code>PathBuf</code> and <code>T</code> to <code>Node</code> ourselves, which we will do with <code>HashMap</code>s.
 This is also the reason for the <code>Eq</code> and <code>Hash</code> trait bounds on the <code>Task</code> trait, so we can use them as keys in <code>HashMap</code>s.</p>
 <p>Change <code>pie/src/store.rs</code> to add hash maps to map between these things:</p>
-<pre><code class="language-rust customdiff">+use std::collections::HashMap;
+<div id="diff2html_2"></div>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    let diff = String.raw`--- pie/src/store.rs
++++ pie/src/store.rs
+@@ -1,30 +1,35 @@
++use std::collections::HashMap;
  use std::path::{Path, PathBuf};
  
  use pie_graph::{DAG, Node};
@@ -1788,23 +2117,23 @@ This is also the reason for the <code>Eq</code> and <code>Hash</code> trait boun
  
  /// Stores files and tasks, and their dependencies, in a DAG (directed acyclic graph). Provides operations to mutate
  /// and query this graph.
- pub struct Store&lt;T, O&gt; {
-   graph: DAG&lt;NodeData&lt;T, O&gt;, Dependency&lt;T, O&gt;&gt;,
-+  file_to_node: HashMap&lt;PathBuf, Node&gt;,
-+  task_to_node: HashMap&lt;T, Node&gt;,
+ pub struct Store<T, O> {
+   graph: DAG<NodeData<T, O>, Dependency<T, O>>,
++  file_to_node: HashMap<PathBuf, Node>,
++  task_to_node: HashMap<T, Node>,
  }
  
  #[derive(Debug)]
- enum NodeData&lt;T, O&gt; {
+ enum NodeData<T, O> {
    File(PathBuf),
    Task {
      task: T,
-     output: Option&lt;O&gt;,
+     output: Option<O>,
    },
  }
  
- impl&lt;T: Task&gt; Default for Store&lt;T, T::Output&gt; {
-   fn default() -&gt; Self {
+ impl<T: Task> Default for Store<T, T::Output> {
+   fn default() -> Self {
      Self {
        graph: DAG::default(),
 +      file_to_node: HashMap::default(),
@@ -1812,9 +2141,29 @@ This is also the reason for the <code>Eq</code> and <code>Hash</code> trait boun
      }
    }
  }
- </code></pre>
+ 
+`;
+    let target = document.getElementById('diff2html_2');
+    let configuration = {
+      drawFileList: false,
+      fileListToggle: false,
+      fileContentToggle: false,
+
+      outputFormat: 'side-by-side',
+      matching: 'lines',
+    };
+    let diff2htmlUi = new Diff2HtmlUI(target, diff, configuration, hljs);
+    diff2htmlUi.draw();
+  });
+</script>
 <p>To prevent accidentally using a file node as a task node, and vice versa, change <code>pie/src/store.rs</code> to add specific types of nodes:</p>
-<pre><code class="language-rust customdiff">+use std::borrow::Borrow;
+<div id="diff2html_3"></div>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    let diff = String.raw`--- pie/src/store.rs
++++ pie/src/store.rs
+@@ -1,35 +1,54 @@
++use std::borrow::Borrow;
  use std::collections::HashMap;
  use std::path::{Path, PathBuf};
  
@@ -1825,43 +2174,43 @@ This is also the reason for the <code>Eq</code> and <code>Hash</code> trait boun
  
  /// Stores files and tasks, and their dependencies, in a DAG (directed acyclic graph). Provides operations to mutate
  /// and query this graph.
- pub struct Store&lt;T, O&gt; {
-   graph: DAG&lt;NodeData&lt;T, O&gt;, Dependency&lt;T, O&gt;&gt;,
--  file_to_node: HashMap&lt;PathBuf, Node&gt;,
--  task_to_node: HashMap&lt;T, Node&gt;,
-+  file_to_node: HashMap&lt;PathBuf, FileNode&gt;,
-+  task_to_node: HashMap&lt;T, TaskNode&gt;,
+ pub struct Store<T, O> {
+   graph: DAG<NodeData<T, O>, Dependency<T, O>>,
+-  file_to_node: HashMap<PathBuf, Node>,
+-  task_to_node: HashMap<T, Node>,
++  file_to_node: HashMap<PathBuf, FileNode>,
++  task_to_node: HashMap<T, TaskNode>,
  }
  
  #[derive(Debug)]
- enum NodeData&lt;T, O&gt; {
+ enum NodeData<T, O> {
    File(PathBuf),
    Task {
      task: T,
-     output: Option&lt;O&gt;,
+     output: Option<O>,
    },
  }
  
-+/// Newtype for file `Node`s.
++/// Newtype for file ${"`"}Node${"`"}s.
 +#[repr(transparent)]
 +#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 +pub struct FileNode(Node);
 +
-+impl Borrow&lt;Node&gt; for &amp;FileNode {
-+  fn borrow(&amp;self) -&gt; &amp;Node { &amp;self.0 }
++impl Borrow<Node> for &FileNode {
++  fn borrow(&self) -> &Node { &self.0 }
 +}
 +
-+/// Newtype for task `Node`s.
++/// Newtype for task ${"`"}Node${"`"}s.
 +#[repr(transparent)]
 +#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 +pub struct TaskNode(Node);
 +
-+impl Borrow&lt;Node&gt; for &amp;TaskNode {
-+  fn borrow(&amp;self) -&gt; &amp;Node { &amp;self.0 }
++impl Borrow<Node> for &TaskNode {
++  fn borrow(&self) -> &Node { &self.0 }
 +}
 +
- impl&lt;T: Task&gt; Default for Store&lt;T, T::Output&gt; {
-   fn default() -&gt; Self {
+ impl<T: Task> Default for Store<T, T::Output> {
+   fn default() -> Self {
      Self {
        graph: DAG::default(),
        file_to_node: HashMap::default(),
@@ -1869,7 +2218,21 @@ This is also the reason for the <code>Eq</code> and <code>Hash</code> trait boun
      }
    }
  }
- </code></pre>
+ 
+`;
+    let target = document.getElementById('diff2html_3');
+    let configuration = {
+      drawFileList: false,
+      fileListToggle: false,
+      fileContentToggle: false,
+
+      outputFormat: 'side-by-side',
+      matching: 'lines',
+    };
+    let diff2htmlUi = new Diff2HtmlUI(target, diff, configuration, hljs);
+    diff2htmlUi.draw();
+  });
+</script>
 <p>The <code>FileNode</code> and <code>TaskNode</code> types are <a href="https://rust-unofficial.github.io/patterns/patterns/behavioural/newtype.html">newtypes</a> that wrap a <code>Node</code> into a specific type of node.
 The <code>Borrow</code> implementations will make subsequent code a bit more concise by automatically converting <code>&amp;FileNode</code> and <code>&amp;TaskNode</code>s to <code>&amp;Node</code>s.</p>
 <details id="admonition-newtypes" class="admonition info">
@@ -2418,8 +2781,28 @@ Later on we will also see that this is important for soundness of the incrementa
 Now we will create the <code>TopDownContext</code> type which implements the <code>Context</code> trait in an incremental way. </p>
 <h2 id="top-down-context-basics"><a class="header" href="#top-down-context-basics">Top-down context basics</a></h2>
 <p>Add the <code>top_down</code> module to <code>pie/src/context/mod.rs</code>:</p>
-<pre><code class="language-rust customdiff"> pub mod non_incremental;
-+pub mod top_down;</code></pre>
+<div id="diff2html_0"></div>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    let diff = String.raw`--- pie/src/context/mod.rs
++++ pie/src/context/mod.rs
+@@ -1 +1,2 @@
+ pub mod non_incremental;
++pub mod top_down;
+`;
+    let target = document.getElementById('diff2html_0');
+    let configuration = {
+      drawFileList: false,
+      fileListToggle: false,
+      fileContentToggle: false,
+
+      outputFormat: 'side-by-side',
+      matching: 'lines',
+    };
+    let diff2htmlUi = new Diff2HtmlUI(target, diff, configuration, hljs);
+    diff2htmlUi.draw();
+  });
+</script>
 <p>Create the <code>pie/src/context/top_down.rs</code> file and add the following to get started:</p>
 <pre><code class="language-rust ">use std::fs::File;
 use std::io;
@@ -2459,19 +2842,25 @@ For incrementality, we need to add this dependency to the dependency graph.
 This dependency will go from the <em>current executing task</em> to the file.
 Therefore, we will need to keep track of the current executing task.</p>
 <p>Change <code>pie/src/context/mod.rs</code> to add a field for tracking the current executing task, and use it in <code>require_file_with_stamper</code>:</p>
-<pre><code class="language-rust customdiff"> 
+<div id="diff2html_1"></div>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    let diff = String.raw`--- pie/src/context/top_down.rs
++++ pie/src/context/top_down.rs
+@@ -4,27 +4,32 @@
+ 
  use crate::{Context, fs, Task};
  use crate::dependency::{FileDependency, TaskDependency};
  use crate::stamp::{FileStamper, OutputStamper};
  use crate::store::{Store, TaskNode};
  
- pub struct TopDownContext&lt;T, O&gt; {
-   store: Store&lt;T, O&gt;,
-+  current_executing_task: Option&lt;TaskNode&gt;,
+ pub struct TopDownContext<T, O> {
+   store: Store<T, O>,
++  current_executing_task: Option<TaskNode>,
  }
  
- impl&lt;T: Task&gt; TopDownContext&lt;T, T::Output&gt; {
-   pub fn new() -&gt; Self {
+ impl<T: Task> TopDownContext<T, T::Output> {
+   pub fn new() -> Self {
      Self {
        store: Store::default(),
 +      current_executing_task: None,
@@ -2479,34 +2868,68 @@ Therefore, we will need to keep track of the current executing task.</p>
    }
  }
  
- impl&lt;T: Task&gt; Context&lt;T&gt; for TopDownContext&lt;T, T::Output&gt; {
-   fn require_file_with_stamper&lt;P: AsRef&lt;Path&gt;&gt;(&amp;mut self, path: P, stamper: FileStamper) -&gt; Result&lt;Option&lt;File&gt;, io::Error&gt; {
-+    let Some(current_executing_task_node) = &amp;self.current_executing_task else {
+ impl<T: Task> Context<T> for TopDownContext<T, T::Output> {
+   fn require_file_with_stamper<P: AsRef<Path>>(&mut self, path: P, stamper: FileStamper) -> Result<Option<File>, io::Error> {
++    let Some(current_executing_task_node) = &self.current_executing_task else {
 +      return fs::open_if_file(path); // No current executing task, so no dependency needs to be made.
 +    };
      todo!()
    }
  
-   fn require_task_with_stamper(&amp;mut self, task: &amp;T, stamper: OutputStamper) -&gt; T::Output {
+   fn require_task_with_stamper(&mut self, task: &T, stamper: OutputStamper) -> T::Output {
      todo!()
    }
- }</code></pre>
+ }
+`;
+    let target = document.getElementById('diff2html_1');
+    let configuration = {
+      drawFileList: false,
+      fileListToggle: false,
+      fileContentToggle: false,
+
+      outputFormat: 'side-by-side',
+      matching: 'lines',
+    };
+    let diff2htmlUi = new Diff2HtmlUI(target, diff, configuration, hljs);
+    diff2htmlUi.draw();
+  });
+</script>
 <p>We're not setting <code>current_executing_task</code> yet, as that is the responsibility of <code>require_task_with_stamper</code> which we will implement later.
 In <code>require_file_with_stamper</code> we're now getting the current executing task.
 If there is no current executing task, which only happens if a user directly calls <code>require_file</code> on a context, we don't make a dependency and just open the file.</p>
 <p>Now we need to add the file dependency, change <code>pie/src/context/mod.rs</code> to do this: </p>
-<pre><code class="language-rust customdiff">     let Some(current_executing_task_node) = &amp;self.current_executing_task else {
+<div id="diff2html_2"></div>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    let diff = String.raw`--- pie/src/context/top_down.rs
++++ pie/src/context/top_down.rs
+@@ -26,7 +26,11 @@
+     let Some(current_executing_task_node) = &self.current_executing_task else {
        return fs::open_if_file(path); // No current executing task, so no dependency needs to be made.
      };
 -    todo!()
 +    let path = path.as_ref();
 +    let node = self.store.get_or_create_file_node(path);
 +    let (dependency, file) = FileDependency::new_with_file(path, stamper)?;
-+    self.store.add_file_require_dependency(current_executing_task_node, &amp;node, dependency);
++    self.store.add_file_require_dependency(current_executing_task_node, &node, dependency);
 +    Ok(file)
    }
  
-   fn require_task_with_stamper(&amp;mut self, task: &amp;T, stamper: OutputStamper) -&gt; T::Output {</code></pre>
+   fn require_task_with_stamper(&mut self, task: &T, stamper: OutputStamper) -> T::Output {
+`;
+    let target = document.getElementById('diff2html_2');
+    let configuration = {
+      drawFileList: false,
+      fileListToggle: false,
+      fileContentToggle: false,
+
+      outputFormat: 'side-by-side',
+      matching: 'lines',
+    };
+    let diff2htmlUi = new Diff2HtmlUI(target, diff, configuration, hljs);
+    diff2htmlUi.draw();
+  });
+</script>
 <p>We simply create or get an existing file node, create a file dependency, and add the file require dependency to the graph via <code>store</code>.
 Errors are propagated to the caller, so they can react accordingly to filesystem operation failures.</p>
 <h2 id="requiring-tasks"><a class="header" href="#requiring-tasks">Requiring tasks</a></h2>
@@ -2514,50 +2937,90 @@ Errors are propagated to the caller, so they can react accordingly to filesystem
 A task should be executed either if it's new (it does not have an output stored yet), or if at least one of its dependencies is inconsistent.
 If we don't execute it, then it must have an output value and all its dependencies are consistent, so we just return its output value.</p>
 <p>Change <code>pie/src/context/mod.rs</code> to implement this logic:</p>
-<pre><code class="language-rust customdiff">   }
+<div id="diff2html_3"></div>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    let diff = String.raw`--- pie/src/context/top_down.rs
++++ pie/src/context/top_down.rs
+@@ -34,6 +34,22 @@
+   }
  
-   fn require_task_with_stamper(&amp;mut self, task: &amp;T, stamper: OutputStamper) -&gt; T::Output {
+   fn require_task_with_stamper(&mut self, task: &T, stamper: OutputStamper) -> T::Output {
 -    todo!()
 +    let node = self.store.get_or_create_task_node(task);
 +
 +    // Get required task output by executing it if needed, or by getting the output from the store if not needed.
-+    let output = if self.should_execute_task(&amp;node) {
-+      self.store.reset_task(&amp;node);
++    let output = if self.should_execute_task(&node) {
++      self.store.reset_task(&node);
 +      let previous_executing_task = self.current_executing_task.replace(node);
 +      let output = task.execute(self);
 +      self.current_executing_task = previous_executing_task;
-+      self.store.set_task_output(&amp;node, output.clone());
++      self.store.set_task_output(&node, output.clone());
 +      output
 +    } else {
-+      // Correctness: when `should_execute_task` returns `true`, the above block is executed. Otherwise this block is 
-+      // executed and `should_execute_task` ensures that the task has an output.
-+      self.store.get_task_output(&amp;node).clone()
++      // Correctness: when ${"`"}should_execute_task${"`"} returns ${"`"}true${"`"}, the above block is executed. Otherwise this block is 
++      // executed and ${"`"}should_execute_task${"`"} ensures that the task has an output.
++      self.store.get_task_output(&node).clone()
 +    };
 +
 +    output
    }
- }</code></pre>
+ }
+`;
+    let target = document.getElementById('diff2html_3');
+    let configuration = {
+      drawFileList: false,
+      fileListToggle: false,
+      fileContentToggle: false,
+
+      outputFormat: 'side-by-side',
+      matching: 'lines',
+    };
+    let diff2htmlUi = new Diff2HtmlUI(target, diff, configuration, hljs);
+    diff2htmlUi.draw();
+  });
+</script>
 <p>We first create or get an existing file node.
 Then, we check whether the task should be executed with <code>should_execute_task</code> which we still need to implement.</p>
 <p>If that returns true, we reset the task, set the current executing task, actually execute the task, restore the previous executing task, and set the task output.
 Otherwise, we get the output of the task from the store, which cannot panic because <code>should_execute_task</code> ensures that the task has an output if it returns false.
 Finally, we return the output.</p>
 <p>We still need to create a task dependency. Change <code>pie/src/context/mod.rs</code> to add the dependency:</p>
-<pre><code class="language-rust customdiff">       self.store.get_task_output(&amp;node).clone()
+<div id="diff2html_4"></div>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    let diff = String.raw`--- pie/src/context/top_down.rs
++++ pie/src/context/top_down.rs
+@@ -50,6 +50,15 @@
+       self.store.get_task_output(&node).clone()
      };
  
 +    // Create task require dependency if a task is currently executing (i.e., we are not requiring the initial task).
-+    if let Some(current_executing_task_node) = &amp;self.current_executing_task {
++    if let Some(current_executing_task_node) = &self.current_executing_task {
 +      let dependency = TaskDependency::new(task.clone(), stamper, output.clone());
-+      if self.store.add_task_require_dependency(current_executing_task_node, &amp;node, dependency).is_err() {
++      if self.store.add_task_require_dependency(current_executing_task_node, &node, dependency).is_err() {
 +        let current_executing_task = self.store.get_task(current_executing_task_node);
-+        panic!(&quot;Cyclic task dependency; current executing task '{:?}' is requiring task '{:?}' which was already required&quot;, current_executing_task, task);
++        panic!("Cyclic task dependency; current executing task '{:?}' is requiring task '{:?}' which was already required", current_executing_task, task);
 +      }
 +    }
 +
      output
    }
- }</code></pre>
+ }
+`;
+    let target = document.getElementById('diff2html_4');
+    let configuration = {
+      drawFileList: false,
+      fileListToggle: false,
+      fileContentToggle: false,
+
+      outputFormat: 'side-by-side',
+      matching: 'lines',
+    };
+    let diff2htmlUi = new Diff2HtmlUI(target, diff, configuration, hljs);
+    diff2htmlUi.draw();
+  });
+</script>
 <p>If there is no current executing task, which occurs when a user requires the initial task, we skip creating a dependency.
 Otherwise, we create a dependency and add it to the store.
 However, creating a task dependency can create cycles, and we need to handle that error.</p>
@@ -2605,30 +3068,50 @@ Furthermore, some platforms do not have access to threads, such as WASM, where t
 </details>
 <h2 id="checking-tasks"><a class="header" href="#checking-tasks">Checking tasks</a></h2>
 <p>The final piece to our puzzle is the <code>should_execute_task</code> implementation.</p>
-<p>Add the following code to <code>pie/src/context/mod.rs</code>:</p>
-<pre><code class="language-rust customdiff ">     output
+<p>Add the following code to <code>pie/src/context/top_down.rs</code>:</p>
+<div id="diff2html_5"></div>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    let diff = String.raw`--- pie/src/context/top_down.rs
++++ pie/src/context/top_down.rs
+@@ -62,3 +62,23 @@
+     output
    }
  }
 +
-+impl&lt;T: Task&gt; TopDownContext&lt;T, T::Output&gt; {
-+  /// Checks whether given task should be executed, returning `true` if it should be executed. A task should be executed
++impl<T: Task> TopDownContext<T, T::Output> {
++  /// Checks whether given task should be executed, returning ${"`"}true${"`"} if it should be executed. A task should be executed
 +  /// if any of its dependencies are inconsistent, or when it has no output.
-+  fn should_execute_task(&amp;mut self, node: &amp;TaskNode) -&gt; bool {
-+    // Borrow: because we pass `self` (which is `&amp;mut self`) to `is_inconsistent` for recursive consistency checking, 
-+    //         we need to clone and collect dependencies into a `Vec`. Otherwise we have an immutable borrow of `self`
-+    //         through `self.store` while we create a mutable borrow of `self`, which is not allowed.
-+    let dependencies: Vec&lt;_&gt; = self.store.get_dependencies_of_task(node).cloned().collect();
++  fn should_execute_task(&mut self, node: &TaskNode) -> bool {
++    // Borrow: because we pass ${"`"}self${"`"} (which is ${"`"}&mut self${"`"}) to ${"`"}is_inconsistent${"`"} for recursive consistency checking, 
++    //         we need to clone and collect dependencies into a ${"`"}Vec${"`"}. Otherwise we have an immutable borrow of ${"`"}self${"`"}
++    //         through ${"`"}self.store${"`"} while we create a mutable borrow of ${"`"}self${"`"}, which is not allowed.
++    let dependencies: Vec<_> = self.store.get_dependencies_of_task(node).cloned().collect();
 +    for dependency in dependencies {
 +      match dependency.is_inconsistent(self) {
-+        Ok(Some(_)) =&gt; return true,
-+        _ =&gt; {} // Consistent: continue checking
++        Ok(Some(_)) => return true,
++        _ => {} // Consistent: continue checking
 +      }
 +    }
 +    // Task has no dependencies or all dependencies are consistent. Should only execute if it has no output, meaning
 +    // that it has never been executed before.
 +    return !self.store.task_has_output(node);
 +  }
-+}</code></pre>
++}
+`;
+    let target = document.getElementById('diff2html_5');
+    let configuration = {
+      drawFileList: false,
+      fileListToggle: false,
+      fileContentToggle: false,
+
+      outputFormat: 'side-by-side',
+      matching: 'lines',
+    };
+    let diff2htmlUi = new Diff2HtmlUI(target, diff, configuration, hljs);
+    diff2htmlUi.draw();
+  });
+</script>
 <p>The premise of <code>should_execute_task</code> is simple: go over the dependencies of a task until <code>dependency.is_inconsistent</code> is true, at which we return true.
 If all dependencies are consistent, then return true only if the task has no output.
 Otherwise, return false.</p>
@@ -2701,13 +3184,19 @@ But this is outside of the scope of even this extra information block, so we'll 
 We've ignored the case where <code>dependency.is_inconsistent</code> returns <code>Err</code>.
 When dependency checking result in an error, we should store the error for the user to investigate, and assume the dependency is inconsistent.</p>
 <p>Change <code>pie/src/context/mod.rs</code> to store dependency check errors and give users access to it:</p>
-<pre><code class="language-rust customdiff"> pub struct TopDownContext&lt;T, O&gt; {
-   store: Store&lt;T, O&gt;,
-   current_executing_task: Option&lt;TaskNode&gt;,
-+  dependency_check_errors: Vec&lt;io::Error&gt;,
+<div id="diff2html_6"></div>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    let diff = String.raw`--- pie/src/context/top_down.rs
++++ pie/src/context/top_down.rs
+@@ -10,6 +10,7 @@
+ pub struct TopDownContext<T, O> {
+   store: Store<T, O>,
+   current_executing_task: Option<TaskNode>,
++  dependency_check_errors: Vec<io::Error>,
  }
  
- impl&lt;T: Task&gt; TopDownContext&lt;T, T::Output&gt; {
+ impl<T: Task> TopDownContext<T, T::Output> {
 @@ -17,8 +18,13 @@
      Self {
        store: Store::default(),
@@ -2716,31 +3205,65 @@ When dependency checking result in an error, we should store the error for the u
      }
    }
 +
-+  pub fn get_dependency_check_errors(&amp;self) -&gt; impl Iterator&lt;Item=&amp;io::Error&gt; {
++  pub fn get_dependency_check_errors(&self) -> impl Iterator<Item=&io::Error> {
 +    self.dependency_check_errors.iter()
 +  }
  }
  
- impl&lt;T: Task&gt; Context&lt;T&gt; for TopDownContext&lt;T, T::Output&gt; {</code></pre>
+ impl<T: Task> Context<T> for TopDownContext<T, T::Output> {
+`;
+    let target = document.getElementById('diff2html_6');
+    let configuration = {
+      drawFileList: false,
+      fileListToggle: false,
+      fileContentToggle: false,
+
+      outputFormat: 'side-by-side',
+      matching: 'lines',
+    };
+    let diff2htmlUi = new Diff2HtmlUI(target, diff, configuration, hljs);
+    diff2htmlUi.draw();
+  });
+</script>
 <p>And then change <code>pie/src/context/mod.rs</code> to store these errors:</p>
-<pre><code class="language-rust customdiff">   }
+<div id="diff2html_7"></div>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    let diff = String.raw`--- pie/src/context/top_down.rs
++++ pie/src/context/top_down.rs
+@@ -27,6 +27,7 @@
+   }
  }
  
 +
- impl&lt;T: Task&gt; Context&lt;T&gt; for TopDownContext&lt;T, T::Output&gt; {
-   fn require_file_with_stamper&lt;P: AsRef&lt;Path&gt;&gt;(&amp;mut self, path: P, stamper: FileStamper) -&gt; Result&lt;Option&lt;File&gt;, io::Error&gt; {
-     let Some(current_executing_task_node) = &amp;self.current_executing_task else {
+ impl<T: Task> Context<T> for TopDownContext<T, T::Output> {
+   fn require_file_with_stamper<P: AsRef<Path>>(&mut self, path: P, stamper: FileStamper) -> Result<Option<File>, io::Error> {
+     let Some(current_executing_task_node) = &self.current_executing_task else {
 @@ -80,6 +81,10 @@
      for dependency in dependencies {
        match dependency.is_inconsistent(self) {
-         Ok(Some(_)) =&gt; return true,
-+        Err(e) =&gt; { // Error while checking: store error and assume inconsistent
+         Ok(Some(_)) => return true,
++        Err(e) => { // Error while checking: store error and assume inconsistent
 +          self.dependency_check_errors.push(e);
 +          return true;
 +        }
-         _ =&gt; {} // Consistent: continue checking
+         _ => {} // Consistent: continue checking
        }
-     }</code></pre>
+     }
+`;
+    let target = document.getElementById('diff2html_7');
+    let configuration = {
+      drawFileList: false,
+      fileListToggle: false,
+      fileContentToggle: false,
+
+      outputFormat: 'side-by-side',
+      matching: 'lines',
+    };
+    let diff2htmlUi = new Diff2HtmlUI(target, diff, configuration, hljs);
+    diff2htmlUi.draw();
+  });
+</script>
 <p>It took us a while, but now we've implemented an incremental build system with dynamic dependencies 🎉.
 Let's set up an example to see the fruits of our labour.</p>
 <h2 id="incrementality-example"><a class="header" href="#incrementality-example">Incrementality Example</a></h2>
@@ -2883,7 +3406,7 @@ Run this example with <code>cargo run --example incremental</code>.
 You should see the <code>println!</code> in <code>ReadStringFromFile</code> appear in your console as the incremental context correctly determines that this task is new (i.e., has no output) and must be executed.
 It should look something like:</p>
 <pre><code>   Compiling pie v0.1.0 (/pie)
-    Finished dev [unoptimized + debuginfo] target(s) in 1.05s
+    Finished dev [unoptimized + debuginfo] target(s) in 1.38s
      Running `/pie/target/debug/examples/incremental`
 A) New task: expect `read_task` to execute
 Reading from input.txt with Modified stamper
@@ -2899,7 +3422,7 @@ Reading from input.txt with Modified stamper
 </code></pre>
 <p>Running with <code>cargo run --example incremental</code> should produce output like:</p>
 <pre><code>   Compiling pie v0.1.0 (/pie)
-    Finished dev [unoptimized + debuginfo] target(s) in 0.47s
+    Finished dev [unoptimized + debuginfo] target(s) in 0.66s
      Running `/pie/target/debug/examples/incremental`
 A) New task: expect `read_task` to execute
 Reading from input.txt with Modified stamper
@@ -3052,7 +3575,7 @@ This shows that tasks can depend on the same file with different stampers, which
 <p>Of course, using an <code>Exists</code> stamper for <code>ReadStringFromFile</code> does not make a lot of sense, but this is for demonstration purposes only.</p>
 <p>Running <code>cargo run --example incremental</code> now should produce output like:</p>
 <pre><code>   Compiling pie v0.1.0 (/pie)
-    Finished dev [unoptimized + debuginfo] target(s) in 0.51s
+    Finished dev [unoptimized + debuginfo] target(s) in 0.78s
      Running `/pie/target/debug/examples/incremental`
 A) New task: expect `read_task` to execute
 Reading from input.txt with Modified stamper
@@ -3160,7 +3683,13 @@ Furthermore, it is also an optimisation, as requiring the same task many times o
 <p>We will implement the <code>Session</code> type to hold all session data, and the <code>Pie</code> type as an entry point into the build system that manages a session.</p>
 <h2 id="pie-and-session"><a class="header" href="#pie-and-session">PIE and Session</a></h2>
 <p>Change the imports in <code>pie/src/lib.rs</code>: </p>
-<pre><code class="language-rust customdiff "> 
+<div id="diff2html_0"></div>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    let diff = String.raw`--- pie/src/lib.rs
++++ pie/src/lib.rs
+@@ -6,6 +6,9 @@
+ 
  use stamp::{FileStamper, OutputStamper};
  
 +use crate::context::top_down::TopDownContext;
@@ -3168,7 +3697,21 @@ Furthermore, it is also an optimisation, as requiring the same task many times o
 +
  pub mod stamp;
  pub mod context;
- mod fs;</code></pre>
+ mod fs;
+`;
+    let target = document.getElementById('diff2html_0');
+    let configuration = {
+      drawFileList: false,
+      fileListToggle: false,
+      fileContentToggle: false,
+
+      outputFormat: 'side-by-side',
+      matching: 'lines',
+    };
+    let diff2htmlUi = new Diff2HtmlUI(target, diff, configuration, hljs);
+    diff2htmlUi.draw();
+  });
+</script>
 <p>Now add the <code>Pie</code> and <code>Session</code> types to <code>pie/src/lib.rs</code>:</p>
 <pre><code class="language-rust ">/// Main entry point into PIE, a sound and incremental programmatic build system.
 pub struct Pie&lt;T, O&gt; {
@@ -3227,7 +3770,13 @@ We can leave out this lifetime in <code>Pie::new_session</code>, because the com
 <p>Now we need to modify <code>TopDownContext</code> to work with <code>Session</code>.</p>
 <h2 id="update-topdowncontext"><a class="header" href="#update-topdowncontext">Update TopDownContext</a></h2>
 <p>Change <code>TopDownContext</code> to only contain a mutable reference to <code>Session</code> in <code>pie/src/context/top_down.rs</code>:</p>
-<pre><code class="language-rust customdiff "> use std::io;
+<div id="diff2html_1"></div>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    let diff = String.raw`--- pie/src/context/top_down.rs
++++ pie/src/context/top_down.rs
+@@ -2,28 +2,20 @@
+ use std::io;
  use std::path::Path;
  
 -use crate::{Context, fs, Task};
@@ -3237,32 +3786,46 @@ We can leave out this lifetime in <code>Pie::new_session</code>, because the com
 -use crate::store::{Store, TaskNode};
 +use crate::store::TaskNode;
  
--pub struct TopDownContext&lt;T, O&gt; {
--  store: Store&lt;T, O&gt;,
--  current_executing_task: Option&lt;TaskNode&gt;,
--  dependency_check_errors: Vec&lt;io::Error&gt;,
-+pub struct TopDownContext&lt;'p, 's, T, O&gt; {
-+  session: &amp;'s mut Session&lt;'p, T, O&gt;,
+-pub struct TopDownContext<T, O> {
+-  store: Store<T, O>,
+-  current_executing_task: Option<TaskNode>,
+-  dependency_check_errors: Vec<io::Error>,
++pub struct TopDownContext<'p, 's, T, O> {
++  session: &'s mut Session<'p, T, O>,
  }
  
--impl&lt;T: Task&gt; TopDownContext&lt;T, T::Output&gt; {
--  pub fn new() -&gt; Self {
+-impl<T: Task> TopDownContext<T, T::Output> {
+-  pub fn new() -> Self {
 -    Self {
 -      store: Store::default(),
 -      current_executing_task: None,
 -      dependency_check_errors: Vec::default(),
 -    }
 -  }
-+impl&lt;'p, 's, T: Task&gt; TopDownContext&lt;'p, 's, T, T::Output&gt; {
-+  pub fn new(session: &amp;'s mut Session&lt;'p, T, T::Output&gt;) -&gt; Self { Self { session } }
++impl<'p, 's, T: Task> TopDownContext<'p, 's, T, T::Output> {
++  pub fn new(session: &'s mut Session<'p, T, T::Output>) -> Self { Self { session } }
  
--  pub fn get_dependency_check_errors(&amp;self) -&gt; impl Iterator&lt;Item=&amp;io::Error&gt; {
+-  pub fn get_dependency_check_errors(&self) -> impl Iterator<Item=&io::Error> {
 -    self.dependency_check_errors.iter()
-+  pub fn require_initial(&amp;mut self, task: &amp;T) -&gt; T::Output {
++  pub fn require_initial(&mut self, task: &T) -> T::Output {
 +    self.require_task(task)
    }
  }
- </code></pre>
+ 
+`;
+    let target = document.getElementById('diff2html_1');
+    let configuration = {
+      drawFileList: false,
+      fileListToggle: false,
+      fileContentToggle: false,
+
+      outputFormat: 'side-by-side',
+      matching: 'lines',
+    };
+    let diff2htmlUi = new Diff2HtmlUI(target, diff, configuration, hljs);
+    diff2htmlUi.draw();
+  });
+</script>
 <p>Here, we use lifetime <code>'s</code> to denote the lifetime of a session, and make <code>TopDownContext</code> generic over it.
 <code>new</code> now just accepts a mutable reference to the session.
 The <code>get_dependency_check_errors</code> method can be removed.
@@ -3270,82 +3833,88 @@ We add a <code>require_initial</code> convenience method for <code>Session</code
 <p>In the rest of the file, we need to update the <code>impl</code> lines to include the lifetimes, and we need to replace most instances of <code>self</code> with <code>self.session</code>.
 You could do this with the following find-replace regex: <code>self\.([\w\d_]+)\.</code> -&gt; <code>self.session.$1.</code></p>
 <p>Change <code>pie/src/context/top_down.rs</code>:</p>
-<pre><code class="language-rust customdiff "> }
+<div id="diff2html_2"></div>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    let diff = String.raw`--- pie/src/context/top_down.rs
++++ pie/src/context/top_down.rs
+@@ -20,40 +20,40 @@
+ }
  
  
--impl&lt;T: Task&gt; Context&lt;T&gt; for TopDownContext&lt;T, T::Output&gt; {
-+impl&lt;'p, 's, T: Task&gt; Context&lt;T&gt; for TopDownContext&lt;'p, 's, T, T::Output&gt; {
-   fn require_file_with_stamper&lt;P: AsRef&lt;Path&gt;&gt;(&amp;mut self, path: P, stamper: FileStamper) -&gt; Result&lt;Option&lt;File&gt;, io::Error&gt; {
--    let Some(current_executing_task_node) = &amp;self.current_executing_task else {
-+    let Some(current_executing_task_node) = &amp;self.session.current_executing_task else {
+-impl<T: Task> Context<T> for TopDownContext<T, T::Output> {
++impl<'p, 's, T: Task> Context<T> for TopDownContext<'p, 's, T, T::Output> {
+   fn require_file_with_stamper<P: AsRef<Path>>(&mut self, path: P, stamper: FileStamper) -> Result<Option<File>, io::Error> {
+-    let Some(current_executing_task_node) = &self.current_executing_task else {
++    let Some(current_executing_task_node) = &self.session.current_executing_task else {
        return fs::open_if_file(path); // No current executing task, so no dependency needs to be made.
      };
      let path = path.as_ref();
 -    let node = self.store.get_or_create_file_node(path);
 +    let node = self.session.store.get_or_create_file_node(path);
      let (dependency, file) = FileDependency::new_with_file(path, stamper)?;
--    self.store.add_file_require_dependency(current_executing_task_node, &amp;node, dependency);
-+    self.session.store.add_file_require_dependency(current_executing_task_node, &amp;node, dependency);
+-    self.store.add_file_require_dependency(current_executing_task_node, &node, dependency);
++    self.session.store.add_file_require_dependency(current_executing_task_node, &node, dependency);
      Ok(file)
    }
  
-   fn require_task_with_stamper(&amp;mut self, task: &amp;T, stamper: OutputStamper) -&gt; T::Output {
+   fn require_task_with_stamper(&mut self, task: &T, stamper: OutputStamper) -> T::Output {
 -    let node = self.store.get_or_create_task_node(task);
 +    let node = self.session.store.get_or_create_task_node(task);
  
      // Get required task output by executing it if needed, or by getting the output from the store if not needed.
-     let output = if self.should_execute_task(&amp;node) {
--      self.store.reset_task(&amp;node);
+     let output = if self.should_execute_task(&node) {
+-      self.store.reset_task(&node);
 -      let previous_executing_task = self.current_executing_task.replace(node);
-+      self.session.store.reset_task(&amp;node);
++      self.session.store.reset_task(&node);
 +      let previous_executing_task = self.session.current_executing_task.replace(node);
        let output = task.execute(self);
 -      self.current_executing_task = previous_executing_task;
--      self.store.set_task_output(&amp;node, output.clone());
+-      self.store.set_task_output(&node, output.clone());
 +      self.session.current_executing_task = previous_executing_task;
-+      self.session.store.set_task_output(&amp;node, output.clone());
++      self.session.store.set_task_output(&node, output.clone());
        output
      } else {
-       // Correctness: when `should_execute_task` returns `true`, the above block is executed. Otherwise this block is 
-       // executed and `should_execute_task` ensures that the task has an output.
--      self.store.get_task_output(&amp;node).clone()
-+      self.session.store.get_task_output(&amp;node).clone()
+       // Correctness: when ${"`"}should_execute_task${"`"} returns ${"`"}true${"`"}, the above block is executed. Otherwise this block is 
+       // executed and ${"`"}should_execute_task${"`"} ensures that the task has an output.
+-      self.store.get_task_output(&node).clone()
++      self.session.store.get_task_output(&node).clone()
      };
  
      // Create task require dependency if a task is currently executing (i.e., we are not requiring the initial task).
--    if let Some(current_executing_task_node) = &amp;self.current_executing_task {
-+    if let Some(current_executing_task_node) = &amp;self.session.current_executing_task {
+-    if let Some(current_executing_task_node) = &self.current_executing_task {
++    if let Some(current_executing_task_node) = &self.session.current_executing_task {
        let dependency = TaskDependency::new(task.clone(), stamper, output.clone());
--      if self.store.add_task_require_dependency(current_executing_task_node, &amp;node, dependency).is_err() {
+-      if self.store.add_task_require_dependency(current_executing_task_node, &node, dependency).is_err() {
 -        let current_executing_task = self.store.get_task(current_executing_task_node);
-+      if self.session.store.add_task_require_dependency(current_executing_task_node, &amp;node, dependency).is_err() {
++      if self.session.store.add_task_require_dependency(current_executing_task_node, &node, dependency).is_err() {
 +        let current_executing_task = self.session.store.get_task(current_executing_task_node);
-         panic!(&quot;Cyclic task dependency; current executing task '{:?}' is requiring task '{:?}' which was already required&quot;, current_executing_task, task);
+         panic!("Cyclic task dependency; current executing task '{:?}' is requiring task '{:?}' which was already required", current_executing_task, task);
        }
      }
 @@ -62,19 +62,19 @@
    }
  }
  
--impl&lt;T: Task&gt; TopDownContext&lt;T, T::Output&gt; {
-+impl&lt;'p, 's, T: Task&gt; TopDownContext&lt;'p, 's, T, T::Output&gt; {
-   /// Checks whether given task should be executed, returning `true` if it should be executed. A task should be executed
+-impl<T: Task> TopDownContext<T, T::Output> {
++impl<'p, 's, T: Task> TopDownContext<'p, 's, T, T::Output> {
+   /// Checks whether given task should be executed, returning ${"`"}true${"`"} if it should be executed. A task should be executed
    /// if any of its dependencies are inconsistent, or when it has no output.
-   fn should_execute_task(&amp;mut self, node: &amp;TaskNode) -&gt; bool {
-     // Borrow: because we pass `self` (which is `&amp;mut self`) to `is_inconsistent` for recursive consistency checking, 
-     //         we need to clone and collect dependencies into a `Vec`. Otherwise we have an immutable borrow of `self`
-     //         through `self.store` while we create a mutable borrow of `self`, which is not allowed.
--    let dependencies: Vec&lt;_&gt; = self.store.get_dependencies_of_task(node).cloned().collect();
-+    let dependencies: Vec&lt;_&gt; = self.session.store.get_dependencies_of_task(node).cloned().collect();
+   fn should_execute_task(&mut self, node: &TaskNode) -> bool {
+     // Borrow: because we pass ${"`"}self${"`"} (which is ${"`"}&mut self${"`"}) to ${"`"}is_inconsistent${"`"} for recursive consistency checking, 
+     //         we need to clone and collect dependencies into a ${"`"}Vec${"`"}. Otherwise we have an immutable borrow of ${"`"}self${"`"}
+     //         through ${"`"}self.store${"`"} while we create a mutable borrow of ${"`"}self${"`"}, which is not allowed.
+-    let dependencies: Vec<_> = self.store.get_dependencies_of_task(node).cloned().collect();
++    let dependencies: Vec<_> = self.session.store.get_dependencies_of_task(node).cloned().collect();
      for dependency in dependencies {
        match dependency.is_inconsistent(self) {
-         Ok(Some(_)) =&gt; return true,
-         Err(e) =&gt; { // Error while checking: store error and assume inconsistent
+         Ok(Some(_)) => return true,
+         Err(e) => { // Error while checking: store error and assume inconsistent
 -          self.dependency_check_errors.push(e);
 +          self.session.dependency_check_errors.push(e);
            return true;
          }
-         _ =&gt; {} // Consistent: continue checking
+         _ => {} // Consistent: continue checking
 @@ -82,6 +82,6 @@
      }
      // Task has no dependencies or all dependencies are consistent. Should only execute if it has no output, meaning
@@ -3353,37 +3922,97 @@ You could do this with the following find-replace regex: <code>self\.([\w\d_]+)\
 -    return !self.store.task_has_output(node);
 +    return !self.session.store.task_has_output(node);
    }
- }</code></pre>
+ }
+`;
+    let target = document.getElementById('diff2html_2');
+    let configuration = {
+      drawFileList: false,
+      fileListToggle: false,
+      fileContentToggle: false,
+
+      outputFormat: 'side-by-side',
+      matching: 'lines',
+    };
+    let diff2htmlUi = new Diff2HtmlUI(target, diff, configuration, hljs);
+    diff2htmlUi.draw();
+  });
+</script>
 <p>Now we change <code>Session</code> to use <code>TopDownContext</code>. </p>
 <h2 id="update-session"><a class="header" href="#update-session">Update Session</a></h2>
 <p>Change <code>pie/src/lib.rs</code>:</p>
-<pre><code class="language-rust customdiff "> 
-   /// Requires `task`, returning its up-to-date output.
-   pub fn require(&amp;mut self, task: &amp;T) -&gt; T::Output {
--    todo!(&quot;Create TopDownContext with this session, and require the task&quot;)
+<div id="diff2html_3"></div>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    let diff = String.raw`--- pie/src/lib.rs
++++ pie/src/lib.rs
+@@ -95,7 +95,8 @@
+ 
+   /// Requires ${"`"}task${"`"}, returning its up-to-date output.
+   pub fn require(&mut self, task: &T) -> T::Output {
+-    todo!("Create TopDownContext with this session, and require the task")
 +    self.current_executing_task = None;
 +    TopDownContext::new(self).require_initial(task)
    }
  
-   /// Gets all errors produced during dependency checks.</code></pre>
+   /// Gets all errors produced during dependency checks.
+`;
+    let target = document.getElementById('diff2html_3');
+    let configuration = {
+      drawFileList: false,
+      fileListToggle: false,
+      fileContentToggle: false,
+
+      outputFormat: 'side-by-side',
+      matching: 'lines',
+    };
+    let diff2htmlUi = new Diff2HtmlUI(target, diff, configuration, hljs);
+    diff2htmlUi.draw();
+  });
+</script>
 <p>We reset the <code>current_executing_task</code> to <code>None</code>, to be sure that we start a build without an executing task.
 Then, we just create a <code>TopDownContext</code> and call <code>require_initial</code>.</p>
 <p>Finally, we can now make the <code>context</code> module private, as users of the library run builds using <code>Session</code>, instead of having to create a context implementation.
 Change <code>pie/src/lib.rs</code>:</p>
-<pre><code class="language-rust customdiff "> use crate::store::{Store, TaskNode};
+<div id="diff2html_4"></div>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    let diff = String.raw`--- pie/src/lib.rs
++++ pie/src/lib.rs
+@@ -10,7 +10,7 @@
+ use crate::store::{Store, TaskNode};
  
  pub mod stamp;
 -pub mod context;
 +mod context;
  mod fs;
  mod dependency;
- mod store;</code></pre>
+ mod store;
+`;
+    let target = document.getElementById('diff2html_4');
+    let configuration = {
+      drawFileList: false,
+      fileListToggle: false,
+      fileContentToggle: false,
+
+      outputFormat: 'side-by-side',
+      matching: 'lines',
+    };
+    let diff2htmlUi = new Diff2HtmlUI(target, diff, configuration, hljs);
+    diff2htmlUi.draw();
+  });
+</script>
 <p>Check that the code compiles with <code>cargo check --lib</code>.
 This only checks if the library builds, but not any examples.
 We need to update the incrementality example to work with these changes.</p>
 <h2 id="update-incremental-example"><a class="header" href="#update-incremental-example">Update incremental example</a></h2>
 <p>First change some imports in <code>pie/examples/incremental.rs</code>:</p>
-<pre><code class="language-rust customdiff "> use std::path::{Path, PathBuf};
+<div id="diff2html_5"></div>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    let diff = String.raw`--- pie/examples/incremental.rs
++++ pie/examples/incremental.rs
+@@ -5,8 +5,7 @@
+ use std::path::{Path, PathBuf};
  
  use dev_shared::{create_temp_dir, write_until_modified};
 -use pie::{Context, Task};
@@ -3391,118 +4020,152 @@ We need to update the incrementality example to work with these changes.</p>
 +use pie::{Context, Pie, Task};
  use pie::stamp::FileStamper;
  
- /// Enumeration over file pseudo-tasks.</code></pre>
+ /// Enumeration over file pseudo-tasks.
+`;
+    let target = document.getElementById('diff2html_5');
+    let configuration = {
+      drawFileList: false,
+      fileListToggle: false,
+      fileContentToggle: false,
+
+      outputFormat: 'side-by-side',
+      matching: 'lines',
+    };
+    let diff2htmlUi = new Diff2HtmlUI(target, diff, configuration, hljs);
+    diff2htmlUi.draw();
+  });
+</script>
 <p>Then, change <code>pie/examples/incremental.rs</code> to use sessions:</p>
-<pre><code class="language-rust customdiff ">     Ok(())
+<div id="diff2html_6"></div>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    let diff = String.raw`--- pie/examples/incremental.rs
++++ pie/examples/incremental.rs
+@@ -65,95 +65,97 @@
+     Ok(())
    }
  }
  
- fn main() -&gt; Result&lt;(), io::Error&gt; {
+ fn main() -> Result<(), io::Error> {
    let temp_dir = create_temp_dir()?;
-   let input_file = temp_dir.path().join(&quot;input.txt&quot;);
-   write(&amp;input_file, &quot;Hi&quot;)?;
-   let output_file = temp_dir.path().join(&quot;output.txt&quot;);
+   let input_file = temp_dir.path().join("input.txt");
+   write(&input_file, "Hi")?;
+   let output_file = temp_dir.path().join("output.txt");
  
 -  let mut context = TopDownContext::new();
 +  let mut pie = Pie::default();
-   let read_task = ReadStringFromFile::new(&amp;input_file, FileStamper::Modified);
-   let write_task = WriteStringToFile::new(read_task.clone(), &amp;output_file, FileStamper::Modified);
+   let read_task = ReadStringFromFile::new(&input_file, FileStamper::Modified);
+   let write_task = WriteStringToFile::new(read_task.clone(), &output_file, FileStamper::Modified);
  
-   println!(&quot;A) New task: expect `read_task` to execute&quot;);
-   // `read_task` is new, meaning that we have no cached output for it, thus it must be executed.
--  let output = context.require_task(&amp;read_task)?;
-+  let output = pie.new_session().require(&amp;read_task)?;
-   assert_eq!(&amp;output, &quot;Hi&quot;);
+   println!("A) New task: expect ${"`"}read_task${"`"} to execute");
+   // ${"`"}read_task${"`"} is new, meaning that we have no cached output for it, thus it must be executed.
+-  let output = context.require_task(&read_task)?;
++  let output = pie.new_session().require(&read_task)?;
+   assert_eq!(&output, "Hi");
  
-   println!(&quot;\nB) Reuse: expect no execution&quot;);
-   // `read_task` is not new and its file dependency is still consistent. It is consistent because the modified time of 
-   // `input_file` has not changed, thus the modified stamp is equal.
--  let output = context.require_task(&amp;read_task)?;
-+  let output = pie.new_session().require(&amp;read_task)?;
-   assert_eq!(&amp;output, &quot;Hi&quot;);
+   println!("\nB) Reuse: expect no execution");
+   // ${"`"}read_task${"`"} is not new and its file dependency is still consistent. It is consistent because the modified time of 
+   // ${"`"}input_file${"`"} has not changed, thus the modified stamp is equal.
+-  let output = context.require_task(&read_task)?;
++  let output = pie.new_session().require(&read_task)?;
+   assert_eq!(&output, "Hi");
  
-   write_until_modified(&amp;input_file, &quot;Hello&quot;)?;
-   println!(&quot;\nC) Inconsistent file dependency: expect `read_task` to execute&quot;);
-   // The file dependency of `read_task` is inconsistent due to the changed modified time of `input_file`.
--  let output = context.require_task(&amp;read_task)?;
-+  let output = pie.new_session().require(&amp;read_task)?;
-   assert_eq!(&amp;output, &quot;Hello&quot;);
+   write_until_modified(&input_file, "Hello")?;
+   println!("\nC) Inconsistent file dependency: expect ${"`"}read_task${"`"} to execute");
+   // The file dependency of ${"`"}read_task${"`"} is inconsistent due to the changed modified time of ${"`"}input_file${"`"}.
+-  let output = context.require_task(&read_task)?;
++  let output = pie.new_session().require(&read_task)?;
+   assert_eq!(&output, "Hello");
  
-   println!(&quot;\nD) New task, reuse other: expect only `write_task` to execute&quot;);
-   // write_task` is new, but `read_task` is not new and its file dependency is still consistent.
--  context.require_task(&amp;write_task)?;
-+  pie.new_session().require(&amp;write_task)?;
-   assert_eq!(&amp;read_to_string(&amp;output_file)?, &quot;Hello&quot;);
+   println!("\nD) New task, reuse other: expect only ${"`"}write_task${"`"} to execute");
+   // write_task${"`"} is new, but ${"`"}read_task${"`"} is not new and its file dependency is still consistent.
+-  context.require_task(&write_task)?;
++  pie.new_session().require(&write_task)?;
+   assert_eq!(&read_to_string(&output_file)?, "Hello");
  
-   write_until_modified(&amp;input_file, &quot;Hello, World!&quot;)?;
-   println!(&quot;\nE) Inconsistent file and task dependency: expect both tasks to execute&quot;);
-   // The file dependency of `read_task` is inconsistent. Then, the task dependency from `write_task` to `read_task` is 
-   // inconsistent because `read_task` now returns `&quot;Hello, World!&quot;` as output instead of &quot;Hello&quot;, and thus its equals 
+   write_until_modified(&input_file, "Hello, World!")?;
+   println!("\nE) Inconsistent file and task dependency: expect both tasks to execute");
+   // The file dependency of ${"`"}read_task${"`"} is inconsistent. Then, the task dependency from ${"`"}write_task${"`"} to ${"`"}read_task${"`"} is 
+   // inconsistent because ${"`"}read_task${"`"} now returns ${"`"}"Hello, World!"${"`"} as output instead of "Hello", and thus its equals 
    // output stamp is different.
--  context.require_task(&amp;write_task)?;
-+  pie.new_session().require(&amp;write_task)?;
-   assert_eq!(&amp;read_to_string(&amp;output_file)?, &quot;Hello, World!&quot;);
+-  context.require_task(&write_task)?;
++  pie.new_session().require(&write_task)?;
+   assert_eq!(&read_to_string(&output_file)?, "Hello, World!");
  
-   write_until_modified(&amp;input_file, &quot;Hello, World!&quot;)?; // Note: writing same file contents!
-   println!(&quot;\nF) Early cutoff: expect only `read_task` to execute&quot;);
-   // File dependency of `read_task` is inconsistent because the modified time changed, but it returns the same output 
-   // `&quot;Hello, World!&quot;` because the contents of the file have not actually changed. Then, the task dependency from 
-   // `write_task` to `read_task` is consistent because its output did not change, and thus the equality output stamp is 
+   write_until_modified(&input_file, "Hello, World!")?; // Note: writing same file contents!
+   println!("\nF) Early cutoff: expect only ${"`"}read_task${"`"} to execute");
+   // File dependency of ${"`"}read_task${"`"} is inconsistent because the modified time changed, but it returns the same output 
+   // ${"`"}"Hello, World!"${"`"} because the contents of the file have not actually changed. Then, the task dependency from 
+   // ${"`"}write_task${"`"} to ${"`"}read_task${"`"} is consistent because its output did not change, and thus the equality output stamp is 
    // the same.
--  context.require_task(&amp;write_task)?;
-+  pie.new_session().require(&amp;write_task)?;
-   assert_eq!(&amp;read_to_string(&amp;output_file)?, &quot;Hello, World!&quot;);
+-  context.require_task(&write_task)?;
++  pie.new_session().require(&write_task)?;
+   assert_eq!(&read_to_string(&output_file)?, "Hello, World!");
  
-   write_until_modified(&amp;output_file, &quot;&quot;)?;
-   println!(&quot;\nG) Regenerate changed output file: expect only `write_task` to execute&quot;);
-   // The file dependency of `write_task` to `output_file` is inconsistent.
--  context.require_task(&amp;write_task)?;
-+  pie.new_session().require(&amp;write_task)?;
-   assert_eq!(&amp;read_to_string(&amp;output_file)?, &quot;Hello, World!&quot;);
+   write_until_modified(&output_file, "")?;
+   println!("\nG) Regenerate changed output file: expect only ${"`"}write_task${"`"} to execute");
+   // The file dependency of ${"`"}write_task${"`"} to ${"`"}output_file${"`"} is inconsistent.
+-  context.require_task(&write_task)?;
++  pie.new_session().require(&write_task)?;
+   assert_eq!(&read_to_string(&output_file)?, "Hello, World!");
  
-   write_until_modified(&amp;output_file, &quot;&quot;)?;
-   remove_file(&amp;output_file)?;
-   println!(&quot;\nH) Regenerate deleted output file: expect only `write_task` to execute&quot;);
-   // Same results when `output_file` is deleted.
--  context.require_task(&amp;write_task)?;
-+  pie.new_session().require(&amp;write_task)?;
-   assert_eq!(&amp;read_to_string(&amp;output_file)?, &quot;Hello, World!&quot;);
+   write_until_modified(&output_file, "")?;
+   remove_file(&output_file)?;
+   println!("\nH) Regenerate deleted output file: expect only ${"`"}write_task${"`"} to execute");
+   // Same results when ${"`"}output_file${"`"} is deleted.
+-  context.require_task(&write_task)?;
++  pie.new_session().require(&write_task)?;
+   assert_eq!(&read_to_string(&output_file)?, "Hello, World!");
  
-   let input_file_b = temp_dir.path().join(&quot;input_b.txt&quot;);
-   write(&amp;input_file_b, &quot;Test&quot;)?;
-   let read_task_b_modified = ReadStringFromFile::new(&amp;input_file_b, FileStamper::Modified);
-   let read_task_b_exists = ReadStringFromFile::new(&amp;input_file_b, FileStamper::Exists);
-   println!(&quot;\nI) Different tasks: expect `read_task_b_modified` and `read_task_b_exists` to execute&quot;);
-   // Task `read_task`, `read_task_b_modified` and `read_task_b_exists` are different, due to their `Eq` implementation 
-   // determining that their paths and stampers are different. Therefore, `read_task_b_modified` and `read_task_b_exists`
+   let input_file_b = temp_dir.path().join("input_b.txt");
+   write(&input_file_b, "Test")?;
+   let read_task_b_modified = ReadStringFromFile::new(&input_file_b, FileStamper::Modified);
+   let read_task_b_exists = ReadStringFromFile::new(&input_file_b, FileStamper::Exists);
+   println!("\nI) Different tasks: expect ${"`"}read_task_b_modified${"`"} and ${"`"}read_task_b_exists${"`"} to execute");
+   // Task ${"`"}read_task${"`"}, ${"`"}read_task_b_modified${"`"} and ${"`"}read_task_b_exists${"`"} are different, due to their ${"`"}Eq${"`"} implementation 
+   // determining that their paths and stampers are different. Therefore, ${"`"}read_task_b_modified${"`"} and ${"`"}read_task_b_exists${"`"}
    // are new tasks, and must be executed.
--  let output = context.require_task(&amp;read_task_b_modified)?;
+-  let output = context.require_task(&read_task_b_modified)?;
 +  let mut session = pie.new_session();
-+  let output = session.require(&amp;read_task_b_modified)?;
-   assert_eq!(&amp;output, &quot;Test&quot;);
--  let output = context.require_task(&amp;read_task_b_exists)?;
-+  let output = session.require(&amp;read_task_b_exists)?;
-   assert_eq!(&amp;output, &quot;Test&quot;);
++  let output = session.require(&read_task_b_modified)?;
+   assert_eq!(&output, "Test");
+-  let output = context.require_task(&read_task_b_exists)?;
++  let output = session.require(&read_task_b_exists)?;
+   assert_eq!(&output, "Test");
  
-   write_until_modified(&amp;input_file_b, &quot;Test Test&quot;)?;
-   println!(&quot;\nJ) Different stampers: expect only `read_task_b_modified` to execute&quot;);
-   // Both `read_task_b_modified` and `read_task_b_exists` read from the same file, but they use different stampers.
-   // Therefore, `read_task_b_modified` must be executed because the modified time has changed, but `read_task_b_exists`
+   write_until_modified(&input_file_b, "Test Test")?;
+   println!("\nJ) Different stampers: expect only ${"`"}read_task_b_modified${"`"} to execute");
+   // Both ${"`"}read_task_b_modified${"`"} and ${"`"}read_task_b_exists${"`"} read from the same file, but they use different stampers.
+   // Therefore, ${"`"}read_task_b_modified${"`"} must be executed because the modified time has changed, but ${"`"}read_task_b_exists${"`"}
    // will not be executed because its file dependency stamper only checks for existence of the file, and the existence 
    // of the file has not changed.
    //
-   // Note that using an `Exists` stamper for this task does not make a lot of sense, since it will only read the file 
+   // Note that using an ${"`"}Exists${"`"} stamper for this task does not make a lot of sense, since it will only read the file 
    // on first execute and when it is recreated. But this is just to demonstrate different stampers.
--  let output = context.require_task(&amp;read_task_b_modified)?;
+-  let output = context.require_task(&read_task_b_modified)?;
 +  let mut session = pie.new_session();
-+  let output = session.require(&amp;read_task_b_modified)?;
-   assert_eq!(&amp;output, &quot;Test Test&quot;);
--  let output = context.require_task(&amp;read_task_b_exists)?;
-+  let output = session.require(&amp;read_task_b_exists)?;
-   assert_eq!(&amp;output, &quot;Test&quot;);
++  let output = session.require(&read_task_b_modified)?;
+   assert_eq!(&output, "Test Test");
+-  let output = context.require_task(&read_task_b_exists)?;
++  let output = session.require(&read_task_b_exists)?;
+   assert_eq!(&output, "Test");
  
    Ok(())
- }</code></pre>
+ }
+`;
+    let target = document.getElementById('diff2html_6');
+    let configuration = {
+      drawFileList: false,
+      fileListToggle: false,
+      fileContentToggle: false,
+
+      outputFormat: 'side-by-side',
+      matching: 'lines',
+    };
+    let diff2htmlUi = new Diff2HtmlUI(target, diff, configuration, hljs);
+    diff2htmlUi.draw();
+  });
+</script>
 <p>When we only require one task, we replace <code>context.require_task</code> with <code>pie.new_session().require</code>.
 When we want to require multiple tasks, we use <code>new_session</code> and call <code>session.require</code> multiple times.</p>
 <p>It is very important to create a new session each time in this example, because a task is only checked/executed once each session.
@@ -4456,7 +5119,6 @@ Its tuple fields are <code>pub</code> so it can be constructed with <code>Compos
 
         <!-- Custom JS scripts -->
         <script src="src/diff2html-ui-base.min.js"></script>
-        <script src="src/diff.js"></script>
 
         <script>
         window.addEventListener('load', function() {
