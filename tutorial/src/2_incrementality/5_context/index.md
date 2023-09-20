@@ -68,7 +68,7 @@ Finally, we return the output.
 
 We still need to create a task dependency. Change `pie/src/context/mod.rs` to add the dependency:
 
-```diff2html fromfile
+```diff2html fromfile linebyline
 ../../gen/2_incrementality/5_context/f_task_dep.rs.diff
 ```
 
@@ -131,7 +131,7 @@ The final piece to our puzzle is the `should_execute_task` implementation.
 
 Add the following code to `pie/src/context/top_down.rs`:
 
-```diff2html fromfile
+```diff2html fromfile linebyline
 ../../gen/2_incrementality/5_context/g_check.rs.diff
 ```
 

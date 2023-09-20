@@ -5,12 +5,12 @@ use tracing_subscriber::{EnvFilter, fmt};
 use tracing_subscriber::filter::LevelFilter;
 use tracing_subscriber::prelude::*;
 
-mod app;
-mod modification;
-mod output;
-mod cargo;
-mod stepper;
-mod util;
+pub mod app;
+pub mod modification;
+pub mod output;
+pub mod cargo;
+pub mod stepper;
+pub mod util;
 
 #[derive(Debug, Parser)]
 #[command()]

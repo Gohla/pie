@@ -8,11 +8,11 @@ However, incrementality is *hard*, so let's start with an extremely simple non-i
 Since we will be implementing three different contexts in this tutorial, we will separate them in different modules.
 Create the `context` module by adding a module to `pie/src/lib.rs`:
 
-```diff2html fromfile
+```diff2html fromfile linebyline
 ../../gen/1_programmability/2_non_incremental/a_context_module.rs.diff
 ```
 
-This is a diff over `pie/src/lib.rs` where lines with a green background are additions, lines with a red background are removals, and lines with a grey background are context on where to add/remove lines, similar to diffs on source code hubs like GitHub.
+This is a diff over `pie/src/lib.rs` where lines with a green background are additions, lines with a red background are removals, lines without a special background are context on where to add/remove lines, and lines starting with `@@` denote changed lines (in unified diff style). This is similar to diffs on source code hubs like GitHub.
 
 Create the `pie/src/context` directory, and in it, create the `pie/src/context/mod.rs` file with the following contents:
 
@@ -119,7 +119,7 @@ This macro is typically [used in tests](https://doc.rust-lang.org/book/ch11-01-w
 Our first test only tests a single task that does not use the context, so let's write a test with two tasks where one requires the other to increase our test coverage.
 Add the following test:
 
-```diff2html fromfile
+```diff2html fromfile linebyline
 ../../gen/1_programmability/2_non_incremental/e_test_problematic.rs.diff
 ```
 
@@ -174,10 +174,16 @@ Therefore, in this tutorial we will keep it simple.
 ```
 
 For now, we will solve this by just using a single task type which is an enumeration of the different possible tasks.
-Replace the test with the following:
+First remove the problematic test:
 
-```diff2html fromfile
-g_test_correct.rs.diff
+```diff2html fromfile linebyline
+../../gen/1_programmability/2_non_incremental/g_remove_test.rs.diff
+```
+
+Then add the following test:
+
+```diff2html fromfile linebyline
+../../gen/1_programmability/2_non_incremental/h_test_correct.rs.diff
 ```
 
 Here, we instead define a single task `Test` which is an `enum` with two variants.

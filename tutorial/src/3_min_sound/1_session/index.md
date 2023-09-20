@@ -19,7 +19,7 @@ We will implement the `Session` type to hold all session data, and the `Pie` typ
 
 Change the imports in `pie/src/lib.rs`: 
 
-```diff2html fromfile
+```diff2html fromfile linebyline
 ../../gen/3_min_sound/1_session/a_lib_import.rs.diff
 ```
 

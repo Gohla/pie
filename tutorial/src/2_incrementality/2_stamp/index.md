@@ -7,7 +7,7 @@ Therefore, we will implement a `FileStamper` that stamps files and produces a `F
 
 Add the `stamp` module to `pie/src/lib.rs`:
 
-```diff2html fromfile
+```diff2html fromfile linebyline
 ../../gen/2_incrementality/2_stamp/a_module.rs.diff
 ```
 
@@ -74,7 +74,10 @@ We test file stamps by creating a stamp, changing the file, creating a new stamp
 We test task output stamps by just passing a different output value to the `stamp` function, and then compare the stamps.
 
 Run `cargo test` to confirm the stamp implementation.
-If test `test_modified_file_stamper` fails, do continue to the next section, because we're going to fix it!
+
+```admonish warning
+Test `test_modified_file_stamper` will likely fail. Do continue to the next section, because we're going to fix it!
+```
 
 ## Testing with file modified time, correctly
 
@@ -88,7 +91,7 @@ Even worse, our test can be flaky, sometimes succeeding if we write in between t
 To solve this, add a function to the filesystem testing utility crate.
 Change `dev_shared/src/lib.rs`:
 
-```diff2html fromfile
+```diff2html fromfile linebyline
 ../../gen/2_incrementality/2_stamp/d2_test_utilities.rs.diff
 ```
 

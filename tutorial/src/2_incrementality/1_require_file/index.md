@@ -38,7 +38,7 @@ However, because we will be performing similar file system operations in the inc
 
 Add the `fs` module to `pie/src/lib.rs`:
 
-```diff2html fromfile
+```diff2html fromfile linebyline
 ../../gen/2_incrementality/1_require_file/b_fs_module.rs.diff
 ```
 
@@ -96,7 +96,7 @@ Your directory structure should now look like this:
 
 To access these utility functions in the `pie` crate, add a dependency to `dev_shared` in `pie/Cargo.toml` along with another create that will help testing:
 
-```diff2html fromfile
+```diff2html fromfile linebyline
 ../../gen/2_incrementality/1_require_file/f_Cargo.toml.diff
 ```
 

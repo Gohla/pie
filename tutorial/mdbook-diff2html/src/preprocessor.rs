@@ -57,8 +57,8 @@ impl Diff2Html {
         Event::Text(t) if in_diff => {
           self.text.extend(t.chars());
         }
-        Event::End(Tag::CodeBlock(CodeBlockKind::Fenced(_))) if in_diff => {
-          let html = if from_file {
+        Event::End(Tag::CodeBlock(CodeBlockKind::Fenced(s))) if in_diff => {
+          let text = if from_file {
             let file_path = Path::new(self.text.trim());
             let file_path = if file_path.is_relative() {
               to_absolute_path(source_directory, chapter.source_path.as_deref(), file_path)
@@ -66,14 +66,14 @@ impl Diff2Html {
             } else {
               file_path.to_path_buf()
             };
-            let text = std::fs::read_to_string(&file_path)
-              .with_context(|| format!("failed to read diff from: {}", file_path.display()))?;
-            diff_to_html(&text, div_id_counter)
+            std::fs::read_to_string(&file_path)
+              .with_context(|| format!("failed to read diff from: {}", file_path.display()))?
           } else {
-            diff_to_html(&self.text, div_id_counter)
+            self.text.clone()
           };
+          let line_by_line = s.contains("linebyline");
+          let html = diff_to_html(text, div_id_counter, line_by_line);
           self.replacements.push((range, html));
-
           div_id_counter += 1;
           from_file = false;
           in_diff = false;
@@ -99,9 +99,16 @@ fn to_absolute_path(source_directory: &Path, source_file_path: Option<&Path>, re
   Ok(source_directory.join(source_directory_path).join(relative_file_path))
 }
 
-fn diff_to_html(diff: &str, div_id_counter: usize) -> String {
+fn diff_to_html(diff: String, div_id_counter: usize, line_by_line: bool) -> String {
+  // Escape $ and ` from the diff text, as these are special characters in JS template strings.
   let diff = diff.replace('$', r#"${"$"}"#);
   let diff = diff.replace('`', r#"${"`"}"#);
+  
+  let output_format = match line_by_line {
+    true => "line-by-line",
+    false => "side-by-side"
+  };
+  
   format!(r#"<div class="diff2html" id="diff2html_{div_id_counter}"></div>
 
 <script>
@@ -113,7 +120,7 @@ fn diff_to_html(diff: &str, div_id_counter: usize) -> String {
       fileListToggle: false,
       fileContentToggle: false,
 
-      outputFormat: 'side-by-side',
+      outputFormat: '{output_format}',
       matching: 'lines',
     }};
     let diff2htmlUi = new Diff2HtmlUI(target, diff, configuration, hljs);

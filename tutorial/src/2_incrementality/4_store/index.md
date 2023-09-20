@@ -16,7 +16,7 @@ The implementation in the `incremental-topo` library is based on a [paper by D. 
 
 Add the `pie_graph` dependency to `pie/Cargo.toml`:
 
-```diff2html fromfile
+```diff2html fromfile linebyline
 ../../gen/2_incrementality/4_store/a_Cargo.toml.diff
 ```
 
@@ -24,7 +24,7 @@ Add the `pie_graph` dependency to `pie/Cargo.toml`:
 
 Add the `store` module to `pie/src/lib.rs`:
 
-```diff2html fromfile
+```diff2html fromfile linebyline
 ../../gen/2_incrementality/4_store/b_module.rs.diff
 ```
 

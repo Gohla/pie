@@ -8,7 +8,7 @@ We will also implement a `Dependency` type that abstracts over `FileDependency` 
 
 Add the `dependency` module to `pie/src/lib.rs`:
 
-```diff2html fromfile
+```diff2html fromfile linebyline
 ../../gen/2_incrementality/3_dependency/a_module.rs.diff
 ```
 

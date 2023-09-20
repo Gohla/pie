@@ -15,7 +15,7 @@ We will:
 
 Add the `tracker` module to `pie/src/lib.rs`:
 
-```diff2html fromfile
+```diff2html fromfile linebyline
 ../../gen/3_min_sound/2_tracker/a_lib_module.rs.diff
 ```
 
@@ -116,7 +116,7 @@ We start with a simple `WritingTracker` that writes build events to some writer.
 
 Add the `writing` module to `pie/src/tracker/mod.rs`:
 
-```diff2html fromfile
+```diff2html fromfile linebyline
 ../../gen/3_min_sound/2_tracker/f_mod_writing.rs.diff
 ```
 
@@ -187,7 +187,7 @@ Therefore, we will implement the `EventTracker` that stores build events for lat
 
 Add the `event` module to `pie/src/tracker/mod.rs`:
 
-```diff2html fromfile
+```diff2html fromfile linebyline
 ../../gen/3_min_sound/2_tracker/j_mod_event.rs.diff
 ```
 
