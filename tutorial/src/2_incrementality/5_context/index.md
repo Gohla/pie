@@ -7,7 +7,7 @@ Now we will create the `TopDownContext` type which implements the `Context` trai
 
 Add the `top_down` module to `pie/src/context/mod.rs`:
 
-```diff2html fromfile
+```diff2html fromfile linebyline
 ../../gen/2_incrementality/5_context/a_module.rs.diff
 ```
 
