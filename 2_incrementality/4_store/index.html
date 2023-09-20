@@ -194,7 +194,7 @@ The implementation in the <code>incremental-topo</code> library is based on a <a
 </div>
 </details>
 <p>Add the <code>pie_graph</code> dependency to <code>pie/Cargo.toml</code>:</p>
-<div id="diff2html_0"></div>
+<div class="diff2html" id="diff2html_0"></div>
 <script>
   document.addEventListener('DOMContentLoaded', function () {
     let diff = String.raw`--- pie/Cargo.toml
@@ -225,7 +225,7 @@ The implementation in the <code>incremental-topo</code> library is based on a <a
 </script>
 <h2 id="store-basics"><a class="header" href="#store-basics">Store basics</a></h2>
 <p>Add the <code>store</code> module to <code>pie/src/lib.rs</code>:</p>
-<div id="diff2html_1"></div>
+<div class="diff2html" id="diff2html_1"></div>
 <script>
   document.addEventListener('DOMContentLoaded', function () {
     let diff = String.raw`--- pie/src/lib.rs
@@ -315,7 +315,7 @@ We need this for incrementality so that if the build system encounters the same 
 <p>To ensure unique nodes, we need to maintain the reverse mapping from <code>PathBuf</code> and <code>T</code> to <code>Node</code> ourselves, which we will do with <code>HashMap</code>s.
 This is also the reason for the <code>Eq</code> and <code>Hash</code> trait bounds on the <code>Task</code> trait, so we can use them as keys in <code>HashMap</code>s.</p>
 <p>Change <code>pie/src/store.rs</code> to add hash maps to map between these things:</p>
-<div id="diff2html_2"></div>
+<div class="diff2html" id="diff2html_2"></div>
 <script>
   document.addEventListener('DOMContentLoaded', function () {
     let diff = String.raw`--- pie/src/store.rs
@@ -371,7 +371,7 @@ This is also the reason for the <code>Eq</code> and <code>Hash</code> trait boun
   });
 </script>
 <p>To prevent accidentally using a file node as a task node, and vice versa, change <code>pie/src/store.rs</code> to add specific types of nodes:</p>
-<div id="diff2html_3"></div>
+<div class="diff2html" id="diff2html_3"></div>
 <script>
   document.addEventListener('DOMContentLoaded', function () {
     let diff = String.raw`--- pie/src/store.rs

@@ -320,7 +320,7 @@ However, incrementality is <em>hard</em>, so let's start with an extremely simpl
 <h2 id="context-module"><a class="header" href="#context-module">Context module</a></h2>
 <p>Since we will be implementing three different contexts in this tutorial, we will separate them in different modules.
 Create the <code>context</code> module by adding a module to <code>pie/src/lib.rs</code>:</p>
-<div id="diff2html_0"></div>
+<div class="diff2html" id="diff2html_0"></div>
 <script>
   document.addEventListener('DOMContentLoaded', function () {
     let diff = String.raw`--- pie/src/lib.rs
@@ -439,7 +439,7 @@ It returns the output of the task, which we test with <code>assert_eq!</code>.</
 <p>Run the test by running <code>cargo test</code>.
 The output should look something like:</p>
 <pre><code class="language-shell ">   Compiling pie v0.1.0 (/pie)
-    Finished test [unoptimized + debuginfo] target(s) in 0.44s
+    Finished test [unoptimized + debuginfo] target(s) in 0.47s
      Running unittests src/lib.rs (/pie/target/debug/deps/pie-6c9d55a7ef727e00)
 
 running 1 test
@@ -480,7 +480,7 @@ This macro is typically <a href="https://doc.rust-lang.org/book/ch11-01-writing-
 <h2 id="test-with-multiple-tasks"><a class="header" href="#test-with-multiple-tasks">Test with Multiple Tasks</a></h2>
 <p>Our first test only tests a single task that does not use the context, so let's write a test with two tasks where one requires the other to increase our test coverage.
 Add the following test:</p>
-<div id="diff2html_1"></div>
+<div class="diff2html" id="diff2html_1"></div>
 <script>
   document.addEventListener('DOMContentLoaded', function () {
     let diff = String.raw`--- pie/src/context/non_incremental.rs
@@ -554,7 +554,7 @@ error: could not compile `pie` (lib test) due to previous error
 <p>The problem is that <code>execute</code> of <code>ToLowerCase</code> takes a <code>Context&lt;Self&gt;</code>, so in <code>impl Task for ToLowerCase</code> it takes a <code>Context&lt;ToLowerCase&gt;</code>, while we're trying to require <code>&amp;ReturnHelloWorld</code> through the context.
 This doesn't work as <code>Context&lt;ToLowerCase&gt;::require_task</code> only takes a <code>&amp;ToLowerCase</code> as input.</p>
 <p>We could change <code>execute</code> of <code>ToLowerCase</code> to take <code>Context&lt;ReturnHelloWorld&gt;</code>:</p>
-<div id="diff2html_2"></div>
+<div class="diff2html" id="diff2html_2"></div>
 <script>
   document.addEventListener('DOMContentLoaded', function () {
     let diff = String.raw`--- pie/src/context/non_incremental.rs
@@ -626,7 +626,7 @@ This solution is more feasible, but still introduces a lot of complexity which i
 </details>
 <p>For now, we will solve this by just using a single task type which is an enumeration of the different possible tasks.
 Replace the test with the following:</p>
-<div id="diff2html_3"></div>
+<div class="diff2html" id="diff2html_3"></div>
 <script>
   document.addEventListener('DOMContentLoaded', function () {
     let diff = String.raw`--- original
@@ -752,7 +752,7 @@ To check if a file dependency is consistent, we just stamp the file again and co
 <p>Since build systems frequently interact with files, and changes to files can affect tasks, we need to keep track of file dependencies.
 Therefore, we will extend the <code>Context</code> API with methods to <em>require files</em>, enabling tasks to specify dynamic dependencies to files.</p>
 <p>Add a method to the <code>Context</code> trait in <code>pie/src/lib.rs</code>:</p>
-<div id="diff2html_0"></div>
+<div class="diff2html" id="diff2html_0"></div>
 <script>
   document.addEventListener('DOMContentLoaded', function () {
     let diff = String.raw`--- pie/src/lib.rs
@@ -830,7 +830,7 @@ You can also see this as a kind of method overloading, without having to provide
 <p>Now we need to implement this method for <code>NonIncrementalContext</code>.
 However, because we will be performing similar file system operations in the incremental context as well, we will create some utility functions for this first.</p>
 <p>Add the <code>fs</code> module to <code>pie/src/lib.rs</code>:</p>
-<div id="diff2html_1"></div>
+<div class="diff2html" id="diff2html_1"></div>
 <script>
   document.addEventListener('DOMContentLoaded', function () {
     let diff = String.raw`--- pie/src/lib.rs
@@ -957,7 +957,7 @@ pub fn create_temp_dir() -&gt; Result&lt;TempDir, io::Error&gt; { TempDir::new()
     └── Cargo.toml
 </code></pre>
 <p>To access these utility functions in the <code>pie</code> crate, add a dependency to <code>dev_shared</code> in <code>pie/Cargo.toml</code> along with another create that will help testing:</p>
-<div id="diff2html_2"></div>
+<div class="diff2html" id="diff2html_2"></div>
 <script>
   document.addEventListener('DOMContentLoaded', function () {
     let diff = String.raw`--- pie/Cargo.toml
@@ -1063,7 +1063,7 @@ This allows us to write more concise tests using error propagation.</p>
 </details>
 <p>Now we are done unwinding our stack and have filesystem and testing utilities.
 Make the non-incremental context compatible by changing <code>pie/src/context/non_incremental.rs</code>:</p>
-<div id="diff2html_3"></div>
+<div class="diff2html" id="diff2html_3"></div>
 <script>
   document.addEventListener('DOMContentLoaded', function () {
     let diff = String.raw`--- pie/src/context/non_incremental.rs
@@ -1117,7 +1117,7 @@ To make this consistency checking configurable, we will use stamps.
 A dependency is inconsistent if after stamping, the new stamp is different from the old stamp.
 Therefore, we will implement a <code>FileStamper</code> that stamps files and produces a <code>FileStamp</code>, and an <code>OutputStamper</code> that stamps task outputs and produces an <code>OutputStamp</code>.</p>
 <p>Add the <code>stamp</code> module to <code>pie/src/lib.rs</code>:</p>
-<div id="diff2html_0"></div>
+<div class="diff2html" id="diff2html_0"></div>
 <script>
   document.addEventListener('DOMContentLoaded', function () {
     let diff = String.raw`--- pie/src/lib.rs
@@ -1322,7 +1322,7 @@ Then, our test will fail because the stamp didn't change even though we expect i
 Even worse, our test can be flaky, sometimes succeeding if we write in between those milliseconds, sometimes failing if we write within a millisecond.</p>
 <p>To solve this, add a function to the filesystem testing utility crate.
 Change <code>dev_shared/src/lib.rs</code>:</p>
-<div id="diff2html_1"></div>
+<div class="diff2html" id="diff2html_1"></div>
 <script>
   document.addEventListener('DOMContentLoaded', function () {
     let diff = String.raw`--- dev_shared/src/lib.rs
@@ -1382,7 +1382,7 @@ Change <code>dev_shared/src/lib.rs</code>:</p>
 </script>
 <p>The <code>write_until_modified</code> function writes to the file, but ensures its modified time will change.
 Now change the tests in <code>pie/src/stamp.rs</code> to use this function:</p>
-<div id="diff2html_2"></div>
+<div class="diff2html" id="diff2html_2"></div>
 <script>
   document.addEventListener('DOMContentLoaded', function () {
     let diff = String.raw`--- pie/src/stamp.rs
@@ -1464,7 +1464,7 @@ Run <code>cargo test</code> to confirm the stamp implementation, which should su
 However, stampers are constructed by users of the library that author tasks, and they need to pass in these stampers when creating dependencies.
 Therefore, we need to update the <code>Context</code> trait to allow passing in these stampers.</p>
 <p>Change <code>Context</code> in <code>pie/src/lib.rs</code>:</p>
-<div id="diff2html_3"></div>
+<div class="diff2html" id="diff2html_3"></div>
 <script>
   document.addEventListener('DOMContentLoaded', function () {
     let diff = String.raw`--- pie/src/lib.rs
@@ -1538,7 +1538,7 @@ Therefore, we need to update the <code>Context</code> trait to allow passing in 
 We add a default implementation for <code>require_file</code> that passes in a default stamper.
 The default is provided by <code>default_require_file_stamper</code> which can be overridden by context implementations.</p>
 <p>Now apply the same to tasks, changing <code>Context</code> again in <code>pie/src/lib.rs</code>:</p>
-<div id="diff2html_4"></div>
+<div class="diff2html" id="diff2html_4"></div>
 <script>
   document.addEventListener('DOMContentLoaded', function () {
     let diff = String.raw`--- pie/src/lib.rs
@@ -1575,7 +1575,7 @@ The default is provided by <code>default_require_file_stamper</code> which can b
   });
 </script>
 <p>Update <code>NonIncrementalContext</code> in <code>src/context/non_incremental.rs</code> to implement the new methods:</p>
-<div id="diff2html_5"></div>
+<div class="diff2html" id="diff2html_5"></div>
 <script>
   document.addEventListener('DOMContentLoaded', function () {
     let diff = String.raw`--- pie/src/context/non_incremental.rs
@@ -1633,7 +1633,7 @@ Therefore, dependencies need to keep track of their stamper and their previous s
 To that end, we will implement the <code>FileDependency</code> and <code>TaskDependency</code> types with methods for consistency checking.
 We will also implement a <code>Dependency</code> type that abstracts over <code>FileDependency</code> and <code>TaskDependency</code>, which we will need for the dependency graph implementation in the next chapter.</p>
 <p>Add the <code>dependency</code> module to <code>pie/src/lib.rs</code>:</p>
-<div id="diff2html_0"></div>
+<div class="diff2html" id="diff2html_0"></div>
 <script>
   document.addEventListener('DOMContentLoaded', function () {
     let diff = String.raw`--- pie/src/lib.rs
@@ -1980,7 +1980,7 @@ The implementation in the <code>incremental-topo</code> library is based on a <a
 </div>
 </details>
 <p>Add the <code>pie_graph</code> dependency to <code>pie/Cargo.toml</code>:</p>
-<div id="diff2html_0"></div>
+<div class="diff2html" id="diff2html_0"></div>
 <script>
   document.addEventListener('DOMContentLoaded', function () {
     let diff = String.raw`--- pie/Cargo.toml
@@ -2011,7 +2011,7 @@ The implementation in the <code>incremental-topo</code> library is based on a <a
 </script>
 <h2 id="store-basics"><a class="header" href="#store-basics">Store basics</a></h2>
 <p>Add the <code>store</code> module to <code>pie/src/lib.rs</code>:</p>
-<div id="diff2html_1"></div>
+<div class="diff2html" id="diff2html_1"></div>
 <script>
   document.addEventListener('DOMContentLoaded', function () {
     let diff = String.raw`--- pie/src/lib.rs
@@ -2101,7 +2101,7 @@ We need this for incrementality so that if the build system encounters the same 
 <p>To ensure unique nodes, we need to maintain the reverse mapping from <code>PathBuf</code> and <code>T</code> to <code>Node</code> ourselves, which we will do with <code>HashMap</code>s.
 This is also the reason for the <code>Eq</code> and <code>Hash</code> trait bounds on the <code>Task</code> trait, so we can use them as keys in <code>HashMap</code>s.</p>
 <p>Change <code>pie/src/store.rs</code> to add hash maps to map between these things:</p>
-<div id="diff2html_2"></div>
+<div class="diff2html" id="diff2html_2"></div>
 <script>
   document.addEventListener('DOMContentLoaded', function () {
     let diff = String.raw`--- pie/src/store.rs
@@ -2157,7 +2157,7 @@ This is also the reason for the <code>Eq</code> and <code>Hash</code> trait boun
   });
 </script>
 <p>To prevent accidentally using a file node as a task node, and vice versa, change <code>pie/src/store.rs</code> to add specific types of nodes:</p>
-<div id="diff2html_3"></div>
+<div class="diff2html" id="diff2html_3"></div>
 <script>
   document.addEventListener('DOMContentLoaded', function () {
     let diff = String.raw`--- pie/src/store.rs
@@ -2781,7 +2781,7 @@ Later on we will also see that this is important for soundness of the incrementa
 Now we will create the <code>TopDownContext</code> type which implements the <code>Context</code> trait in an incremental way. </p>
 <h2 id="top-down-context-basics"><a class="header" href="#top-down-context-basics">Top-down context basics</a></h2>
 <p>Add the <code>top_down</code> module to <code>pie/src/context/mod.rs</code>:</p>
-<div id="diff2html_0"></div>
+<div class="diff2html" id="diff2html_0"></div>
 <script>
   document.addEventListener('DOMContentLoaded', function () {
     let diff = String.raw`--- pie/src/context/mod.rs
@@ -2842,7 +2842,7 @@ For incrementality, we need to add this dependency to the dependency graph.
 This dependency will go from the <em>current executing task</em> to the file.
 Therefore, we will need to keep track of the current executing task.</p>
 <p>Change <code>pie/src/context/mod.rs</code> to add a field for tracking the current executing task, and use it in <code>require_file_with_stamper</code>:</p>
-<div id="diff2html_1"></div>
+<div class="diff2html" id="diff2html_1"></div>
 <script>
   document.addEventListener('DOMContentLoaded', function () {
     let diff = String.raw`--- pie/src/context/top_down.rs
@@ -2898,7 +2898,7 @@ Therefore, we will need to keep track of the current executing task.</p>
 In <code>require_file_with_stamper</code> we're now getting the current executing task.
 If there is no current executing task, which only happens if a user directly calls <code>require_file</code> on a context, we don't make a dependency and just open the file.</p>
 <p>Now we need to add the file dependency, change <code>pie/src/context/mod.rs</code> to do this: </p>
-<div id="diff2html_2"></div>
+<div class="diff2html" id="diff2html_2"></div>
 <script>
   document.addEventListener('DOMContentLoaded', function () {
     let diff = String.raw`--- pie/src/context/top_down.rs
@@ -2937,7 +2937,7 @@ Errors are propagated to the caller, so they can react accordingly to filesystem
 A task should be executed either if it's new (it does not have an output stored yet), or if at least one of its dependencies is inconsistent.
 If we don't execute it, then it must have an output value and all its dependencies are consistent, so we just return its output value.</p>
 <p>Change <code>pie/src/context/mod.rs</code> to implement this logic:</p>
-<div id="diff2html_3"></div>
+<div class="diff2html" id="diff2html_3"></div>
 <script>
   document.addEventListener('DOMContentLoaded', function () {
     let diff = String.raw`--- pie/src/context/top_down.rs
@@ -2986,7 +2986,7 @@ Then, we check whether the task should be executed with <code>should_execute_tas
 Otherwise, we get the output of the task from the store, which cannot panic because <code>should_execute_task</code> ensures that the task has an output if it returns false.
 Finally, we return the output.</p>
 <p>We still need to create a task dependency. Change <code>pie/src/context/mod.rs</code> to add the dependency:</p>
-<div id="diff2html_4"></div>
+<div class="diff2html" id="diff2html_4"></div>
 <script>
   document.addEventListener('DOMContentLoaded', function () {
     let diff = String.raw`--- pie/src/context/top_down.rs
@@ -3069,7 +3069,7 @@ Furthermore, some platforms do not have access to threads, such as WASM, where t
 <h2 id="checking-tasks"><a class="header" href="#checking-tasks">Checking tasks</a></h2>
 <p>The final piece to our puzzle is the <code>should_execute_task</code> implementation.</p>
 <p>Add the following code to <code>pie/src/context/top_down.rs</code>:</p>
-<div id="diff2html_5"></div>
+<div class="diff2html" id="diff2html_5"></div>
 <script>
   document.addEventListener('DOMContentLoaded', function () {
     let diff = String.raw`--- pie/src/context/top_down.rs
@@ -3184,7 +3184,7 @@ But this is outside of the scope of even this extra information block, so we'll 
 We've ignored the case where <code>dependency.is_inconsistent</code> returns <code>Err</code>.
 When dependency checking result in an error, we should store the error for the user to investigate, and assume the dependency is inconsistent.</p>
 <p>Change <code>pie/src/context/mod.rs</code> to store dependency check errors and give users access to it:</p>
-<div id="diff2html_6"></div>
+<div class="diff2html" id="diff2html_6"></div>
 <script>
   document.addEventListener('DOMContentLoaded', function () {
     let diff = String.raw`--- pie/src/context/top_down.rs
@@ -3226,7 +3226,7 @@ When dependency checking result in an error, we should store the error for the u
   });
 </script>
 <p>And then change <code>pie/src/context/mod.rs</code> to store these errors:</p>
-<div id="diff2html_7"></div>
+<div class="diff2html" id="diff2html_7"></div>
 <script>
   document.addEventListener('DOMContentLoaded', function () {
     let diff = String.raw`--- pie/src/context/top_down.rs
@@ -3406,7 +3406,7 @@ Run this example with <code>cargo run --example incremental</code>.
 You should see the <code>println!</code> in <code>ReadStringFromFile</code> appear in your console as the incremental context correctly determines that this task is new (i.e., has no output) and must be executed.
 It should look something like:</p>
 <pre><code>   Compiling pie v0.1.0 (/pie)
-    Finished dev [unoptimized + debuginfo] target(s) in 1.38s
+    Finished dev [unoptimized + debuginfo] target(s) in 1.42s
      Running `/pie/target/debug/examples/incremental`
 A) New task: expect `read_task` to execute
 Reading from input.txt with Modified stamper
@@ -3422,7 +3422,7 @@ Reading from input.txt with Modified stamper
 </code></pre>
 <p>Running with <code>cargo run --example incremental</code> should produce output like:</p>
 <pre><code>   Compiling pie v0.1.0 (/pie)
-    Finished dev [unoptimized + debuginfo] target(s) in 0.66s
+    Finished dev [unoptimized + debuginfo] target(s) in 0.69s
      Running `/pie/target/debug/examples/incremental`
 A) New task: expect `read_task` to execute
 Reading from input.txt with Modified stamper
@@ -3575,7 +3575,7 @@ This shows that tasks can depend on the same file with different stampers, which
 <p>Of course, using an <code>Exists</code> stamper for <code>ReadStringFromFile</code> does not make a lot of sense, but this is for demonstration purposes only.</p>
 <p>Running <code>cargo run --example incremental</code> now should produce output like:</p>
 <pre><code>   Compiling pie v0.1.0 (/pie)
-    Finished dev [unoptimized + debuginfo] target(s) in 0.78s
+    Finished dev [unoptimized + debuginfo] target(s) in 0.81s
      Running `/pie/target/debug/examples/incremental`
 A) New task: expect `read_task` to execute
 Reading from input.txt with Modified stamper
@@ -3683,7 +3683,7 @@ Furthermore, it is also an optimisation, as requiring the same task many times o
 <p>We will implement the <code>Session</code> type to hold all session data, and the <code>Pie</code> type as an entry point into the build system that manages a session.</p>
 <h2 id="pie-and-session"><a class="header" href="#pie-and-session">PIE and Session</a></h2>
 <p>Change the imports in <code>pie/src/lib.rs</code>: </p>
-<div id="diff2html_0"></div>
+<div class="diff2html" id="diff2html_0"></div>
 <script>
   document.addEventListener('DOMContentLoaded', function () {
     let diff = String.raw`--- pie/src/lib.rs
@@ -3770,7 +3770,7 @@ We can leave out this lifetime in <code>Pie::new_session</code>, because the com
 <p>Now we need to modify <code>TopDownContext</code> to work with <code>Session</code>.</p>
 <h2 id="update-topdowncontext"><a class="header" href="#update-topdowncontext">Update TopDownContext</a></h2>
 <p>Change <code>TopDownContext</code> to only contain a mutable reference to <code>Session</code> in <code>pie/src/context/top_down.rs</code>:</p>
-<div id="diff2html_1"></div>
+<div class="diff2html" id="diff2html_1"></div>
 <script>
   document.addEventListener('DOMContentLoaded', function () {
     let diff = String.raw`--- pie/src/context/top_down.rs
@@ -3833,7 +3833,7 @@ We add a <code>require_initial</code> convenience method for <code>Session</code
 <p>In the rest of the file, we need to update the <code>impl</code> lines to include the lifetimes, and we need to replace most instances of <code>self</code> with <code>self.session</code>.
 You could do this with the following find-replace regex: <code>self\.([\w\d_]+)\.</code> -&gt; <code>self.session.$1.</code></p>
 <p>Change <code>pie/src/context/top_down.rs</code>:</p>
-<div id="diff2html_2"></div>
+<div class="diff2html" id="diff2html_2"></div>
 <script>
   document.addEventListener('DOMContentLoaded', function () {
     let diff = String.raw`--- pie/src/context/top_down.rs
@@ -3940,7 +3940,7 @@ You could do this with the following find-replace regex: <code>self\.([\w\d_]+)\
 <p>Now we change <code>Session</code> to use <code>TopDownContext</code>. </p>
 <h2 id="update-session"><a class="header" href="#update-session">Update Session</a></h2>
 <p>Change <code>pie/src/lib.rs</code>:</p>
-<div id="diff2html_3"></div>
+<div class="diff2html" id="diff2html_3"></div>
 <script>
   document.addEventListener('DOMContentLoaded', function () {
     let diff = String.raw`--- pie/src/lib.rs
@@ -3973,7 +3973,7 @@ You could do this with the following find-replace regex: <code>self\.([\w\d_]+)\
 Then, we just create a <code>TopDownContext</code> and call <code>require_initial</code>.</p>
 <p>Finally, we can now make the <code>context</code> module private, as users of the library run builds using <code>Session</code>, instead of having to create a context implementation.
 Change <code>pie/src/lib.rs</code>:</p>
-<div id="diff2html_4"></div>
+<div class="diff2html" id="diff2html_4"></div>
 <script>
   document.addEventListener('DOMContentLoaded', function () {
     let diff = String.raw`--- pie/src/lib.rs
@@ -4006,7 +4006,7 @@ This only checks if the library builds, but not any examples.
 We need to update the incrementality example to work with these changes.</p>
 <h2 id="update-incremental-example"><a class="header" href="#update-incremental-example">Update incremental example</a></h2>
 <p>First change some imports in <code>pie/examples/incremental.rs</code>:</p>
-<div id="diff2html_5"></div>
+<div class="diff2html" id="diff2html_5"></div>
 <script>
   document.addEventListener('DOMContentLoaded', function () {
     let diff = String.raw`--- pie/examples/incremental.rs
@@ -4036,7 +4036,7 @@ We need to update the incrementality example to work with these changes.</p>
   });
 </script>
 <p>Then, change <code>pie/examples/incremental.rs</code> to use sessions:</p>
-<div id="diff2html_6"></div>
+<div class="diff2html" id="diff2html_6"></div>
 <script>
   document.addEventListener('DOMContentLoaded', function () {
     let diff = String.raw`--- pie/examples/incremental.rs
@@ -4205,7 +4205,7 @@ In this section, we will change that by tracking build events for debugging and 
 </ol>
 <h2 id="tracker-trait"><a class="header" href="#tracker-trait"><code>Tracker</code> trait</a></h2>
 <p>Add the <code>tracker</code> module to <code>pie/src/lib.rs</code>:</p>
-<div id="diff2html_0"></div>
+<div class="diff2html" id="diff2html_0"></div>
 <script>
   document.addEventListener('DOMContentLoaded', function () {
     let diff = String.raw`--- pie/src/lib.rs
@@ -4311,7 +4311,7 @@ If you care about performance here, be sure to annotate those default empty meth
 <h2 id="using-the-tracker-trait"><a class="header" href="#using-the-tracker-trait">Using the <code>Tracker</code> trait</a></h2>
 <p>Now we will make the build system generic over <code>Tracker</code>, and insert <code>Tracker</code> calls in context implementations.</p>
 <p>Make <code>Pie</code> and <code>Session</code> generic over <code>Tracker</code> by modifying <code>pie/src/lib.rs</code>:</p>
-<div id="diff2html_1"></div>
+<div class="diff2html" id="diff2html_1"></div>
 <script>
   document.addEventListener('DOMContentLoaded', function () {
     let diff = String.raw`--- pie/src/lib.rs
@@ -4446,7 +4446,7 @@ The <code>Default</code> implementation only works with <code>NoopTracker</code>
 For convenience, <code>Session</code> also provides access to the tracker with <code>tracker</code> and <code>tracker_mut</code>.</p>
 <p>Now we make <code>TopDownContext</code> generic over <code>Tracker</code>, and insert calls to tracker methods.
 Modify <code>pie/src/context/top_down.rs</code>:</p>
-<div id="diff2html_2"></div>
+<div class="diff2html" id="diff2html_2"></div>
 <script>
   document.addEventListener('DOMContentLoaded', function () {
     let diff = String.raw`--- pie/src/context/top_down.rs
@@ -4576,7 +4576,7 @@ Existing code should keep working due to the <code>NoopTracker</code> default ty
 <p>Now we can implement some interesting trackers.
 We start with a simple <code>WritingTracker</code> that writes build events to some writer.</p>
 <p>Add the <code>writing</code> module to <code>pie/src/tracker/mod.rs</code>:</p>
-<div id="diff2html_3"></div>
+<div class="diff2html" id="diff2html_3"></div>
 <script>
   document.addEventListener('DOMContentLoaded', function () {
     let diff = String.raw`--- pie/src/tracker/mod.rs
@@ -4728,7 +4728,7 @@ This in turn because <code>TopDownContext</code> does not return <code>Result</c
 But in this tutorial, we will keep it simple like this.</p>
 <p>Check that the code compiles with <code>cargo test</code>.</p>
 <p>Let's try out our writing tracker in the incrementality example by modifying <code>pie/examples/incremental.rs</code>:</p>
-<div id="diff2html_4"></div>
+<div class="diff2html" id="diff2html_4"></div>
 <script>
   document.addEventListener('DOMContentLoaded', function () {
     let diff = String.raw`--- pie/examples/incremental.rs
@@ -4814,7 +4814,7 @@ Now run the example with <code>cargo run --example incremental</code>, and you s
 To check incrementality and soundness, we need to be able to check whether a task has executed or not, and check the order of build events.
 Therefore, we will implement the <code>EventTracker</code> that stores build events for later inspection.</p>
 <p>Add the <code>event</code> module to <code>pie/src/tracker/mod.rs</code>:</p>
-<div id="diff2html_5"></div>
+<div class="diff2html" id="diff2html_5"></div>
 <script>
   document.addEventListener('DOMContentLoaded', function () {
     let diff = String.raw`--- pie/src/tracker/mod.rs

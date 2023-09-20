@@ -181,7 +181,7 @@ To make this consistency checking configurable, we will use stamps.
 A dependency is inconsistent if after stamping, the new stamp is different from the old stamp.
 Therefore, we will implement a <code>FileStamper</code> that stamps files and produces a <code>FileStamp</code>, and an <code>OutputStamper</code> that stamps task outputs and produces an <code>OutputStamp</code>.</p>
 <p>Add the <code>stamp</code> module to <code>pie/src/lib.rs</code>:</p>
-<div id="diff2html_0"></div>
+<div class="diff2html" id="diff2html_0"></div>
 <script>
   document.addEventListener('DOMContentLoaded', function () {
     let diff = String.raw`--- pie/src/lib.rs
@@ -386,7 +386,7 @@ Then, our test will fail because the stamp didn't change even though we expect i
 Even worse, our test can be flaky, sometimes succeeding if we write in between those milliseconds, sometimes failing if we write within a millisecond.</p>
 <p>To solve this, add a function to the filesystem testing utility crate.
 Change <code>dev_shared/src/lib.rs</code>:</p>
-<div id="diff2html_1"></div>
+<div class="diff2html" id="diff2html_1"></div>
 <script>
   document.addEventListener('DOMContentLoaded', function () {
     let diff = String.raw`--- dev_shared/src/lib.rs
@@ -446,7 +446,7 @@ Change <code>dev_shared/src/lib.rs</code>:</p>
 </script>
 <p>The <code>write_until_modified</code> function writes to the file, but ensures its modified time will change.
 Now change the tests in <code>pie/src/stamp.rs</code> to use this function:</p>
-<div id="diff2html_2"></div>
+<div class="diff2html" id="diff2html_2"></div>
 <script>
   document.addEventListener('DOMContentLoaded', function () {
     let diff = String.raw`--- pie/src/stamp.rs
@@ -528,7 +528,7 @@ Run <code>cargo test</code> to confirm the stamp implementation, which should su
 However, stampers are constructed by users of the library that author tasks, and they need to pass in these stampers when creating dependencies.
 Therefore, we need to update the <code>Context</code> trait to allow passing in these stampers.</p>
 <p>Change <code>Context</code> in <code>pie/src/lib.rs</code>:</p>
-<div id="diff2html_3"></div>
+<div class="diff2html" id="diff2html_3"></div>
 <script>
   document.addEventListener('DOMContentLoaded', function () {
     let diff = String.raw`--- pie/src/lib.rs
@@ -602,7 +602,7 @@ Therefore, we need to update the <code>Context</code> trait to allow passing in 
 We add a default implementation for <code>require_file</code> that passes in a default stamper.
 The default is provided by <code>default_require_file_stamper</code> which can be overridden by context implementations.</p>
 <p>Now apply the same to tasks, changing <code>Context</code> again in <code>pie/src/lib.rs</code>:</p>
-<div id="diff2html_4"></div>
+<div class="diff2html" id="diff2html_4"></div>
 <script>
   document.addEventListener('DOMContentLoaded', function () {
     let diff = String.raw`--- pie/src/lib.rs
@@ -639,7 +639,7 @@ The default is provided by <code>default_require_file_stamper</code> which can b
   });
 </script>
 <p>Update <code>NonIncrementalContext</code> in <code>src/context/non_incremental.rs</code> to implement the new methods:</p>
-<div id="diff2html_5"></div>
+<div class="diff2html" id="diff2html_5"></div>
 <script>
   document.addEventListener('DOMContentLoaded', function () {
     let diff = String.raw`--- pie/src/context/non_incremental.rs

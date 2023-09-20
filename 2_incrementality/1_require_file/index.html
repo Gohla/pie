@@ -179,7 +179,7 @@
 <p>Since build systems frequently interact with files, and changes to files can affect tasks, we need to keep track of file dependencies.
 Therefore, we will extend the <code>Context</code> API with methods to <em>require files</em>, enabling tasks to specify dynamic dependencies to files.</p>
 <p>Add a method to the <code>Context</code> trait in <code>pie/src/lib.rs</code>:</p>
-<div id="diff2html_0"></div>
+<div class="diff2html" id="diff2html_0"></div>
 <script>
   document.addEventListener('DOMContentLoaded', function () {
     let diff = String.raw`--- pie/src/lib.rs
@@ -257,7 +257,7 @@ You can also see this as a kind of method overloading, without having to provide
 <p>Now we need to implement this method for <code>NonIncrementalContext</code>.
 However, because we will be performing similar file system operations in the incremental context as well, we will create some utility functions for this first.</p>
 <p>Add the <code>fs</code> module to <code>pie/src/lib.rs</code>:</p>
-<div id="diff2html_1"></div>
+<div class="diff2html" id="diff2html_1"></div>
 <script>
   document.addEventListener('DOMContentLoaded', function () {
     let diff = String.raw`--- pie/src/lib.rs
@@ -384,7 +384,7 @@ pub fn create_temp_dir() -&gt; Result&lt;TempDir, io::Error&gt; { TempDir::new()
     └── Cargo.toml
 </code></pre>
 <p>To access these utility functions in the <code>pie</code> crate, add a dependency to <code>dev_shared</code> in <code>pie/Cargo.toml</code> along with another create that will help testing:</p>
-<div id="diff2html_2"></div>
+<div class="diff2html" id="diff2html_2"></div>
 <script>
   document.addEventListener('DOMContentLoaded', function () {
     let diff = String.raw`--- pie/Cargo.toml
@@ -490,7 +490,7 @@ This allows us to write more concise tests using error propagation.</p>
 </details>
 <p>Now we are done unwinding our stack and have filesystem and testing utilities.
 Make the non-incremental context compatible by changing <code>pie/src/context/non_incremental.rs</code>:</p>
-<div id="diff2html_3"></div>
+<div class="diff2html" id="diff2html_3"></div>
 <script>
   document.addEventListener('DOMContentLoaded', function () {
     let diff = String.raw`--- pie/src/context/non_incremental.rs

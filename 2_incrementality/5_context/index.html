@@ -180,7 +180,7 @@
 Now we will create the <code>TopDownContext</code> type which implements the <code>Context</code> trait in an incremental way. </p>
 <h2 id="top-down-context-basics"><a class="header" href="#top-down-context-basics">Top-down context basics</a></h2>
 <p>Add the <code>top_down</code> module to <code>pie/src/context/mod.rs</code>:</p>
-<div id="diff2html_0"></div>
+<div class="diff2html" id="diff2html_0"></div>
 <script>
   document.addEventListener('DOMContentLoaded', function () {
     let diff = String.raw`--- pie/src/context/mod.rs
@@ -241,7 +241,7 @@ For incrementality, we need to add this dependency to the dependency graph.
 This dependency will go from the <em>current executing task</em> to the file.
 Therefore, we will need to keep track of the current executing task.</p>
 <p>Change <code>pie/src/context/mod.rs</code> to add a field for tracking the current executing task, and use it in <code>require_file_with_stamper</code>:</p>
-<div id="diff2html_1"></div>
+<div class="diff2html" id="diff2html_1"></div>
 <script>
   document.addEventListener('DOMContentLoaded', function () {
     let diff = String.raw`--- pie/src/context/top_down.rs
@@ -297,7 +297,7 @@ Therefore, we will need to keep track of the current executing task.</p>
 In <code>require_file_with_stamper</code> we're now getting the current executing task.
 If there is no current executing task, which only happens if a user directly calls <code>require_file</code> on a context, we don't make a dependency and just open the file.</p>
 <p>Now we need to add the file dependency, change <code>pie/src/context/mod.rs</code> to do this: </p>
-<div id="diff2html_2"></div>
+<div class="diff2html" id="diff2html_2"></div>
 <script>
   document.addEventListener('DOMContentLoaded', function () {
     let diff = String.raw`--- pie/src/context/top_down.rs
@@ -336,7 +336,7 @@ Errors are propagated to the caller, so they can react accordingly to filesystem
 A task should be executed either if it's new (it does not have an output stored yet), or if at least one of its dependencies is inconsistent.
 If we don't execute it, then it must have an output value and all its dependencies are consistent, so we just return its output value.</p>
 <p>Change <code>pie/src/context/mod.rs</code> to implement this logic:</p>
-<div id="diff2html_3"></div>
+<div class="diff2html" id="diff2html_3"></div>
 <script>
   document.addEventListener('DOMContentLoaded', function () {
     let diff = String.raw`--- pie/src/context/top_down.rs
@@ -385,7 +385,7 @@ Then, we check whether the task should be executed with <code>should_execute_tas
 Otherwise, we get the output of the task from the store, which cannot panic because <code>should_execute_task</code> ensures that the task has an output if it returns false.
 Finally, we return the output.</p>
 <p>We still need to create a task dependency. Change <code>pie/src/context/mod.rs</code> to add the dependency:</p>
-<div id="diff2html_4"></div>
+<div class="diff2html" id="diff2html_4"></div>
 <script>
   document.addEventListener('DOMContentLoaded', function () {
     let diff = String.raw`--- pie/src/context/top_down.rs
@@ -468,7 +468,7 @@ Furthermore, some platforms do not have access to threads, such as WASM, where t
 <h2 id="checking-tasks"><a class="header" href="#checking-tasks">Checking tasks</a></h2>
 <p>The final piece to our puzzle is the <code>should_execute_task</code> implementation.</p>
 <p>Add the following code to <code>pie/src/context/top_down.rs</code>:</p>
-<div id="diff2html_5"></div>
+<div class="diff2html" id="diff2html_5"></div>
 <script>
   document.addEventListener('DOMContentLoaded', function () {
     let diff = String.raw`--- pie/src/context/top_down.rs
@@ -583,7 +583,7 @@ But this is outside of the scope of even this extra information block, so we'll 
 We've ignored the case where <code>dependency.is_inconsistent</code> returns <code>Err</code>.
 When dependency checking result in an error, we should store the error for the user to investigate, and assume the dependency is inconsistent.</p>
 <p>Change <code>pie/src/context/mod.rs</code> to store dependency check errors and give users access to it:</p>
-<div id="diff2html_6"></div>
+<div class="diff2html" id="diff2html_6"></div>
 <script>
   document.addEventListener('DOMContentLoaded', function () {
     let diff = String.raw`--- pie/src/context/top_down.rs
@@ -625,7 +625,7 @@ When dependency checking result in an error, we should store the error for the u
   });
 </script>
 <p>And then change <code>pie/src/context/mod.rs</code> to store these errors:</p>
-<div id="diff2html_7"></div>
+<div class="diff2html" id="diff2html_7"></div>
 <script>
   document.addEventListener('DOMContentLoaded', function () {
     let diff = String.raw`--- pie/src/context/top_down.rs
@@ -805,7 +805,7 @@ Run this example with <code>cargo run --example incremental</code>.
 You should see the <code>println!</code> in <code>ReadStringFromFile</code> appear in your console as the incremental context correctly determines that this task is new (i.e., has no output) and must be executed.
 It should look something like:</p>
 <pre><code>   Compiling pie v0.1.0 (/pie)
-    Finished dev [unoptimized + debuginfo] target(s) in 1.38s
+    Finished dev [unoptimized + debuginfo] target(s) in 1.42s
      Running `/pie/target/debug/examples/incremental`
 A) New task: expect `read_task` to execute
 Reading from input.txt with Modified stamper
@@ -821,7 +821,7 @@ Reading from input.txt with Modified stamper
 </code></pre>
 <p>Running with <code>cargo run --example incremental</code> should produce output like:</p>
 <pre><code>   Compiling pie v0.1.0 (/pie)
-    Finished dev [unoptimized + debuginfo] target(s) in 0.66s
+    Finished dev [unoptimized + debuginfo] target(s) in 0.69s
      Running `/pie/target/debug/examples/incremental`
 A) New task: expect `read_task` to execute
 Reading from input.txt with Modified stamper
@@ -974,7 +974,7 @@ This shows that tasks can depend on the same file with different stampers, which
 <p>Of course, using an <code>Exists</code> stamper for <code>ReadStringFromFile</code> does not make a lot of sense, but this is for demonstration purposes only.</p>
 <p>Running <code>cargo run --example incremental</code> now should produce output like:</p>
 <pre><code>   Compiling pie v0.1.0 (/pie)
-    Finished dev [unoptimized + debuginfo] target(s) in 0.78s
+    Finished dev [unoptimized + debuginfo] target(s) in 0.81s
      Running `/pie/target/debug/examples/incremental`
 A) New task: expect `read_task` to execute
 Reading from input.txt with Modified stamper

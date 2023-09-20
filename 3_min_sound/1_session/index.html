@@ -189,7 +189,7 @@ Furthermore, it is also an optimisation, as requiring the same task many times o
 <p>We will implement the <code>Session</code> type to hold all session data, and the <code>Pie</code> type as an entry point into the build system that manages a session.</p>
 <h2 id="pie-and-session"><a class="header" href="#pie-and-session">PIE and Session</a></h2>
 <p>Change the imports in <code>pie/src/lib.rs</code>: </p>
-<div id="diff2html_0"></div>
+<div class="diff2html" id="diff2html_0"></div>
 <script>
   document.addEventListener('DOMContentLoaded', function () {
     let diff = String.raw`--- pie/src/lib.rs
@@ -276,7 +276,7 @@ We can leave out this lifetime in <code>Pie::new_session</code>, because the com
 <p>Now we need to modify <code>TopDownContext</code> to work with <code>Session</code>.</p>
 <h2 id="update-topdowncontext"><a class="header" href="#update-topdowncontext">Update TopDownContext</a></h2>
 <p>Change <code>TopDownContext</code> to only contain a mutable reference to <code>Session</code> in <code>pie/src/context/top_down.rs</code>:</p>
-<div id="diff2html_1"></div>
+<div class="diff2html" id="diff2html_1"></div>
 <script>
   document.addEventListener('DOMContentLoaded', function () {
     let diff = String.raw`--- pie/src/context/top_down.rs
@@ -339,7 +339,7 @@ We add a <code>require_initial</code> convenience method for <code>Session</code
 <p>In the rest of the file, we need to update the <code>impl</code> lines to include the lifetimes, and we need to replace most instances of <code>self</code> with <code>self.session</code>.
 You could do this with the following find-replace regex: <code>self\.([\w\d_]+)\.</code> -&gt; <code>self.session.$1.</code></p>
 <p>Change <code>pie/src/context/top_down.rs</code>:</p>
-<div id="diff2html_2"></div>
+<div class="diff2html" id="diff2html_2"></div>
 <script>
   document.addEventListener('DOMContentLoaded', function () {
     let diff = String.raw`--- pie/src/context/top_down.rs
@@ -446,7 +446,7 @@ You could do this with the following find-replace regex: <code>self\.([\w\d_]+)\
 <p>Now we change <code>Session</code> to use <code>TopDownContext</code>. </p>
 <h2 id="update-session"><a class="header" href="#update-session">Update Session</a></h2>
 <p>Change <code>pie/src/lib.rs</code>:</p>
-<div id="diff2html_3"></div>
+<div class="diff2html" id="diff2html_3"></div>
 <script>
   document.addEventListener('DOMContentLoaded', function () {
     let diff = String.raw`--- pie/src/lib.rs
@@ -479,7 +479,7 @@ You could do this with the following find-replace regex: <code>self\.([\w\d_]+)\
 Then, we just create a <code>TopDownContext</code> and call <code>require_initial</code>.</p>
 <p>Finally, we can now make the <code>context</code> module private, as users of the library run builds using <code>Session</code>, instead of having to create a context implementation.
 Change <code>pie/src/lib.rs</code>:</p>
-<div id="diff2html_4"></div>
+<div class="diff2html" id="diff2html_4"></div>
 <script>
   document.addEventListener('DOMContentLoaded', function () {
     let diff = String.raw`--- pie/src/lib.rs
@@ -512,7 +512,7 @@ This only checks if the library builds, but not any examples.
 We need to update the incrementality example to work with these changes.</p>
 <h2 id="update-incremental-example"><a class="header" href="#update-incremental-example">Update incremental example</a></h2>
 <p>First change some imports in <code>pie/examples/incremental.rs</code>:</p>
-<div id="diff2html_5"></div>
+<div class="diff2html" id="diff2html_5"></div>
 <script>
   document.addEventListener('DOMContentLoaded', function () {
     let diff = String.raw`--- pie/examples/incremental.rs
@@ -542,7 +542,7 @@ We need to update the incrementality example to work with these changes.</p>
   });
 </script>
 <p>Then, change <code>pie/examples/incremental.rs</code> to use sessions:</p>
-<div id="diff2html_6"></div>
+<div class="diff2html" id="diff2html_6"></div>
 <script>
   document.addEventListener('DOMContentLoaded', function () {
     let diff = String.raw`--- pie/examples/incremental.rs

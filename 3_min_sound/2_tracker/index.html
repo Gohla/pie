@@ -189,7 +189,7 @@ In this section, we will change that by tracking build events for debugging and 
 </ol>
 <h2 id="tracker-trait"><a class="header" href="#tracker-trait"><code>Tracker</code> trait</a></h2>
 <p>Add the <code>tracker</code> module to <code>pie/src/lib.rs</code>:</p>
-<div id="diff2html_0"></div>
+<div class="diff2html" id="diff2html_0"></div>
 <script>
   document.addEventListener('DOMContentLoaded', function () {
     let diff = String.raw`--- pie/src/lib.rs
@@ -295,7 +295,7 @@ If you care about performance here, be sure to annotate those default empty meth
 <h2 id="using-the-tracker-trait"><a class="header" href="#using-the-tracker-trait">Using the <code>Tracker</code> trait</a></h2>
 <p>Now we will make the build system generic over <code>Tracker</code>, and insert <code>Tracker</code> calls in context implementations.</p>
 <p>Make <code>Pie</code> and <code>Session</code> generic over <code>Tracker</code> by modifying <code>pie/src/lib.rs</code>:</p>
-<div id="diff2html_1"></div>
+<div class="diff2html" id="diff2html_1"></div>
 <script>
   document.addEventListener('DOMContentLoaded', function () {
     let diff = String.raw`--- pie/src/lib.rs
@@ -430,7 +430,7 @@ The <code>Default</code> implementation only works with <code>NoopTracker</code>
 For convenience, <code>Session</code> also provides access to the tracker with <code>tracker</code> and <code>tracker_mut</code>.</p>
 <p>Now we make <code>TopDownContext</code> generic over <code>Tracker</code>, and insert calls to tracker methods.
 Modify <code>pie/src/context/top_down.rs</code>:</p>
-<div id="diff2html_2"></div>
+<div class="diff2html" id="diff2html_2"></div>
 <script>
   document.addEventListener('DOMContentLoaded', function () {
     let diff = String.raw`--- pie/src/context/top_down.rs
@@ -560,7 +560,7 @@ Existing code should keep working due to the <code>NoopTracker</code> default ty
 <p>Now we can implement some interesting trackers.
 We start with a simple <code>WritingTracker</code> that writes build events to some writer.</p>
 <p>Add the <code>writing</code> module to <code>pie/src/tracker/mod.rs</code>:</p>
-<div id="diff2html_3"></div>
+<div class="diff2html" id="diff2html_3"></div>
 <script>
   document.addEventListener('DOMContentLoaded', function () {
     let diff = String.raw`--- pie/src/tracker/mod.rs
@@ -712,7 +712,7 @@ This in turn because <code>TopDownContext</code> does not return <code>Result</c
 But in this tutorial, we will keep it simple like this.</p>
 <p>Check that the code compiles with <code>cargo test</code>.</p>
 <p>Let's try out our writing tracker in the incrementality example by modifying <code>pie/examples/incremental.rs</code>:</p>
-<div id="diff2html_4"></div>
+<div class="diff2html" id="diff2html_4"></div>
 <script>
   document.addEventListener('DOMContentLoaded', function () {
     let diff = String.raw`--- pie/examples/incremental.rs
@@ -798,7 +798,7 @@ Now run the example with <code>cargo run --example incremental</code>, and you s
 To check incrementality and soundness, we need to be able to check whether a task has executed or not, and check the order of build events.
 Therefore, we will implement the <code>EventTracker</code> that stores build events for later inspection.</p>
 <p>Add the <code>event</code> module to <code>pie/src/tracker/mod.rs</code>:</p>
-<div id="diff2html_5"></div>
+<div class="diff2html" id="diff2html_5"></div>
 <script>
   document.addEventListener('DOMContentLoaded', function () {
     let diff = String.raw`--- pie/src/tracker/mod.rs
