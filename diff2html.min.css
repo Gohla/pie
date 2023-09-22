@@ -107,6 +107,8 @@
   font-family: var(--mono-font);
   font-size: var(--code-font-size);
   width: 100%;
+  /* CHANGE: add overflow: hidden to remove empty white space on the right */
+  overflow: hidden;
 }
 
 /* CHANGE: Reset table padding to 0 */
@@ -138,8 +140,9 @@ table.d2h-diff-table td, th {
 }
 
 .d2h-code-line {
-  padding: 0 8em;
-  width: calc(100% - 16em)
+  /* CHANGE: remove excessive padding on the right, adjust width calc */
+  padding: 0 0.5em 0 8em;
+  width: calc(100% - 8.5em)
 }
 
 .d2h-code-line, .d2h-code-side-line {
@@ -152,8 +155,9 @@ table.d2h-diff-table td, th {
 }
 
 .d2h-code-side-line {
-  padding: 0 4.5em;
-  width: calc(100% - 9em)
+  /* CHANGE: remove excessive padding on the right, adjust width calc */
+  padding: 0 0.5em 0 4.5em;
+  width: calc(100% - 5.0em)
 }
 
 .d2h-code-line-ctn {
