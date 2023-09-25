@@ -12,6 +12,7 @@
 - [Minimality and Soundness](./3_min_sound/index.md)
   - [Minimality with Sessions](./3_min_sound/1_session/index.md)
   - [Tracking Build Events](./3_min_sound/2_tracker/index.md)
+  - [Integration Testing](./3_min_sound/3_test/index.md)
   - [Prevent Overlapping File Writes]()
   - [Prevent Hidden Dependencies]()
   - [Prevent Cycles]()

@@ -36,9 +36,10 @@ We will continue as follows:
 
 1) Introduce sessions and change the API to work with sessions: `Session` type for performing builds in a session, and the `Pie` type as the entry point that manages sessions.
 2) Create infrastructure to track build events for testing and debugging purposes. Create the `Tracker` trait, and implement a `WritingTracker` for debugging and `EventTracker` for testing.
-3) Find a soundness hole where multiple tasks write to the same file. Fix it by tracking file write dependencies separately from read dependencies, and catch these mistakes with dynamic verification.
-4) Find a soundness hole where a task reads from a file before another task writes to it. Fix it by catching these mistakes with dynamic verification.
-5) Find a soundness hole where cyclic task execution can still occur. Fix it by changing how task dependencies are stored.
+3) Create integration tests that test incrementality and soundness.
+4) Find a soundness hole where multiple tasks write to the same file. Fix it by tracking file write dependencies separately from read dependencies, and catch these mistakes with dynamic verification.
+5) Find a soundness hole where a task reads from a file before another task writes to it. Fix it by catching these mistakes with dynamic verification.
+6) Find a soundness hole where cyclic task execution can still occur. Fix it by changing how task dependencies are stored.
 
 ```admonish info title="Proving minimality and soundness?" collapsible=true
 While proving minimality and soundness would be a very interesting exercise, I am not at all an expert in formal proofs in proof assistants such as [Coq](https://coq.inria.fr/), [Agda](https://wiki.portal.chalmers.se/agda/pmwiki.php), etc.
