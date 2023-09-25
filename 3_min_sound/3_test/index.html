@@ -1,0 +1,372 @@
+<!DOCTYPE HTML>
+<html lang="en" class="sidebar-visible no-js light">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Integration Testing - Build your own Programmatic Incremental Build System</title>
+
+
+        <!-- Custom HTML head -->
+        
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff" />
+
+        <link rel="icon" href="../../favicon.svg">
+        <link rel="shortcut icon" href="../../favicon.png">
+        <link rel="stylesheet" href="../../css/variables.css">
+        <link rel="stylesheet" href="../../css/general.css">
+        <link rel="stylesheet" href="../../css/chrome.css">
+        <link rel="stylesheet" href="../../css/print.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="../../FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="../../fonts/fonts.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" href="../../highlight.css">
+        <link rel="stylesheet" href="../../tomorrow-night.css">
+        <link rel="stylesheet" href="../../ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+        <link rel="stylesheet" href="../../src/diff2html.min.css">
+        <link rel="stylesheet" href="../../src/mdbook-admonish.css">
+
+    </head>
+    <body>
+    <div id="body-container">
+        <!-- Provide site root to javascript -->
+        <script>
+            var path_to_root = "../../";
+            var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "navy" : "light";
+        </script>
+
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                var theme = localStorage.getItem('mdbook-theme');
+                var sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            var theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            var html = document.querySelector('html');
+            html.classList.remove('no-js')
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add('js');
+        </script>
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            var html = document.querySelector('html');
+            var sidebar = null;
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+            }
+            html.classList.remove('sidebar-visible');
+            html.classList.add("sidebar-" + sidebar);
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <div class="sidebar-scrollbox">
+                <ol class="chapter"><li class="chapter-item expanded "><div><strong aria-hidden="true">1.</strong> Introduction</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">2.</strong> Programmability</div></li><li><ol class="section"><li class="chapter-item expanded "><a href="../../1_programmability/0_setup/index.html"><strong aria-hidden="true">2.1.</strong> Setup</a></li><li class="chapter-item expanded "><a href="../../1_programmability/1_api/index.html"><strong aria-hidden="true">2.2.</strong> Programmable Build System API</a></li><li class="chapter-item expanded "><a href="../../1_programmability/2_non_incremental/index.html"><strong aria-hidden="true">2.3.</strong> Non-Incremental Context</a></li></ol></li><li class="chapter-item expanded "><a href="../../2_incrementality/index.html"><strong aria-hidden="true">3.</strong> Incrementality</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../../2_incrementality/1_require_file/index.html"><strong aria-hidden="true">3.1.</strong> Requiring Files</a></li><li class="chapter-item expanded "><a href="../../2_incrementality/2_stamp/index.html"><strong aria-hidden="true">3.2.</strong> Stamps</a></li><li class="chapter-item expanded "><a href="../../2_incrementality/3_dependency/index.html"><strong aria-hidden="true">3.3.</strong> Dynamic Dependencies</a></li><li class="chapter-item expanded "><a href="../../2_incrementality/4_store/index.html"><strong aria-hidden="true">3.4.</strong> Dependency Graph Store</a></li><li class="chapter-item expanded "><a href="../../2_incrementality/5_context/index.html"><strong aria-hidden="true">3.5.</strong> Incremental Top-Down Context</a></li></ol></li><li class="chapter-item expanded "><a href="../../3_min_sound/index.html"><strong aria-hidden="true">4.</strong> Minimality and Soundness</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../../3_min_sound/1_session/index.html"><strong aria-hidden="true">4.1.</strong> Minimality with Sessions</a></li><li class="chapter-item expanded "><a href="../../3_min_sound/2_tracker/index.html"><strong aria-hidden="true">4.2.</strong> Tracking Build Events</a></li><li class="chapter-item expanded "><a href="../../3_min_sound/3_test/index.html" class="active"><strong aria-hidden="true">4.3.</strong> Integration Testing</a></li><li class="chapter-item expanded "><div><strong aria-hidden="true">4.4.</strong> Prevent Overlapping File Writes</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">4.5.</strong> Prevent Hidden Dependencies</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">4.6.</strong> Prevent Cycles</div></li></ol></li><li class="chapter-item expanded "><div><strong aria-hidden="true">5.</strong> Improvements</div></li><li><ol class="section"><li class="chapter-item expanded "><div><strong aria-hidden="true">5.1.</strong> Serialization</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">5.2.</strong> More Stampers</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">5.3.</strong> Configurable Hashing</div></li></ol></li><li class="chapter-item expanded "><div><strong aria-hidden="true">6.</strong> Efficiency</div></li><li><ol class="section"><li class="chapter-item expanded "><div><strong aria-hidden="true">6.1.</strong> Incremental Bottom-Up Context</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">6.2.</strong> Observability</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">6.3.</strong> Deferred Tasks</div></li></ol></li><li class="chapter-item expanded "><li class="part-title">Appendix</li><li class="chapter-item expanded "><div><strong aria-hidden="true">7.</strong> Multiple Task Types</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">8.</strong> On Static Dependencies</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">9.</strong> On Declarativity</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">10.</strong> Related Work</div></li></ol>
+            </div>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
+        </nav>
+
+        <!-- Track and set sidebar scroll position -->
+        <script>
+            var sidebarScrollbox = document.querySelector('#sidebar .sidebar-scrollbox');
+            sidebarScrollbox.addEventListener('click', function(e) {
+                if (e.target.tagName === 'A') {
+                    sessionStorage.setItem('sidebar-scroll', sidebarScrollbox.scrollTop);
+                }
+            }, { passive: true });
+            var sidebarScrollTop = sessionStorage.getItem('sidebar-scroll');
+            sessionStorage.removeItem('sidebar-scroll');
+            if (sidebarScrollTop) {
+                // preserve sidebar scroll position when navigating via links within sidebar
+                sidebarScrollbox.scrollTop = sidebarScrollTop;
+            } else {
+                // scroll sidebar to current active section when navigating via "next/previous chapter" buttons
+                var activeSection = document.querySelector('#sidebar .active');
+                if (activeSection) {
+                    activeSection.scrollIntoView({ block: 'center' });
+                }
+            }
+        </script>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <button id="sidebar-toggle" class="icon-button" type="button" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </button>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light</button></li>
+<!-- CHANGE: removed all but light and ayu theme, and renamed ayu to dark -->                          
+<!--                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>-->
+<!--                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>-->
+<!--                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>-->
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Dark</button></li>
+                        </ul>
+                        <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">Build your own Programmatic Incremental Build System</h1>
+
+                    <div class="right-buttons">
+                        <a href="../../print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+                        <a href="https://github.com/Gohla/pie/" title="Git repository" aria-label="Git repository">
+                            <i id="git-repository-button" class="fa fa-github"></i>
+                        </a>
+                        <a href="https://github.com/Gohla/pie/edit/master/tutorial/src/3_min_sound/3_test/index.md" title="Suggest an edit" aria-label="Suggest an edit">
+                            <i id="git-edit-button" class="fa fa-edit"></i>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h1 id="integration-testing"><a class="header" href="#integration-testing">Integration Testing</a></h1>
+<h2 id="testing-utilities"><a class="header" href="#testing-utilities">Testing utilities</a></h2>
+<p>First we start by adding testing utilities (it never ends, does it?) that will make writing integration tests more convenient.
+Unfortunately, we can't use <code>dev_shared</code> for this, as we would need to add a dependency to from <code>dev_shared</code> to <code>pie</code>, resulting in a dependency cycle because <code>pie</code> depends on <code>dev_shared</code>.</p>
+<details id="admonition-development-dependency-cycle" class="admonition info">
+<summary class="admonition-title">
+<p>Development dependency cycle</p>
+<p><a class="admonition-anchor-link" href="#admonition-development-dependency-cycle"></a></p>
+</summary>
+<div>
+<p>If you would create this cycle, the code would still compile, but there would be 2 different instances of <code>pie</code> at the same time: one with unit testing enabled (<code>#[cfg(test)]</code>), and one without.
+Even though these libraries are very similar, they are effectively 2 completely different libraries.
+When <code>pie</code> uses code from <code>dev_shared</code> that depends again on <code>pie</code>, then there will be errors about types and traits not matching.</p>
+<p>This is <a href="https://github.com/rust-lang/cargo/issues/6765">probably a bug in cargo</a>, or at least undesired behaviour. 
+It should allow this cycle and make it work correctly, or disallow it.</p>
+</div>
+</details>
+<p>We will put the utilities in a <code>common.rs</code> file and use that as a module in integration tests.
+Create the <code>pie/src/tests</code> directory and create the <code>pie/src/tests/common.rs</code> file, and add to it:</p>
+<pre><code class="language-rust ">use std::io::{BufWriter, ErrorKind, Stdout};
+
+use pie::{Context, Pie, Task};
+use pie::tracker::CompositeTracker;
+use pie::tracker::event::EventTracker;
+use pie::tracker::writing::WritingTracker;
+
+/// Testing tracker composed of an [`EventTracker`] for testing and stdout [`WritingTracker`] for debugging.
+pub type TestTracker&lt;T&gt; = CompositeTracker&lt;EventTracker&lt;T, &lt;T as Task&gt;::Output&gt;, WritingTracker&lt;BufWriter&lt;Stdout&gt;&gt;&gt;;
+pub fn test_tracker&lt;T: Task&gt;() -&gt; TestTracker&lt;T&gt; {
+  CompositeTracker(EventTracker::default(), WritingTracker::with_stdout())
+}
+
+/// Testing [`Pie`] using [`TestTracker`].
+pub type TestPie&lt;T&gt; = Pie&lt;T, &lt;T as Task&gt;::Output, TestTracker&lt;T&gt;&gt;;
+pub fn test_pie&lt;T: Task&gt;() -&gt; TestPie&lt;T&gt; {
+  TestPie::with_tracker(test_tracker())
+}</code></pre>
+<p>These are just types and functions to create <code>TestPie</code> instances, which are <code>Pie</code> instances using <code>CompositeTracker&lt;EventTracker, WritingTracker&gt;</code> as tracker, where the writing tracker will write to standard output.</p>
+<p>Add the following to <code>pie/src/tests/common.rs</code>:</p>
+<pre><code class="language-rust ">/// Testing extensions for [`TestPie`].
+pub trait TestPieExt&lt;T: Task&gt; {
+  /// Require `task` in a new session, assert that there are no dependency check errors, then runs `test_assert_func`
+  /// on the event tracker for test assertion purposes.
+  fn require_then_assert(
+    &amp;mut self,
+    task: &amp;T,
+    test_assert_func: impl FnOnce(&amp;EventTracker&lt;T, T::Output&gt;),
+  ) -&gt; T::Output;
+}
+impl&lt;T: Task&gt; TestPieExt&lt;T&gt; for TestPie&lt;T&gt; {
+  fn require_then_assert(&amp;mut self, task: &amp;T, test_assert_func: impl FnOnce(&amp;EventTracker&lt;T, T::Output&gt;)) -&gt; T::Output {
+    let mut session = self.new_session();
+    let output = session.require(task);
+    assert!(session.dependency_check_errors().is_empty(), &quot;expected no dependency checking errors, but there are \
+    dependency checking errors: {:?}&quot;, session.dependency_check_errors());
+    test_assert_func(&amp;self.tracker().0);
+    output
+  }
+}</code></pre>
+<p>We define an extension trait <code>TestPieExt</code> with a <code>require_then_assert</code> method, which requires a task in a new session, asserts that there are no dependency check errors, and then gives us the opportunity to perform additional assertions via a function that gives access to <code>EventTracker</code>.
+This is very convenient for integration testing, as most tests will follow the pattern of requiring a task and then asserting properties.
+We implement <code>TestPieExt</code> for <code>TestPie</code> so that we can call <code>require_then_assert</code> on any <code>TestPie</code> instance.</p>
+<details id="admonition-extension-trait" class="admonition info">
+<summary class="admonition-title">
+<p>Extension trait</p>
+<p><a class="admonition-anchor-link" href="#admonition-extension-trait"></a></p>
+</summary>
+<div>
+<p>Extension traits are a pattern in Rust where we can add methods to an existing type via an extension trait and an implementation of the extension trait for the existing type.</p>
+</div>
+</details>
+<p>We still need to define a task for testing.
+Add the following to <code>pie/src/tests/common.rs</code>:</p>
+<pre><code class="language-rust ">/// Testing tasks enumeration.
+#[derive(Clone, Eq, PartialEq, Hash, Debug)]
+pub enum TestTask {
+  StringConstant(&amp;'static str),
+}
+impl Task for TestTask {
+  type Output = Result&lt;TestOutput, ErrorKind&gt;;
+  fn execute&lt;C: Context&lt;Self&gt;&gt;(&amp;self, context: &amp;mut C) -&gt; Self::Output {
+    match self {
+      TestTask::StringConstant(string) =&gt; Ok(string.to_string().into()),
+    }
+  }
+}
+
+/// [`TestTask`] output enumeration.
+#[derive(Clone, Eq, PartialEq, Hash, Debug)]
+pub enum TestOutput {
+  String(String),
+}
+impl From&lt;String&gt; for TestOutput {
+  fn from(value: String) -&gt; Self { Self::String(value) }
+}
+impl TestOutput {
+  pub fn as_str(&amp;self) -&gt; &amp;str {
+    match self {
+      Self::String(s) =&gt; &amp;s,
+    }
+  }
+}</code></pre>
+<p>We define a <code>TestTask</code> enumeration containing all testing tasks, which for now is just a <code>StringConstant</code> task that returns a string, and implement <code>Task</code> for it.
+The <code>Output</code> for <code>TestTask</code> is <code>Result&lt;TestOutput, ErrorKind&gt;</code> so that we can propagate IO errors.</p>
+<p><code>TestOutput</code> enumerates all possible outputs for <code>TestTask</code>, which for now is just a <code>String</code>.
+We implement <code>From&lt;String&gt;</code> for <code>TestOutput</code> so we can easily convert <code>String</code>s into <code>TestOutput</code>. 
+<code>as_str</code> performs the opposite operation.</p>
+<p>Check that the code compiles with <code>cargo test</code>.</p>
+<h2 id="first-integration-test"><a class="header" href="#first-integration-test">First integration test</a></h2>
+<p>Now we're ready to test incrementality and soundness of the top-down incremental context through integration tests.
+Create the <code>pie/src/tests/top_down.rs</code> file and add to it:</p>
+<pre><code class="language-rust ">use std::io;
+
+use assert_matches::assert_matches;
+
+use pie::tracker::event::Event::*;
+
+use crate::common::{test_pie, TestPieExt, TestTask::*};
+
+#[path = &quot;common.rs&quot;]
+mod common;
+
+#[test]
+fn test_execution() -&gt; Result&lt;(), io::Error&gt; {
+  let mut pie = test_pie();
+  let task = StringConstant(&quot;Hello, World!&quot;);
+  let output = pie.require_then_assert(&amp;task, |tracker| {
+    let events = tracker.slice();
+    assert_matches!(events.get(0), Some(RequireTask { task: t, .. }) if t == &amp;task);
+    assert_matches!(events.get(1), Some(Execute { task: t }) if t == &amp;task);
+    assert_matches!(events.get(2), Some(Executed { task: t, .. }) if t == &amp;task);
+    assert_matches!(events.get(3), Some(RequiredTask { task: t, .. }) if t == &amp;task);
+  })?;
+  assert_eq!(output.as_str(), &quot;Hello, World!&quot;);
+  Ok(())
+}</code></pre>
+<p>In this first <code>test_execution</code> test we are just making sure that new tasks are executed, assert that the order of operations is correct, and check the task output.
+We use <code>require_then_assert</code> to require the task and then perform assertions through a closure.
+We're using <code>tracker.slice()</code> to get a slice of all build events, and assert (using <a href="https://docs.rs/assert_matches/latest/assert_matches/macro.assert_matches.html"><code>assert_matches!</code></a> again) that the following operations happen in order:</p>
+<ul>
+<li>require <code>task</code>,</li>
+<li>execute <code>task</code>,</li>
+<li>have executed <code>task</code>,</li>
+<li>have required <code>task</code>.</li>
+</ul>
+<p><code>require_then_assert</code> returns the output of the task, which is a <code>Result</code>, so we first propagate the error with <code>?</code>.
+Finally, we assert that the output equals what we expect.</p>
+<p>Check that this test succeeds with <code>cargo test</code>.</p>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="../../3_min_sound/2_tracker/index.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="../../3_min_sound/2_tracker/index.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+
+            </nav>
+
+        </div>
+
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="../../elasticlunr.min.js"></script>
+        <script src="../../mark.min.js"></script>
+        <script src="../../searcher.js"></script>
+
+        <script src="../../clipboard.min.js"></script>
+        <script src="../../highlight.js"></script>
+        <script src="../../book.js"></script>
+
+        <!-- Custom JS scripts -->
+        <script src="../../src/diff2html-ui-base.min.js"></script>
+
+
+    </div>
+    </body>
+</html>

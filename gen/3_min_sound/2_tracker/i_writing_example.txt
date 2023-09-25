@@ -1,53 +1,53 @@
    Compiling pie v0.1.0 (/pie)
-    Finished dev [unoptimized + debuginfo] target(s) in 0.60s
+    Finished dev [unoptimized + debuginfo] target(s) in 0.66s
      Running `/pie/target/debug/examples/incremental`
 A) New task: expect `read_task` to execute
-→ ReadStringFromFile(ReadStringFromFile("/tmp/.tmp0WwMAD/input.txt", Modified))
+→ ReadStringFromFile(ReadStringFromFile("/tmp/.tmpM6Llt1/input.txt", Modified))
 ← Ok("Hi")
 
 B) Reuse: expect no execution
-✓ ReadStringFromFile(ReadStringFromFile("/tmp/.tmp0WwMAD/input.txt", Modified))
+✓ ReadStringFromFile(ReadStringFromFile("/tmp/.tmpM6Llt1/input.txt", Modified))
 
 C) Inconsistent file dependency: expect `read_task` to execute
-→ ReadStringFromFile(ReadStringFromFile("/tmp/.tmp0WwMAD/input.txt", Modified))
+→ ReadStringFromFile(ReadStringFromFile("/tmp/.tmpM6Llt1/input.txt", Modified))
 ← Ok("Hello")
 
 D) New task, reuse other: expect only `write_task` to execute
-→ WriteStringToFile(WriteStringToFile(ReadStringFromFile(ReadStringFromFile("/tmp/.tmp0WwMAD/input.txt", Modified)), "/tmp/.tmp0WwMAD/output.txt", Modified))
- ✓ ReadStringFromFile(ReadStringFromFile("/tmp/.tmp0WwMAD/input.txt", Modified))
+→ WriteStringToFile(WriteStringToFile(ReadStringFromFile(ReadStringFromFile("/tmp/.tmpM6Llt1/input.txt", Modified)), "/tmp/.tmpM6Llt1/output.txt", Modified))
+ ✓ ReadStringFromFile(ReadStringFromFile("/tmp/.tmpM6Llt1/input.txt", Modified))
 ← Ok("")
 
 E) Inconsistent file and task dependency: expect both tasks to execute
-→ ReadStringFromFile(ReadStringFromFile("/tmp/.tmp0WwMAD/input.txt", Modified))
+→ ReadStringFromFile(ReadStringFromFile("/tmp/.tmpM6Llt1/input.txt", Modified))
 ← Ok("Hello, World!")
-→ WriteStringToFile(WriteStringToFile(ReadStringFromFile(ReadStringFromFile("/tmp/.tmp0WwMAD/input.txt", Modified)), "/tmp/.tmp0WwMAD/output.txt", Modified))
- ✓ ReadStringFromFile(ReadStringFromFile("/tmp/.tmp0WwMAD/input.txt", Modified))
+→ WriteStringToFile(WriteStringToFile(ReadStringFromFile(ReadStringFromFile("/tmp/.tmpM6Llt1/input.txt", Modified)), "/tmp/.tmpM6Llt1/output.txt", Modified))
+ ✓ ReadStringFromFile(ReadStringFromFile("/tmp/.tmpM6Llt1/input.txt", Modified))
 ← Ok("")
 
 F) Early cutoff: expect only `read_task` to execute
-→ ReadStringFromFile(ReadStringFromFile("/tmp/.tmp0WwMAD/input.txt", Modified))
+→ ReadStringFromFile(ReadStringFromFile("/tmp/.tmpM6Llt1/input.txt", Modified))
 ← Ok("Hello, World!")
-✓ WriteStringToFile(WriteStringToFile(ReadStringFromFile(ReadStringFromFile("/tmp/.tmp0WwMAD/input.txt", Modified)), "/tmp/.tmp0WwMAD/output.txt", Modified))
+✓ WriteStringToFile(WriteStringToFile(ReadStringFromFile(ReadStringFromFile("/tmp/.tmpM6Llt1/input.txt", Modified)), "/tmp/.tmpM6Llt1/output.txt", Modified))
 
 G) Regenerate changed output file: expect only `write_task` to execute
-✓ ReadStringFromFile(ReadStringFromFile("/tmp/.tmp0WwMAD/input.txt", Modified))
-→ WriteStringToFile(WriteStringToFile(ReadStringFromFile(ReadStringFromFile("/tmp/.tmp0WwMAD/input.txt", Modified)), "/tmp/.tmp0WwMAD/output.txt", Modified))
- ✓ ReadStringFromFile(ReadStringFromFile("/tmp/.tmp0WwMAD/input.txt", Modified))
+✓ ReadStringFromFile(ReadStringFromFile("/tmp/.tmpM6Llt1/input.txt", Modified))
+→ WriteStringToFile(WriteStringToFile(ReadStringFromFile(ReadStringFromFile("/tmp/.tmpM6Llt1/input.txt", Modified)), "/tmp/.tmpM6Llt1/output.txt", Modified))
+ ✓ ReadStringFromFile(ReadStringFromFile("/tmp/.tmpM6Llt1/input.txt", Modified))
 ← Ok("")
 
 H) Regenerate deleted output file: expect only `write_task` to execute
-✓ ReadStringFromFile(ReadStringFromFile("/tmp/.tmp0WwMAD/input.txt", Modified))
-→ WriteStringToFile(WriteStringToFile(ReadStringFromFile(ReadStringFromFile("/tmp/.tmp0WwMAD/input.txt", Modified)), "/tmp/.tmp0WwMAD/output.txt", Modified))
- ✓ ReadStringFromFile(ReadStringFromFile("/tmp/.tmp0WwMAD/input.txt", Modified))
+✓ ReadStringFromFile(ReadStringFromFile("/tmp/.tmpM6Llt1/input.txt", Modified))
+→ WriteStringToFile(WriteStringToFile(ReadStringFromFile(ReadStringFromFile("/tmp/.tmpM6Llt1/input.txt", Modified)), "/tmp/.tmpM6Llt1/output.txt", Modified))
+ ✓ ReadStringFromFile(ReadStringFromFile("/tmp/.tmpM6Llt1/input.txt", Modified))
 ← Ok("")
 
 I) Different tasks: expect `read_task_b_modified` and `read_task_b_exists` to execute
-→ ReadStringFromFile(ReadStringFromFile("/tmp/.tmp0WwMAD/input_b.txt", Modified))
+→ ReadStringFromFile(ReadStringFromFile("/tmp/.tmpM6Llt1/input_b.txt", Modified))
 ← Ok("Test")
-→ ReadStringFromFile(ReadStringFromFile("/tmp/.tmp0WwMAD/input_b.txt", Exists))
+→ ReadStringFromFile(ReadStringFromFile("/tmp/.tmpM6Llt1/input_b.txt", Exists))
 ← Ok("Test")
 
 J) Different stampers: expect only `read_task_b_modified` to execute
-→ ReadStringFromFile(ReadStringFromFile("/tmp/.tmp0WwMAD/input_b.txt", Modified))
+→ ReadStringFromFile(ReadStringFromFile("/tmp/.tmpM6Llt1/input_b.txt", Modified))
 ← Ok("Test Test")
-✓ ReadStringFromFile(ReadStringFromFile("/tmp/.tmp0WwMAD/input_b.txt", Exists))
+✓ ReadStringFromFile(ReadStringFromFile("/tmp/.tmpM6Llt1/input_b.txt", Exists))
