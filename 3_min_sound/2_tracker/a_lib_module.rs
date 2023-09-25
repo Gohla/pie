@@ -101,5 +101,5 @@ impl<'p, T: Task> Session<'p, T, T::Output> {
   }
 
   /// Gets all errors produced during dependency checks.
-  pub fn dependency_check_errors(&self) -> impl Iterator<Item=&io::Error> { self.dependency_check_errors.iter() }
+  pub fn dependency_check_errors(&self) -> &[io::Error] { &self.dependency_check_errors }
 }

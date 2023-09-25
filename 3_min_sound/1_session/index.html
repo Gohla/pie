@@ -260,7 +260,7 @@ impl&lt;'p, T: Task&gt; Session&lt;'p, T, T::Output&gt; {
   }
 
   /// Gets all errors produced during dependency checks.
-  pub fn dependency_check_errors(&amp;self) -&gt; impl Iterator&lt;Item=&amp;io::Error&gt; { self.dependency_check_errors.iter() }
+  pub fn dependency_check_errors(&amp;self) -&gt; &amp;[io::Error] { &amp;self.dependency_check_errors }
 }</code></pre>
 <p>We set up the types such that <code>Pie</code> owns the store, and <code>Session</code> owns all data for a build session that <code>TopDownContext</code> previously owned.
 We put the store in <code>Pie</code> because we want to keep the dependency graph and task outputs between build sessions, otherwise we cannot be incremental.</p>

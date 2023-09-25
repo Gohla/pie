@@ -363,7 +363,7 @@ If you care about performance here, be sure to annotate those default empty meth
        current_executing_task: None,
        dependency_check_errors: Vec::default(),
      }
-@@ -100,6 +112,10 @@
+@@ -100,6 +112,11 @@
      TopDownContext::new(self).require_initial(task)
    }
  
@@ -371,8 +371,9 @@ If you care about performance here, be sure to annotate those default empty meth
 +  pub fn tracker(&self) -> &A { &self.tracker }
 +  /// Gets the mutable [${"`"}Tracker${"`"}] instance.
 +  pub fn tracker_mut(&mut self) -> &mut A { &mut self.tracker }
++
    /// Gets all errors produced during dependency checks.
-   pub fn dependency_check_errors(&self) -> impl Iterator<Item=&io::Error> { self.dependency_check_errors.iter() }
+   pub fn dependency_check_errors(&self) -> &[io::Error] { &self.dependency_check_errors }
  }
 `;
     let target = document.getElementById('diff2html_1');
@@ -760,34 +761,34 @@ use crate::tracker::Tracker;
 /// [`Tracker`] that stores [events](Event) in a [`Vec`], useful in testing to assert that a context implementation is 
 /// incremental and sound.
 #[derive(Clone, Debug)]
-pub struct EventTracker&lt;T: Task&gt; {
-  events: Vec&lt;Event&lt;T&gt;&gt;,
+pub struct EventTracker&lt;T, O&gt; {
+  events: Vec&lt;Event&lt;T, O&gt;&gt;,
 }
 
-impl&lt;T: Task&gt; Default for EventTracker&lt;T&gt; {
+impl&lt;T: Task&gt; Default for EventTracker&lt;T, T::Output&gt; {
   fn default() -&gt; Self { Self { events: Vec::new() } }
 }
 
 /// Enumeration of important build events.
 #[derive(Debug, Clone)]
-pub enum Event&lt;T: Task&gt; {
+pub enum Event&lt;T, O&gt; {
   /// A file at `path` has been required, using `stamper` to create `stamp`.
   RequiredFile { path: PathBuf, stamper: FileStamper, stamp: FileStamp },
   /// Require `task` using `stamper`.
   RequireTask { task: T, stamper: OutputStamper },
   /// A `task` has been required, resulting in consistent `output`, using `stamper` to create `stamp`, and task 
   /// `was_executed`.
-  RequiredTask { task: T, output: T::Output, stamper: OutputStamper, stamp: OutputStamp&lt;T::Output&gt;, was_executed: bool },
+  RequiredTask { task: T, output: O, stamper: OutputStamper, stamp: OutputStamp&lt;O&gt;, was_executed: bool },
 
   /// Execute `task`.
   Execute { task: T },
   /// A `task` has been executed, producing `output`.
-  Executed { task: T, output: T::Output },
+  Executed { task: T, output: O },
 }</code></pre>
 <p>The <code>EventTracker</code> stores build events in a <code>Vec</code>.
 The <code>Event</code> enumeration mimics the <code>Tracker</code> methods, but has all arguments in owned form (for example <code>task: T</code> instead of <code>task: &amp;T</code>) as we want to store these events.</p>
 <p>Add the tracker implementation to <code>pie/src/tracker/event.rs</code>:</p>
-<pre><code class="language-rust ">impl&lt;T: Task&gt; Tracker&lt;T&gt; for EventTracker&lt;T&gt; {
+<pre><code class="language-rust ">impl&lt;T: Task&gt; Tracker&lt;T&gt; for EventTracker&lt;T, T::Output&gt; {
   fn build_start(&amp;mut self) {
     self.events.clear();
   }
@@ -815,39 +816,39 @@ When a new build starts, we clear the events.</p>
 This is quite a bit of code that we will be using in integration testing to test incrementality and soundness.
 We'll add in one go to keep the tutorial going, and we will use this code in the next section, but feel free to take some time to inspect the code.</p>
 <p>Add the following code to <code>pie/src/tracker/event.rs</code>:</p>
-<pre><code class="language-rust ">impl&lt;T: Task&gt; EventTracker&lt;T&gt; {
+<pre><code class="language-rust ">impl&lt;T: Task&gt; EventTracker&lt;T, T::Output&gt; {
   /// Returns a slice over all events.
-  pub fn slice(&amp;self) -&gt; &amp;[Event&lt;T&gt;] {
+  pub fn slice(&amp;self) -&gt; &amp;[Event&lt;T, T::Output&gt;] {
     &amp;self.events
   }
   /// Returns an iterator over all events.
-  pub fn iter(&amp;self) -&gt; impl Iterator&lt;Item=&amp;Event&lt;T&gt;&gt; {
+  pub fn iter(&amp;self) -&gt; impl Iterator&lt;Item=&amp;Event&lt;T, T::Output&gt;&gt; {
     self.events.iter()
   }
 
   /// Returns `true` if `predicate` returns `true` for any event.
-  pub fn any(&amp;self, predicate: impl FnMut(&amp;Event&lt;T&gt;) -&gt; bool) -&gt; bool {
+  pub fn any(&amp;self, predicate: impl FnMut(&amp;Event&lt;T, T::Output&gt;) -&gt; bool) -&gt; bool {
     self.iter().any(predicate)
   }
   /// Returns the number of times `predicate` returns `true`.
-  pub fn count(&amp;self, predicate: impl FnMut(&amp;&amp;Event&lt;T&gt;) -&gt; bool) -&gt; usize {
+  pub fn count(&amp;self, predicate: impl FnMut(&amp;&amp;Event&lt;T, T::Output&gt;) -&gt; bool) -&gt; usize {
     self.iter().filter(predicate).count()
   }
   /// Returns `true` if `predicate` returns `true` for exactly one event.
-  pub fn one(&amp;self, predicate: impl FnMut(&amp;&amp;Event&lt;T&gt;) -&gt; bool) -&gt; bool {
+  pub fn one(&amp;self, predicate: impl FnMut(&amp;&amp;Event&lt;T, T::Output&gt;) -&gt; bool) -&gt; bool {
     self.count(predicate) == 1
   }
 
   /// Returns `Some(index)` for the first event `e` where `predicate(e)` returns `true`, or `None` otherwise.
-  pub fn index_of(&amp;self, predicate: impl FnMut(&amp;Event&lt;T&gt;) -&gt; bool) -&gt; Option&lt;usize&gt; {
+  pub fn index_of(&amp;self, predicate: impl FnMut(&amp;Event&lt;T, T::Output&gt;) -&gt; bool) -&gt; Option&lt;usize&gt; {
     self.iter().position(predicate)
   }
   /// Returns `Some(v)` for the first event `e` where `f(e)` returns `Some(v)`, or `None` otherwise.
-  pub fn find_map&lt;R&gt;(&amp;self, f: impl FnMut(&amp;Event&lt;T&gt;) -&gt; Option&lt;&amp;R&gt;) -&gt; Option&lt;&amp;R&gt; {
+  pub fn find_map&lt;R&gt;(&amp;self, f: impl FnMut(&amp;Event&lt;T, T::Output&gt;) -&gt; Option&lt;&amp;R&gt;) -&gt; Option&lt;&amp;R&gt; {
     self.iter().find_map(f)
   }
   /// Returns `Some((index, v))` for the first event `e` where `f(e)` returns `Some(v)`, or `None` otherwise.
-  pub fn index_find_map&lt;R&gt;(&amp;self, mut f: impl FnMut(&amp;Event&lt;T&gt;) -&gt; Option&lt;&amp;R&gt;) -&gt; Option&lt;(usize, &amp;R)&gt; {
+  pub fn index_find_map&lt;R&gt;(&amp;self, mut f: impl FnMut(&amp;Event&lt;T, T::Output&gt;) -&gt; Option&lt;&amp;R&gt;) -&gt; Option&lt;(usize, &amp;R)&gt; {
     self.iter().enumerate().find_map(|(i, e)| f(e).map(|o| (i, o)))
   }
 
@@ -888,7 +889,7 @@ We'll add in one go to keep the tutorial going, and we will use this code in the
   }
 }
 
-impl&lt;T: Task&gt; Event&lt;T&gt; {
+impl&lt;T: Task&gt; Event&lt;T, T::Output&gt; {
   /// Returns `Some(stamp)` if this is a [required file event](Event::RequiredFile) for file at `path`, or `None` 
   /// otherwise.
   pub fn stamp_of_required_file(&amp;self, path: &amp;PathBuf) -&gt; Option&lt;&amp;FileStamp&gt; {

@@ -116,6 +116,7 @@ impl<'p, T: Task, A: Tracker<T>> Session<'p, T, T::Output, A> {
   pub fn tracker(&self) -> &A { &self.tracker }
   /// Gets the mutable [`Tracker`] instance.
   pub fn tracker_mut(&mut self) -> &mut A { &mut self.tracker }
+
   /// Gets all errors produced during dependency checks.
-  pub fn dependency_check_errors(&self) -> impl Iterator<Item=&io::Error> { self.dependency_check_errors.iter() }
+  pub fn dependency_check_errors(&self) -> &[io::Error] { &self.dependency_check_errors }
 }

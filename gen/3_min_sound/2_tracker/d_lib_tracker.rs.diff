@@ -63,7 +63,7 @@
        current_executing_task: None,
        dependency_check_errors: Vec::default(),
      }
-@@ -100,6 +112,10 @@
+@@ -100,6 +112,11 @@
      TopDownContext::new(self).require_initial(task)
    }
  
@@ -71,6 +71,7 @@
 +  pub fn tracker(&self) -> &A { &self.tracker }
 +  /// Gets the mutable [`Tracker`] instance.
 +  pub fn tracker_mut(&mut self) -> &mut A { &mut self.tracker }
++
    /// Gets all errors produced during dependency checks.
-   pub fn dependency_check_errors(&self) -> impl Iterator<Item=&io::Error> { self.dependency_check_errors.iter() }
+   pub fn dependency_check_errors(&self) -> &[io::Error] { &self.dependency_check_errors }
  }
