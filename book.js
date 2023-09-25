@@ -152,8 +152,8 @@ function playground_text(playground, hidden = true) {
 
     // Syntax highlighting Configuration
     hljs.configure({
-        tabReplace: '    ', // 4 spaces
-        languages: [],      // Languages used for auto-detection
+        tabReplace: '  ', // 2 spaces
+        languages: [],    // Languages used for auto-detection
     });
 
     let code_nodes = Array
