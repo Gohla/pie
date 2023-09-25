@@ -6,7 +6,6 @@ use pie::tracker::event::Event::*;
 
 use crate::common::{test_pie, TestPieExt, TestTask::*};
 
-#[path = "common.rs"]
 mod common;
 
 #[test]

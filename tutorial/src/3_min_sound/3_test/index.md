@@ -14,8 +14,9 @@ This is [probably a bug in cargo](https://github.com/rust-lang/cargo/issues/6765
 It should allow this cycle and make it work correctly, or disallow it.
 ```
 
-We will put the utilities in a `common.rs` file and use that as a module in integration tests.
-Create the `pie/src/tests` directory and create the `pie/src/tests/common.rs` file, and add to it:
+We will put the utilities in a common file and use that as a module in integration tests.
+Create the `pie/src/tests` directory, create the `pie/src/tests/common` directory, and create the `pie/src/tests/common/mod.rs` file.
+Add the following code to `pie/src/tests/common/mod.rs`:
 
 ```rust,
 {{#include a_1_common_pie.rs}}
@@ -23,7 +24,7 @@ Create the `pie/src/tests` directory and create the `pie/src/tests/common.rs` fi
 
 These are just types and functions to create `TestPie` instances, which are `Pie` instances using `CompositeTracker<EventTracker, WritingTracker>` as tracker, where the writing tracker will write to standard output.
 
-Add the following to `pie/src/tests/common.rs`:
+Add the following to `pie/src/tests/common/mod.rs`:
 
 ```rust,
 {{#include a_2_common_ext.rs:2:}}
@@ -33,19 +34,19 @@ We define an extension trait `TestPieExt` with a `require_then_assert` method, w
 This is very convenient for integration testing, as most tests will follow the pattern of requiring a task and then asserting properties.
 We implement `TestPieExt` for `TestPie` so that we can call `require_then_assert` on any `TestPie` instance.
 
-~~~admonish info title="Extension trait" collapsible=true
+```admonish info title="Extension trait" collapsible=true
 Extension traits are a pattern in Rust where we can add methods to an existing type via an extension trait and an implementation of the extension trait for the existing type.
-~~~
+```
 
 We still need to define a task for testing.
-Add the following to `pie/src/tests/common.rs`:
+Add the following to `pie/src/tests/common/mod.rs`:
 
 ```rust,
 {{#include a_3_common_task.rs:2:}}
 ```
 
 We define a `TestTask` enumeration containing all testing tasks, which for now is just a `StringConstant` task that returns a string, and implement `Task` for it.
-The `Output` for `TestTask` is `Result<TestOutput, ErrorKind>` so that we can propagate IO errors.
+The `Output` for `TestTask` is `Result<TestOutput, ErrorKind>` so that we can propagate IO errors in the future.
 
 `TestOutput` enumerates all possible outputs for `TestTask`, which for now is just a `String`.
 We implement `From<String>` for `TestOutput` so we can easily convert `String`s into `TestOutput`. 
@@ -75,3 +76,15 @@ We're using `tracker.slice()` to get a slice of all build events, and assert (us
 Finally, we assert that the output equals what we expect.
 
 Check that this test succeeds with `cargo test`.
+To see what test failures look like, temporarily change `events.get(2)` to `events.get(3)` for example.
+
+```admonish info title="Integration testing in Rust" collapsible=true
+[Integration tests](https://doc.rust-lang.org/rust-by-example/testing/integration_testing.html) in Rust are for testing whether the different parts of your library work together correctly.
+Integration tests have access to the public API of your crate.
+
+In this `top_down.rs` integration test file, we're importing `common/mod.rs` by creating a module for it via `mod common;`.
+If we create another integration testing file, we would again create a module for it in that integration testing file.
+This is because every file in the `tests` directory is compiled as a separate crate, and can basically be seen as a separate `lib.rs` or `main.rs` file.
+
+Putting the testing utilities behind a `common` directory ensures that it will not be compiled as a separate integration testing crate. 
+```

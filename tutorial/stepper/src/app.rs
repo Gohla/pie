@@ -257,9 +257,9 @@ pub fn step_all(
     });
     stepper.with_path("3_test", |stepper| {
       stepper.apply([
-        add("a_1_common_pie.rs", "../tests/common.rs"),
-        add("a_2_common_ext.rs", "../tests/common.rs"),
-        add("a_3_common_task.rs", "../tests/common.rs"),
+        add("a_1_common_pie.rs", "../tests/common/mod.rs"),
+        add("a_2_common_ext.rs", "../tests/common/mod.rs"),
+        add("a_3_common_task.rs", "../tests/common/mod.rs"),
       ]);
       stepper.apply([
         add("b_test_execute.rs", "../tests/top_down.rs")
