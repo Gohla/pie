@@ -1,37 +1,37 @@
 
-impl<T: Task> EventTracker<T> {
+impl<T: Task> EventTracker<T, T::Output> {
   /// Returns a slice over all events.
-  pub fn slice(&self) -> &[Event<T>] {
+  pub fn slice(&self) -> &[Event<T, T::Output>] {
     &self.events
   }
   /// Returns an iterator over all events.
-  pub fn iter(&self) -> impl Iterator<Item=&Event<T>> {
+  pub fn iter(&self) -> impl Iterator<Item=&Event<T, T::Output>> {
     self.events.iter()
   }
 
   /// Returns `true` if `predicate` returns `true` for any event.
-  pub fn any(&self, predicate: impl FnMut(&Event<T>) -> bool) -> bool {
+  pub fn any(&self, predicate: impl FnMut(&Event<T, T::Output>) -> bool) -> bool {
     self.iter().any(predicate)
   }
   /// Returns the number of times `predicate` returns `true`.
-  pub fn count(&self, predicate: impl FnMut(&&Event<T>) -> bool) -> usize {
+  pub fn count(&self, predicate: impl FnMut(&&Event<T, T::Output>) -> bool) -> usize {
     self.iter().filter(predicate).count()
   }
   /// Returns `true` if `predicate` returns `true` for exactly one event.
-  pub fn one(&self, predicate: impl FnMut(&&Event<T>) -> bool) -> bool {
+  pub fn one(&self, predicate: impl FnMut(&&Event<T, T::Output>) -> bool) -> bool {
     self.count(predicate) == 1
   }
 
   /// Returns `Some(index)` for the first event `e` where `predicate(e)` returns `true`, or `None` otherwise.
-  pub fn index_of(&self, predicate: impl FnMut(&Event<T>) -> bool) -> Option<usize> {
+  pub fn index_of(&self, predicate: impl FnMut(&Event<T, T::Output>) -> bool) -> Option<usize> {
     self.iter().position(predicate)
   }
   /// Returns `Some(v)` for the first event `e` where `f(e)` returns `Some(v)`, or `None` otherwise.
-  pub fn find_map<R>(&self, f: impl FnMut(&Event<T>) -> Option<&R>) -> Option<&R> {
+  pub fn find_map<R>(&self, f: impl FnMut(&Event<T, T::Output>) -> Option<&R>) -> Option<&R> {
     self.iter().find_map(f)
   }
   /// Returns `Some((index, v))` for the first event `e` where `f(e)` returns `Some(v)`, or `None` otherwise.
-  pub fn index_find_map<R>(&self, mut f: impl FnMut(&Event<T>) -> Option<&R>) -> Option<(usize, &R)> {
+  pub fn index_find_map<R>(&self, mut f: impl FnMut(&Event<T, T::Output>) -> Option<&R>) -> Option<(usize, &R)> {
     self.iter().enumerate().find_map(|(i, e)| f(e).map(|o| (i, o)))
   }
 
@@ -72,7 +72,7 @@ impl<T: Task> EventTracker<T> {
   }
 }
 
-impl<T: Task> Event<T> {
+impl<T: Task> Event<T, T::Output> {
   /// Returns `Some(stamp)` if this is a [required file event](Event::RequiredFile) for file at `path`, or `None` 
   /// otherwise.
   pub fn stamp_of_required_file(&self, path: &PathBuf) -> Option<&FileStamp> {

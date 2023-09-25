@@ -1,5 +1,5 @@
 
-impl<T: Task> Tracker<T> for EventTracker<T> {
+impl<T: Task> Tracker<T> for EventTracker<T, T::Output> {
   fn build_start(&mut self) {
     self.events.clear();
   }
