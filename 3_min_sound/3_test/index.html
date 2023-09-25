@@ -224,6 +224,24 @@ pub trait TestPieExt&lt;T: Task&gt; {
     task: &amp;T,
     test_assert_func: impl FnOnce(&amp;EventTracker&lt;T, T::Output&gt;),
   ) -&gt; T::Output;
+
+  /// Require `task` in a new session, asserts that there are no dependency check errors.
+  fn require(&amp;mut self, task: &amp;T) -&gt; T::Output {
+    self.require_then_assert(task, |_| {})
+  }
+
+  /// Require `task` in a new session, then assert that it is not executed.
+  fn require_then_assert_no_execute(&amp;mut self, task: &amp;T) -&gt; T::Output {
+    self.require_then_assert(task, |t|
+      assert!(!t.any_execution_of(task), &quot;expected no execution of task {:?}, but it was executed&quot;, task),
+    )
+  }
+  /// Require `task` in a new session, then assert that it is executed exactly once.
+  fn require_then_assert_one_execute(&amp;mut self, task: &amp;T) -&gt; T::Output {
+    self.require_then_assert(task, |t|
+      assert!(t.one_execute_of(task), &quot;expected one execution of task {:?}, but it was not executed, or was executed more than once&quot;, task),
+    )
+  }
 }
 impl&lt;T: Task&gt; TestPieExt&lt;T&gt; for TestPie&lt;T&gt; {
   fn require_then_assert(&amp;mut self, task: &amp;T, test_assert_func: impl FnOnce(&amp;EventTracker&lt;T, T::Output&gt;)) -&gt; T::Output {
@@ -236,8 +254,14 @@ impl&lt;T: Task&gt; TestPieExt&lt;T&gt; for TestPie&lt;T&gt; {
   }
 }</code></pre>
 <p>We define an extension trait <code>TestPieExt</code> with a <code>require_then_assert</code> method, which requires a task in a new session, asserts that there are no dependency check errors, and then gives us the opportunity to perform additional assertions via a function that gives access to <code>EventTracker</code>.
-This is very convenient for integration testing, as most tests will follow the pattern of requiring a task and then asserting properties.
-We implement <code>TestPieExt</code> for <code>TestPie</code> so that we can call <code>require_then_assert</code> on any <code>TestPie</code> instance.</p>
+This is very convenient for integration testing, as most tests will follow the pattern of requiring a task and then asserting properties.</p>
+<p>This trait also provides:</p>
+<ul>
+<li><code>require</code> which is <code>require_then_assert</code> without an assertion closure,</li>
+<li><code>require_then_assert_no_execute</code> which after requiring asserts that the task has not been executed using <code>!t.any_execution_of(task)</code> from <code>EventTracker</code>,</li>
+<li><code>require_then_assert_one_execute</code> which does the same but asserts that it has been executed exactly once.</li>
+</ul>
+<p>We implement <code>TestPieExt</code> for <code>TestPie</code> so that we can call <code>require_then_assert</code> on any <code>TestPie</code> instance.</p>
 <details id="admonition-extension-trait" class="admonition info">
 <summary class="admonition-title">
 <p>Extension trait</p>
@@ -338,6 +362,173 @@ This is because every file in the <code>tests</code> directory is compiled as a 
 <p>Putting the testing utilities behind a <code>common</code> directory ensures that it will not be compiled as a separate integration testing crate.</p>
 </div>
 </details>
+<h2 id="testing-incrementality-and-soundness"><a class="header" href="#testing-incrementality-and-soundness">Testing incrementality and soundness</a></h2>
+<p>We will now test incrementality and soundness.</p>
+<h3 id="no-dependencies"><a class="header" href="#no-dependencies">No dependencies</a></h3>
+<p>Let's first test that requiring a task without dependencies twice, only executes it once.
+Add the following test to <code>pie/src/tests/top_down.rs</code>:</p>
+<pre><code class="language-rust ">#[test]
+fn test_reuse() -&gt; Result&lt;(), io::Error&gt; {
+  let mut pie = test_pie();
+  let task = StringConstant(&quot;Hello, World!&quot;);
+  // New task: execute.
+  let output = pie.require(&amp;task)?;
+  assert_eq!(output.as_str(), &quot;Hello, World!&quot;);
+  // Nothing changed: no execute
+  pie.require_then_assert_no_execute(&amp;task)?;
+  Ok(())
+}</code></pre>
+<p>We're using <code>require</code> and <code>require_then_assert_no_execute</code> from <code>TestPieExt</code> which require the same task twice, in two different sessions.
+Since <code>StringConstant</code> has no dependencies, it should only ever be executed once, after which its output is cached for all eternity.</p>
+<p>Check that this test succeeds with <code>cargo test</code>.</p>
+<h3 id="file-dependency"><a class="header" href="#file-dependency">File dependency</a></h3>
+<p>Next we want to test that a task with dependencies is not executed if its dependencies are consistent, and is executed when any of its dependencies are inconsistent.
+Therefore, we need to add a task that has dependencies.</p>
+<p>Modify <code>pie/src/tests/common/mod.rs</code>:</p>
+<div class="diff2html" id="diff2html_0"></div>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    let diff = String.raw`--- pie/tests/common/mod.rs
++++ pie/tests/common/mod.rs
+@@ -1,6 +1,8 @@
+-use std::io::{BufWriter, ErrorKind, Stdout};
++use std::io::{BufWriter, ErrorKind, Read, Stdout};
++use std::path::PathBuf;
+ 
+ use pie::{Context, Pie, Task};
++use pie::stamp::FileStamper;
+ use pie::tracker::CompositeTracker;
+ use pie::tracker::event::EventTracker;
+ use pie::tracker::writing::WritingTracker;
+@@ -60,12 +62,20 @@
+ #[derive(Clone, Eq, PartialEq, Hash, Debug)]
+ pub enum TestTask {
+   StringConstant(&'static str),
++  ReadStringFromFile(PathBuf, FileStamper),
+ }
+ impl Task for TestTask {
+   type Output = Result<TestOutput, ErrorKind>;
+   fn execute<C: Context<Self>>(&self, context: &mut C) -> Self::Output {
+     match self {
+       TestTask::StringConstant(string) => Ok(string.to_string().into()),
++      TestTask::ReadStringFromFile(path, stamper) => {
++        let mut string = String::new();
++        if let Some(mut file) = context.require_file_with_stamper(&path, *stamper).map_err(|e| e.kind())? {
++          file.read_to_string(&mut string).map_err(|e| e.kind())?;
++        }
++        Ok(string.into())
++      }
+     }
+   }
+ }
+`;
+    let target = document.getElementById('diff2html_0');
+    let configuration = {
+      drawFileList: false,
+      fileListToggle: false,
+      fileContentToggle: false,
+
+      outputFormat: 'side-by-side',
+      matching: 'lines',
+    };
+    let diff2htmlUi = new Diff2HtmlUI(target, diff, configuration, hljs);
+    diff2htmlUi.draw();
+  });
+</script>
+<p>We add a <code>ReadStringFromFile</code> task that requires a file and returns its content as a string, similar to the ones we have implemented in the past.</p>
+<p>Modify <code>pie/src/tests/top_down.rs</code> to add a new test:</p>
+<div class="diff2html" id="diff2html_1"></div>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    let diff = String.raw`--- pie/tests/top_down.rs
++++ pie/tests/top_down.rs
+@@ -1,7 +1,10 @@
++use std::fs::write;
+ use std::io;
+ 
+ use assert_matches::assert_matches;
+ 
++use dev_shared::{create_temp_dir, write_until_modified};
++use pie::stamp::FileStamper;
+ use pie::tracker::event::Event::*;
+ 
+ use crate::common::{test_pie, TestPieExt, TestTask::*};
+@@ -34,3 +37,53 @@
+   pie.require_then_assert_no_execute(&task)?;
+   Ok(())
+ }
++
++#[test]
++fn test_require_file() -> Result<(), io::Error> {
++  let mut pie = test_pie();
++  let temp_dir = create_temp_dir()?;
++
++  let path = temp_dir.path().join("in.txt");
++  write(&path, "HELLO WORLD!")?;
++  let task = ReadStringFromFile(path.clone(), FileStamper::Modified);
++
++
++  // Require task and assert that it is executed because it is new.
++  let output = pie.require_then_assert_one_execute(&task)?;
++  assert_eq!(output.as_str(), "HELLO WORLD!");
++
++  // Require task again and assert that it is not executed because all its dependencies are consistent.
++  let output = pie.require_then_assert_no_execute(&task)?;
++  assert_eq!(output.as_str(), "HELLO WORLD!");
++
++  // Change required file such that the file dependency of the task becomes inconsistent.
++  write_until_modified(&path, "!DLROW OLLEH")?;
++
++  // Require task again and assert that it re-executed because its file dependency is inconsistent.
++  let output = pie.require_then_assert_one_execute(&task)?;
++  assert_eq!(output.as_str(), "!DLROW OLLEH");
++
++
++  // Repeat the test with FileStamper::Exists, which results in a different outcome.
++  write(&path, "HELLO WORLD!")?;
++  let task = ReadStringFromFile(path.clone(), FileStamper::Exists);
++
++
++  // Require task and assert that it is executed because it is new.
++  let output = pie.require_then_assert_one_execute(&task)?;
++  assert_eq!(output.as_str(), "HELLO WORLD!");
++
++  // Require task again and assert that it is not executed because all its dependencies are consistent.
++  let output = pie.require_then_assert_no_execute(&task)?;
++  assert_eq!(output.as_str(), "HELLO WORLD!");
++
++  // Change required file, but the file dependency of the task stays consistent.
++  write_until_modified(&path, "!DLROW OLLEH")?;
++
++  // Require task again and assert that it is not executed because all its dependencies are consistent.
++  let output = pie.require_then_assert_no_execute(&task)?;
++  assert_eq!(output.as_str(), "HELLO WORLD!");
++
++
++  Ok(())
++}
+`;
+    let target = document.getElementById('diff2html_1');
+    let configuration = {
+      drawFileList: false,
+      fileListToggle: false,
+      fileContentToggle: false,
+
+      outputFormat: 'line-by-line',
+      matching: 'lines',
+    };
+    let diff2htmlUi = new Diff2HtmlUI(target, diff, configuration, hljs);
+    diff2htmlUi.draw();
+  });
+</script>
+<p>In this test, we require a <code>ReadStringFromFile</code> task several times, and assert whether it should be executed or not.
+The first time, the task is new, so it should be executed.
+The second time, the task is not new, and its single require file dependency is still consistent, so it should not be executed.
+Then, we change the file the task depends on with <code>write_until_modified</code>.
+Then, we require the task again, and it should be executed because its dependency became inconsistent.</p>
+<p>We repeat the test with the <code>FileStamper::Exists</code> stamper, which correctly results in the task only being executed once.
+It is a new task because its stamper is different, and it is not re-executed when the file is changed due to <code>FileStamper::Exists</code> only checking if the file exists.</p>
+<p>Check that this test succeeds with <code>cargo test</code>.</p>
 
                     </main>
 
