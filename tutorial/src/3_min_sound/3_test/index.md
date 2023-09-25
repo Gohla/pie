@@ -32,6 +32,13 @@ Add the following to `pie/src/tests/common/mod.rs`:
 
 We define an extension trait `TestPieExt` with a `require_then_assert` method, which requires a task in a new session, asserts that there are no dependency check errors, and then gives us the opportunity to perform additional assertions via a function that gives access to `EventTracker`.
 This is very convenient for integration testing, as most tests will follow the pattern of requiring a task and then asserting properties.
+
+This trait also provides:
+
+- `require` which is `require_then_assert` without an assertion closure,
+- `require_then_assert_no_execute` which after requiring asserts that the task has not been executed using `!t.any_execution_of(task)` from `EventTracker`,
+- `require_then_assert_one_execute` which does the same but asserts that it has been executed exactly once.
+
 We implement `TestPieExt` for `TestPie` so that we can call `require_then_assert` on any `TestPie` instance.
 
 ```admonish info title="Extension trait" collapsible=true
@@ -88,3 +95,51 @@ This is because every file in the `tests` directory is compiled as a separate cr
 
 Putting the testing utilities behind a `common` directory ensures that it will not be compiled as a separate integration testing crate. 
 ```
+
+## Testing incrementality and soundness
+
+We will now test incrementality and soundness.
+
+### No dependencies
+
+Let's first test that requiring a task without dependencies twice, only executes it once.
+Add the following test to `pie/src/tests/top_down.rs`:
+
+```rust,
+{{#include c_test_reuse.rs:2:}}
+```
+
+We're using `require` and `require_then_assert_no_execute` from `TestPieExt` which require the same task twice, in two different sessions.
+Since `StringConstant` has no dependencies, it should only ever be executed once, after which its output is cached for all eternity.
+
+Check that this test succeeds with `cargo test`.
+
+### File dependency
+
+Next we want to test that a task with dependencies is not executed if its dependencies are consistent, and is executed when any of its dependencies are inconsistent.
+Therefore, we need to add a task that has dependencies.
+
+Modify `pie/src/tests/common/mod.rs`:
+
+```diff2html fromfile
+../../gen/3_min_sound/3_test/d_1_read_task.rs.diff
+```
+
+We add a `ReadStringFromFile` task that requires a file and returns its content as a string, similar to the ones we have implemented in the past.
+
+Modify `pie/src/tests/top_down.rs` to add a new test:
+
+```diff2html fromfile linebyline
+../../gen/3_min_sound/3_test/d_2_test_require_file.rs.diff
+```
+
+In this test, we require a `ReadStringFromFile` task several times, and assert whether it should be executed or not.
+The first time, the task is new, so it should be executed.
+The second time, the task is not new, and its single require file dependency is still consistent, so it should not be executed.
+Then, we change the file the task depends on with `write_until_modified`.
+Then, we require the task again, and it should be executed because its dependency became inconsistent.
+
+We repeat the test with the `FileStamper::Exists` stamper, which correctly results in the task only being executed once.
+It is a new task because its stamper is different, and it is not re-executed when the file is changed due to `FileStamper::Exists` only checking if the file exists.
+
+Check that this test succeeds with `cargo test`.

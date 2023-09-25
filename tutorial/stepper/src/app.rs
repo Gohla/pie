@@ -264,6 +264,17 @@ pub fn step_all(
       stepper.apply([
         add("b_test_execute.rs", "../tests/top_down.rs")
       ]);
+      stepper.apply([
+        add("c_test_reuse.rs", "../tests/top_down.rs")
+      ]);
+      stepper.apply([
+        create_diff_builder("d_1_read_task.rs", "../tests/common/mod.rs")
+          .use_destination_file_as_original_file_if_unset(true)
+          .into_modification(),
+        create_diff_builder("d_2_test_require_file.rs", "../tests/top_down.rs")
+          .use_destination_file_as_original_file_if_unset(true)
+          .into_modification(),
+      ]);
     });
   });
 }
