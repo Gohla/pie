@@ -9,6 +9,7 @@ title = "Build your own Programmatic Incremental Build System"
 create-missing = false
 
 [output.html]
+preferred-dark-theme = "ayu"
 additional-js = ["src/diff2html-ui-base.min.js"]
 additional-css = ["src/diff2html.min.css", "src/mdbook-admonish.css"]
 git-repository-url = "https://github.com/Gohla/pie/"
