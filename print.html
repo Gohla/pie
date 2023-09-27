@@ -276,7 +276,7 @@ Because of this, the context reference passed to <code>Task::execute</code> is a
 <p>Build the project by running <code>cargo build</code>.
 The output should look something like:</p>
 <pre><code class="language-shell ">   Compiling pie v0.1.0 (/pie)
-    Finished dev [unoptimized + debuginfo] target(s) in 0.05s
+    Finished dev [unoptimized + debuginfo] target(s) in 0.04s
 </code></pre>
 <details id="admonition-rust-help" class="admonition info">
 <summary class="admonition-title">
@@ -439,7 +439,7 @@ It returns the output of the task, which we test with <code>assert_eq!</code>.</
 <p>Run the test by running <code>cargo test</code>.
 The output should look something like:</p>
 <pre><code class="language-shell ">   Compiling pie v0.1.0 (/pie)
-    Finished test [unoptimized + debuginfo] target(s) in 0.34s
+    Finished test [unoptimized + debuginfo] target(s) in 0.38s
      Running unittests src/lib.rs (/pie/target/debug/deps/pie-6c9d55a7ef727e00)
 
 running 1 test
@@ -3349,7 +3349,7 @@ Run this example with <code>cargo run --example incremental</code>.
 You should see the <code>println!</code> in <code>ReadStringFromFile</code> appear in your console as the incremental context correctly determines that this task is new (i.e., has no output) and must be executed.
 It should look something like:</p>
 <pre><code>   Compiling pie v0.1.0 (/pie)
-    Finished dev [unoptimized + debuginfo] target(s) in 1.22s
+    Finished dev [unoptimized + debuginfo] target(s) in 1.03s
      Running `/pie/target/debug/examples/incremental`
 A) New task: expect `read_task` to execute
 Reading from input.txt with Modified stamper
@@ -3365,7 +3365,7 @@ Reading from input.txt with Modified stamper
 </code></pre>
 <p>Running with <code>cargo run --example incremental</code> should produce output like:</p>
 <pre><code>   Compiling pie v0.1.0 (/pie)
-    Finished dev [unoptimized + debuginfo] target(s) in 0.58s
+    Finished dev [unoptimized + debuginfo] target(s) in 0.51s
      Running `/pie/target/debug/examples/incremental`
 A) New task: expect `read_task` to execute
 Reading from input.txt with Modified stamper
@@ -3518,7 +3518,7 @@ This shows that tasks can depend on the same file with different stampers, which
 <p>Of course, using an <code>Exists</code> stamper for <code>ReadStringFromFile</code> does not make a lot of sense, but this is for demonstration purposes only.</p>
 <p>Running <code>cargo run --example incremental</code> now should produce output like:</p>
 <pre><code>   Compiling pie v0.1.0 (/pie)
-    Finished dev [unoptimized + debuginfo] target(s) in 0.61s
+    Finished dev [unoptimized + debuginfo] target(s) in 0.59s
      Running `/pie/target/debug/examples/incremental`
 A) New task: expect `read_task` to execute
 Reading from input.txt with Modified stamper
@@ -5215,7 +5215,7 @@ Therefore, we need to add a task that has dependencies.</p>
  use pie::tracker::event::Event::*;
  
  use crate::common::{test_pie, TestPieExt, TestTask::*};
-@@ -34,3 +37,53 @@
+@@ -34,3 +37,43 @@
    pie.require_then_assert_no_execute(&task)?;
    Ok(())
  }
@@ -5228,44 +5228,34 @@ Therefore, we need to add a task that has dependencies.</p>
 +  let path = temp_dir.path().join("in.txt");
 +  write(&path, "HELLO WORLD!")?;
 +  let task = ReadStringFromFile(path.clone(), FileStamper::Modified);
-+
-+
++  
 +  // Require task and assert that it is executed because it is new.
 +  let output = pie.require_then_assert_one_execute(&task)?;
 +  assert_eq!(output.as_str(), "HELLO WORLD!");
-+
 +  // Require task again and assert that it is not executed because all its dependencies are consistent.
 +  let output = pie.require_then_assert_no_execute(&task)?;
 +  assert_eq!(output.as_str(), "HELLO WORLD!");
-+
 +  // Change required file such that the file dependency of the task becomes inconsistent.
 +  write_until_modified(&path, "!DLROW OLLEH")?;
-+
 +  // Require task again and assert that it re-executed because its file dependency is inconsistent.
 +  let output = pie.require_then_assert_one_execute(&task)?;
 +  assert_eq!(output.as_str(), "!DLROW OLLEH");
-+
 +
 +  // Repeat the test with FileStamper::Exists, which results in a different outcome.
 +  write(&path, "HELLO WORLD!")?;
 +  let task = ReadStringFromFile(path.clone(), FileStamper::Exists);
 +
-+
 +  // Require task and assert that it is executed because it is new.
 +  let output = pie.require_then_assert_one_execute(&task)?;
 +  assert_eq!(output.as_str(), "HELLO WORLD!");
-+
 +  // Require task again and assert that it is not executed because all its dependencies are consistent.
 +  let output = pie.require_then_assert_no_execute(&task)?;
 +  assert_eq!(output.as_str(), "HELLO WORLD!");
-+
 +  // Change required file, but the file dependency of the task stays consistent.
 +  write_until_modified(&path, "!DLROW OLLEH")?;
-+
 +  // Require task again and assert that it is not executed because all its dependencies are consistent.
 +  let output = pie.require_then_assert_no_execute(&task)?;
 +  assert_eq!(output.as_str(), "HELLO WORLD!");
-+
 +
 +  Ok(())
 +}

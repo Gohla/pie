@@ -46,44 +46,34 @@ fn test_require_file() -> Result<(), io::Error> {
   let path = temp_dir.path().join("in.txt");
   write(&path, "HELLO WORLD!")?;
   let task = ReadStringFromFile(path.clone(), FileStamper::Modified);
-
-
+  
   // Require task and assert that it is executed because it is new.
   let output = pie.require_then_assert_one_execute(&task)?;
   assert_eq!(output.as_str(), "HELLO WORLD!");
-
   // Require task again and assert that it is not executed because all its dependencies are consistent.
   let output = pie.require_then_assert_no_execute(&task)?;
   assert_eq!(output.as_str(), "HELLO WORLD!");
-
   // Change required file such that the file dependency of the task becomes inconsistent.
   write_until_modified(&path, "!DLROW OLLEH")?;
-
   // Require task again and assert that it re-executed because its file dependency is inconsistent.
   let output = pie.require_then_assert_one_execute(&task)?;
   assert_eq!(output.as_str(), "!DLROW OLLEH");
-
 
   // Repeat the test with FileStamper::Exists, which results in a different outcome.
   write(&path, "HELLO WORLD!")?;
   let task = ReadStringFromFile(path.clone(), FileStamper::Exists);
 
-
   // Require task and assert that it is executed because it is new.
   let output = pie.require_then_assert_one_execute(&task)?;
   assert_eq!(output.as_str(), "HELLO WORLD!");
-
   // Require task again and assert that it is not executed because all its dependencies are consistent.
   let output = pie.require_then_assert_no_execute(&task)?;
   assert_eq!(output.as_str(), "HELLO WORLD!");
-
   // Change required file, but the file dependency of the task stays consistent.
   write_until_modified(&path, "!DLROW OLLEH")?;
-
   // Require task again and assert that it is not executed because all its dependencies are consistent.
   let output = pie.require_then_assert_no_execute(&task)?;
   assert_eq!(output.as_str(), "HELLO WORLD!");
-
 
   Ok(())
 }
