@@ -11,6 +11,12 @@ pub enum FileStamper {
   Modified,
 }
 
+#[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Debug)]
+pub enum FileStamp {
+  Exists(bool),
+  Modified(Option<SystemTime>),
+}
+
 impl FileStamper {
   pub fn stamp(&self, path: impl AsRef<Path>) -> Result<FileStamp, io::Error> {
     match self {
@@ -26,10 +32,3 @@ impl FileStamper {
     }
   }
 }
-
-#[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Debug)]
-pub enum FileStamp {
-  Exists(bool),
-  Modified(Option<SystemTime>),
-}
-

@@ -39,7 +39,7 @@ We implement task output stampers in a similar way.
 Add to `pie/src/stamp.rs`:
 
 ```rust,
-{{#include c_output.rs}}
+{{#include c_output.rs:3:}}
 ```
 
 The `Inconsequential` stamper simply ignores the output and always returns the same stamp (thus is always equal).
@@ -67,7 +67,7 @@ Finally, we write some tests.
 Add to `pie/src/stamp.rs`:
 
 ```rust,
-{{#include d1_test.rs}}
+{{#include d1_test.rs:3:}}
 ```
 
 We test file stamps by creating a stamp, changing the file, creating a new stamp, and then compare the stamps.
