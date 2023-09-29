@@ -1,3 +1,4 @@
+
 impl<T: Task> Store<T, T::Output> {
   /// Checks whether task `node` has an output. Returns `false` if `node` does not have an output. 
   ///
@@ -33,4 +34,3 @@ impl<T: Task> Store<T, T::Output> {
     output.replace(new_output);
   }
 }
-

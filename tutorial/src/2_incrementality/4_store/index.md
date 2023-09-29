@@ -101,7 +101,7 @@ Now we will add methods create nodes and to query their attached data.
 Add the following code to `pie/src/store.rs`:
 
 ```rust,
-{{#include e_mapping.rs}}
+{{#include e_mapping.rs:2:}}
 ```
 
 The `get_or_create_file_node` method creates file nodes.
@@ -138,7 +138,7 @@ Therefore, we store the task output in `NodeData::Task` and add methods to query
 Add the following code to `pie/src/store.rs`:
 
 ```rust,
-{{#include f_output.rs}}
+{{#include f_output.rs:2:}}
 ```
 
 The `task_has_output`, `get_task_output`, and `set_task_output` methods manipulate task outputs in `NodeData::Task`.
@@ -155,7 +155,7 @@ An edge does not have its own dedicated representation, and is simply represente
 Add the following code to `pie/src/store.rs`:
 
 ```rust,
-{{#include g_dependency.rs}}
+{{#include g_dependency.rs:2:}}
 ```
 
 The `get_dependencies_of_task` method gets the dependencies (edge data of outgoing edges) of a task, and returns it as an iterator (which is empty if task has no dependencies).
@@ -193,7 +193,7 @@ We do NOT want to remove incoming dependencies, as that would remove dependencie
 Add the `reset_task` method that does this to `pie/src/store.rs`:
 
 ```rust,
-{{#include h_reset.rs}}
+{{#include h_reset.rs:2:}}
 ```
 
 This will reset the task output back to `None`, and remove all outgoing edges (dependencies).
@@ -207,7 +207,7 @@ Now we've implemented everything we need for implementing the top-down context, 
 Add the following code to `pie/src/store.rs` for testing the file mapping:
 
 ```rust,
-{{#include i_test_file_mapping.rs}}
+{{#include i_test_file_mapping.rs:3:}}
 ```
 
 We create a simple task `StringConstant` because we need a `Task` implementation to test `Store`, as `Store` is generic over a `Task` type.
@@ -231,7 +231,7 @@ The `#[should_panic]` attribute makes the test succeed if it panics, and fail if
 Test the task mapping by inserting the following code into the `test` module (before the last `}`):
 
 ```rust,
-{{#include j_test_task_mapping.rs}}
+{{#include j_test_task_mapping.rs:3:}}
 ```
 
 We test this in the same way as the file mapping.
@@ -246,7 +246,7 @@ Later on we will also see that this is important for soundness of the incrementa
 Test task outputs by inserting the following code into the `test` module:
 
 ```rust,
-{{#include k_test_task_output.rs}}
+{{#include k_test_task_output.rs:3:}}
 ```
 
 Test `test_task_outputs` ensures that:
@@ -260,7 +260,7 @@ Test `test_get_task_output_panics` triggers a panic when we call `get_task_outpu
 Test dependencies by inserting the following code into the `test` module:
 
 ```rust,
-{{#include l_test_dependencies.rs}}
+{{#include l_test_dependencies.rs:3:}}
 ```
 
 The `test_dependencies` test is a bit more involved because it ensures that:
@@ -276,7 +276,7 @@ Note that the `StringConstant` task does not actually create file or task depend
 Finally, test task reset by inserting the following code into the `test` module:
 
 ```rust,
-{{#include m_test_reset.rs}}
+{{#include m_test_reset.rs:3:}}
 ```
 
 Here, we ensure that a task with an output and dependencies, does not have an output and dependencies after a reset, while leaving another task untouched.

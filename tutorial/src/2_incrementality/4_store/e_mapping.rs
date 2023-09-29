@@ -1,3 +1,4 @@
+
 impl<T: Task> Store<T, T::Output> {
   /// Gets the file node for `path`, or creates a file node by adding it to the dependency graph.
   pub fn get_or_create_file_node(&mut self, path: impl AsRef<Path>) -> FileNode {
@@ -50,4 +51,3 @@ impl<T: Task> Store<T, T::Output> {
     task
   }
 }
-

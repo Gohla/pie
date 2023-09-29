@@ -27,4 +27,3 @@ impl<T: Task> Default for Store<T, T::Output> {
     }
   }
 }
-

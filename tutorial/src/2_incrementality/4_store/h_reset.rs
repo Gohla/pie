@@ -1,3 +1,4 @@
+
 impl<T: Task> Store<T, T::Output> {
   /// Reset task `src`, removing its output and removing all its outgoing dependencies.
   ///
@@ -13,4 +14,3 @@ impl<T: Task> Store<T, T::Output> {
     self.graph.remove_outgoing_edges_of_node(src);
   }
 }
-

@@ -1,3 +1,5 @@
+
+
   #[test]
   fn test_dependencies() {
     let mut store = Store::default();
@@ -80,4 +82,3 @@
     let dependency = TaskDependency::new(task, OutputStamper::Equals, output);
     let _ = store.add_task_require_dependency(&fake_task_node, &fake_task_node, dependency);
   }
-
