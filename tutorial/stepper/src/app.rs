@@ -201,13 +201,14 @@ pub fn step_all(
           .use_destination_file_as_original_file_if_unset(true)
           .into_modification(),
       ]);
-      stepper.set_cargo_args(["test"]);
+      stepper.set_cargo_args(["run", "--example", "incremental"]);
       stepper.apply([
-        create_diff_builder("g_example_import.rs", "../examples/incremental.rs")
+        create_diff_builder("g_example.rs", "../examples/incremental.rs")
           .use_destination_file_as_original_file_if_unset(true)
           .into_modification(),
-        create_diff("h_example.rs", "../examples/incremental.rs"),
       ]).output(SourceArchive::new("source.zip"));
+      stepper.set_cargo_args(["test"]);
+      stepper.apply([]); // Apply with empty to run tests
     });
     stepper.with_path("2_tracker", |stepper| {
       stepper.apply([

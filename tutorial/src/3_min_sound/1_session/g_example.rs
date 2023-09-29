@@ -5,7 +5,6 @@ use std::path::{Path, PathBuf};
 use dev_shared::{create_temp_dir, write_until_modified};
 use pie::{Context, Pie, Task};
 use pie::stamp::FileStamper;
-use pie::tracker::writing::WritingTracker;
 
 /// Task that reads a string from a file.
 #[derive(Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Debug)]
@@ -20,6 +19,7 @@ impl ReadStringFromFile {
 impl Task for ReadStringFromFile {
   type Output = Result<String, io::ErrorKind>;
   fn execute<C: Context<Self>>(&self, context: &mut C) -> Self::Output {
+    println!("Reading from {} with {:?} stamper", self.0.file_name().unwrap().to_string_lossy(), self.1);
     let file = context.require_file_with_stamper(&self.0, self.1).map_err(|e| e.kind())?;
     if let Some(mut file) = file {
       let mut string = String::new();
@@ -36,7 +36,7 @@ fn main() -> Result<(), io::Error> {
   let input_file = temp_dir.path().join("input.txt");
   write_until_modified(&input_file, "Hi")?;
 
-  let mut pie = Pie::with_tracker(WritingTracker::with_stdout());
+  let mut pie = Pie::default();
   let read_task = ReadStringFromFile::new(&input_file, FileStamper::Modified);
 
   println!("A) New task: expect `read_task` to execute");

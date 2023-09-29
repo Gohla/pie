@@ -99,16 +99,10 @@ We need to update the incrementality example to work with these changes.
 
 ## Update incremental example
 
-First change some imports in `pie/examples/incremental.rs`:
+Change `pie/examples/incremental.rs` to use sessions:
 
 ```diff2html fromfile
-../../gen/3_min_sound/1_session/g_example_import.rs.diff
-```
-
-Then, change `pie/examples/incremental.rs` to use sessions:
-
-```diff2html fromfile
-../../gen/3_min_sound/1_session/h_example.rs.diff
+../../gen/3_min_sound/1_session/g_example.rs.diff
 ```
 
 When we only require one task, we replace `context.require_task` with `pie.new_session().require`.
@@ -119,10 +113,10 @@ If we use a single session, our changes are never seen, and we just execute each
 Therefore, every time we make changes to source files, or expect that changes have been made to source files, we must create a new session.
 
 ```admonish
-In changes I and J, Rust is smart enough to allow creating a new session even though the previous `session` variable is still active, because it knows that we don't use that previous session anymore. 
+In changes D and E, Rust is smart enough to allow creating a new session even though the previous `session` variable is still active, because it knows that we don't use that previous session anymore. 
 ```
 
-Check that all code works by running `cargo test`.
+Check that the example works with `cargo run --example incremental`, and check that the rest of the code works by running `cargo test`.
 
 With this new API in place, and all code adjusted to work with it, we can continue with tracking build events.
 

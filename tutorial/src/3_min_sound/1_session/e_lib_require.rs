@@ -10,9 +10,9 @@ use crate::context::top_down::TopDownContext;
 use crate::store::{Store, TaskNode};
 
 pub mod stamp;
+pub mod dependency;
 pub mod context;
 mod fs;
-mod dependency;
 mod store;
 
 /// A unit of computation in a programmatic incremental build system.
