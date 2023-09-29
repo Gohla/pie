@@ -1,3 +1,5 @@
+
+
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub enum Dependency<T, O> {
   RequireFile(FileDependency),
@@ -25,4 +27,3 @@ impl<T: Task> Dependency<T, T::Output> {
     Ok(option)
   }
 }
-

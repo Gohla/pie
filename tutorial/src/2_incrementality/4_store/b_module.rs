@@ -7,9 +7,9 @@ use std::path::Path;
 use stamp::{FileStamper, OutputStamper};
 
 pub mod stamp;
+pub mod dependency;
 pub mod context;
 mod fs;
-mod dependency;
 mod store;
 
 /// A unit of computation in a programmatic incremental build system.

@@ -12,8 +12,9 @@ Add the `dependency` module to `pie/src/lib.rs`:
 ../../gen/2_incrementality/3_dependency/a_module.rs.diff
 ```
 
-This module is private, as users of the library should not construct dependencies.
-They should only create dependencies (and choose stampers) via `Context` methods.
+Users of the library will not construct dependencies.
+They will create dependencies (and choose stampers) via `Context` methods.
+However, dependencies will be used in the public API for debug logging later, so we make the module public.
 
 ## File dependencies
 
@@ -41,7 +42,7 @@ Task dependencies are implemented in a similar way.
 Add to `pie/src/dependency.rs`:
 
 ```rust,
-{{#include c_task.rs}}
+{{#include c_task.rs:3:}}
 ```
 
 A `TaskDependency` stores the `task` the dependency is about, along with its `stamper` and `stamp` that is created when the dependency is created.
@@ -87,7 +88,7 @@ Finally, we create a `Dependency` enum that abstracts over these two kinds of de
 Add to `pie/src/dependency.rs`:
 
 ```rust,
-{{#include d_dependency.rs}}
+{{#include d_dependency.rs:3:}}
 ```
 
 `Dependency` just merges the two kinds of dependencies and provides an `is_inconsistent` method that calls the corresponding method.
@@ -110,7 +111,7 @@ As usual, we write some tests to confirm the behaviour.
 Add tests to `pie/src/dependency.rs`:
 
 ```rust,
-{{#include e_test.rs}}
+{{#include e_test.rs:3:}}
 ```
 
 We test a file dependency by asserting that `is_inconsistent` returns `Some` after changing the file.
