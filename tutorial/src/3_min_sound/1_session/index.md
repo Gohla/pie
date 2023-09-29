@@ -13,7 +13,11 @@ If a task is deemed consistent at the time it is checked, it will not be checked
 This simplifies minimality and soundness, as we do not need to worry about checking tasks multiple times.
 Furthermore, it is also an optimisation, as requiring the same task many times only results in one check.
 
-We will implement the `Session` type to hold all session data, and the `Pie` type as an entry point into the build system that manages a session.
+We will continue as follows:
+1) Create the `Session` type to hold all session data, and the `Pie` type as an entry point into the build system that manages a session.
+2) Update `TopDownContext` to work with `Session`.
+3) Update the incrementality example to work with `Session` and `Pie`.
+4) Ensure minimality by keeping track whether a task has been required this session.
 
 ## PIE and Session
 

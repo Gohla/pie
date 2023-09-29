@@ -158,31 +158,25 @@ pub fn step_all(
         create_diff("g_check.rs", dest),
         create_diff("h_error_field.rs", dest),
         create_diff("i_error_store.rs", dest),
-      ]);
+      ]).output(SourceArchive::new("source.zip"));
     });
-    stepper.with_path("5b_context_example", |stepper| {
+    stepper.with_path("6_example", |stepper| {
       let dest = "../examples/incremental.rs";
       stepper.set_cargo_args(["run", "--example", "incremental"]);
       stepper.apply([
         add("a_task.rs", dest),
-        add("b_read_task.rs", dest),
-        add("c_write_task.rs", dest),
-        add("d_main.rs", dest),
-      ]).output(CargoOutput::new("d_main.txt"));
+        add("b_main.rs", dest),
+      ]).output(CargoOutput::new("b_main.txt"));
       let insertion_place = "  Ok(())";
       stepper.apply([
-        insert("e_reuse.rs", insertion_place, dest),
-      ]).output(CargoOutput::new("e_reuse.txt"));
+        insert("c_reuse.rs", insertion_place, dest),
+      ]).output(CargoOutput::new("c_reuse.txt"));
       stepper.apply([
-        insert("f_file_dep.rs", insertion_place, dest),
-        insert("g_new_task.rs", insertion_place, dest),
-        insert("h_file_and_task_dep.rs", insertion_place, dest),
-        insert("i_early_cutoff.rs", insertion_place, dest),
-        insert("j_regen_file.rs", insertion_place, dest),
-        insert("k_diff_task.rs", insertion_place, dest),
-        insert("l_diff_stamp.rs", insertion_place, dest),
+        insert("d_file_dep.rs", insertion_place, dest),
+        insert("e_diff_task.rs", insertion_place, dest),
+        insert("f_diff_stamp.rs", insertion_place, dest),
       ]).output([
-        CargoOutput::new("l_diff_stamp.txt"),
+        CargoOutput::new("f_diff_stamp.txt"),
         SourceArchive::new("source.zip"),
       ]);
       stepper.set_cargo_args(["test"]);

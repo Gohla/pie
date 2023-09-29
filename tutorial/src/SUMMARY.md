@@ -9,6 +9,7 @@
   - [Dynamic Dependencies](./2_incrementality/3_dependency/index.md)
   - [Dependency Graph Store](./2_incrementality/4_store/index.md)
   - [Incremental Top-Down Context](./2_incrementality/5_context/index.md)
+  - [Incrementality Example](./2_incrementality/6_example/index.md)
 - [Minimality and Soundness](./3_min_sound/index.md)
   - [Minimality with Sessions](./3_min_sound/1_session/index.md)
   - [Tracking Build Events](./3_min_sound/2_tracker/index.md)
