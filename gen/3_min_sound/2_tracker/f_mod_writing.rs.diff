@@ -1,7 +1,7 @@
 --- pie/src/tracker/mod.rs
 +++ pie/src/tracker/mod.rs
-@@ -3,6 +3,8 @@
- use crate::stamp::{FileStamp, FileStamper, OutputStamp, OutputStamper};
+@@ -4,6 +4,8 @@
+ use crate::stamp::OutputStamper;
  use crate::Task;
  
 +pub mod writing;

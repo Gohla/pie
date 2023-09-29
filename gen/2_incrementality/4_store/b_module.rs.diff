@@ -1,9 +1,9 @@
 --- pie/src/lib.rs
 +++ pie/src/lib.rs
 @@ -10,6 +10,7 @@
+ pub mod dependency;
  pub mod context;
  mod fs;
- mod dependency;
 +mod store;
  
  /// A unit of computation in a programmatic incremental build system.

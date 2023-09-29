@@ -1,13 +1,25 @@
 --- pie/examples/incremental.rs
 +++ pie/examples/incremental.rs
-@@ -72,30 +72,30 @@
-   write(&input_file, "Hi")?;
-   let output_file = temp_dir.path().join("output.txt");
+@@ -1,11 +1,8 @@
+-#![allow(unused_imports, unused_variables)]
+-
+ use std::io::{self, Read};
+ use std::path::{Path, PathBuf};
+ 
+ use dev_shared::{create_temp_dir, write_until_modified};
+-use pie::{Context, Task};
+-use pie::context::top_down::TopDownContext;
++use pie::{Context, Pie, Task};
+ use pie::stamp::FileStamper;
+ 
+ /// Task that reads a string from a file.
+@@ -38,24 +35,24 @@
+   let input_file = temp_dir.path().join("input.txt");
+   write_until_modified(&input_file, "Hi")?;
  
 -  let mut context = TopDownContext::new();
 +  let mut pie = Pie::default();
    let read_task = ReadStringFromFile::new(&input_file, FileStamper::Modified);
-   let write_task = WriteStringToFile::new(read_task.clone(), &output_file, FileStamper::Modified);
  
    println!("A) New task: expect `read_task` to execute");
    // `read_task` is new, meaning that we have no cached output for it, thus it must be executed.
@@ -29,47 +41,8 @@
 +  let output = pie.new_session().require(&read_task)?;
    assert_eq!(&output, "Hello");
  
-   println!("\nD) New task, reuse other: expect only `write_task` to execute");
-   // write_task` is new, but `read_task` is not new and its file dependency is still consistent.
--  context.require_task(&write_task)?;
-+  pie.new_session().require(&write_task)?;
-   assert_eq!(&read_to_string(&output_file)?, "Hello");
- 
-   write_until_modified(&input_file, "Hello, World!")?;
-@@ -103,7 +103,7 @@
-   // The file dependency of `read_task` is inconsistent. Then, the task dependency from `write_task` to `read_task` is 
-   // inconsistent because `read_task` now returns `"Hello, World!"` as output instead of "Hello", and thus its equals 
-   // output stamp is different.
--  context.require_task(&write_task)?;
-+  pie.new_session().require(&write_task)?;
-   assert_eq!(&read_to_string(&output_file)?, "Hello, World!");
- 
-   write_until_modified(&input_file, "Hello, World!")?; // Note: writing same file contents!
-@@ -112,20 +112,20 @@
-   // `"Hello, World!"` because the contents of the file have not actually changed. Then, the task dependency from 
-   // `write_task` to `read_task` is consistent because its output did not change, and thus the equality output stamp is 
-   // the same.
--  context.require_task(&write_task)?;
-+  pie.new_session().require(&write_task)?;
-   assert_eq!(&read_to_string(&output_file)?, "Hello, World!");
- 
-   write_until_modified(&output_file, "")?;
-   println!("\nG) Regenerate changed output file: expect only `write_task` to execute");
-   // The file dependency of `write_task` to `output_file` is inconsistent.
--  context.require_task(&write_task)?;
-+  pie.new_session().require(&write_task)?;
-   assert_eq!(&read_to_string(&output_file)?, "Hello, World!");
- 
-   write_until_modified(&output_file, "")?;
-   remove_file(&output_file)?;
-   println!("\nH) Regenerate deleted output file: expect only `write_task` to execute");
-   // Same results when `output_file` is deleted.
--  context.require_task(&write_task)?;
-+  pie.new_session().require(&write_task)?;
-   assert_eq!(&read_to_string(&output_file)?, "Hello, World!");
- 
    let input_file_b = temp_dir.path().join("input_b.txt");
-@@ -136,9 +136,10 @@
+@@ -66,9 +63,10 @@
    // Task `read_task`, `read_task_b_modified` and `read_task_b_exists` are different, due to their `Eq` implementation 
    // determining that their paths and stampers are different. Therefore, `read_task_b_modified` and `read_task_b_exists`
    // are new tasks, and must be executed.
@@ -82,7 +55,7 @@
    assert_eq!(&output, "Test");
  
    write_until_modified(&input_file_b, "Test Test")?;
-@@ -150,9 +151,10 @@
+@@ -80,9 +78,10 @@
    //
    // Note that using an `Exists` stamper for this task does not make a lot of sense, since it will only read the file 
    // on first execute and when it is recreated. But this is just to demonstrate different stampers.

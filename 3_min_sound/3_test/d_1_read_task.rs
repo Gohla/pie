@@ -37,7 +37,7 @@ pub trait TestPieExt<T: Task> {
   /// Require `task` in a new session, then assert that it is not executed.
   fn require_then_assert_no_execute(&mut self, task: &T) -> T::Output {
     self.require_then_assert(task, |t|
-      assert!(!t.any_execution_of(task), "expected no execution of task {:?}, but it was executed", task),
+      assert!(!t.any_execute_of(task), "expected no execution of task {:?}, but it was executed", task),
     )
   }
   /// Require `task` in a new session, then assert that it is executed exactly once.

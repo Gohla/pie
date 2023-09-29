@@ -1,3 +1,5 @@
+
+
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub struct TaskDependency<T, O> {
   task: T,
@@ -35,4 +37,3 @@ impl<T: Task> TaskDependency<T, T::Output> {
     }
   }
 }
-

@@ -1,11 +1,11 @@
 --- pie/src/lib.rs
 +++ pie/src/lib.rs
-@@ -10,7 +10,7 @@
- use crate::store::{Store, TaskNode};
+@@ -11,7 +11,7 @@
  
  pub mod stamp;
+ pub mod dependency;
 -pub mod context;
 +mod context;
  mod fs;
- mod dependency;
  mod store;
+ 

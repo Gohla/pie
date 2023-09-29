@@ -1,6 +1,7 @@
 --- pie/src/stamp.rs
 +++ pie/src/stamp.rs
-@@ -1,9 +1,9 @@
+@@ -2,10 +2,10 @@
+ 
  #[cfg(test)]
  mod test {
 -  use std::fs::{remove_file, write};
@@ -12,7 +13,7 @@
  
    use super::*;
  
-@@ -27,7 +27,9 @@
+@@ -29,7 +29,9 @@
      let stamp = stamper.stamp(&temp_file)?;
      assert_eq!(stamp, stamper.stamp(&temp_file)?);
  

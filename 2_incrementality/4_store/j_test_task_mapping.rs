@@ -1,3 +1,5 @@
+
+
   #[test]
   fn test_task_mapping() {
     let mut store = Store::default();
@@ -23,4 +25,3 @@
     let store: Store<StringConstant, String> = Store::default();
     store.get_task(&fake_node);
   }
-

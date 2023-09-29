@@ -36,26 +36,26 @@
      let path = path.as_ref();
      let node = self.session.store.get_or_create_file_node(path);
      let (dependency, file) = FileDependency::new_with_file(path, stamper)?;
-+    self.session.tracker.required_file(path, dependency.stamper(), dependency.stamp());
++    self.session.tracker.require_file_end(&dependency);
      self.session.store.add_file_require_dependency(current_executing_task_node, &node, dependency);
      Ok(file)
    }
  
    fn require_task_with_stamper(&mut self, task: &T, stamper: OutputStamper) -> T::Output {
-+    self.session.tracker.require_task(task, &stamper);
++    self.session.tracker.require_task_start(task, &stamper);
      let node = self.session.store.get_or_create_task_node(task);
  
      // Get required task output by executing it if needed, or by getting the output from the store if not needed.
 -    let output = if self.should_execute_task(&node) {
 +    let should_execute = self.should_execute_task(&node);
 +    let output = if should_execute {
-+      self.session.tracker.execute(task);
++      self.session.tracker.execute_start(task);
        self.session.store.reset_task(&node);
        let previous_executing_task = self.session.current_executing_task.replace(node);
        let output = task.execute(self);
        self.session.current_executing_task = previous_executing_task;
        self.session.store.set_task_output(&node, output.clone());
-+      self.session.tracker.executed(task, &output);
++      self.session.tracker.execute_end(task, &output);
        output
      } else {
        // Correctness: when `should_execute_task` returns `true`, the above block is executed. Otherwise this block is 
@@ -64,7 +64,7 @@
      };
  
 +    let dependency = TaskDependency::new(task.clone(), stamper, output.clone());
-+    self.session.tracker.required_task(task, &output,dependency.stamper(), dependency.stamp(), should_execute);
++    self.session.tracker.require_task_end(&dependency, &output, should_execute);
 +
      // Create task require dependency if a task is currently executing (i.e., we are not requiring the initial task).
      if let Some(current_executing_task_node) = &self.session.current_executing_task {
@@ -81,3 +81,15 @@
    /// Checks whether given task should be executed, returning `true` if it should be executed. A task should be executed
    /// if any of its dependencies are inconsistent, or when it has no output.
    fn should_execute_task(&mut self, node: &TaskNode) -> bool {
+@@ -71,7 +82,10 @@
+     //         through `self.store` while we create a mutable borrow of `self`, which is not allowed.
+     let dependencies: Vec<_> = self.session.store.get_dependencies_of_task(node).cloned().collect();
+     for dependency in dependencies {
+-      match dependency.is_inconsistent(self) {
++      self.session.tracker.check_dependency_start(&dependency);
++      let inconsistency = dependency.is_inconsistent(self);
++      self.session.tracker.check_dependency_end(&dependency, inconsistency.as_ref().map(|o| o.as_ref()));
++      match inconsistency {
+         Ok(Some(_)) => return true,
+         Err(e) => { // Error while checking: store error and assume inconsistent
+           self.session.dependency_check_errors.push(e);

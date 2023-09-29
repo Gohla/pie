@@ -1,3 +1,4 @@
+
 impl<T: Task> Store<T, T::Output> {
   /// Get all dependencies of task `src`. 
   ///
@@ -37,4 +38,3 @@ impl<T: Task> Store<T, T::Output> {
     }
   }
 }
-

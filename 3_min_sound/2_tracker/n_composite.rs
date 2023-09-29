@@ -12,25 +12,38 @@ impl<T: Task, A1: Tracker<T>, A2: Tracker<T>> Tracker<T> for CompositeTracker<A1
     self.1.build_end();
   }
 
-  fn required_file(&mut self, path: &Path, stamper: &FileStamper, stamp: &FileStamp) {
-    self.0.required_file(path, stamper, stamp);
-    self.1.required_file(path, stamper, stamp);
+  fn require_file_end(&mut self, dependency: &FileDependency) {
+    self.0.require_file_end(dependency);
+    self.1.require_file_end(dependency);
   }
-  fn require_task(&mut self, task: &T, stamper: &OutputStamper) {
-    self.0.require_task(task, stamper);
-    self.1.require_task(task, stamper);
+  fn require_task_start(&mut self, task: &T, stamper: &OutputStamper) {
+    self.0.require_task_start(task, stamper);
+    self.1.require_task_start(task, stamper);
   }
-  fn required_task(&mut self, task: &T, output: &T::Output, stamper: &OutputStamper, stamp: &OutputStamp<T::Output>, was_executed: bool) {
-    self.0.required_task(task, output, stamper, stamp, was_executed);
-    self.1.required_task(task, output, stamper, stamp, was_executed);
+  fn require_task_end(&mut self, dependency: &TaskDependency<T, T::Output>, output: &T::Output, was_executed: bool) {
+    self.0.require_task_end(dependency, output, was_executed);
+    self.1.require_task_end(dependency, output, was_executed);
   }
 
-  fn execute(&mut self, task: &T) {
-    self.0.execute(task);
-    self.1.execute(task);
+  fn check_dependency_start(&mut self, dependency: &Dependency<T, T::Output>) {
+    self.0.check_dependency_start(dependency);
+    self.1.check_dependency_start(dependency);
   }
-  fn executed(&mut self, task: &T, output: &T::Output) {
-    self.0.executed(task, output);
-    self.1.executed(task, output);
+  fn check_dependency_end(
+    &mut self,
+    dependency: &Dependency<T, T::Output>,
+    inconsistency: Result<Option<&Inconsistency<T::Output>>, &io::Error>
+  ) {
+    self.0.check_dependency_end(dependency, inconsistency);
+    self.1.check_dependency_end(dependency, inconsistency);
+  }
+
+  fn execute_start(&mut self, task: &T) {
+    self.0.execute_start(task);
+    self.1.execute_start(task);
+  }
+  fn execute_end(&mut self, task: &T, output: &T::Output) {
+    self.0.execute_end(task, output);
+    self.1.execute_end(task, output);
   }
 }

@@ -1,27 +1,27 @@
 --- pie/examples/incremental.rs
 +++ pie/examples/incremental.rs
-@@ -35,7 +35,6 @@
-     FileTask::ReadStringFromFile(Self(path.as_ref().to_path_buf(), stamper))
-   }
-   fn execute<C: Context<FileTask>>(&self, context: &mut C) -> Result<String, io::ErrorKind> {
+@@ -4,6 +4,7 @@
+ use dev_shared::{create_temp_dir, write_until_modified};
+ use pie::{Context, Pie, Task};
+ use pie::stamp::FileStamper;
++use pie::tracker::writing::WritingTracker;
+ 
+ /// Task that reads a string from a file.
+ #[derive(Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Debug)]
+@@ -18,7 +19,6 @@
+ impl Task for ReadStringFromFile {
+   type Output = Result<String, io::ErrorKind>;
+   fn execute<C: Context<Self>>(&self, context: &mut C) -> Self::Output {
 -    println!("Reading from {} with {:?} stamper", self.0.file_name().unwrap().to_string_lossy(), self.1);
      let file = context.require_file_with_stamper(&self.0, self.1).map_err(|e| e.kind())?;
      if let Some(mut file) = file {
        let mut string = String::new();
-@@ -57,7 +56,6 @@
-     FileTask::WriteStringToFile(Self(string_provider.into(), path.into(), stamper))
-   }
-   fn execute<C: Context<FileTask>>(&self, context: &mut C) -> Result<(), io::ErrorKind> {
--    println!("Writing to {} with {:?} stamper", self.1.file_name().unwrap().to_string_lossy(), self.2);
-     let string = context.require_task(&self.0)?;
-     let mut file = File::create(&self.1).map_err(|e| e.kind())?;
-     file.write_all(string.as_bytes()).map_err(|e| e.kind())?;
-@@ -72,7 +70,7 @@
-   write(&input_file, "Hi")?;
-   let output_file = temp_dir.path().join("output.txt");
+@@ -35,7 +35,7 @@
+   let input_file = temp_dir.path().join("input.txt");
+   write_until_modified(&input_file, "Hi")?;
  
 -  let mut pie = Pie::default();
-+  let mut pie = Pie::with_tracker(pie::tracker::writing::WritingTracker::with_stdout());
++  let mut pie = Pie::with_tracker(WritingTracker::with_stdout());
    let read_task = ReadStringFromFile::new(&input_file, FileStamper::Modified);
-   let write_task = WriteStringToFile::new(read_task.clone(), &output_file, FileStamper::Modified);
  
+   println!("A) New task: expect `read_task` to execute");

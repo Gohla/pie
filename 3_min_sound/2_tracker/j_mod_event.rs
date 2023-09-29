@@ -1,6 +1,7 @@
-use std::path::Path;
+use std::io;
 
-use crate::stamp::{FileStamp, FileStamper, OutputStamp, OutputStamper};
+use crate::dependency::{Dependency, FileDependency, Inconsistency, TaskDependency};
+use crate::stamp::OutputStamper;
 use crate::Task;
 
 pub mod writing;
@@ -9,21 +10,29 @@ pub mod event;
 /// Trait for tracking build events. Can be used to implement logging, event tracing, progress tracking, metrics, etc.
 #[allow(unused_variables)]
 pub trait Tracker<T: Task> {
-  /// Start a new build.
+  /// Start: a new build.
   fn build_start(&mut self) {}
-  /// A build has been completed.
+  /// End: completed build.
   fn build_end(&mut self) {}
 
-  /// A file at `path` has been required, using `stamper` to create `stamp`.
-  fn required_file(&mut self, path: &Path, stamper: &FileStamper, stamp: &FileStamp) {}
-  /// Require `task` using `stamper`.
-  fn require_task(&mut self, task: &T, stamper: &OutputStamper) {}
-  /// A `task` has been required, resulting in consistent `output`, using `stamper` to create `stamp`, and task 
-  /// `was_executed`.
-  fn required_task(&mut self, task: &T, output: &T::Output, stamper: &OutputStamper, stamp: &OutputStamp<T::Output>, was_executed: bool) {}
+  /// End: created a file `dependency`.
+  fn require_file_end(&mut self, dependency: &FileDependency) {}
+  /// Start: require `task` using `stamper`.
+  fn require_task_start(&mut self, task: &T, stamper: &OutputStamper) {}
+  /// End: required a task, resulting in a task `dependency` and `output`, and the task `was_executed`.
+  fn require_task_end(&mut self, dependency: &TaskDependency<T, T::Output>, output: &T::Output, was_executed: bool) {}
 
-  /// Execute `task`.
-  fn execute(&mut self, task: &T) {}
-  /// A `task` has been executed, producing `output`.
-  fn executed(&mut self, task: &T, output: &T::Output) {}
+  /// Start: check consistency of `dependency`. 
+  fn check_dependency_start(&mut self, dependency: &Dependency<T, T::Output>) {}
+  /// End: checked consistency of `dependency`, possibly found `inconsistency`.
+  fn check_dependency_end(
+    &mut self,
+    dependency: &Dependency<T, T::Output>,
+    inconsistency: Result<Option<&Inconsistency<T::Output>>, &io::Error>
+  ) {}
+
+  /// Start: execute `task`.
+  fn execute_start(&mut self, task: &T) {}
+  /// End: executed `task` resulting in `output`.
+  fn execute_end(&mut self, task: &T, output: &T::Output) {}
 }

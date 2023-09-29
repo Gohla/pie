@@ -4,20 +4,37 @@ impl<T: Task> Tracker<T> for EventTracker<T, T::Output> {
     self.events.clear();
   }
 
-  fn required_file(&mut self, path: &Path, stamper: &FileStamper, stamp: &FileStamp) {
-    self.events.push(Event::RequiredFile { path: path.to_path_buf(), stamper: *stamper, stamp: *stamp });
+  fn require_file_end(&mut self, dependency: &FileDependency) {
+    let data = RequireFileEnd {
+      path: dependency.path().into(),
+      stamper: *dependency.stamper(),
+      stamp: *dependency.stamp(),
+      index: self.events.len()
+    };
+    self.events.push(Event::RequireFileEnd(data));
   }
-  fn require_task(&mut self, task: &T, stamper: &OutputStamper) {
-    self.events.push(Event::RequireTask { task: task.clone(), stamper: stamper.clone() });
+  fn require_task_start(&mut self, task: &T, stamper: &OutputStamper) {
+    let data = RequireTaskStart { task: task.clone(), stamper: stamper.clone(), index: self.events.len() };
+    self.events.push(Event::RequireTaskStart(data));
   }
-  fn required_task(&mut self, task: &T, output: &T::Output, stamper: &OutputStamper, stamp: &OutputStamp<T::Output>, was_executed: bool) {
-    self.events.push(Event::RequiredTask { task: task.clone(), output: output.clone(), stamper: *stamper, stamp: stamp.clone(), was_executed });
+  fn require_task_end(&mut self, dependency: &TaskDependency<T, T::Output>, output: &T::Output, was_executed: bool) {
+    let data = RequireTaskEnd {
+      task: dependency.task().clone(),
+      stamper: *dependency.stamper(),
+      stamp: dependency.stamp().clone(),
+      output: output.clone(),
+      was_executed,
+      index: self.events.len()
+    };
+    self.events.push(Event::RequireTaskEnd(data));
   }
 
-  fn execute(&mut self, task: &T) {
-    self.events.push(Event::Execute { task: task.clone() });
+  fn execute_start(&mut self, task: &T) {
+    let data = ExecuteStart { task: task.clone(), index: self.events.len() };
+    self.events.push(Event::ExecuteStart(data));
   }
-  fn executed(&mut self, task: &T, output: &T::Output) {
-    self.events.push(Event::Executed { task: task.clone(), output: output.clone() });
+  fn execute_end(&mut self, task: &T, output: &T::Output) {
+    let data = ExecuteEnd { task: task.clone(), output: output.clone(), index: self.events.len() };
+    self.events.push(Event::ExecuteEnd(data));
   }
 }

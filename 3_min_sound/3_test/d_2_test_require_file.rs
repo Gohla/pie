@@ -5,7 +5,7 @@ use assert_matches::assert_matches;
 
 use dev_shared::{create_temp_dir, write_until_modified};
 use pie::stamp::FileStamper;
-use pie::tracker::event::Event::*;
+use pie::tracker::event::*;
 
 use crate::common::{test_pie, TestPieExt, TestTask::*};
 
@@ -17,10 +17,10 @@ fn test_execution() -> Result<(), io::Error> {
   let task = StringConstant("Hello, World!");
   let output = pie.require_then_assert(&task, |tracker| {
     let events = tracker.slice();
-    assert_matches!(events.get(0), Some(RequireTask { task: t, .. }) if t == &task);
-    assert_matches!(events.get(1), Some(Execute { task: t }) if t == &task);
-    assert_matches!(events.get(2), Some(Executed { task: t, .. }) if t == &task);
-    assert_matches!(events.get(3), Some(RequiredTask { task: t, .. }) if t == &task);
+    assert_matches!(events.get(0), Some(Event::RequireTaskStart(RequireTaskStart { task: t, .. })) if t == &task);
+    assert_matches!(events.get(1), Some(Event::ExecuteStart(ExecuteStart { task: t, .. })) if t == &task);
+    assert_matches!(events.get(2), Some(Event::ExecuteEnd(ExecuteEnd { task: t, .. })) if t == &task);
+    assert_matches!(events.get(3), Some(Event::RequireTaskEnd(RequireTaskEnd { task: t, .. })) if t == &task);
   })?;
   assert_eq!(output.as_str(), "Hello, World!");
   Ok(())

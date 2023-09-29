@@ -11,10 +11,10 @@ use crate::store::{Store, TaskNode};
 use crate::tracker::{NoopTracker, Tracker};
 
 pub mod stamp;
+pub mod dependency;
 pub mod tracker;
 mod context;
 mod fs;
-mod dependency;
 mod store;
 
 /// A unit of computation in a programmatic incremental build system.
