@@ -93,10 +93,10 @@ Add to `pie/src/dependency.rs`:
 
 `Dependency` just merges the two kinds of dependencies and provides an `is_inconsistent` method that calls the corresponding method.
 We return the changed stamp here as well for debug logging later.
-We wrap the changed stamp in an `InconsistentDependency` enum, and map to the correct variant if there is an inconsistency.
+We wrap the changed stamp in an `Inconsistency` enum, and map to the correct variant if there is an inconsistency.
 
 Because `Dependency` can store a `TaskDependency`, we need to propagate the `T` and `O` generics.
-Likewise, `InconsistentDependency` propagates the `O` generic for `OutputStamp`.
+Likewise, `Inconsistency` propagates the `O` generic for `OutputStamp`.
 
 ```admonish info title="User-defined dependencies" collapsible=true
 Like with stampers, `Dependency` could also be a trait to allow users of the library to define their own dependencies.

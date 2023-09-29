@@ -1,5 +1,4 @@
 
-
   let input_file_b = temp_dir.path().join("input_b.txt");
   write_until_modified(&input_file_b, "Test")?;
   let read_task_b_modified = ReadStringFromFile::new(&input_file_b, FileStamper::Modified);

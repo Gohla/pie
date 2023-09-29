@@ -19,7 +19,7 @@ Therefore, we use `std::io::ErrorKind` which does implement these traits.
 We've implemented the task, now add a `main` function to `pie/examples/incrementality.rs`:
 
 ```rust,
-{{#include ../6_example/b_main.rs:3:}}
+{{#include ../6_example/b_main.rs:2:}}
 ```
 
 We create a temporary file, create a task, create a context, and require our first task.
@@ -38,7 +38,7 @@ If we require the task again, what should happen?
 Insert the following code into the `main` method:
 
 ```rust,
-{{#include ../6_example/c_reuse.rs:3:}}
+{{#include ../6_example/c_reuse.rs:1:}}
 ```
 
 Running with `cargo run --example incremental` should produce output like:
@@ -63,7 +63,7 @@ The comments in the code explain in more detail why the build system behaves in 
 Insert into the `main` method:
 
 ```rust,
-{{#include ../6_example/d_file_dep.rs:3:}}
+{{#include ../6_example/d_file_dep.rs:2:}}
 ```
 
 If we change the file (using `write_until_modified` to ensure that the modified time changes to trigger the `Modified` file stamper) and require the task, it should execute, because the file dependency of the task is no longer consistent.
@@ -73,7 +73,7 @@ If we change the file (using `write_until_modified` to ensure that the modified 
 Insert into the `main` method:
 
 ```rust,
-{{#include ../6_example/e_diff_task.rs:3:}}
+{{#include ../6_example/e_diff_task.rs:2:}}
 ```
 
 The identity of tasks is determined by their `Eq` and `Hash` implementations, which are typically derived to compare and hash all their fields.
@@ -85,7 +85,7 @@ We require `read_task_b_modified` and `read_task_b_exists`, they are new, and ar
 Insert into the `main` method:
 
 ```rust,
-{{#include ../6_example/f_diff_stamp.rs:3:}}
+{{#include ../6_example/f_diff_stamp.rs:2:}}
 ```
 
 Here we write to `input_file_b` and then require `read_task_b_modified` and `read_task_b_exists`.

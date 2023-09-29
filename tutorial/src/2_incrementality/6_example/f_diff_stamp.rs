@@ -1,5 +1,4 @@
 
-
   write_until_modified(&input_file_b, "Test Test")?;
   println!("\nE) Different stampers: expect only `read_task_b_modified` to execute");
   // Both `read_task_b_modified` and `read_task_b_exists` read from the same file, but they use different stampers.
@@ -13,3 +12,4 @@
   assert_eq!(&output, "Test Test");
   let output = context.require_task(&read_task_b_exists)?;
   assert_eq!(&output, "Test");
+

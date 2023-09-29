@@ -1,3 +1,4 @@
+
 fn main() -> Result<(), io::Error> {
   let temp_dir = create_temp_dir()?;
   let input_file = temp_dir.path().join("input.txt");

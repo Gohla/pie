@@ -32,10 +32,24 @@ Here, we chose to put the `Task` constraint on the trait itself.
 This will not lead to cascading constraints, as the `Tracker` trait will only be used as a constraint in `impl`s, not in structs or other traits.
 ```
 
-`Tracker` has methods corresponding to events that happen during a build, such as a build starting or ending, requiring a file, requiring a task, and executing a task.
-These methods accept `&mut self` so that tracker implementations can perform mutation, such as storing a build event.
+`Tracker` has methods corresponding to events that happen during a build, such as a build starting, requiring a file, requiring a task, checking a dependency, and executing a task.
+All but the `require_file` event have start and end variants to give trackers control over nesting these kind of events. 
+Then end variants usually have more parameters as more info is available when something is has finished.
+
+Tracker methods accept `&mut self` so that tracker implementations can perform mutation, such as storing a build event.
 We provide default methods that do nothing so that implementors of `Tracker` only have to override the methods for events they are interested in.
 We use `#[allow(unused_variables)]` on the trait to not give warnings for unused variables, as all variables are unused due to the empty default implementations.
+
+```admonish info title="References in Result and Option" collapsible=true
+The `check_dependency_end` method accepts the inconsistency as `Result<Option<&Inconsistency<T::Output>>, &io::Error>`.
+The reason we accept it like this is that many methods in `Result` and `Option` take `self`, not `&self`, and therefore cannot be called on `&Result<T, E>` and `&Option<T>`.
+
+We can turn `&Result<T, E>` into `Result<&T, &E>` with [`as_ref`](https://doc.rust-lang.org/std/result/enum.Result.html#method.as_ref) (same for `Option`).
+Since trackers always want to work with `Result<&T, &E>`, it makes more sense for the caller of the tracker method to call `as_ref` to turn their result into `Result<&T, &E>`.
+
+The final reason to accept `Result<&T, &E>` is that if you have a `&T` or `&E`, you can easily construct a `Result<&T, &E>` with `Ok(&t)` and `Err(&e)`.
+However, you _cannot_ construct a `&Result<T, E>` from `&T` or `&E`, so `Result<&T, &E>` is a more flexible type.
+```
 
 ```admonish info title="Default methods" collapsible=true
 Adding a method to `Tracker` with a default implementation ensures that implementations of `Tracker` do not have to be changed to work with the new method.
@@ -97,12 +111,13 @@ Modify `pie/src/context/top_down.rs`:
 
 We make `TopDownContext` generic over trackers, and call methods on the tracker:
 
-- `build_start`/`build_end` in `require_initial` to track build start and ends,
-- `required_file` in `require_file_with_stamper` to track file dependencies,
-- `require_task`/`required_task` in `require_file_with_stamper` to track task dependencies,
-- `execute`/`executed` in `require_task_with_stamper` to track task execution start and ends.
-
-In `require_file_with_stamper`, we also extract `should_execute` into a variable, and pull `dependency` out of the `if`, so that we can pass the required data to `tracker.required_task`.
+- In `require_initial` we call `build_start`/`build_end` to track builds.
+- In `require_file_with_stamper` we call `require_file_end` to track file dependencies.
+- In `require_file_with_stamper` we call `require_task_start`/`require_task_end` to track task dependencies. 
+  - We extract `should_execute` into a variable, and pull `dependency` out of the `if`, so that we can pass them to `tracker.required_task`.
+  - We also call `execute_start`/`execute_end` to track execution.
+- In `should_execute_task` we call `check_dependency_start`/`check_dependency_end` to track dependency checking.
+  - We extract `inconsistency` into a variable, and convert it into the right type for `check_dependency_end`.
 
 Check that the code compiles with `cargo test`.
 Existing code should keep working due to the `NoopTracker` default type in `Pie`.
@@ -130,21 +145,25 @@ The `WritingTracker` is generic over a writer `W` that must implement `Write`, w
 `with_stdout` and `with_stderr` can be used to create buffered writers to standard output and standard error.
 `new` can be used to create a writer to anything that implements `Write`, such as a `File`.
 
-Add the `Tracker` implementation to `pie/src/tracker/writing.rs`:
+Add some utility functions for `WritingTracker` to `pie/src/tracker/writing.rs`: 
 
 ```rust,
-{{#include h_writing_impl.rs:2:}}
+{{#include h_1_writing_impl.rs:2:}}
 ```
 
-We implement 3 tracker methods that write when:
-- ✓: a task is required but was not executed (i.e., consistent),
-- →: a task starts to execute,
-- ←: when the task is done executing.
+`writeln` and `write` will mainly be used for writing text.
+The text to write is passed into these methods using `std::fmt::Arguments` for flexibility, accepting the result of `format_args!`.
+`WritingTracker` keeps track of `indentation` to show recursive dependency checking and execution, which is controlled with `indent` and `unindent`.
+Since we are usually writing to buffers, we must `flush` them to observe the output.
 
-The text to write is formatted with `format_args!`, which is passed into `writeln` using `std::fmt::Arguments` for flexibility.
-We `flush` the writer after every event to ensure that bytes are written out.
-When a task starts to execute, we increase indentation to signify the recursive checking/execution.
-When a task is done executing, we decrease the indentation again.
+```admonish info title="Failing writes" collapsible=true
+Writes can fail, but we silently ignore them in this tutorial (with `let _ = ...`) for simplicity.
+You could panic when writing fails, but panicking when writing to standard output fails is probably going a bit too far.
+You could store the latest write error and give access to it, which at least allows users of `WritingTracker` check for some errors.
+
+In general, tracking events can fail, but the current `Tracker` API does not allow for propagating these errors with `Result`.
+This in turn because `TopDownContext` does not return `Result` for `require_task` due to the trade-offs discussed in the section on `TopDownContext`.
+```
 
 ```admonish info title="Saturating arithmetic" collapsible=true
 We use `saturating_add` and `saturating_sub` for safety, which are saturating arithmetic operations that saturate at the numeric bounds instead of overflowing.
@@ -156,17 +175,31 @@ However, if we make a mistake, it is better to write no indentation than to writ
 Alternatively, we could use standard arithmetic operations, which panic on overflow in debug/development mode, but silently overflow in release mode.
 ```
 
-```admonish info title="Failing writes" collapsible=true
-Writes can fail, but we silently ignore them in this tutorial (with `let _ = ...`) for simplicity.
-You could panic when writing fails, but panicking when writing to standard output fails is probably going a bit too far.
-You could store the latest write error and give access to it, which at least allows users of `WritingTracker` check for some errors.
+Now we can implement the tracker using these utility methods.
+Add the `Tracker` implementation to `pie/src/tracker/writing.rs`:
 
-In general, tracking events can fail, but the current `Tracker` API does not allow for propagating these errors with `Result`.
-This in turn because `TopDownContext` does not return `Result` for `require_task` due to the trade-offs discussed in the section on `TopDownContext`.
+```rust,
+{{#include h_2_writing_impl.rs:2:}}
 ```
 
-If you want, you can capture more build events and write them, and/or provide more configuration as to what build events should be written.
-But in this tutorial, we will keep it simple like this.
+We implement most tracker methods and write what is happening, using some unicode symbols to signify events:
+- `🏁`: end of a build,
+- `-`: created a file dependency,
+- `→`: start requiring a task,
+- `←`: end of requiring a task,
+- `?`: start checking a task dependency,
+- `✓`: end of dependency checking, when the dependency is consistent,
+- `✗`: end of dependency checking, when the dependency is inconsistent,
+- `▶`: start of task execution,
+- `◀`: end of task execution.
+
+We `flush` the writer after every event to ensure that bytes are written out.
+When a task is required, checked, or executed, we increase indentation to signify the recursive checking/execution.
+When a task is done being required, checked, or executed, we decrease the indentation again.
+In `check_dependency_end` we write the old and new stamps if a dependency is inconsistent.
+
+This tracker is very verbose.
+You can add configuration booleans to control what should be written, but in this tutorial we will keep it simple like this.
 
 Check that the code compiles with `cargo test`.
 
@@ -177,7 +210,11 @@ Let's try out our writing tracker in the incrementality example by modifying `pi
 ```
 
 We remove the `println!` statements from tasks and create `Pie` with `WritingTracker`.
-Now run the example with `cargo run --example incremental`, and you should see the writing tracker print consistent tasks and task executions to standard output.
+Now run the example with `cargo run --example incremental`, and you should see the writing tracker print to standard output:
+
+```
+{{#include ../../gen/3_min_sound/2_tracker/i_writing_example.txt}}
+```
 
 ## Implement event tracker
 
@@ -198,7 +235,8 @@ Then create the `pie/src/tracker/event.rs` file and add:
 ```
 
 The `EventTracker` stores build events in a `Vec`.
-The `Event` enumeration mimics the `Tracker` methods, but has all arguments in owned form (for example `task: T` instead of `task: &T`) as we want to store these events.
+The `Event` enumeration mimics the relevant `Tracker` methods, but uses structs with all arguments in owned form (for example `task: T` instead of `task: &T`) as we want to store these events.
+We also store the index of every event, so we can easily check whether an event happened before or after another.
 
 Add the tracker implementation to `pie/src/tracker/event.rs`:
 
@@ -211,22 +249,32 @@ When a new build starts, we clear the events.
 
 Now we will add code to inspect the build events.
 This is quite a bit of code that we will be using in integration testing to test incrementality and soundness.
-We'll add in one go to keep the tutorial going, and we will use this code in the next section, but feel free to take some time to inspect the code.
+We'll add in just two steps to keep the tutorial going, and we will use this code in the next section, but feel free to take some time to inspect the code.
 
+First we add some methods to `Event` to make finding the right event and getting its data easier for the rest of the code.
 Add the following code to `pie/src/tracker/event.rs`:
 
 ```rust,
-{{#include m_event_inspection.rs:2:}}
+{{#include m_1_event_inspection.rs:2:}}
 ```
 
-We add several general inspection methods to `EventTracker`:
-- `slice` and `iter` provide raw access to all stored `Event`s,
-- `any`, `count`, and `one` are for checking predicates over all events,
-- `index_of` for finding the index of the first event given a predicate,
-- `find_map` and `index_find_map` for finding the first event given some function, returning the output (and also index in `index_find_map`) of that function.
+These methods check if the current event is a specific kind of event, and return their specific data as `Some(data)`, or `None` if it is a different kind of event.
 
-We add methods for specific kinds of events, following the general methods.
-Finally, we add convenience methods to `Event` for checking specific kinds of events.
+Finally, we add methods to `EventTracker` for inspecting events.
+Add the following code to `pie/src/tracker/event.rs`:
+
+```rust,
+{{#include m_2_event_inspection.rs:2:}}
+```
+
+We add several general inspection methods:
+- `slice` and `iter` provide raw access to all stored `Event`s,
+- `any` and `one` are for checking predicates over all events,
+- `find_map` for finding the first event given some function, returning the output of that function.
+
+Then we add methods for specific kinds of events, following the general methods.
+For example, `first_require_task` finds the first require task start and end events for a task, and return their event data as a tuple.
+`first_require_task_range` finds the same events, but returns their indices as a `RangeInclusive<usize>`.
 
 Check that the code compiles with `cargo test`.
 

@@ -1,6 +1,7 @@
 use std::io::{self, BufWriter, Stderr, Stdout, Write};
 
-use crate::stamp::{OutputStamp, OutputStamper};
+use crate::dependency::{Dependency, FileDependency, Inconsistency, TaskDependency};
+use crate::stamp::OutputStamper;
 use crate::Task;
 use crate::tracker::Tracker;
 

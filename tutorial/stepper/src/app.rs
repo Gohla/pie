@@ -231,7 +231,8 @@ pub fn step_all(
           .original("b_tracker.rs")
           .into_modification(),
         add("g_writing.rs", "tracker/writing.rs"),
-        add("h_writing_impl.rs", "tracker/writing.rs"),
+        add("h_1_writing_impl.rs", "tracker/writing.rs"),
+        add("h_2_writing_impl.rs", "tracker/writing.rs"),
       ]);
       stepper.set_cargo_args(["run", "--example", "incremental"]);
       stepper.apply([
@@ -244,7 +245,8 @@ pub fn step_all(
           .into_modification(),
         add("k_event.rs", "tracker/event.rs"),
         add("l_event_tracker.rs", "tracker/event.rs"),
-        add("m_event_inspection.rs", "tracker/event.rs"),
+        add("m_1_event_inspection.rs", "tracker/event.rs"),
+        add("m_2_event_inspection.rs", "tracker/event.rs"),
       ]);
       stepper.apply([
         add("n_composite.rs", "tracker/mod.rs"),
