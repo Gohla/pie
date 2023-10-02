@@ -262,8 +262,9 @@ In the `require_then_assert` block we first assert that both tasks are required 
 Now let's go back to the build log in the comment, which is lot more complicated this time due to recursive consistency checking. The gist is:
 
 - To check if `lower` should be executed, we check its dependencies: a task dependency to `read`.
-- To check if `read` should be executed, we check its dependencies: a `file` dependency, which is inconsistent, thus we execute `read`.
-- Then we are back to checking `lower`'s task dependency to `read`, which is inconsistent because `read` now returns `"!DLROW OLLEH"` instead of `"HELLO WORLD!"`.
+  - To check if `read` should be executed, we check its dependencies: a `file` dependency, which is inconsistent, thus we execute `read`.
+  - `read` executes and now returns `"!DLROW OLLEH"` instead of `"HELLO WORLD!"`.
+- Then we are back to checking `lower`'s task dependency to `read`, which is inconsistent because `read` returns a different value, which is inconsistent due to the equals output stamper. 
 - Thus, we execute `lower` which requires `read`.
 - We can skip checking `read` because we already checked and executed it: it is deemed consistent this session. We immediately return its output `"!DLROW OLLEH"` to `lower`.
 - `lower` turns the string lowercase and returns it.
