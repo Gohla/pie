@@ -177,8 +177,8 @@ Modify `pie/src/tests/common/mod.rs`:
 We add a `ToLower` task that requires another task (stored as `Box<TestTask>`) to get a `String`, which it then converts to lower case.
 We also add the `into_string` method to `TestOutput` for conveniently getting an owned `String` from a `TestOutput`.
 
-```admonish info title="Boxing to prevent cyclic definition" collapsible=true
-We store the string providing task as `Box<TestTask>` in order to prevent a cyclic definition, which would cause `TestTask` to have an undetermined size.
+```admonish info title="Boxing to prevent cyclic size calculation" collapsible=true
+We store the string providing task as `Box<TestTask>` in order to prevent cyclic size calculation, which would cause `TestTask` to have an undetermined size.
 This is due to several reasons:
 - In Rust, values are stored on the stack by default. To store something on the stack, Rust needs to know its size *at compile-time*.
 - The size of an `enum` is the size of the largest variant.
@@ -264,7 +264,9 @@ Now let's go back to the build log in the comment, which is lot more complicated
 - To check if `lower` should be executed, we check its dependencies: a task dependency to `read`.
 - To check if `read` should be executed, we check its dependencies: a `file` dependency, which is inconsistent, thus we execute `read`.
 - Then we are back to checking `lower`'s task dependency to `read`, which is inconsistent because `read` now returns `"!DLROW OLLEH"` instead of `"HELLO WORLD!"`.
-- Thus, we execute `lower` which requires `read`, but we can skip checking that because it is already consistent this session.
+- Thus, we execute `lower` which requires `read`.
+- We can skip checking `read` because we already checked and executed it: it is deemed consistent this session. We immediately return its output `"!DLROW OLLEH"` to `lower`.
+- `lower` turns the string lowercase and returns it.
 
 Note that we are executing `read` _before_ executing `lower` this time (but still _while requiring_ `lower`).
 This is important for incrementality because if `read` had not returned a different output, we would not have to execute `lower` due to its equals output stamp still being consistent (we call this _early cutoff_).
