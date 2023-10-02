@@ -396,7 +396,7 @@ If you want to see the standard output, either:</p>
 </ul>
 <p>The second command should result in something like:</p>
 <pre><code>    Finished test [unoptimized + debuginfo] target(s) in 0.02s
-     Running tests/top_down.rs (/pie/target/debug/deps/top_down-676a42186b9356e0)
+     Running tests/top_down.rs (/pie/target/debug/deps/top_down-cfb909615f249b1f)
 
 running 1 test
 → Return(&quot;Hello, World!&quot;)
@@ -902,9 +902,13 @@ Add the following code to <code>pie/src/tests/top_down.rs</code>:</p>
 In the <code>require_then_assert</code> block we first assert that both tasks are required and executed, <code>file</code> is required, and perform sanity checks again.</p>
 <p>Now let's go back to the build log in the comment, which is lot more complicated this time due to recursive consistency checking. The gist is:</p>
 <ul>
-<li>To check if <code>lower</code> should be executed, we check its dependencies: a task dependency to <code>read</code>.</li>
+<li>To check if <code>lower</code> should be executed, we check its dependencies: a task dependency to <code>read</code>.
+<ul>
 <li>To check if <code>read</code> should be executed, we check its dependencies: a <code>file</code> dependency, which is inconsistent, thus we execute <code>read</code>.</li>
-<li>Then we are back to checking <code>lower</code>'s task dependency to <code>read</code>, which is inconsistent because <code>read</code> now returns <code>&quot;!DLROW OLLEH&quot;</code> instead of <code>&quot;HELLO WORLD!&quot;</code>.</li>
+<li><code>read</code> executes and now returns <code>&quot;!DLROW OLLEH&quot;</code> instead of <code>&quot;HELLO WORLD!&quot;</code>.</li>
+</ul>
+</li>
+<li>Then we are back to checking <code>lower</code>'s task dependency to <code>read</code>, which is inconsistent because <code>read</code> returns a different value, which is inconsistent due to the equals output stamper. </li>
 <li>Thus, we execute <code>lower</code> which requires <code>read</code>.</li>
 <li>We can skip checking <code>read</code> because we already checked and executed it: it is deemed consistent this session. We immediately return its output <code>&quot;!DLROW OLLEH&quot;</code> to <code>lower</code>.</li>
 <li><code>lower</code> turns the string lowercase and returns it.</li>

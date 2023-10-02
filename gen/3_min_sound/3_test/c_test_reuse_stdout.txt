@@ -1,5 +1,5 @@
     Finished test [unoptimized + debuginfo] target(s) in 0.02s
-     Running tests/top_down.rs (/pie/target/debug/deps/top_down-676a42186b9356e0)
+     Running tests/top_down.rs (/pie/target/debug/deps/top_down-cfb909615f249b1f)
 
 running 1 test
 → Return("Hello, World!")

@@ -195,7 +195,7 @@ edition = &quot;2021&quot;
 <p>Run <code>cargo build</code> to test if the project was set up correctly.
 The output should look something like:</p>
 <pre><code class="language-shell ">   Compiling pie v0.1.0 (/pie)
-    Finished dev [unoptimized + debuginfo] target(s) in 0.12s
+    Finished dev [unoptimized + debuginfo] target(s) in 0.11s
 </code></pre>
 <details id="admonition-download-source-code" class="admonition example">
 <summary class="admonition-title">
@@ -276,7 +276,7 @@ Because of this, the context reference passed to <code>Task::execute</code> is a
 <p>Build the project by running <code>cargo build</code>.
 The output should look something like:</p>
 <pre><code class="language-shell ">   Compiling pie v0.1.0 (/pie)
-    Finished dev [unoptimized + debuginfo] target(s) in 0.14s
+    Finished dev [unoptimized + debuginfo] target(s) in 0.06s
 </code></pre>
 <details id="admonition-rust-help" class="admonition info">
 <summary class="admonition-title">
@@ -439,7 +439,7 @@ It returns the output of the task, which we test with <code>assert_eq!</code>.</
 <p>Run the test by running <code>cargo test</code>.
 The output should look something like:</p>
 <pre><code class="language-shell ">   Compiling pie v0.1.0 (/pie)
-    Finished test [unoptimized + debuginfo] target(s) in 0.52s
+    Finished test [unoptimized + debuginfo] target(s) in 0.48s
      Running unittests src/lib.rs (/pie/target/debug/deps/pie-2022d1785b8ce336)
 
 running 1 test
@@ -3261,7 +3261,7 @@ Run this example with <code>cargo run --example incremental</code>.
 You should see the <code>println!</code> in <code>ReadStringFromFile</code> appear in your console as the incremental context correctly determines that this task is new (i.e., has no output) and must be executed.
 It should look something like:</p>
 <pre><code>   Compiling pie v0.1.0 (/pie)
-    Finished dev [unoptimized + debuginfo] target(s) in 1.01s
+    Finished dev [unoptimized + debuginfo] target(s) in 0.94s
      Running `/pie/target/debug/examples/incremental`
 A) New task: expect `read_task` to execute
 Reading from input.txt with Modified stamper
@@ -3276,7 +3276,7 @@ Reading from input.txt with Modified stamper
   assert_eq!(&amp;output, &quot;Hi&quot;);</code></pre>
 <p>Running with <code>cargo run --example incremental</code> should produce output like:</p>
 <pre><code>   Compiling pie v0.1.0 (/pie)
-    Finished dev [unoptimized + debuginfo] target(s) in 0.51s
+    Finished dev [unoptimized + debuginfo] target(s) in 0.48s
      Running `/pie/target/debug/examples/incremental`
 A) New task: expect `read_task` to execute
 Reading from input.txt with Modified stamper
@@ -3338,7 +3338,7 @@ This shows that tasks can depend on the same file with different stampers, which
 <p>Of course, using an <code>Exists</code> stamper for <code>ReadStringFromFile</code> does not make a lot of sense, but this is for demonstration purposes only.</p>
 <p>Running <code>cargo run --example incremental</code> now should produce output like:</p>
 <pre><code>   Compiling pie v0.1.0 (/pie)
-    Finished dev [unoptimized + debuginfo] target(s) in 0.51s
+    Finished dev [unoptimized + debuginfo] target(s) in 0.49s
      Running `/pie/target/debug/examples/incremental`
 A) New task: expect `read_task` to execute
 Reading from input.txt with Modified stamper
@@ -4618,55 +4618,55 @@ You can add configuration booleans to control what should be written, but in thi
 <p>We remove the <code>println!</code> statements from tasks and create <code>Pie</code> with <code>WritingTracker</code>.
 Now run the example with <code>cargo run --example incremental</code>, and you should see the writing tracker print to standard output:</p>
 <pre><code>   Compiling pie v0.1.0 (/pie)
-    Finished dev [unoptimized + debuginfo] target(s) in 0.67s
+    Finished dev [unoptimized + debuginfo] target(s) in 0.62s
      Running `/pie/target/debug/examples/incremental`
 A) New task: expect `read_task` to execute
-→ ReadStringFromFile(&quot;/tmp/.tmpNQcWeE/input.txt&quot;, Modified)
- ▶ ReadStringFromFile(&quot;/tmp/.tmpNQcWeE/input.txt&quot;, Modified)
-  - /tmp/.tmpNQcWeE/input.txt
+→ ReadStringFromFile(&quot;/tmp/.tmpXPz3M5/input.txt&quot;, Modified)
+ ▶ ReadStringFromFile(&quot;/tmp/.tmpXPz3M5/input.txt&quot;, Modified)
+  - /tmp/.tmpXPz3M5/input.txt
  ◀ Ok(&quot;Hi&quot;)
 ← Ok(&quot;Hi&quot;)
 🏁
 
 B) Reuse: expect no execution
-→ ReadStringFromFile(&quot;/tmp/.tmpNQcWeE/input.txt&quot;, Modified)
- ✓ /tmp/.tmpNQcWeE/input.txt
+→ ReadStringFromFile(&quot;/tmp/.tmpXPz3M5/input.txt&quot;, Modified)
+ ✓ /tmp/.tmpXPz3M5/input.txt
 ← Ok(&quot;Hi&quot;)
 🏁
 
 C) Inconsistent file dependency: expect `read_task` to execute
-→ ReadStringFromFile(&quot;/tmp/.tmpNQcWeE/input.txt&quot;, Modified)
- ✗ /tmp/.tmpNQcWeE/input.txt (old: Modified(Some(SystemTime { tv_sec: 1696256252, tv_nsec: 125653080 })) ≠ new: Modified(Some(SystemTime { tv_sec: 1696256252, tv_nsec: 129653170 })))
- ▶ ReadStringFromFile(&quot;/tmp/.tmpNQcWeE/input.txt&quot;, Modified)
-  - /tmp/.tmpNQcWeE/input.txt
+→ ReadStringFromFile(&quot;/tmp/.tmpXPz3M5/input.txt&quot;, Modified)
+ ✗ /tmp/.tmpXPz3M5/input.txt (old: Modified(Some(SystemTime { tv_sec: 1696257023, tv_nsec: 591722451 })) ≠ new: Modified(Some(SystemTime { tv_sec: 1696257023, tv_nsec: 595722509 })))
+ ▶ ReadStringFromFile(&quot;/tmp/.tmpXPz3M5/input.txt&quot;, Modified)
+  - /tmp/.tmpXPz3M5/input.txt
  ◀ Ok(&quot;Hello&quot;)
 ← Ok(&quot;Hello&quot;)
 🏁
 
 D) Different tasks: expect `read_task_b_modified` and `read_task_b_exists` to execute
-→ ReadStringFromFile(&quot;/tmp/.tmpNQcWeE/input_b.txt&quot;, Modified)
- ▶ ReadStringFromFile(&quot;/tmp/.tmpNQcWeE/input_b.txt&quot;, Modified)
-  - /tmp/.tmpNQcWeE/input_b.txt
+→ ReadStringFromFile(&quot;/tmp/.tmpXPz3M5/input_b.txt&quot;, Modified)
+ ▶ ReadStringFromFile(&quot;/tmp/.tmpXPz3M5/input_b.txt&quot;, Modified)
+  - /tmp/.tmpXPz3M5/input_b.txt
  ◀ Ok(&quot;Test&quot;)
 ← Ok(&quot;Test&quot;)
 🏁
-→ ReadStringFromFile(&quot;/tmp/.tmpNQcWeE/input_b.txt&quot;, Exists)
- ▶ ReadStringFromFile(&quot;/tmp/.tmpNQcWeE/input_b.txt&quot;, Exists)
-  - /tmp/.tmpNQcWeE/input_b.txt
+→ ReadStringFromFile(&quot;/tmp/.tmpXPz3M5/input_b.txt&quot;, Exists)
+ ▶ ReadStringFromFile(&quot;/tmp/.tmpXPz3M5/input_b.txt&quot;, Exists)
+  - /tmp/.tmpXPz3M5/input_b.txt
  ◀ Ok(&quot;Test&quot;)
 ← Ok(&quot;Test&quot;)
 🏁
 
 E) Different stampers: expect only `read_task_b_modified` to execute
-→ ReadStringFromFile(&quot;/tmp/.tmpNQcWeE/input_b.txt&quot;, Modified)
- ✗ /tmp/.tmpNQcWeE/input_b.txt (old: Modified(Some(SystemTime { tv_sec: 1696256252, tv_nsec: 129653170 })) ≠ new: Modified(Some(SystemTime { tv_sec: 1696256252, tv_nsec: 133653259 })))
- ▶ ReadStringFromFile(&quot;/tmp/.tmpNQcWeE/input_b.txt&quot;, Modified)
-  - /tmp/.tmpNQcWeE/input_b.txt
+→ ReadStringFromFile(&quot;/tmp/.tmpXPz3M5/input_b.txt&quot;, Modified)
+ ✗ /tmp/.tmpXPz3M5/input_b.txt (old: Modified(Some(SystemTime { tv_sec: 1696257023, tv_nsec: 595722509 })) ≠ new: Modified(Some(SystemTime { tv_sec: 1696257023, tv_nsec: 599722567 })))
+ ▶ ReadStringFromFile(&quot;/tmp/.tmpXPz3M5/input_b.txt&quot;, Modified)
+  - /tmp/.tmpXPz3M5/input_b.txt
  ◀ Ok(&quot;Test Test&quot;)
 ← Ok(&quot;Test Test&quot;)
 🏁
-→ ReadStringFromFile(&quot;/tmp/.tmpNQcWeE/input_b.txt&quot;, Exists)
- ✓ /tmp/.tmpNQcWeE/input_b.txt
+→ ReadStringFromFile(&quot;/tmp/.tmpXPz3M5/input_b.txt&quot;, Exists)
+ ✓ /tmp/.tmpXPz3M5/input_b.txt
 ← Ok(&quot;Test&quot;)
 🏁
 </code></pre>
@@ -5256,7 +5256,7 @@ If you want to see the standard output, either:</p>
 </ul>
 <p>The second command should result in something like:</p>
 <pre><code>    Finished test [unoptimized + debuginfo] target(s) in 0.02s
-     Running tests/top_down.rs (/pie/target/debug/deps/top_down-676a42186b9356e0)
+     Running tests/top_down.rs (/pie/target/debug/deps/top_down-cfb909615f249b1f)
 
 running 1 test
 → Return(&quot;Hello, World!&quot;)
@@ -5762,9 +5762,13 @@ Add the following code to <code>pie/src/tests/top_down.rs</code>:</p>
 In the <code>require_then_assert</code> block we first assert that both tasks are required and executed, <code>file</code> is required, and perform sanity checks again.</p>
 <p>Now let's go back to the build log in the comment, which is lot more complicated this time due to recursive consistency checking. The gist is:</p>
 <ul>
-<li>To check if <code>lower</code> should be executed, we check its dependencies: a task dependency to <code>read</code>.</li>
+<li>To check if <code>lower</code> should be executed, we check its dependencies: a task dependency to <code>read</code>.
+<ul>
 <li>To check if <code>read</code> should be executed, we check its dependencies: a <code>file</code> dependency, which is inconsistent, thus we execute <code>read</code>.</li>
-<li>Then we are back to checking <code>lower</code>'s task dependency to <code>read</code>, which is inconsistent because <code>read</code> now returns <code>&quot;!DLROW OLLEH&quot;</code> instead of <code>&quot;HELLO WORLD!&quot;</code>.</li>
+<li><code>read</code> executes and now returns <code>&quot;!DLROW OLLEH&quot;</code> instead of <code>&quot;HELLO WORLD!&quot;</code>.</li>
+</ul>
+</li>
+<li>Then we are back to checking <code>lower</code>'s task dependency to <code>read</code>, which is inconsistent because <code>read</code> returns a different value, which is inconsistent due to the equals output stamper. </li>
 <li>Thus, we execute <code>lower</code> which requires <code>read</code>.</li>
 <li>We can skip checking <code>read</code> because we already checked and executed it: it is deemed consistent this session. We immediately return its output <code>&quot;!DLROW OLLEH&quot;</code> to <code>lower</code>.</li>
 <li><code>lower</code> turns the string lowercase and returns it.</li>
