@@ -1,5 +1,5 @@
    Compiling pie v0.1.0 (/pie)
-    Finished test [unoptimized + debuginfo] target(s) in 0.47s
+    Finished test [unoptimized + debuginfo] target(s) in 0.53s
      Running unittests src/lib.rs (/pie/target/debug/deps/pie-2022d1785b8ce336)
 
 running 1 test

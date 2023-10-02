@@ -1,0 +1,21 @@
+--- pie/tests/top_down.rs
++++ pie/tests/top_down.rs
+@@ -128,6 +128,18 @@
+   })?;
+   assert_eq!(output.as_str(), "hello world!");
+ 
++  // 2) Require `ToLower` again and assert that no tasks are executed because all dependencies are consistent:
++  // → ToLower
++  //   ? ReadFile
++  //     → ReadFile
++  //       ✓ `file`
++  //     ← Ok(String("HELLO WORLD!"))
++  //   ✓ ReadFile
++  // ← Ok(String("hello world!"))
++  // 🏁
++  let output = pie.require_then_assert_no_execute(&lower)?;
++  assert_eq!(output.as_str(), "hello world!");
++
+   Ok(())
+ }
+ 

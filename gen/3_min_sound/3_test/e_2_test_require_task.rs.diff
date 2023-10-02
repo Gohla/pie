@@ -1,0 +1,19 @@
+--- pie/tests/top_down.rs
++++ pie/tests/top_down.rs
+@@ -77,3 +77,16 @@
+ 
+   Ok(())
+ }
++
++#[test]
++fn test_require_task() -> Result<(), io::Error> {
++  let mut pie = test_pie();
++  let temp_dir = create_temp_dir()?;
++
++  let file = temp_dir.path().join("in.txt");
++  write(&file, "HELLO WORLD!")?;
++  let read = ReadFile(file.clone(), FileStamper::Modified);
++  let lower = ToLower(Box::new(read.clone()));
++
++  Ok(())
++}

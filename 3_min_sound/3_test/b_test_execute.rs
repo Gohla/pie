@@ -11,7 +11,7 @@ mod common;
 #[test]
 fn test_execution() -> Result<(), io::Error> {
   let mut pie = test_pie();
-  let task = StringConstant("Hello, World!");
+  let task = Return("Hello, World!");
   let output = pie.require_then_assert(&task, |tracker| {
     let events = tracker.slice();
     assert_matches!(events.get(0), Some(Event::RequireTaskStart(RequireTaskStart { task: t, .. })) if t == &task);

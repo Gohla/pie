@@ -1,0 +1,31 @@
+--- pie/tests/common/mod.rs
++++ pie/tests/common/mod.rs
+@@ -63,6 +63,7 @@
+ pub enum TestTask {
+   Return(&'static str),
+   ReadFile(PathBuf, FileStamper),
++  ToLower(Box<TestTask>),
+ }
+ impl Task for TestTask {
+   type Output = Result<TestOutput, ErrorKind>;
+@@ -76,6 +77,10 @@
+         }
+         Ok(string.into())
+       }
++      TestTask::ToLower(string_provider_task) => {
++        let string = context.require_task(string_provider_task.as_ref())?.into_string();
++        Ok(string.to_lowercase().into())
++      }
+     }
+   }
+ }
+@@ -94,4 +99,9 @@
+       Self::String(s) => &s,
+     }
+   }
++  pub fn into_string(self) -> String {
++    match self {
++      Self::String(s) => s,
++    }
++  }
+ }

@@ -21,35 +21,35 @@
 +  let mut pie = test_pie();
 +  let temp_dir = create_temp_dir()?;
 +
-+  let path = temp_dir.path().join("in.txt");
-+  write(&path, "HELLO WORLD!")?;
-+  let task = ReadStringFromFile(path.clone(), FileStamper::Modified);
-+  
-+  // Require task and assert that it is executed because it is new.
++  let file = temp_dir.path().join("in.txt");
++  write(&file, "HELLO WORLD!")?;
++  let task = ReadFile(file.clone(), FileStamper::Modified);
++
++  // 1) Require task and assert that it is executed because it is new.
 +  let output = pie.require_then_assert_one_execute(&task)?;
 +  assert_eq!(output.as_str(), "HELLO WORLD!");
-+  // Require task again and assert that it is not executed because all its dependencies are consistent.
++  // 2) Require task again and assert that it is not executed because its file dependency consistent.
 +  let output = pie.require_then_assert_no_execute(&task)?;
 +  assert_eq!(output.as_str(), "HELLO WORLD!");
-+  // Change required file such that the file dependency of the task becomes inconsistent.
-+  write_until_modified(&path, "!DLROW OLLEH")?;
-+  // Require task again and assert that it re-executed because its file dependency is inconsistent.
++  // 3) Change required file such that the file dependency of the task becomes inconsistent.
++  write_until_modified(&file, "!DLROW OLLEH")?;
++  // 4) Require task again and assert that it is re-executed because its file dependency is inconsistent.
 +  let output = pie.require_then_assert_one_execute(&task)?;
 +  assert_eq!(output.as_str(), "!DLROW OLLEH");
 +
-+  // Repeat the test with FileStamper::Exists, which results in a different outcome.
-+  write(&path, "HELLO WORLD!")?;
-+  let task = ReadStringFromFile(path.clone(), FileStamper::Exists);
++  // Repeat the test with `FileStamper::Exists`, which results in a different outcome.
++  write(&file, "HELLO WORLD!")?;
++  let task = ReadFile(file.clone(), FileStamper::Exists);
 +
-+  // Require task and assert that it is executed because it is new.
++  // 1) Require task and assert that it is executed because it is new.
 +  let output = pie.require_then_assert_one_execute(&task)?;
 +  assert_eq!(output.as_str(), "HELLO WORLD!");
-+  // Require task again and assert that it is not executed because all its dependencies are consistent.
++  // 2) Require task again and assert that it is not executed because its file dependency is consistent.
 +  let output = pie.require_then_assert_no_execute(&task)?;
 +  assert_eq!(output.as_str(), "HELLO WORLD!");
-+  // Change required file, but the file dependency of the task stays consistent.
-+  write_until_modified(&path, "!DLROW OLLEH")?;
-+  // Require task again and assert that it is not executed because all its dependencies are consistent.
++  // 3) Change required file, but the file dependency of the task stays consistent.
++  write_until_modified(&file, "!DLROW OLLEH")?;
++  // 4) Require task again and assert that it is not executed because its file dependency is still consistent.
 +  let output = pie.require_then_assert_no_execute(&task)?;
 +  assert_eq!(output.as_str(), "HELLO WORLD!");
 +

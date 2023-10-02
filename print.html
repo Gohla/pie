@@ -195,7 +195,7 @@ edition = &quot;2021&quot;
 <p>Run <code>cargo build</code> to test if the project was set up correctly.
 The output should look something like:</p>
 <pre><code class="language-shell ">   Compiling pie v0.1.0 (/pie)
-    Finished dev [unoptimized + debuginfo] target(s) in 0.11s
+    Finished dev [unoptimized + debuginfo] target(s) in 0.12s
 </code></pre>
 <details id="admonition-download-source-code" class="admonition example">
 <summary class="admonition-title">
@@ -276,7 +276,7 @@ Because of this, the context reference passed to <code>Task::execute</code> is a
 <p>Build the project by running <code>cargo build</code>.
 The output should look something like:</p>
 <pre><code class="language-shell ">   Compiling pie v0.1.0 (/pie)
-    Finished dev [unoptimized + debuginfo] target(s) in 0.06s
+    Finished dev [unoptimized + debuginfo] target(s) in 0.07s
 </code></pre>
 <details id="admonition-rust-help" class="admonition info">
 <summary class="admonition-title">
@@ -439,7 +439,7 @@ It returns the output of the task, which we test with <code>assert_eq!</code>.</
 <p>Run the test by running <code>cargo test</code>.
 The output should look something like:</p>
 <pre><code class="language-shell ">   Compiling pie v0.1.0 (/pie)
-    Finished test [unoptimized + debuginfo] target(s) in 0.47s
+    Finished test [unoptimized + debuginfo] target(s) in 0.53s
      Running unittests src/lib.rs (/pie/target/debug/deps/pie-2022d1785b8ce336)
 
 running 1 test
@@ -3261,7 +3261,7 @@ Run this example with <code>cargo run --example incremental</code>.
 You should see the <code>println!</code> in <code>ReadStringFromFile</code> appear in your console as the incremental context correctly determines that this task is new (i.e., has no output) and must be executed.
 It should look something like:</p>
 <pre><code>   Compiling pie v0.1.0 (/pie)
-    Finished dev [unoptimized + debuginfo] target(s) in 1.01s
+    Finished dev [unoptimized + debuginfo] target(s) in 1.16s
      Running `/pie/target/debug/examples/incremental`
 A) New task: expect `read_task` to execute
 Reading from input.txt with Modified stamper
@@ -3276,7 +3276,7 @@ Reading from input.txt with Modified stamper
   assert_eq!(&amp;output, &quot;Hi&quot;);</code></pre>
 <p>Running with <code>cargo run --example incremental</code> should produce output like:</p>
 <pre><code>   Compiling pie v0.1.0 (/pie)
-    Finished dev [unoptimized + debuginfo] target(s) in 0.50s
+    Finished dev [unoptimized + debuginfo] target(s) in 0.57s
      Running `/pie/target/debug/examples/incremental`
 A) New task: expect `read_task` to execute
 Reading from input.txt with Modified stamper
@@ -3338,7 +3338,7 @@ This shows that tasks can depend on the same file with different stampers, which
 <p>Of course, using an <code>Exists</code> stamper for <code>ReadStringFromFile</code> does not make a lot of sense, but this is for demonstration purposes only.</p>
 <p>Running <code>cargo run --example incremental</code> now should produce output like:</p>
 <pre><code>   Compiling pie v0.1.0 (/pie)
-    Finished dev [unoptimized + debuginfo] target(s) in 0.52s
+    Finished dev [unoptimized + debuginfo] target(s) in 0.61s
      Running `/pie/target/debug/examples/incremental`
 A) New task: expect `read_task` to execute
 Reading from input.txt with Modified stamper
@@ -4618,55 +4618,55 @@ You can add configuration booleans to control what should be written, but in thi
 <p>We remove the <code>println!</code> statements from tasks and create <code>Pie</code> with <code>WritingTracker</code>.
 Now run the example with <code>cargo run --example incremental</code>, and you should see the writing tracker print to standard output:</p>
 <pre><code>   Compiling pie v0.1.0 (/pie)
-    Finished dev [unoptimized + debuginfo] target(s) in 0.68s
+    Finished dev [unoptimized + debuginfo] target(s) in 0.81s
      Running `/pie/target/debug/examples/incremental`
 A) New task: expect `read_task` to execute
-→ ReadStringFromFile(&quot;/tmp/.tmpnJCiKp/input.txt&quot;, Modified)
- ▶ ReadStringFromFile(&quot;/tmp/.tmpnJCiKp/input.txt&quot;, Modified)
-  - /tmp/.tmpnJCiKp/input.txt
+→ ReadStringFromFile(&quot;/tmp/.tmpwIZHKC/input.txt&quot;, Modified)
+ ▶ ReadStringFromFile(&quot;/tmp/.tmpwIZHKC/input.txt&quot;, Modified)
+  - /tmp/.tmpwIZHKC/input.txt
  ◀ Ok(&quot;Hi&quot;)
 ← Ok(&quot;Hi&quot;)
 🏁
 
 B) Reuse: expect no execution
-→ ReadStringFromFile(&quot;/tmp/.tmpnJCiKp/input.txt&quot;, Modified)
- ✓ /tmp/.tmpnJCiKp/input.txt
+→ ReadStringFromFile(&quot;/tmp/.tmpwIZHKC/input.txt&quot;, Modified)
+ ✓ /tmp/.tmpwIZHKC/input.txt
 ← Ok(&quot;Hi&quot;)
 🏁
 
 C) Inconsistent file dependency: expect `read_task` to execute
-→ ReadStringFromFile(&quot;/tmp/.tmpnJCiKp/input.txt&quot;, Modified)
- ✗ /tmp/.tmpnJCiKp/input.txt (old: Modified(Some(SystemTime { tv_sec: 1696240838, tv_nsec: 893543835 })) ≠ new: Modified(Some(SystemTime { tv_sec: 1696240838, tv_nsec: 897543895 })))
- ▶ ReadStringFromFile(&quot;/tmp/.tmpnJCiKp/input.txt&quot;, Modified)
-  - /tmp/.tmpnJCiKp/input.txt
+→ ReadStringFromFile(&quot;/tmp/.tmpwIZHKC/input.txt&quot;, Modified)
+ ✗ /tmp/.tmpwIZHKC/input.txt (old: Modified(Some(SystemTime { tv_sec: 1696255820, tv_nsec: 86815217 })) ≠ new: Modified(Some(SystemTime { tv_sec: 1696255820, tv_nsec: 90815247 })))
+ ▶ ReadStringFromFile(&quot;/tmp/.tmpwIZHKC/input.txt&quot;, Modified)
+  - /tmp/.tmpwIZHKC/input.txt
  ◀ Ok(&quot;Hello&quot;)
 ← Ok(&quot;Hello&quot;)
 🏁
 
 D) Different tasks: expect `read_task_b_modified` and `read_task_b_exists` to execute
-→ ReadStringFromFile(&quot;/tmp/.tmpnJCiKp/input_b.txt&quot;, Modified)
- ▶ ReadStringFromFile(&quot;/tmp/.tmpnJCiKp/input_b.txt&quot;, Modified)
-  - /tmp/.tmpnJCiKp/input_b.txt
+→ ReadStringFromFile(&quot;/tmp/.tmpwIZHKC/input_b.txt&quot;, Modified)
+ ▶ ReadStringFromFile(&quot;/tmp/.tmpwIZHKC/input_b.txt&quot;, Modified)
+  - /tmp/.tmpwIZHKC/input_b.txt
  ◀ Ok(&quot;Test&quot;)
 ← Ok(&quot;Test&quot;)
 🏁
-→ ReadStringFromFile(&quot;/tmp/.tmpnJCiKp/input_b.txt&quot;, Exists)
- ▶ ReadStringFromFile(&quot;/tmp/.tmpnJCiKp/input_b.txt&quot;, Exists)
-  - /tmp/.tmpnJCiKp/input_b.txt
+→ ReadStringFromFile(&quot;/tmp/.tmpwIZHKC/input_b.txt&quot;, Exists)
+ ▶ ReadStringFromFile(&quot;/tmp/.tmpwIZHKC/input_b.txt&quot;, Exists)
+  - /tmp/.tmpwIZHKC/input_b.txt
  ◀ Ok(&quot;Test&quot;)
 ← Ok(&quot;Test&quot;)
 🏁
 
 E) Different stampers: expect only `read_task_b_modified` to execute
-→ ReadStringFromFile(&quot;/tmp/.tmpnJCiKp/input_b.txt&quot;, Modified)
- ✗ /tmp/.tmpnJCiKp/input_b.txt (old: Modified(Some(SystemTime { tv_sec: 1696240838, tv_nsec: 897543895 })) ≠ new: Modified(Some(SystemTime { tv_sec: 1696240838, tv_nsec: 901543954 })))
- ▶ ReadStringFromFile(&quot;/tmp/.tmpnJCiKp/input_b.txt&quot;, Modified)
-  - /tmp/.tmpnJCiKp/input_b.txt
+→ ReadStringFromFile(&quot;/tmp/.tmpwIZHKC/input_b.txt&quot;, Modified)
+ ✗ /tmp/.tmpwIZHKC/input_b.txt (old: Modified(Some(SystemTime { tv_sec: 1696255820, tv_nsec: 90815247 })) ≠ new: Modified(Some(SystemTime { tv_sec: 1696255820, tv_nsec: 94815277 })))
+ ▶ ReadStringFromFile(&quot;/tmp/.tmpwIZHKC/input_b.txt&quot;, Modified)
+  - /tmp/.tmpwIZHKC/input_b.txt
  ◀ Ok(&quot;Test Test&quot;)
 ← Ok(&quot;Test Test&quot;)
 🏁
-→ ReadStringFromFile(&quot;/tmp/.tmpnJCiKp/input_b.txt&quot;, Exists)
- ✓ /tmp/.tmpnJCiKp/input_b.txt
+→ ReadStringFromFile(&quot;/tmp/.tmpwIZHKC/input_b.txt&quot;, Exists)
+ ✓ /tmp/.tmpwIZHKC/input_b.txt
 ← Ok(&quot;Test&quot;)
 🏁
 </code></pre>
@@ -5136,13 +5136,13 @@ Add the following to <code>pie/src/tests/common/mod.rs</code>:</p>
 <pre><code class="language-rust ">/// Testing tasks enumeration.
 #[derive(Clone, Eq, PartialEq, Hash, Debug)]
 pub enum TestTask {
-  StringConstant(&amp;'static str),
+  Return(&amp;'static str),
 }
 impl Task for TestTask {
   type Output = Result&lt;TestOutput, ErrorKind&gt;;
   fn execute&lt;C: Context&lt;Self&gt;&gt;(&amp;self, _context: &amp;mut C) -&gt; Self::Output {
     match self {
-      TestTask::StringConstant(string) =&gt; Ok(string.to_string().into()),
+      TestTask::Return(string) =&gt; Ok(string.to_string().into()),
     }
   }
 }
@@ -5162,7 +5162,7 @@ impl TestOutput {
     }
   }
 }</code></pre>
-<p>We define a <code>TestTask</code> enumeration containing all testing tasks, which for now is just a <code>StringConstant</code> task that returns a string, and implement <code>Task</code> for it.
+<p>We define a <code>TestTask</code> enumeration containing all testing tasks, which for now is just a <code>Return</code> task that just returns its string, and implement <code>Task</code> for it.
 The <code>Output</code> for <code>TestTask</code> is <code>Result&lt;TestOutput, ErrorKind&gt;</code> so that we can propagate IO errors in the future.</p>
 <p><code>TestOutput</code> enumerates all possible outputs for <code>TestTask</code>, which for now is just a <code>String</code>.
 We implement <code>From&lt;String&gt;</code> for <code>TestOutput</code> so we can easily convert <code>String</code>s into <code>TestOutput</code>. 
@@ -5184,7 +5184,7 @@ mod common;
 #[test]
 fn test_execution() -&gt; Result&lt;(), io::Error&gt; {
   let mut pie = test_pie();
-  let task = StringConstant(&quot;Hello, World!&quot;);
+  let task = Return(&quot;Hello, World!&quot;);
   let output = pie.require_then_assert(&amp;task, |tracker| {
     let events = tracker.slice();
     assert_matches!(events.get(0), Some(Event::RequireTaskStart(RequireTaskStart { task: t, .. })) if t == &amp;task);
@@ -5230,7 +5230,7 @@ Add the following test to <code>pie/src/tests/top_down.rs</code>:</p>
 <pre><code class="language-rust ">#[test]
 fn test_reuse() -&gt; Result&lt;(), io::Error&gt; {
   let mut pie = test_pie();
-  let task = StringConstant(&quot;Hello, World!&quot;);
+  let task = Return(&quot;Hello, World!&quot;);
   // New task: execute.
   let output = pie.require(&amp;task)?;
   assert_eq!(output.as_str(), &quot;Hello, World!&quot;);
@@ -5239,7 +5239,7 @@ fn test_reuse() -&gt; Result&lt;(), io::Error&gt; {
   Ok(())
 }</code></pre>
 <p>We're using <code>require</code> and <code>require_then_assert_no_execute</code> from <code>TestPieExt</code> which require the same task twice, in two different sessions.
-Since <code>StringConstant</code> has no dependencies, it should only ever be executed once, after which its output is cached for all eternity.</p>
+Since <code>Return</code> has no dependencies, it should only ever be executed once, after which its output is cached for all eternity.</p>
 <p>Check that this test succeeds with <code>cargo test</code>.</p>
 <div id="admonition-reading-standard-output-from-tests" class="admonition info">
 <div class="admonition-title">
@@ -5255,16 +5255,16 @@ If you want to see the standard output, either:</p>
 <li>Run a <a href="https://doc.rust-lang.org/book/ch11-02-running-tests.html#running-single-tests">single test</a> in the <code>top_down</code> integration test file with: <code>cargo test --test top_down test_reuse</code></li>
 </ul>
 <p>The second command should result in something like:</p>
-<pre><code>    Finished test [unoptimized + debuginfo] target(s) in 0.02s
-     Running tests/top_down.rs (/pie/target/debug/deps/top_down-f49294f0992aeb61)
+<pre><code>    Finished test [unoptimized + debuginfo] target(s) in 0.03s
+     Running tests/top_down.rs (/pie/target/debug/deps/top_down-8d61676564c4a752)
 
 running 1 test
-→ StringConstant(&quot;Hello, World!&quot;)
- ▶ StringConstant(&quot;Hello, World!&quot;)
+→ Return(&quot;Hello, World!&quot;)
+ ▶ Return(&quot;Hello, World!&quot;)
  ◀ Ok(String(&quot;Hello, World!&quot;))
 ← Ok(String(&quot;Hello, World!&quot;))
 🏁
-→ StringConstant(&quot;Hello, World!&quot;)
+→ Return(&quot;Hello, World!&quot;)
 ← Ok(String(&quot;Hello, World!&quot;))
 🏁
 test test_reuse ... ok
@@ -5296,16 +5296,16 @@ Therefore, we need to add a task that has dependencies.</p>
 @@ -60,12 +62,20 @@
  #[derive(Clone, Eq, PartialEq, Hash, Debug)]
  pub enum TestTask {
-   StringConstant(&'static str),
-+  ReadStringFromFile(PathBuf, FileStamper),
+   Return(&'static str),
++  ReadFile(PathBuf, FileStamper),
  }
  impl Task for TestTask {
    type Output = Result<TestOutput, ErrorKind>;
 -  fn execute<C: Context<Self>>(&self, _context: &mut C) -> Self::Output {
 +  fn execute<C: Context<Self>>(&self, context: &mut C) -> Self::Output {
      match self {
-       TestTask::StringConstant(string) => Ok(string.to_string().into()),
-+      TestTask::ReadStringFromFile(path, stamper) => {
+       TestTask::Return(string) => Ok(string.to_string().into()),
++      TestTask::ReadFile(path, stamper) => {
 +        let mut string = String::new();
 +        if let Some(mut file) = context.require_file_with_stamper(&path, *stamper).map_err(|e| e.kind())? {
 +          file.read_to_string(&mut string).map_err(|e| e.kind())?;
@@ -5329,7 +5329,7 @@ Therefore, we need to add a task that has dependencies.</p>
     diff2htmlUi.draw();
   });
 </script>
-<p>We add a <code>ReadStringFromFile</code> task that requires a file and returns its content as a string, similar to the ones we have implemented in the past.</p>
+<p>We add a <code>ReadFile</code> task that requires a file and returns its content as a string, similar to the ones we have implemented in the past.</p>
 <p>Modify <code>pie/src/tests/top_down.rs</code> to add a new test:</p>
 <div class="diff2html" id="diff2html_1"></div>
 <script>
@@ -5357,35 +5357,35 @@ Therefore, we need to add a task that has dependencies.</p>
 +  let mut pie = test_pie();
 +  let temp_dir = create_temp_dir()?;
 +
-+  let path = temp_dir.path().join("in.txt");
-+  write(&path, "HELLO WORLD!")?;
-+  let task = ReadStringFromFile(path.clone(), FileStamper::Modified);
-+  
-+  // Require task and assert that it is executed because it is new.
++  let file = temp_dir.path().join("in.txt");
++  write(&file, "HELLO WORLD!")?;
++  let task = ReadFile(file.clone(), FileStamper::Modified);
++
++  // 1) Require task and assert that it is executed because it is new.
 +  let output = pie.require_then_assert_one_execute(&task)?;
 +  assert_eq!(output.as_str(), "HELLO WORLD!");
-+  // Require task again and assert that it is not executed because all its dependencies are consistent.
++  // 2) Require task again and assert that it is not executed because its file dependency consistent.
 +  let output = pie.require_then_assert_no_execute(&task)?;
 +  assert_eq!(output.as_str(), "HELLO WORLD!");
-+  // Change required file such that the file dependency of the task becomes inconsistent.
-+  write_until_modified(&path, "!DLROW OLLEH")?;
-+  // Require task again and assert that it re-executed because its file dependency is inconsistent.
++  // 3) Change required file such that the file dependency of the task becomes inconsistent.
++  write_until_modified(&file, "!DLROW OLLEH")?;
++  // 4) Require task again and assert that it is re-executed because its file dependency is inconsistent.
 +  let output = pie.require_then_assert_one_execute(&task)?;
 +  assert_eq!(output.as_str(), "!DLROW OLLEH");
 +
-+  // Repeat the test with FileStamper::Exists, which results in a different outcome.
-+  write(&path, "HELLO WORLD!")?;
-+  let task = ReadStringFromFile(path.clone(), FileStamper::Exists);
++  // Repeat the test with ${"`"}FileStamper::Exists${"`"}, which results in a different outcome.
++  write(&file, "HELLO WORLD!")?;
++  let task = ReadFile(file.clone(), FileStamper::Exists);
 +
-+  // Require task and assert that it is executed because it is new.
++  // 1) Require task and assert that it is executed because it is new.
 +  let output = pie.require_then_assert_one_execute(&task)?;
 +  assert_eq!(output.as_str(), "HELLO WORLD!");
-+  // Require task again and assert that it is not executed because all its dependencies are consistent.
++  // 2) Require task again and assert that it is not executed because its file dependency is consistent.
 +  let output = pie.require_then_assert_no_execute(&task)?;
 +  assert_eq!(output.as_str(), "HELLO WORLD!");
-+  // Change required file, but the file dependency of the task stays consistent.
-+  write_until_modified(&path, "!DLROW OLLEH")?;
-+  // Require task again and assert that it is not executed because all its dependencies are consistent.
++  // 3) Change required file, but the file dependency of the task stays consistent.
++  write_until_modified(&file, "!DLROW OLLEH")?;
++  // 4) Require task again and assert that it is not executed because its file dependency is still consistent.
 +  let output = pie.require_then_assert_no_execute(&task)?;
 +  assert_eq!(output.as_str(), "HELLO WORLD!");
 +
@@ -5405,14 +5405,373 @@ Therefore, we need to add a task that has dependencies.</p>
     diff2htmlUi.draw();
   });
 </script>
-<p>In this test, we require a <code>ReadStringFromFile</code> task several times, and assert whether it should be executed or not.
-The first time, the task is new, so it should be executed.
-The second time, the task is not new, and its single require file dependency is still consistent, so it should not be executed.
-Then, we change the file the task depends on with <code>write_until_modified</code>.
-Then, we require the task again, and it should be executed because its dependency became inconsistent.</p>
+<p>In <code>test_require_file</code>, we first create a temporary directory and <code>file</code>, and a <code>ReadFile</code> <code>task</code> that reads from <code>file</code>.
+We require the <code>task</code> task several times, and assert whether it should be executed or not:</p>
+<ol>
+<li>The task is new, so it should be executed, which we assert with <code>require_then_assert_one_execute</code>.</li>
+<li>The task is not new, but its single require file dependency is still consistent, so it should not be executed.</li>
+<li>We change the file the task depends on with <code>write_until_modified</code>.</li>
+<li>We require the task again. This time it should be executed because its file dependency became inconsistent.</li>
+</ol>
 <p>We repeat the test with the <code>FileStamper::Exists</code> stamper, which correctly results in the task only being executed once.
 It is a new task because its stamper is different, and it is not re-executed when the file is changed due to <code>FileStamper::Exists</code> only checking if the file exists.</p>
+<p>Note that in general, the <code>FileStamper::Exists</code> stamper is not a good stamper to use with <code>ReadFile</code>, because it will only be re-executed when the file is added or removed.
+But for testing purposes, this is fine. </p>
 <p>Check that this test succeeds with <code>cargo test</code>.</p>
+<h3 id="task-dependency"><a class="header" href="#task-dependency">Task dependency</a></h3>
+<p>Now it's time to test the more complicated task dependencies.
+For that, we'll implement a task that depends on another task.
+Modify <code>pie/src/tests/common/mod.rs</code>:</p>
+<div class="diff2html" id="diff2html_2"></div>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    let diff = String.raw`--- pie/tests/common/mod.rs
++++ pie/tests/common/mod.rs
+@@ -63,6 +63,7 @@
+ pub enum TestTask {
+   Return(&'static str),
+   ReadFile(PathBuf, FileStamper),
++  ToLower(Box<TestTask>),
+ }
+ impl Task for TestTask {
+   type Output = Result<TestOutput, ErrorKind>;
+@@ -76,6 +77,10 @@
+         }
+         Ok(string.into())
+       }
++      TestTask::ToLower(string_provider_task) => {
++        let string = context.require_task(string_provider_task.as_ref())?.into_string();
++        Ok(string.to_lowercase().into())
++      }
+     }
+   }
+ }
+@@ -94,4 +99,9 @@
+       Self::String(s) => &s,
+     }
+   }
++  pub fn into_string(self) -> String {
++    match self {
++      Self::String(s) => s,
++    }
++  }
+ }
+`;
+    let target = document.getElementById('diff2html_2');
+    let configuration = {
+      drawFileList: false,
+      fileListToggle: false,
+      fileContentToggle: false,
+
+      outputFormat: 'line-by-line',
+      matching: 'lines',
+    };
+    let diff2htmlUi = new Diff2HtmlUI(target, diff, configuration, hljs);
+    diff2htmlUi.draw();
+  });
+</script>
+<p>We add a <code>ToLower</code> task that requires another task (stored as <code>Box&lt;TestTask&gt;</code>) to get a <code>String</code>, which it then converts to lower case.
+We also add the <code>into_string</code> method to <code>TestOutput</code> for conveniently getting an owned <code>String</code> from a <code>TestOutput</code>.</p>
+<details id="admonition-boxing-to-prevent-cyclic-definition" class="admonition info">
+<summary class="admonition-title">
+<p>Boxing to prevent cyclic definition</p>
+<p><a class="admonition-anchor-link" href="3_min_sound/3_test/index.html#admonition-boxing-to-prevent-cyclic-definition"></a></p>
+</summary>
+<div>
+<p>We store the string providing task as <code>Box&lt;TestTask&gt;</code> in order to prevent a cyclic definition, which would cause <code>TestTask</code> to have an undetermined size.
+This is due to several reasons:</p>
+<ul>
+<li>In Rust, values are stored on the stack by default. To store something on the stack, Rust needs to know its size <em>at compile-time</em>.</li>
+<li>The size of an <code>enum</code> is the size of the largest variant.</li>
+<li>The size of a struct is the sum of the size of the fields.</li>
+</ul>
+<p>If we don't box the task, to calculate the size of the <code>ToLower</code> enum variant, we need to calculate the size of <code>TestTask</code>, which would require calculating the size of the <code>ToLower</code> variant, and so forth.
+Therefore, we can't calulate the size of <code>ToLower</code> nor <code>TestTask</code>, which is an error.</p>
+<p>Boxing solves this because <code>Box&lt;TestTask&gt;</code> allocates a <code>TestTask</code> on the heap, and then creates a pointer to it.
+Therefore, the size of <code>Box&lt;TestTask&gt;</code> is the size of one pointer, breaking the cycle in the size calculations.</p>
+<p>Note that this explanation <a href="https://doc.rust-lang.org/nomicon/exotic-sizes.html">simplifies many aspects of Rust's size calculation</a>.</p>
+</div>
+</details>
+<p>Now add a test to <code>pie/src/tests/top_down.rs</code>: </p>
+<div class="diff2html" id="diff2html_3"></div>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    let diff = String.raw`--- pie/tests/top_down.rs
++++ pie/tests/top_down.rs
+@@ -77,3 +77,16 @@
+ 
+   Ok(())
+ }
++
++#[test]
++fn test_require_task() -> Result<(), io::Error> {
++  let mut pie = test_pie();
++  let temp_dir = create_temp_dir()?;
++
++  let file = temp_dir.path().join("in.txt");
++  write(&file, "HELLO WORLD!")?;
++  let read = ReadFile(file.clone(), FileStamper::Modified);
++  let lower = ToLower(Box::new(read.clone()));
++
++  Ok(())
++}
+`;
+    let target = document.getElementById('diff2html_3');
+    let configuration = {
+      drawFileList: false,
+      fileListToggle: false,
+      fileContentToggle: false,
+
+      outputFormat: 'line-by-line',
+      matching: 'lines',
+    };
+    let diff2htmlUi = new Diff2HtmlUI(target, diff, configuration, hljs);
+    diff2htmlUi.draw();
+  });
+</script>
+<p>In <code>test_require_task</code>, we create a <code>read</code> task that reads from <code>file</code>, and a <code>lower</code> task that requires <code>read</code>.
+In this test, we want to test three properties:</p>
+<ol>
+<li>When we require <code>lower</code> for the first time, it will require <code>read</code>, which will require <code>file</code>, <code>read</code> will return the contents of <code>file</code> as a string, and <code>lower</code> will turn that string into lowercase and return it. </li>
+<li>When we require <code>lower</code> when <code>file</code> has not been changed, no task is executed.</li>
+<li>When we require <code>lower</code> when <code>file</code>'s contents <em>have changed</em>, then first <code>read</code> must be executed, and then <code>lower</code> must be executed with the output of <code>read</code>.</li>
+</ol>
+<p>Test the first property by adding the following code to <code>pie/src/tests/top_down.rs</code>:</p>
+<div class="diff2html" id="diff2html_4"></div>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    let diff = String.raw`--- pie/tests/top_down.rs
++++ pie/tests/top_down.rs
+@@ -1,5 +1,6 @@
+ use std::fs::write;
+ use std::io;
++use std::ops::RangeInclusive;
+ 
+ use assert_matches::assert_matches;
+ 
+@@ -88,5 +89,56 @@
+   let read = ReadFile(file.clone(), FileStamper::Modified);
+   let lower = ToLower(Box::new(read.clone()));
+ 
++  // 1) Require ${"`"}ToLower${"`"} and assert that both tasks are executed in dependency order, because both tasks are new:
++  // → ToLower
++  //   ▶ ToLower [reason: new]
++  //     → ReadFile
++  //       ▶ ReadFile [reason: new]
++  //         - ${"`"}file${"`"}
++  //       ◀ Ok(String("HELLO WORLD!"))
++  //     ← Ok(String("HELLO WORLD!"))
++  //   ◀ Ok(String("hello world!"))
++  // ← Ok(String("hello world!"))
++  // 🏁
++  let output = pie.require_then_assert(&lower, |tracker| {
++    // ${"`"}ToLower${"`"} is required and executed, and its require and execute are temporally sound.
++    let lower_require = assert_matches!(tracker.first_require_task_range(&lower), Some(r) => r);
++    let lower_execute = assert_matches!(tracker.first_execute_range(&lower), Some(r) => r);
++    assert_task_temporally_sound(&lower_require, &lower_execute);
++
++    // ${"`"}ReadFile${"`"} is required and executed, and its require and execute are temporally sound.
++    let read_require = assert_matches!(tracker.first_require_task_range(&read), Some(r) => r);
++    let read_execute = assert_matches!(tracker.first_execute_range(&read), Some(r) => r);
++    assert_task_temporally_sound(&read_require, &read_execute);
++
++    // Sanity check: ${"`"}file${"`"} is required.
++    let file_require = assert_matches!(tracker.first_require_file_index(&file), Some(i) => i);
++
++    // ${"`"}ReadFile${"`"} is required while ${"`"}ToLower${"`"} is being required.
++    assert!(read_require.start() > lower_require.start());
++    assert!(lower_require.end() > read_require.end());
++
++    // ${"`"}ReadFile${"`"} is executed while ${"`"}ToLower${"`"} is being executed.
++    assert!(read_execute.start() > lower_execute.start());
++    assert!(lower_execute.end() > read_execute.end());
++
++    // Sanity check: ${"`"}ReadFile${"`"} requires ${"`"}file${"`"} while executing.
++    assert!(file_require > read_require.start());
++    assert!(read_execute.end() > file_require);
++  })?;
++  assert_eq!(output.as_str(), "hello world!");
++
+   Ok(())
+ }
++
++/// Assert that task requires and executes are temporally sound.
++fn assert_task_temporally_sound(require: &RangeInclusive<usize>, execute: &RangeInclusive<usize>) {
++  // Require and execute ends come after require and execute starts.
++  assert!(require.end() > require.start());
++  assert!(execute.end() > execute.start());
++  // A task is only executed if it is required.
++  // - Task execute starts should be later than their requires. 
++  assert!(execute.start() > require.start());
++  // - Task require ends should be later than their executes. 
++  assert!(require.end() > execute.end());
++}
+`;
+    let target = document.getElementById('diff2html_4');
+    let configuration = {
+      drawFileList: false,
+      fileListToggle: false,
+      fileContentToggle: false,
+
+      outputFormat: 'line-by-line',
+      matching: 'lines',
+    };
+    let diff2htmlUi = new Diff2HtmlUI(target, diff, configuration, hljs);
+    diff2htmlUi.draw();
+  });
+</script>
+<p>We require <code>lower</code> for the first time and then assert properties using <code>require_then_assert</code>.
+The comment shows the expected build log.</p>
+<p>Inside <code>require_then_assert</code> we will make extensive use of the indexes and ranges from our <code>EventTracker</code>, and use <code>assert_matches!</code> to ensure these indexes and ranges exist (i.e., return <code>Some</code>).
+Ranges (<code>RangeInclusive</code>) are just the start and end indices of events, accessed with <code>.start()</code> and <code>.end()</code>.
+Indices are numbers (<code>usize</code>) that we can compare using the standard <code>&gt;</code> operator.
+A higher index indicates that the event happened later.</p>
+<p>We get the ranges for requiring and executing the <code>lower</code> and <code>read</code> tasks, asserting that they are both required and executed.
+Then we perform some sanity checks in <code>assert_task_temporally_sound</code>:</p>
+<ul>
+<li>Require and execute end events should come after their start events.</li>
+<li>A task only starts being executed after it starts being required. If a task is executed without being required (and thus without being checked), we are breaking incrementality.</li>
+<li>A task must only finish being required after it is finished being executed. If requiring a task ends before executing it, we are breaking soundness, because we are returning an inconsistent value to the requiring task.</li>
+</ul>
+<p>We confirm that <code>file</code> is required and get the corresponding event index into <code>file_require</code>.
+Then we assert several properties:</p>
+<ul>
+<li><code>read</code> is required/executed while <code>lower</code> is being required/executed.
+<ul>
+<li>If <code>read</code> would be executed <em>after</em> <code>lower</code> finished executing, we are breaking soundness because then we would have executed <code>lower</code> without first requiring/executing its dependencies.</li>
+<li>If <code>read</code> would be executed <em>before</em> <code>lower</code> started executing, we are breaking incrementality due to executing a task that was not required. In this test, we would not really break incrementality if this happened, but in general we could.</li>
+</ul>
+</li>
+<li><code>file</code> is required while <code>read</code> is being executed. A sanity check to ensure the file dependency is made by the right task.</li>
+</ul>
+<p>Finally, we assert that the final output of requiring <code>lower</code> is <code>&quot;hello world!&quot;</code>, which is the contents of the file in lowercase.
+Check that this test succeeds with <code>cargo test</code>.
+That concludes the first property that we wanted to test!</p>
+<p>The second one is easier: when <code>file</code> has not changed, no task is executed.
+Add the following code to <code>pie/src/tests/top_down.rs</code>:</p>
+<div class="diff2html" id="diff2html_5"></div>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    let diff = String.raw`--- pie/tests/top_down.rs
++++ pie/tests/top_down.rs
+@@ -128,6 +128,18 @@
+   })?;
+   assert_eq!(output.as_str(), "hello world!");
+ 
++  // 2) Require ${"`"}ToLower${"`"} again and assert that no tasks are executed because all dependencies are consistent:
++  // → ToLower
++  //   ? ReadFile
++  //     → ReadFile
++  //       ✓ ${"`"}file${"`"}
++  //     ← Ok(String("HELLO WORLD!"))
++  //   ✓ ReadFile
++  // ← Ok(String("hello world!"))
++  // 🏁
++  let output = pie.require_then_assert_no_execute(&lower)?;
++  assert_eq!(output.as_str(), "hello world!");
++
+   Ok(())
+ }
+ 
+`;
+    let target = document.getElementById('diff2html_5');
+    let configuration = {
+      drawFileList: false,
+      fileListToggle: false,
+      fileContentToggle: false,
+
+      outputFormat: 'line-by-line',
+      matching: 'lines',
+    };
+    let diff2htmlUi = new Diff2HtmlUI(target, diff, configuration, hljs);
+    diff2htmlUi.draw();
+  });
+</script>
+<p>Here we change nothing and use <code>require_then_assert_no_execute</code> to assert no task is executed.
+Check that this test succeeds with <code>cargo test</code>.</p>
+<p>Now we test the third property, testing soundness and incrementality after a change.
+Add the following code to <code>pie/src/tests/top_down.rs</code>:</p>
+<div class="diff2html" id="diff2html_6"></div>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    let diff = String.raw`--- pie/tests/top_down.rs
++++ pie/tests/top_down.rs
+@@ -140,6 +140,47 @@
+   let output = pie.require_then_assert_no_execute(&lower)?;
+   assert_eq!(output.as_str(), "hello world!");
+ 
++  // Change ${"`"}file${"`"} such that the file dependency of ${"`"}read${"`"} becomes inconsistent.
++  write_until_modified(&file, "!DLROW OLLEH")?;
++
++  // 3) Require ${"`"}ToLower${"`"} and assert that both tasks are re-executed in reverse dependency order:
++  // → ToLower
++  //   ? ReadFile
++  //     → ReadFile
++  //       ✗ ${"`"}file${"`"} [inconsistent: modified file stamp change]
++  //       ▶ ReadFile [reason: ${"`"}file${"`"} is inconsistent due to modified file stamp change]
++  //         - ${"`"}file${"`"}
++  //       ◀ Ok(String("!DLROW OLLEH")) [note: returns a different output!]
++  //     ← Ok(String("!DLROW OLLEH"))
++  //   ✗ ReadFile [inconsistent: equals output stamp change]
++  //   ▶ ToLower [reason: ReadFile is inconsistent due to equals output stamp change]
++  //     → ReadFile
++  //     ← Ok(String("!DLROW OLLEH")) [note: skipped checking ${"`"}read${"`"} because it is already consistent this session!]
++  //   ◀ Ok(String("!dlrow olleh"))
++  // ← Ok(String("!dlrow olleh"))
++  // 🏁
++  let output = pie.require_then_assert(&lower, |tracker| {
++    // Sanity checks: ${"`"}ToLower${"`"} and ${"`"}ReadFile${"`"} are required and executed, and ${"`"}file${"`"} is required.
++    let lower_require = assert_matches!(tracker.first_require_task_range(&lower), Some(r) => r);
++    let lower_execute = assert_matches!(tracker.first_execute_range(&lower), Some(r) => r);
++    assert_task_temporally_sound(&lower_require, &lower_execute);
++    let read_require = assert_matches!(tracker.first_require_task_range(&read), Some(r) => r);
++    let read_execute = assert_matches!(tracker.first_execute_range(&read), Some(r) => r);
++    assert_task_temporally_sound(&read_require, &read_execute);
++    let file_require = assert_matches!(tracker.first_require_file_index(&file), Some(i) => i);
++
++    // Sanity check: ${"`"}ReadFile${"`"} requires ${"`"}file${"`"} while executing.
++    assert!(file_require > read_require.start());
++    assert!(read_execute.end() > file_require);
++
++    // ${"`"}ToLower${"`"} is executed after ${"`"}ReadFile${"`"} has been executed.
++    assert!(lower_execute.start() > read_execute.end());
++    // ${"`"}ReadFile${"`"} is executed while ${"`"}ToLower${"`"} is being required.
++    assert!(read_execute.start() > lower_require.start());
++    assert!(lower_require.end() > read_execute.end());
++  })?;
++  assert_eq!(output.as_str(), "!dlrow olleh");
++
+   Ok(())
+ }
+ 
+`;
+    let target = document.getElementById('diff2html_6');
+    let configuration = {
+      drawFileList: false,
+      fileListToggle: false,
+      fileContentToggle: false,
+
+      outputFormat: 'line-by-line',
+      matching: 'lines',
+    };
+    let diff2htmlUi = new Diff2HtmlUI(target, diff, configuration, hljs);
+    diff2htmlUi.draw();
+  });
+</script>
+<p>We first change the <code>file</code> contents such that <code>read</code>'s <code>file</code> dependency becomes inconsistent, and then require <code>lower</code> again.
+In the <code>require_then_assert</code> block we first assert that both tasks are required and executed, <code>file</code> is required, and perform sanity checks again.</p>
+<p>Now let's go back to the build log in the comment, which is lot more complicated this time due to recursive consistency checking. The gist is:</p>
+<ul>
+<li>To check if <code>lower</code> should be executed, we check its dependencies: a task dependency to <code>read</code>.</li>
+<li>To check if <code>read</code> should be executed, we check its dependencies: a <code>file</code> dependency, which is inconsistent, thus we execute <code>read</code>.</li>
+<li>Then we are back to checking <code>lower</code>'s task dependency to <code>read</code>, which is inconsistent because <code>read</code> now returns <code>&quot;!DLROW OLLEH&quot;</code> instead of <code>&quot;HELLO WORLD!&quot;</code>.</li>
+<li>Thus, we execute <code>lower</code> which requires <code>read</code>, but we can skip checking that because it is already consistent this session.</li>
+</ul>
+<p>Note that we are executing <code>read</code> <em>before</em> executing <code>lower</code> this time (but still <em>while requiring</em> <code>lower</code>).
+This is important for incrementality because if <code>read</code> had not returned a different output, we would not have to execute <code>lower</code> due to its equals output stamp still being consistent (we call this <em>early cutoff</em>).
+We test this property with the last 3 assertions in the <code>require_then_assert</code> block.</p>
+<p>Finally, we assert that the output is <code>&quot;!dlrow olleh&quot;</code> as expected.
+Confirm that this test succeeds with <code>cargo test</code>.</p>
 
                     </main>
 

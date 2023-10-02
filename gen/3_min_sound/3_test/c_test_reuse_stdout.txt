@@ -1,13 +1,13 @@
-    Finished test [unoptimized + debuginfo] target(s) in 0.02s
-     Running tests/top_down.rs (/pie/target/debug/deps/top_down-f49294f0992aeb61)
+    Finished test [unoptimized + debuginfo] target(s) in 0.03s
+     Running tests/top_down.rs (/pie/target/debug/deps/top_down-8d61676564c4a752)
 
 running 1 test
-→ StringConstant("Hello, World!")
- ▶ StringConstant("Hello, World!")
+→ Return("Hello, World!")
+ ▶ Return("Hello, World!")
  ◀ Ok(String("Hello, World!"))
 ← Ok(String("Hello, World!"))
 🏁
-→ StringConstant("Hello, World!")
+→ Return("Hello, World!")
 ← Ok(String("Hello, World!"))
 🏁
 test test_reuse ... ok

@@ -63,6 +63,7 @@ impl<T: Task> TestPieExt<T> for TestPie<T> {
 pub enum TestTask {
   Return(&'static str),
   ReadFile(PathBuf, FileStamper),
+  ToLower(Box<TestTask>),
 }
 impl Task for TestTask {
   type Output = Result<TestOutput, ErrorKind>;
@@ -75,6 +76,10 @@ impl Task for TestTask {
           file.read_to_string(&mut string).map_err(|e| e.kind())?;
         }
         Ok(string.into())
+      }
+      TestTask::ToLower(string_provider_task) => {
+        let string = context.require_task(string_provider_task.as_ref())?.into_string();
+        Ok(string.to_lowercase().into())
       }
     }
   }
@@ -92,6 +97,11 @@ impl TestOutput {
   pub fn as_str(&self) -> &str {
     match self {
       Self::String(s) => &s,
+    }
+  }
+  pub fn into_string(self) -> String {
+    match self {
+      Self::String(s) => s,
     }
   }
 }
