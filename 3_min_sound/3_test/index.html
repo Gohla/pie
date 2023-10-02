@@ -280,7 +280,7 @@ pub enum TestTask {
 }
 impl Task for TestTask {
   type Output = Result&lt;TestOutput, ErrorKind&gt;;
-  fn execute&lt;C: Context&lt;Self&gt;&gt;(&amp;self, context: &amp;mut C) -&gt; Self::Output {
+  fn execute&lt;C: Context&lt;Self&gt;&gt;(&amp;self, _context: &amp;mut C) -&gt; Self::Output {
     match self {
       TestTask::StringConstant(string) =&gt; Ok(string.to_string().into()),
     }
@@ -339,10 +339,10 @@ fn test_execution() -&gt; Result&lt;(), io::Error&gt; {
 We use <code>require_then_assert</code> to require the task and then perform assertions through a closure.
 We're using <code>tracker.slice()</code> to get a slice of all build events, and assert (using <a href="https://docs.rs/assert_matches/latest/assert_matches/macro.assert_matches.html"><code>assert_matches!</code></a> again) that the following operations happen in order:</p>
 <ul>
-<li>require <code>task</code>,</li>
-<li>execute <code>task</code>,</li>
-<li>have executed <code>task</code>,</li>
-<li>have required <code>task</code>.</li>
+<li>start requiring <code>task</code>,</li>
+<li>start executing <code>task</code>,</li>
+<li>done executing <code>task</code>,</li>
+<li>done requiring <code>task</code>.</li>
 </ul>
 <p><code>require_then_assert</code> returns the output of the task, which is a <code>Result</code>, so we first propagate the error with <code>?</code>.
 Finally, we assert that the output equals what we expect.</p>
@@ -381,6 +381,39 @@ fn test_reuse() -&gt; Result&lt;(), io::Error&gt; {
 <p>We're using <code>require</code> and <code>require_then_assert_no_execute</code> from <code>TestPieExt</code> which require the same task twice, in two different sessions.
 Since <code>StringConstant</code> has no dependencies, it should only ever be executed once, after which its output is cached for all eternity.</p>
 <p>Check that this test succeeds with <code>cargo test</code>.</p>
+<div id="admonition-reading-standard-output-from-tests" class="admonition info">
+<div class="admonition-title">
+<p>Reading standard output from tests</p>
+<p><a class="admonition-anchor-link" href="#admonition-reading-standard-output-from-tests"></a></p>
+</div>
+<div>
+<p>Cargo runs tests in parallel by default, which is good to run all tests as fast as possible (and it's also safe due to Rust's memory-safety and thread-safety guarantees!)
+However, this mixes the standard outputs of all tests, which makes reading the build log from our writing tracker impossible.
+If you want to see the standard output, either:</p>
+<ul>
+<li>Run tests <a href="https://doc.rust-lang.org/book/ch11-02-running-tests.html#running-tests-in-parallel-or-consecutively">consecutively</a> with: <code>cargo test -- --test-threads=1</code></li>
+<li>Run a <a href="https://doc.rust-lang.org/book/ch11-02-running-tests.html#running-single-tests">single test</a> in the <code>top_down</code> integration test file with: <code>cargo test --test top_down test_reuse</code></li>
+</ul>
+<p>The second command should result in something like:</p>
+<pre><code>    Finished test [unoptimized + debuginfo] target(s) in 0.02s
+     Running tests/top_down.rs (/pie/target/debug/deps/top_down-f49294f0992aeb61)
+
+running 1 test
+→ StringConstant(&quot;Hello, World!&quot;)
+ ▶ StringConstant(&quot;Hello, World!&quot;)
+ ◀ Ok(String(&quot;Hello, World!&quot;))
+← Ok(String(&quot;Hello, World!&quot;))
+🏁
+→ StringConstant(&quot;Hello, World!&quot;)
+← Ok(String(&quot;Hello, World!&quot;))
+🏁
+test test_reuse ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+
+</code></pre>
+</div>
+</div>
 <h3 id="file-dependency"><a class="header" href="#file-dependency">File dependency</a></h3>
 <p>Next we want to test that a task with dependencies is not executed if its dependencies are consistent, and is executed when any of its dependencies are inconsistent.
 Therefore, we need to add a task that has dependencies.</p>
@@ -408,7 +441,8 @@ Therefore, we need to add a task that has dependencies.</p>
  }
  impl Task for TestTask {
    type Output = Result<TestOutput, ErrorKind>;
-   fn execute<C: Context<Self>>(&self, context: &mut C) -> Self::Output {
+-  fn execute<C: Context<Self>>(&self, _context: &mut C) -> Self::Output {
++  fn execute<C: Context<Self>>(&self, context: &mut C) -> Self::Output {
      match self {
        TestTask::StringConstant(string) => Ok(string.to_string().into()),
 +      TestTask::ReadStringFromFile(path, stamper) => {
