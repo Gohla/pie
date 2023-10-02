@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::fmt::Debug;
 use std::fs::File;
 use std::hash::Hash;
@@ -93,6 +94,7 @@ pub struct Session<'p, T, O, A> {
   store: &'p mut Store<T, O>,
   tracker: &'p mut A,
   current_executing_task: Option<TaskNode>,
+  consistent: HashSet<TaskNode>,
   dependency_check_errors: Vec<io::Error>,
 }
 
@@ -102,6 +104,7 @@ impl<'p, T: Task, A: Tracker<T>> Session<'p, T, T::Output, A> {
       store: &mut pie.store,
       tracker: &mut pie.tracker,
       current_executing_task: None,
+      consistent: HashSet::default(),
       dependency_check_errors: Vec::default(),
     }
   }

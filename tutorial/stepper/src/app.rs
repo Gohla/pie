@@ -208,7 +208,14 @@ pub fn step_all(
           .into_modification(),
       ]).output(SourceArchive::new("source.zip"));
       stepper.set_cargo_args(["test"]);
-      stepper.apply([]); // Apply with empty to run tests
+      stepper.apply([
+        create_diff_builder("h_lib_consistent.rs", "lib.rs")
+          .use_destination_file_as_original_file_if_unset(true)
+          .into_modification(),
+        create_diff_builder("i_context_consistent.rs", "context/top_down.rs")
+          .use_destination_file_as_original_file_if_unset(true)
+          .into_modification(),
+      ]);
     });
     stepper.with_path("2_tracker", |stepper| {
       stepper.apply([

@@ -118,7 +118,33 @@ In changes D and E, Rust is smart enough to allow creating a new session even th
 
 Check that the example works with `cargo run --example incremental`, and check that the rest of the code works by running `cargo test`.
 
-With this new API in place, and all code adjusted to work with it, we can continue with tracking build events.
+## Minimality
+
+Now we can ensure minimality by keeping track whether a task has been required this session.
+Change `pie/lib.rs`:
+
+```diff2html fromfile
+../../gen/3_min_sound/1_session/h_lib_consistent.rs.diff
+```
+
+We add the `consistent` field to `Session` which is a hash set over task nodes.
+We create a new one each session, because we only want to keep track of which tasks are consistent on a per-session basis.
+
+Now change the top-down context in `pie/context/top_down.rs` to use this:
+
+```diff2html fromfile
+../../gen/3_min_sound/1_session/i_context_consistent.rs.diff
+```
+
+At the start of requiring a task, we check whether the task is already deemed consistent this session, using the `consistent` hash set in `Session`.
+If the task is consistent, we skip execution by using `!already_consistent &&` in the if check.
+Because `&&` is [short-circuiting (also called lazy)](https://doc.rust-lang.org/reference/expressions/operator-expr.html#lazy-boolean-operators), we even skip the entire `should_execute` call that checks whether we should execute a task, when the task is already consistent.
+This increases performance when a lot of consistent tasks are required.
+
+Finally, at the end of `require`, we insert the task node into the `consistent` hash set, to denote that the task is now consistent this session.
+That's it! This was a simple change due to the work we did before to get the `Session` API in place.
+
+With this new API in place, minimality of task checking and execution in place, and all code adjusted to work with it, we can continue with tracking build events.
 
 ```admonish example title="Download source code" collapsible=true
 You can [download the source files up to this point](../../gen/3_min_sound/1_session/source.zip).
