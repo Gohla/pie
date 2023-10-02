@@ -395,8 +395,8 @@ If you want to see the standard output, either:</p>
 <li>Run a <a href="https://doc.rust-lang.org/book/ch11-02-running-tests.html#running-single-tests">single test</a> in the <code>top_down</code> integration test file with: <code>cargo test --test top_down test_reuse</code></li>
 </ul>
 <p>The second command should result in something like:</p>
-<pre><code>    Finished test [unoptimized + debuginfo] target(s) in 0.03s
-     Running tests/top_down.rs (/pie/target/debug/deps/top_down-8d61676564c4a752)
+<pre><code>    Finished test [unoptimized + debuginfo] target(s) in 0.02s
+     Running tests/top_down.rs (/pie/target/debug/deps/top_down-676a42186b9356e0)
 
 running 1 test
 → Return(&quot;Hello, World!&quot;)
@@ -612,13 +612,13 @@ Modify <code>pie/src/tests/common/mod.rs</code>:</p>
 </script>
 <p>We add a <code>ToLower</code> task that requires another task (stored as <code>Box&lt;TestTask&gt;</code>) to get a <code>String</code>, which it then converts to lower case.
 We also add the <code>into_string</code> method to <code>TestOutput</code> for conveniently getting an owned <code>String</code> from a <code>TestOutput</code>.</p>
-<details id="admonition-boxing-to-prevent-cyclic-definition" class="admonition info">
+<details id="admonition-boxing-to-prevent-cyclic-size-calculation" class="admonition info">
 <summary class="admonition-title">
-<p>Boxing to prevent cyclic definition</p>
-<p><a class="admonition-anchor-link" href="#admonition-boxing-to-prevent-cyclic-definition"></a></p>
+<p>Boxing to prevent cyclic size calculation</p>
+<p><a class="admonition-anchor-link" href="#admonition-boxing-to-prevent-cyclic-size-calculation"></a></p>
 </summary>
 <div>
-<p>We store the string providing task as <code>Box&lt;TestTask&gt;</code> in order to prevent a cyclic definition, which would cause <code>TestTask</code> to have an undetermined size.
+<p>We store the string providing task as <code>Box&lt;TestTask&gt;</code> in order to prevent cyclic size calculation, which would cause <code>TestTask</code> to have an undetermined size.
 This is due to several reasons:</p>
 <ul>
 <li>In Rust, values are stored on the stack by default. To store something on the stack, Rust needs to know its size <em>at compile-time</em>.</li>
@@ -905,7 +905,9 @@ In the <code>require_then_assert</code> block we first assert that both tasks ar
 <li>To check if <code>lower</code> should be executed, we check its dependencies: a task dependency to <code>read</code>.</li>
 <li>To check if <code>read</code> should be executed, we check its dependencies: a <code>file</code> dependency, which is inconsistent, thus we execute <code>read</code>.</li>
 <li>Then we are back to checking <code>lower</code>'s task dependency to <code>read</code>, which is inconsistent because <code>read</code> now returns <code>&quot;!DLROW OLLEH&quot;</code> instead of <code>&quot;HELLO WORLD!&quot;</code>.</li>
-<li>Thus, we execute <code>lower</code> which requires <code>read</code>, but we can skip checking that because it is already consistent this session.</li>
+<li>Thus, we execute <code>lower</code> which requires <code>read</code>.</li>
+<li>We can skip checking <code>read</code> because we already checked and executed it: it is deemed consistent this session. We immediately return its output <code>&quot;!DLROW OLLEH&quot;</code> to <code>lower</code>.</li>
+<li><code>lower</code> turns the string lowercase and returns it.</li>
 </ul>
 <p>Note that we are executing <code>read</code> <em>before</em> executing <code>lower</code> this time (but still <em>while requiring</em> <code>lower</code>).
 This is important for incrementality because if <code>read</code> had not returned a different output, we would not have to execute <code>lower</code> due to its equals output stamp still being consistent (we call this <em>early cutoff</em>).
