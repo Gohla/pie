@@ -74,10 +74,10 @@ In this first `test_execution` test we are just making sure that new tasks are e
 We use `require_then_assert` to require the task and then perform assertions through a closure.
 We're using `tracker.slice()` to get a slice of all build events, and assert (using [`assert_matches!`](https://docs.rs/assert_matches/latest/assert_matches/macro.assert_matches.html) again) that the following operations happen in order:
 
-- require `task`,
-- execute `task`,
-- have executed `task`,
-- have required `task`.
+- start requiring `task`,
+- start executing `task`,
+- done executing `task`,
+- done requiring `task`.
 
 `require_then_assert` returns the output of the task, which is a `Result`, so we first propagate the error with `?`.
 Finally, we assert that the output equals what we expect.
@@ -113,6 +113,21 @@ We're using `require` and `require_then_assert_no_execute` from `TestPieExt` whi
 Since `StringConstant` has no dependencies, it should only ever be executed once, after which its output is cached for all eternity.
 
 Check that this test succeeds with `cargo test`.
+
+~~~admonish info title="Reading standard output from tests"
+Cargo runs tests in parallel by default, which is good to run all tests as fast as possible (and it's also safe due to Rust's memory-safety and thread-safety guarantees!)
+However, this mixes the standard outputs of all tests, which makes reading the build log from our writing tracker impossible.
+If you want to see the standard output, either:
+
+- Run tests [consecutively](https://doc.rust-lang.org/book/ch11-02-running-tests.html#running-tests-in-parallel-or-consecutively) with: `cargo test -- --test-threads=1`
+- Run a [single test](https://doc.rust-lang.org/book/ch11-02-running-tests.html#running-single-tests) in the `top_down` integration test file with: `cargo test --test top_down test_reuse`
+
+The second command should result in something like:
+
+```
+{{#include ../../gen/3_min_sound/3_test/c_test_reuse_stdout.txt}}
+```
+~~~
 
 ### File dependency
 

@@ -271,6 +271,9 @@ pub fn step_all(
       stepper.apply([
         add("c_test_reuse.rs", "../tests/top_down.rs")
       ]);
+      stepper.run_cargo(["test", "--", "--test-threads=1"], Some(true));
+      stepper.run_cargo_applied(["test", "--test", "top_down", "test_reuse"], Some(true))
+        .output(CargoOutput::new("c_test_reuse_stdout.txt"));
       stepper.apply([
         create_diff_builder("d_1_read_task.rs", "../tests/common/mod.rs")
           .use_destination_file_as_original_file_if_unset(true)

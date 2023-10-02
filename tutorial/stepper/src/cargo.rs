@@ -1,9 +1,9 @@
+use std::ffi::OsString;
 use std::fmt::{Display, Formatter};
+use std::path::PathBuf;
 
 use anyhow::Context;
 use duct::Expression;
-
-use crate::stepper::Stepper;
 
 #[derive(Clone)]
 pub struct RunCargo {
@@ -18,15 +18,15 @@ impl Display for RunCargo {
 }
 
 impl RunCargo {
-  pub fn new(stepper: &Stepper) -> anyhow::Result<RunCargo> {
-    let cmd = duct::cmd("cargo", &stepper.cargo_args)
-      .dir(&stepper.destination_directory)
+  pub fn new(cargo_args: impl IntoIterator<Item=impl Into<OsString>> + Clone, destination_directory: &PathBuf) -> anyhow::Result<RunCargo> {
+    let cmd = duct::cmd("cargo", cargo_args.clone())
+      .dir(destination_directory)
       .unchecked()
       .stderr_to_stdout()
       .stdout_capture();
 
     let mut cmd_joined = vec!["cargo".to_string()];
-    cmd_joined.extend(stepper.cargo_args.iter().map(|oss| oss.clone().into_string()
+    cmd_joined.extend(cargo_args.into_iter().map(|oss| oss.into().into_string()
       .expect("failed to convert cmd to string")));
     let cmd_joined = cmd_joined.join(" ");
     Ok(Self { cmd, cmd_joined })

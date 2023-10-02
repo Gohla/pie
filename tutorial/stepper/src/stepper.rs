@@ -70,8 +70,8 @@ impl Stepper {
     }
   }
 
-  pub fn set_cargo_args<CA: IntoIterator<Item=A>, A: AsRef<OsStr>>(&mut self, cargo_args: CA) {
-    self.cargo_args = cargo_args.into_iter().map(|a| a.as_ref().to_owned()).collect();
+  pub fn set_cargo_args(&mut self, cargo_args: impl IntoIterator<Item=impl Into<OsString>>) {
+    self.cargo_args = cargo_args.into_iter().map(|a| a.into()).collect();
   }
 }
 
@@ -128,23 +128,29 @@ impl Stepper {
       }
     }
 
-    let cargo_output = if self.run_cargo {
-      let run_cargo = RunCargo::new(&self)
-        .expect("failed to create run cargo command");
-      info!("{}", run_cargo);
+    self.run_cargo_applied(&self.cargo_args, expect_success)
+  }
 
-      let (cargo_output, valid) = run_cargo.run(expect_success)
-        .expect("failed to run cargo command or failed to get its output");
-      if !valid {
-        error!("Cargo run did not result in expected outcome. Command:\n{}\nOutput:\n{}", run_cargo, cargo_output);
-        panic!("Cargo run did not result in expected outcome; stopping");
-      } else {
-        info!("{}", cargo_output);
-      }
-      Some(cargo_output)
+  pub fn run_cargo(&self, cargo_args: impl IntoIterator<Item=impl Into<OsString>> + Clone, expect_success: Option<bool>) -> Option<String> {
+    if !self.run_cargo { return None; }
+
+    let run_cargo = RunCargo::new(cargo_args, &self.destination_directory)
+      .expect("failed to create run cargo command");
+    info!("{}", run_cargo);
+
+    let (cargo_output, valid) = run_cargo.run(expect_success)
+      .expect("failed to run cargo command or failed to get its output");
+    if !valid {
+      error!("Cargo run did not result in expected outcome. Command:\n{}\nOutput:\n{}", run_cargo, cargo_output);
+      panic!("Cargo run did not result in expected outcome; stopping");
     } else {
-      None
-    };
+      info!("{}", cargo_output);
+    }
+    Some(cargo_output)
+  }
+
+  pub fn run_cargo_applied(&self, cargo_args: impl IntoIterator<Item=impl Into<OsString>> + Clone, expect_success: Option<bool>) -> Applied {
+    let cargo_output = self.run_cargo(cargo_args, expect_success);
     Applied { stepper: self, create_outputs: self.create_outputs, cargo_output }
   }
 }
