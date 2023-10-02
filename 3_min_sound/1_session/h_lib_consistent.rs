@@ -12,7 +12,6 @@ use crate::store::{Store, TaskNode};
 
 pub mod stamp;
 pub mod dependency;
-pub mod tracker;
 mod context;
 mod fs;
 mod store;

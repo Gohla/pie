@@ -1,6 +1,6 @@
 --- pie/src/lib.rs
 +++ pie/src/lib.rs
-@@ -8,6 +8,7 @@
+@@ -9,6 +9,7 @@
  
  use crate::context::top_down::TopDownContext;
  use crate::store::{Store, TaskNode};
@@ -8,7 +8,7 @@
  
  pub mod stamp;
  pub mod dependency;
-@@ -60,35 +61,46 @@
+@@ -61,36 +62,47 @@
  }
  
  /// Main entry point into PIE, a sound and incremental programmatic build system.
@@ -50,6 +50,7 @@
    store: &'p mut Store<T, O>,
 +  tracker: &'p mut A,
    current_executing_task: Option<TaskNode>,
+   consistent: HashSet<TaskNode>,
    dependency_check_errors: Vec<io::Error>,
  }
  
@@ -61,9 +62,9 @@
        store: &mut pie.store,
 +      tracker: &mut pie.tracker,
        current_executing_task: None,
+       consistent: HashSet::default(),
        dependency_check_errors: Vec::default(),
-     }
-@@ -100,6 +112,11 @@
+@@ -103,6 +115,11 @@
      TopDownContext::new(self).require_initial(task)
    }
  

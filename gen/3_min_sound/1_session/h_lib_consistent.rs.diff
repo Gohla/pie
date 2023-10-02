@@ -1,0 +1,23 @@
+--- pie/src/lib.rs
++++ pie/src/lib.rs
+@@ -1,3 +1,4 @@
++use std::collections::HashSet;
+ use std::fmt::Debug;
+ use std::fs::File;
+ use std::hash::Hash;
+@@ -81,6 +82,7 @@
+ pub struct Session<'p, T, O> {
+   store: &'p mut Store<T, O>,
+   current_executing_task: Option<TaskNode>,
++  consistent: HashSet<TaskNode>,
+   dependency_check_errors: Vec<io::Error>,
+ }
+ 
+@@ -89,6 +91,7 @@
+     Self {
+       store: &mut pie.store,
+       current_executing_task: None,
++      consistent: HashSet::default(),
+       dependency_check_errors: Vec::default(),
+     }
+   }

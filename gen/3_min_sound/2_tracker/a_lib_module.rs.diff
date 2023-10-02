@@ -1,6 +1,6 @@
 --- pie/src/lib.rs
 +++ pie/src/lib.rs
-@@ -11,6 +11,7 @@
+@@ -12,6 +12,7 @@
  
  pub mod stamp;
  pub mod dependency;

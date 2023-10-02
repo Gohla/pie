@@ -1,0 +1,20 @@
+--- pie/src/context/top_down.rs
++++ pie/src/context/top_down.rs
+@@ -36,7 +36,8 @@
+     let node = self.session.store.get_or_create_task_node(task);
+ 
+     // Get required task output by executing it if needed, or by getting the output from the store if not needed.
+-    let output = if self.should_execute_task(&node) {
++    let already_consistent = self.session.consistent.contains(&node);
++    let output = if !already_consistent && self.should_execute_task(&node) {
+       self.session.store.reset_task(&node);
+       let previous_executing_task = self.session.current_executing_task.replace(node);
+       let output = task.execute(self);
+@@ -58,6 +59,7 @@
+       }
+     }
+ 
++    self.session.consistent.insert(node);
+     output
+   }
+ }

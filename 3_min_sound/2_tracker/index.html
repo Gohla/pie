@@ -194,7 +194,7 @@ In this section, we will change that by tracking build events for debugging and 
   document.addEventListener('DOMContentLoaded', function () {
     let diff = String.raw`--- pie/src/lib.rs
 +++ pie/src/lib.rs
-@@ -11,6 +11,7 @@
+@@ -12,6 +12,7 @@
  
  pub mod stamp;
  pub mod dependency;
@@ -325,7 +325,7 @@ If you care about performance here, be sure to annotate those default empty meth
   document.addEventListener('DOMContentLoaded', function () {
     let diff = String.raw`--- pie/src/lib.rs
 +++ pie/src/lib.rs
-@@ -8,6 +8,7 @@
+@@ -9,6 +9,7 @@
  
  use crate::context::top_down::TopDownContext;
  use crate::store::{Store, TaskNode};
@@ -333,7 +333,7 @@ If you care about performance here, be sure to annotate those default empty meth
  
  pub mod stamp;
  pub mod dependency;
-@@ -60,35 +61,46 @@
+@@ -61,36 +62,47 @@
  }
  
  /// Main entry point into PIE, a sound and incremental programmatic build system.
@@ -375,6 +375,7 @@ If you care about performance here, be sure to annotate those default empty meth
    store: &'p mut Store<T, O>,
 +  tracker: &'p mut A,
    current_executing_task: Option<TaskNode>,
+   consistent: HashSet<TaskNode>,
    dependency_check_errors: Vec<io::Error>,
  }
  
@@ -386,9 +387,9 @@ If you care about performance here, be sure to annotate those default empty meth
        store: &mut pie.store,
 +      tracker: &mut pie.tracker,
        current_executing_task: None,
+       consistent: HashSet::default(),
        dependency_check_errors: Vec::default(),
-     }
-@@ -100,6 +112,11 @@
+@@ -103,6 +115,11 @@
      TopDownContext::new(self).require_initial(task)
    }
  
@@ -468,7 +469,7 @@ Modify <code>pie/src/context/top_down.rs</code>:</p>
    fn require_file_with_stamper<P: AsRef<Path>>(&mut self, path: P, stamper: FileStamper) -> Result<Option<File>, io::Error> {
      let Some(current_executing_task_node) = &self.session.current_executing_task else {
        return fs::open_if_file(path); // No current executing task, so no dependency needs to be made.
-@@ -28,20 +32,25 @@
+@@ -28,21 +32,26 @@
      let path = path.as_ref();
      let node = self.session.store.get_or_create_file_node(path);
      let (dependency, file) = FileDependency::new_with_file(path, stamper)?;
@@ -482,8 +483,9 @@ Modify <code>pie/src/context/top_down.rs</code>:</p>
      let node = self.session.store.get_or_create_task_node(task);
  
      // Get required task output by executing it if needed, or by getting the output from the store if not needed.
--    let output = if self.should_execute_task(&node) {
-+    let should_execute = self.should_execute_task(&node);
+     let already_consistent = self.session.consistent.contains(&node);
+-    let output = if !already_consistent && self.should_execute_task(&node) {
++    let should_execute = !already_consistent && self.should_execute_task(&node);
 +    let output = if should_execute {
 +      self.session.tracker.execute_start(task);
        self.session.store.reset_task(&node);
@@ -495,7 +497,7 @@ Modify <code>pie/src/context/top_down.rs</code>:</p>
        output
      } else {
        // Correctness: when ${"`"}should_execute_task${"`"} returns ${"`"}true${"`"}, the above block is executed. Otherwise this block is 
-@@ -49,9 +58,11 @@
+@@ -50,9 +59,11 @@
        self.session.store.get_task_output(&node).clone()
      };
  
@@ -508,7 +510,7 @@ Modify <code>pie/src/context/top_down.rs</code>:</p>
        if self.session.store.add_task_require_dependency(current_executing_task_node, &node, dependency).is_err() {
          let current_executing_task = self.session.store.get_task(current_executing_task_node);
          panic!("Cyclic task dependency; current executing task '{:?}' is requiring task '{:?}' which was already required", current_executing_task, task);
-@@ -62,7 +73,7 @@
+@@ -64,7 +75,7 @@
    }
  }
  
@@ -517,7 +519,7 @@ Modify <code>pie/src/context/top_down.rs</code>:</p>
    /// Checks whether given task should be executed, returning ${"`"}true${"`"} if it should be executed. A task should be executed
    /// if any of its dependencies are inconsistent, or when it has no output.
    fn should_execute_task(&mut self, node: &TaskNode) -> bool {
-@@ -71,7 +82,10 @@
+@@ -73,7 +84,10 @@
      //         through ${"`"}self.store${"`"} while we create a mutable borrow of ${"`"}self${"`"}, which is not allowed.
      let dependencies: Vec<_> = self.session.store.get_dependencies_of_task(node).cloned().collect();
      for dependency in dependencies {
@@ -830,55 +832,55 @@ You can add configuration booleans to control what should be written, but in thi
 <p>We remove the <code>println!</code> statements from tasks and create <code>Pie</code> with <code>WritingTracker</code>.
 Now run the example with <code>cargo run --example incremental</code>, and you should see the writing tracker print to standard output:</p>
 <pre><code>   Compiling pie v0.1.0 (/pie)
-    Finished dev [unoptimized + debuginfo] target(s) in 0.69s
+    Finished dev [unoptimized + debuginfo] target(s) in 0.64s
      Running `/pie/target/debug/examples/incremental`
 A) New task: expect `read_task` to execute
-→ ReadStringFromFile(&quot;/tmp/.tmptztyXl/input.txt&quot;, Modified)
- ▶ ReadStringFromFile(&quot;/tmp/.tmptztyXl/input.txt&quot;, Modified)
-  - /tmp/.tmptztyXl/input.txt
+→ ReadStringFromFile(&quot;/tmp/.tmp5mhM0R/input.txt&quot;, Modified)
+ ▶ ReadStringFromFile(&quot;/tmp/.tmp5mhM0R/input.txt&quot;, Modified)
+  - /tmp/.tmp5mhM0R/input.txt
  ◀ Ok(&quot;Hi&quot;)
 ← Ok(&quot;Hi&quot;)
 🏁
 
 B) Reuse: expect no execution
-→ ReadStringFromFile(&quot;/tmp/.tmptztyXl/input.txt&quot;, Modified)
- ✓ /tmp/.tmptztyXl/input.txt
+→ ReadStringFromFile(&quot;/tmp/.tmp5mhM0R/input.txt&quot;, Modified)
+ ✓ /tmp/.tmp5mhM0R/input.txt
 ← Ok(&quot;Hi&quot;)
 🏁
 
 C) Inconsistent file dependency: expect `read_task` to execute
-→ ReadStringFromFile(&quot;/tmp/.tmptztyXl/input.txt&quot;, Modified)
- ✗ /tmp/.tmptztyXl/input.txt (old: Modified(Some(SystemTime { tv_sec: 1695998467, tv_nsec: 424853308 })) ≠ new: Modified(Some(SystemTime { tv_sec: 1695998467, tv_nsec: 428853330 })))
- ▶ ReadStringFromFile(&quot;/tmp/.tmptztyXl/input.txt&quot;, Modified)
-  - /tmp/.tmptztyXl/input.txt
+→ ReadStringFromFile(&quot;/tmp/.tmp5mhM0R/input.txt&quot;, Modified)
+ ✗ /tmp/.tmp5mhM0R/input.txt (old: Modified(Some(SystemTime { tv_sec: 1696237888, tv_nsec: 796577883 })) ≠ new: Modified(Some(SystemTime { tv_sec: 1696237888, tv_nsec: 800577946 })))
+ ▶ ReadStringFromFile(&quot;/tmp/.tmp5mhM0R/input.txt&quot;, Modified)
+  - /tmp/.tmp5mhM0R/input.txt
  ◀ Ok(&quot;Hello&quot;)
 ← Ok(&quot;Hello&quot;)
 🏁
 
 D) Different tasks: expect `read_task_b_modified` and `read_task_b_exists` to execute
-→ ReadStringFromFile(&quot;/tmp/.tmptztyXl/input_b.txt&quot;, Modified)
- ▶ ReadStringFromFile(&quot;/tmp/.tmptztyXl/input_b.txt&quot;, Modified)
-  - /tmp/.tmptztyXl/input_b.txt
+→ ReadStringFromFile(&quot;/tmp/.tmp5mhM0R/input_b.txt&quot;, Modified)
+ ▶ ReadStringFromFile(&quot;/tmp/.tmp5mhM0R/input_b.txt&quot;, Modified)
+  - /tmp/.tmp5mhM0R/input_b.txt
  ◀ Ok(&quot;Test&quot;)
 ← Ok(&quot;Test&quot;)
 🏁
-→ ReadStringFromFile(&quot;/tmp/.tmptztyXl/input_b.txt&quot;, Exists)
- ▶ ReadStringFromFile(&quot;/tmp/.tmptztyXl/input_b.txt&quot;, Exists)
-  - /tmp/.tmptztyXl/input_b.txt
+→ ReadStringFromFile(&quot;/tmp/.tmp5mhM0R/input_b.txt&quot;, Exists)
+ ▶ ReadStringFromFile(&quot;/tmp/.tmp5mhM0R/input_b.txt&quot;, Exists)
+  - /tmp/.tmp5mhM0R/input_b.txt
  ◀ Ok(&quot;Test&quot;)
 ← Ok(&quot;Test&quot;)
 🏁
 
 E) Different stampers: expect only `read_task_b_modified` to execute
-→ ReadStringFromFile(&quot;/tmp/.tmptztyXl/input_b.txt&quot;, Modified)
- ✗ /tmp/.tmptztyXl/input_b.txt (old: Modified(Some(SystemTime { tv_sec: 1695998467, tv_nsec: 428853330 })) ≠ new: Modified(Some(SystemTime { tv_sec: 1695998467, tv_nsec: 432853353 })))
- ▶ ReadStringFromFile(&quot;/tmp/.tmptztyXl/input_b.txt&quot;, Modified)
-  - /tmp/.tmptztyXl/input_b.txt
+→ ReadStringFromFile(&quot;/tmp/.tmp5mhM0R/input_b.txt&quot;, Modified)
+ ✗ /tmp/.tmp5mhM0R/input_b.txt (old: Modified(Some(SystemTime { tv_sec: 1696237888, tv_nsec: 800577946 })) ≠ new: Modified(Some(SystemTime { tv_sec: 1696237888, tv_nsec: 804578008 })))
+ ▶ ReadStringFromFile(&quot;/tmp/.tmp5mhM0R/input_b.txt&quot;, Modified)
+  - /tmp/.tmp5mhM0R/input_b.txt
  ◀ Ok(&quot;Test Test&quot;)
 ← Ok(&quot;Test Test&quot;)
 🏁
-→ ReadStringFromFile(&quot;/tmp/.tmptztyXl/input_b.txt&quot;, Exists)
- ✓ /tmp/.tmptztyXl/input_b.txt
+→ ReadStringFromFile(&quot;/tmp/.tmp5mhM0R/input_b.txt&quot;, Exists)
+ ✓ /tmp/.tmp5mhM0R/input_b.txt
 ← Ok(&quot;Test&quot;)
 🏁
 </code></pre>

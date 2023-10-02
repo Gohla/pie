@@ -12,4 +12,3 @@ error[E0276]: impl has stricter requirements than trait
 
 For more information about this error, try `rustc --explain E0276`.
 error: could not compile `pie` (lib test) due to previous error
-warning: build failed, waiting for other jobs to finish...
