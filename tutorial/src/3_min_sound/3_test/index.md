@@ -52,7 +52,7 @@ Add the following to `pie/src/tests/common/mod.rs`:
 {{#include a_3_common_task.rs:2:}}
 ```
 
-We define a `TestTask` enumeration containing all testing tasks, which for now is just a `StringConstant` task that returns a string, and implement `Task` for it.
+We define a `TestTask` enumeration containing all testing tasks, which for now is just a `Return` task that just returns its string, and implement `Task` for it.
 The `Output` for `TestTask` is `Result<TestOutput, ErrorKind>` so that we can propagate IO errors in the future.
 
 `TestOutput` enumerates all possible outputs for `TestTask`, which for now is just a `String`.
@@ -110,7 +110,7 @@ Add the following test to `pie/src/tests/top_down.rs`:
 ```
 
 We're using `require` and `require_then_assert_no_execute` from `TestPieExt` which require the same task twice, in two different sessions.
-Since `StringConstant` has no dependencies, it should only ever be executed once, after which its output is cached for all eternity.
+Since `Return` has no dependencies, it should only ever be executed once, after which its output is cached for all eternity.
 
 Check that this test succeeds with `cargo test`.
 
@@ -140,7 +140,7 @@ Modify `pie/src/tests/common/mod.rs`:
 ../../gen/3_min_sound/3_test/d_1_read_task.rs.diff
 ```
 
-We add a `ReadStringFromFile` task that requires a file and returns its content as a string, similar to the ones we have implemented in the past.
+We add a `ReadFile` task that requires a file and returns its content as a string, similar to the ones we have implemented in the past.
 
 Modify `pie/src/tests/top_down.rs` to add a new test:
 
@@ -148,13 +148,127 @@ Modify `pie/src/tests/top_down.rs` to add a new test:
 ../../gen/3_min_sound/3_test/d_2_test_require_file.rs.diff
 ```
 
-In this test, we require a `ReadStringFromFile` task several times, and assert whether it should be executed or not.
-The first time, the task is new, so it should be executed.
-The second time, the task is not new, and its single require file dependency is still consistent, so it should not be executed.
-Then, we change the file the task depends on with `write_until_modified`.
-Then, we require the task again, and it should be executed because its dependency became inconsistent.
+In `test_require_file`, we first create a temporary directory and `file`, and a `ReadFile` `task` that reads from `file`.
+We require the `task` task several times, and assert whether it should be executed or not:
+
+1) The task is new, so it should be executed, which we assert with `require_then_assert_one_execute`.
+2) The task is not new, but its single require file dependency is still consistent, so it should not be executed.
+3) We change the file the task depends on with `write_until_modified`.
+4) We require the task again. This time it should be executed because its file dependency became inconsistent.
 
 We repeat the test with the `FileStamper::Exists` stamper, which correctly results in the task only being executed once.
 It is a new task because its stamper is different, and it is not re-executed when the file is changed due to `FileStamper::Exists` only checking if the file exists.
 
+Note that in general, the `FileStamper::Exists` stamper is not a good stamper to use with `ReadFile`, because it will only be re-executed when the file is added or removed.
+But for testing purposes, this is fine. 
+
 Check that this test succeeds with `cargo test`.
+
+### Task dependency
+
+Now it's time to test the more complicated task dependencies.
+For that, we'll implement a task that depends on another task.
+Modify `pie/src/tests/common/mod.rs`:
+
+```diff2html fromfile linebyline
+../../gen/3_min_sound/3_test/e_1_lower_task.rs.diff
+```
+
+We add a `ToLower` task that requires another task (stored as `Box<TestTask>`) to get a `String`, which it then converts to lower case.
+We also add the `into_string` method to `TestOutput` for conveniently getting an owned `String` from a `TestOutput`.
+
+```admonish info title="Boxing to prevent cyclic definition" collapsible=true
+We store the string providing task as `Box<TestTask>` in order to prevent a cyclic definition, which would cause `TestTask` to have an undetermined size.
+This is due to several reasons:
+- In Rust, values are stored on the stack by default. To store something on the stack, Rust needs to know its size *at compile-time*.
+- The size of an `enum` is the size of the largest variant.
+- The size of a struct is the sum of the size of the fields.
+
+If we don't box the task, to calculate the size of the `ToLower` enum variant, we need to calculate the size of `TestTask`, which would require calculating the size of the `ToLower` variant, and so forth.
+Therefore, we can't calulate the size of `ToLower` nor `TestTask`, which is an error.
+
+Boxing solves this because `Box<TestTask>` allocates a `TestTask` on the heap, and then creates a pointer to it.
+Therefore, the size of `Box<TestTask>` is the size of one pointer, breaking the cycle in the size calculations.
+
+Note that this explanation [simplifies many aspects of Rust's size calculation](https://doc.rust-lang.org/nomicon/exotic-sizes.html).
+```
+
+Now add a test to `pie/src/tests/top_down.rs`: 
+
+```diff2html fromfile linebyline
+../../gen/3_min_sound/3_test/e_2_test_require_task.rs.diff
+```
+
+In `test_require_task`, we create a `read` task that reads from `file`, and a `lower` task that requires `read`.
+In this test, we want to test three properties:
+
+1) When we require `lower` for the first time, it will require `read`, which will require `file`, `read` will return the contents of `file` as a string, and `lower` will turn that string into lowercase and return it. 
+2) When we require `lower` when `file` has not been changed, no task is executed.
+3) When we require `lower` when `file`'s contents _have changed_, then first `read` must be executed, and then `lower` must be executed with the output of `read`.
+
+Test the first property by adding the following code to `pie/src/tests/top_down.rs`:
+
+```diff2html fromfile linebyline
+../../gen/3_min_sound/3_test/e_3_test_require_task.rs.diff
+```
+
+We require `lower` for the first time and then assert properties using `require_then_assert`.
+The comment shows the expected build log.
+
+Inside `require_then_assert` we will make extensive use of the indexes and ranges from our `EventTracker`, and use `assert_matches!` to ensure these indexes and ranges exist (i.e., return `Some`).
+Ranges (`RangeInclusive`) are just the start and end indices of events, accessed with `.start()` and `.end()`.
+Indices are numbers (`usize`) that we can compare using the standard `>` operator.
+A higher index indicates that the event happened later.
+
+We get the ranges for requiring and executing the `lower` and `read` tasks, asserting that they are both required and executed.
+Then we perform some sanity checks in `assert_task_temporally_sound`:
+
+- Require and execute end events should come after their start events.
+- A task only starts being executed after it starts being required. If a task is executed without being required (and thus without being checked), we are breaking incrementality.
+- A task must only finish being required after it is finished being executed. If requiring a task ends before executing it, we are breaking soundness, because we are returning an inconsistent value to the requiring task.
+
+We confirm that `file` is required and get the corresponding event index into `file_require`.
+Then we assert several properties:
+
+- `read` is required/executed while `lower` is being required/executed.
+  - If `read` would be executed _after_ `lower` finished executing, we are breaking soundness because then we would have executed `lower` without first requiring/executing its dependencies.
+  - If `read` would be executed _before_ `lower` started executing, we are breaking incrementality due to executing a task that was not required. In this test, we would not really break incrementality if this happened, but in general we could.
+- `file` is required while `read` is being executed. A sanity check to ensure the file dependency is made by the right task.
+
+Finally, we assert that the final output of requiring `lower` is `"hello world!"`, which is the contents of the file in lowercase.
+Check that this test succeeds with `cargo test`.
+That concludes the first property that we wanted to test!
+
+The second one is easier: when `file` has not changed, no task is executed.
+Add the following code to `pie/src/tests/top_down.rs`:
+
+```diff2html fromfile linebyline
+../../gen/3_min_sound/3_test/e_4_test_require_task.rs.diff
+```
+
+Here we change nothing and use `require_then_assert_no_execute` to assert no task is executed.
+Check that this test succeeds with `cargo test`.
+
+Now we test the third property, testing soundness and incrementality after a change.
+Add the following code to `pie/src/tests/top_down.rs`:
+
+```diff2html fromfile linebyline
+../../gen/3_min_sound/3_test/e_5_test_require_task.rs.diff
+```
+
+We first change the `file` contents such that `read`'s `file` dependency becomes inconsistent, and then require `lower` again.
+In the `require_then_assert` block we first assert that both tasks are required and executed, `file` is required, and perform sanity checks again.
+
+Now let's go back to the build log in the comment, which is lot more complicated this time due to recursive consistency checking. The gist is:
+
+- To check if `lower` should be executed, we check its dependencies: a task dependency to `read`.
+- To check if `read` should be executed, we check its dependencies: a `file` dependency, which is inconsistent, thus we execute `read`.
+- Then we are back to checking `lower`'s task dependency to `read`, which is inconsistent because `read` now returns `"!DLROW OLLEH"` instead of `"HELLO WORLD!"`.
+- Thus, we execute `lower` which requires `read`, but we can skip checking that because it is already consistent this session.
+
+Note that we are executing `read` _before_ executing `lower` this time (but still _while requiring_ `lower`).
+This is important for incrementality because if `read` had not returned a different output, we would not have to execute `lower` due to its equals output stamp still being consistent (we call this _early cutoff_).
+We test this property with the last 3 assertions in the `require_then_assert` block.
+
+Finally, we assert that the output is `"!dlrow olleh"` as expected.
+Confirm that this test succeeds with `cargo test`.

@@ -332,6 +332,17 @@ pub fn create_diff(
     .into_modification()
 }
 
+pub fn create_diff_from_destination_file(
+  modified_file_path: impl Into<PathBuf>,
+  destination_file_path: impl Into<PathBuf>,
+) -> Modification {
+  CreateDiffAndApply::default()
+    .modified(modified_file_path)
+    .destination(destination_file_path)
+    .use_destination_file_as_original_file_if_unset(true)
+    .into_modification()
+}
+
 pub fn create_diff_builder(
   modified_file_path: impl Into<PathBuf>,
   destination_file_path: impl Into<PathBuf>,

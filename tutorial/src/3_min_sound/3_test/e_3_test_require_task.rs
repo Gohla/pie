@@ -1,5 +1,6 @@
 use std::fs::write;
 use std::io;
+use std::ops::RangeInclusive;
 
 use assert_matches::assert_matches;
 
@@ -76,4 +77,68 @@ fn test_require_file() -> Result<(), io::Error> {
   assert_eq!(output.as_str(), "HELLO WORLD!");
 
   Ok(())
+}
+
+#[test]
+fn test_require_task() -> Result<(), io::Error> {
+  let mut pie = test_pie();
+  let temp_dir = create_temp_dir()?;
+
+  let file = temp_dir.path().join("in.txt");
+  write(&file, "HELLO WORLD!")?;
+  let read = ReadFile(file.clone(), FileStamper::Modified);
+  let lower = ToLower(Box::new(read.clone()));
+
+  // 1) Require `ToLower` and assert that both tasks are executed in dependency order, because both tasks are new:
+  // → ToLower
+  //   ▶ ToLower [reason: new]
+  //     → ReadFile
+  //       ▶ ReadFile [reason: new]
+  //         - `file`
+  //       ◀ Ok(String("HELLO WORLD!"))
+  //     ← Ok(String("HELLO WORLD!"))
+  //   ◀ Ok(String("hello world!"))
+  // ← Ok(String("hello world!"))
+  // 🏁
+  let output = pie.require_then_assert(&lower, |tracker| {
+    // `ToLower` is required and executed, and its require and execute are temporally sound.
+    let lower_require = assert_matches!(tracker.first_require_task_range(&lower), Some(r) => r);
+    let lower_execute = assert_matches!(tracker.first_execute_range(&lower), Some(r) => r);
+    assert_task_temporally_sound(&lower_require, &lower_execute);
+
+    // `ReadFile` is required and executed, and its require and execute are temporally sound.
+    let read_require = assert_matches!(tracker.first_require_task_range(&read), Some(r) => r);
+    let read_execute = assert_matches!(tracker.first_execute_range(&read), Some(r) => r);
+    assert_task_temporally_sound(&read_require, &read_execute);
+
+    // Sanity check: `file` is required.
+    let file_require = assert_matches!(tracker.first_require_file_index(&file), Some(i) => i);
+
+    // `ReadFile` is required while `ToLower` is being required.
+    assert!(read_require.start() > lower_require.start());
+    assert!(lower_require.end() > read_require.end());
+
+    // `ReadFile` is executed while `ToLower` is being executed.
+    assert!(read_execute.start() > lower_execute.start());
+    assert!(lower_execute.end() > read_execute.end());
+
+    // Sanity check: `ReadFile` requires `file` while executing.
+    assert!(file_require > read_require.start());
+    assert!(read_execute.end() > file_require);
+  })?;
+  assert_eq!(output.as_str(), "hello world!");
+
+  Ok(())
+}
+
+/// Assert that task requires and executes are temporally sound.
+fn assert_task_temporally_sound(require: &RangeInclusive<usize>, execute: &RangeInclusive<usize>) {
+  // Require and execute ends come after require and execute starts.
+  assert!(require.end() > require.start());
+  assert!(execute.end() > execute.start());
+  // A task is only executed if it is required.
+  // - Task execute starts should be later than their requires. 
+  assert!(execute.start() > require.start());
+  // - Task require ends should be later than their executes. 
+  assert!(require.end() > execute.end());
 }

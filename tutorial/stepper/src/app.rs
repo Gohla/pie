@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use crate::modification::{add, create, create_diff, create_diff_builder, insert};
+use crate::modification::{add, create, create_diff, create_diff_builder, create_diff_from_destination_file, insert};
 use crate::output::{CargoOutput, DirectoryStructure, SourceArchive};
 use crate::stepper::Stepper;
 
@@ -194,27 +194,17 @@ pub fn step_all(
       stepper.apply([
         create_diff("c_top_down_new.rs", "context/top_down.rs"),
         create_diff("d_top_down_fix.rs", "context/top_down.rs"),
-        create_diff_builder("e_lib_require.rs", "lib.rs")
-          .use_destination_file_as_original_file_if_unset(true)
-          .into_modification(),
-        create_diff_builder("f_lib_private_module.rs", "lib.rs")
-          .use_destination_file_as_original_file_if_unset(true)
-          .into_modification(),
+        create_diff_from_destination_file("e_lib_require.rs", "lib.rs"),
+        create_diff_from_destination_file("f_lib_private_module.rs", "lib.rs"),
       ]);
       stepper.set_cargo_args(["run", "--example", "incremental"]);
       stepper.apply([
-        create_diff_builder("g_example.rs", "../examples/incremental.rs")
-          .use_destination_file_as_original_file_if_unset(true)
-          .into_modification(),
+        create_diff_from_destination_file("g_example.rs", "../examples/incremental.rs"),
       ]).output(SourceArchive::new("source.zip"));
       stepper.set_cargo_args(["test"]);
       stepper.apply([
-        create_diff_builder("h_lib_consistent.rs", "lib.rs")
-          .use_destination_file_as_original_file_if_unset(true)
-          .into_modification(),
-        create_diff_builder("i_context_consistent.rs", "context/top_down.rs")
-          .use_destination_file_as_original_file_if_unset(true)
-          .into_modification(),
+        create_diff_from_destination_file("h_lib_consistent.rs", "lib.rs"),
+        create_diff_from_destination_file("i_context_consistent.rs", "context/top_down.rs"),
       ]);
     });
     stepper.with_path("2_tracker", |stepper| {
@@ -226,12 +216,8 @@ pub fn step_all(
         add("c_noop.rs", "tracker/mod.rs"),
       ]);
       stepper.apply([
-        create_diff_builder("d_lib_tracker.rs", "lib.rs")
-          .use_destination_file_as_original_file_if_unset(true)
-          .into_modification(),
-        create_diff_builder("e_top_down_tracker.rs", "context/top_down.rs")
-          .use_destination_file_as_original_file_if_unset(true)
-          .into_modification(),
+        create_diff_from_destination_file("d_lib_tracker.rs", "lib.rs"),
+        create_diff_from_destination_file("e_top_down_tracker.rs", "context/top_down.rs"),
       ]);
       stepper.apply([
         create_diff_builder("f_mod_writing.rs", "tracker/mod.rs")
@@ -271,16 +257,21 @@ pub fn step_all(
       stepper.apply([
         add("c_test_reuse.rs", "../tests/top_down.rs")
       ]);
+      
       stepper.run_cargo(["test", "--", "--test-threads=1"], Some(true));
       stepper.run_cargo_applied(["test", "--test", "top_down", "test_reuse"], Some(true))
         .output(CargoOutput::new("c_test_reuse_stdout.txt"));
+      
       stepper.apply([
-        create_diff_builder("d_1_read_task.rs", "../tests/common/mod.rs")
-          .use_destination_file_as_original_file_if_unset(true)
-          .into_modification(),
-        create_diff_builder("d_2_test_require_file.rs", "../tests/top_down.rs")
-          .use_destination_file_as_original_file_if_unset(true)
-          .into_modification(),
+        create_diff_from_destination_file("d_1_read_task.rs", "../tests/common/mod.rs"),
+        create_diff_from_destination_file("d_2_test_require_file.rs", "../tests/top_down.rs"),
+      ]);
+      stepper.apply([
+        create_diff_from_destination_file("e_1_lower_task.rs", "../tests/common/mod.rs"),
+        create_diff_from_destination_file("e_2_test_require_task.rs", "../tests/top_down.rs"),
+        create_diff_from_destination_file("e_3_test_require_task.rs", "../tests/top_down.rs"),
+        create_diff_from_destination_file("e_4_test_require_task.rs", "../tests/top_down.rs"),
+        create_diff_from_destination_file("e_5_test_require_task.rs", "../tests/top_down.rs"),
       ]);
     });
   });
