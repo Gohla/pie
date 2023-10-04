@@ -272,6 +272,9 @@ pub fn step_all(
         create_diff_from_destination_file("e_3_test_require_task.rs", "../tests/top_down.rs"),
         create_diff_from_destination_file("e_4_test_require_task.rs", "../tests/top_down.rs"),
         create_diff_from_destination_file("e_5_test_require_task.rs", "../tests/top_down.rs"),
+        create_diff_from_destination_file("e_6_test_require_task.rs", "../tests/top_down.rs"),
+      ]).output([
+        SourceArchive::new("source.zip"),
       ]);
     });
   });

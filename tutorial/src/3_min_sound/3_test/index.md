@@ -129,7 +129,7 @@ The second command should result in something like:
 ```
 ~~~
 
-### File dependency
+### Testing file dependencies
 
 Next we want to test that a task with dependencies is not executed if its dependencies are consistent, and is executed when any of its dependencies are inconsistent.
 Therefore, we need to add a task that has dependencies.
@@ -164,7 +164,7 @@ But for testing purposes, this is fine.
 
 Check that this test succeeds with `cargo test`.
 
-### Task dependency
+### Testing task dependencies
 
 Now it's time to test the more complicated task dependencies.
 For that, we'll implement a task that depends on another task.
@@ -206,6 +206,8 @@ In this test, we want to test three properties:
 2) When we require `lower` when `file` has not been changed, no task is executed.
 3) When we require `lower` when `file`'s contents _have changed_, then first `read` must be executed, and then `lower` must be executed with the output of `read`.
 
+#### Initial require
+
 Test the first property by adding the following code to `pie/src/tests/top_down.rs`:
 
 ```diff2html fromfile linebyline
@@ -239,6 +241,8 @@ Finally, we assert that the final output of requiring `lower` is `"hello world!"
 Check that this test succeeds with `cargo test`.
 That concludes the first property that we wanted to test!
 
+#### No changes
+
 The second one is easier: when `file` has not changed, no task is executed.
 Add the following code to `pie/src/tests/top_down.rs`:
 
@@ -248,6 +252,8 @@ Add the following code to `pie/src/tests/top_down.rs`:
 
 Here we change nothing and use `require_then_assert_no_execute` to assert no task is executed.
 Check that this test succeeds with `cargo test`.
+
+#### Changed file affects task
 
 Now we test the third property, testing soundness and incrementality after a change.
 Add the following code to `pie/src/tests/top_down.rs`:
@@ -275,3 +281,30 @@ We test this property with the last 3 assertions in the `require_then_assert` bl
 
 Finally, we assert that the output is `"!dlrow olleh"` as expected.
 Confirm that this test succeeds with `cargo test`.
+
+Now that we're testing task dependencies anyway, let's also test a fourth property: the early cutoff behaviour.
+
+#### Early cutoff
+
+Early cutoff can happen in this test when `read` is re-executed due to its file dependency being inconsistent (modified file stamp change), but returns the same output as last time.
+In that case, we don't have to execute `lower` because its task dependency to `read` is still consistent (equals output stamp is the same).
+We can trigger this case in this test by changing `file` such that its last modified date changes, but its contents stay the same.
+
+Add the following code to `pie/src/tests/top_down.rs`:
+
+```diff2html fromfile linebyline
+../../gen/3_min_sound/3_test/e_6_test_require_task.rs.diff
+```
+
+We change `file` in the way we discussed, and then assert that `read` is executed, but `lower` is not.
+Confirm that this test succeeds with `cargo test`.
+
+Nice! These tests give quite some confidence that what we've been doing so far seems to be sound and incremental.
+We can (and should) of course write more tests for better coverage of the implementation.
+For example, we haven't tested multiple levels of task dependencies yet.
+However, in this tutorial we will move on to a couple of specific tests first, because there are several issues still hiding in our implementation: (at least) one bug, and three soundness holes.
+After we've uncovered those issues and fix them, feel free to write more tests!
+
+```admonish example title="Download source code" collapsible=true
+You can [download the source files up to this point](../../gen/3_min_sound/3_test/source.zip).
+```
