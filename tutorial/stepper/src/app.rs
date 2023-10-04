@@ -183,6 +183,7 @@ pub fn step_all(
     });
   });
 
+
   stepper.with_path("3_min_sound", |stepper| {
     stepper.with_path("1_session", |stepper| {
       stepper.set_cargo_args(["check"]);
@@ -207,6 +208,7 @@ pub fn step_all(
         create_diff_from_destination_file("i_context_consistent.rs", "context/top_down.rs"),
       ]);
     });
+
     stepper.with_path("2_tracker", |stepper| {
       stepper.apply([
         create_diff("a_lib_module.rs", "lib.rs"),
@@ -245,6 +247,7 @@ pub fn step_all(
         add("n_composite.rs", "tracker/mod.rs"),
       ]).output(SourceArchive::new("source.zip"));
     });
+
     stepper.with_path("3_test", |stepper| {
       stepper.apply([
         add("a_1_common_pie.rs", "../tests/common/mod.rs"),
@@ -257,11 +260,11 @@ pub fn step_all(
       stepper.apply([
         add("c_test_reuse.rs", "../tests/top_down.rs")
       ]);
-      
+
       stepper.run_cargo(["test", "--", "--test-threads=1"], Some(true));
       stepper.run_cargo_applied(["test", "--test", "top_down", "test_reuse"], Some(true))
         .output(CargoOutput::new("c_test_reuse_stdout.txt"));
-      
+
       stepper.apply([
         create_diff_from_destination_file("d_1_read_task.rs", "../tests/common/mod.rs"),
         create_diff_from_destination_file("d_2_test_require_file.rs", "../tests/top_down.rs"),
@@ -275,6 +278,28 @@ pub fn step_all(
         create_diff_from_destination_file("e_6_test_require_task.rs", "../tests/top_down.rs"),
       ]).output([
         SourceArchive::new("source.zip"),
+      ]);
+    });
+
+    stepper.with_path("4_fix_task_dep", |stepper| {
+      stepper.apply([
+        create_diff_from_destination_file("a_upper_task.rs", "../tests/common/mod.rs"),
+      ]);
+      stepper.apply([
+        create_diff_from_destination_file("b_test_setup.rs", "../tests/top_down.rs"),
+      ]);
+      stepper.run_cargo(["test", "--test", "top_down", "test_no_superfluous_task_dependencies"], Some(true));
+      stepper.apply_failure([
+        create_diff_from_destination_file("c_test_manifest.rs", "../tests/top_down.rs"),
+      ]);
+      stepper.apply_failure([
+        create_diff_from_destination_file("d_1_make_consistent.rs", "context/top_down.rs"),
+        create_diff_from_destination_file("d_2_task_dependency.rs", "dependency.rs"),
+        create_diff_from_destination_file("d_3_impl.rs", "context/top_down.rs"),
+        create_diff_from_destination_file("d_4_non_incremental.rs", "context/non_incremental.rs"),
+      ]);
+      stepper.apply([
+        create_diff_from_destination_file("e_fix_tests.rs", "../tests/top_down.rs"),
       ]);
     });
   });

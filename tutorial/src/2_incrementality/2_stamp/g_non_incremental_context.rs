@@ -10,11 +10,11 @@ pub struct NonIncrementalContext;
 
 impl<T: Task> Context<T> for NonIncrementalContext {
   fn require_file_with_stamper<P: AsRef<Path>>(&mut self, path: P, _stamper: FileStamper) -> Result<Option<File>, io::Error> {
-    let file = open_if_file(&path)?;
-    Ok(file)
+    open_if_file(&path)
   }
 
   fn require_task_with_stamper(&mut self, task: &T, _stamper: OutputStamper) -> T::Output {
     task.execute(self)
   }
 }
+

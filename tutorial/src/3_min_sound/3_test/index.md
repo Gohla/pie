@@ -301,9 +301,9 @@ Confirm that this test succeeds with `cargo test`.
 
 Nice! These tests give quite some confidence that what we've been doing so far seems to be sound and incremental.
 We can (and should) of course write more tests for better coverage of the implementation.
-For example, we haven't tested multiple levels of task dependencies yet.
+For example, we haven't tested tasks with multiple dependencies yet.
 However, in this tutorial we will move on to a couple of specific tests first, because there are several issues still hiding in our implementation: (at least) one bug, and three soundness holes.
-After we've uncovered those issues and fix them, feel free to write more tests!
+After we've uncovered those issues and fix them, feel free to write more tests yourself!
 
 ```admonish example title="Download source code" collapsible=true
 You can [download the source files up to this point](../../gen/3_min_sound/3_test/source.zip).

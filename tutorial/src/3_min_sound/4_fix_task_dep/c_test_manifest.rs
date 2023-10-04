@@ -181,6 +181,17 @@ fn test_require_task() -> Result<(), io::Error> {
   })?;
   assert_eq!(output.as_str(), "!dlrow olleh");
 
+  // Change `file` such that the file dependency of `ReadFile` becomes inconsistent, but still has the same content.
+  write_until_modified(&file, "!DLROW OLLEH")?;
+
+  let output = pie.require_then_assert(&lower, |tracker| {
+    // `ReadFile` needs to be executed due to its `file` dependency being inconsistent (modified stamp changed).
+    assert!(tracker.one_execute_of(&read));
+    // `Lower` is not executed, because its task dependency to `ReadFile` is consistent (equals stamp is the same).
+    assert!(!tracker.any_execute_of(&lower));
+  })?;
+  assert_eq!(output.as_str(), "!dlrow olleh");
+
   Ok(())
 }
 
@@ -194,4 +205,50 @@ fn assert_task_temporally_sound(require: &RangeInclusive<usize>, execute: &Range
   assert!(execute.start() > require.start());
   // - Task require ends should be later than their executes. 
   assert!(require.end() > execute.end());
+}
+
+#[test]
+fn test_no_superfluous_task_dependencies() -> Result<(), io::Error> {
+  let mut pie = test_pie();
+  let temp_dir = create_temp_dir()?;
+
+  let file = temp_dir.path().join("in.txt");
+  write(&file, "Hello, World!")?;
+  let read = ReadFile(file.clone(), FileStamper::Modified);
+  let lower = ToLower(Box::new(read.clone()));
+  let upper = ToUpper(Box::new(lower.clone()));
+
+  // Require `ToLower` and assert that `ReadFile` and `Lower` are executed because they are new, but not `ToUpper`,
+  // because it not required by anything. `ToLower` will return `"hello, world!"`.
+  let output = pie.require_then_assert(&lower, |tracker| {
+    assert!(tracker.one_execute_of(&read));
+    assert!(tracker.one_execute_of(&lower));
+    assert!(!tracker.any_execute_of(&upper));
+  })?;
+  assert_eq!(output.as_str(), "hello, world!");
+
+  // Require `ToUpper` and assert that it is executed because it is new, but not `ReadFile` nor `ToLower` because their
+  // dependencies are consistent.
+  let output = pie.require_then_assert(&upper, |tracker| {
+    assert!(!tracker.any_execute_of(&read));
+    assert!(!tracker.any_execute_of(&lower));
+    assert!(tracker.one_execute_of(&upper));
+  })?;
+  assert_eq!(output.as_str(), "HELLO, WORLD!");
+
+  // Change `file` such that the file dependency of `ReadFile` becomes inconsistent. However, we change its contents
+  // only slightly by turning 'l' characters into capital 'L' characters. Therefore, `ToLower` will still return
+  // `"hello, world!"`.
+  write_until_modified(&file, "HeLLo, WorLd!")?;
+
+  // Require `ToUpper` but assert that it is _not executed_ because `ToUpper`'s task dependency to `ToLower` is still
+  // consistent, because `ToLower` still returns `"hello, world!"` which is the same as last time.
+  let output = pie.require_then_assert(&upper, |tracker| {
+    assert!(tracker.one_execute_of(&read));
+    assert!(tracker.one_execute_of(&lower));
+    assert!(!tracker.any_execute_of(&upper));
+  })?;
+  assert_eq!(output.as_str(), "HELLO, WORLD!");
+
+  Ok(())
 }
