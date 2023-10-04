@@ -181,6 +181,17 @@ fn test_require_task() -> Result<(), io::Error> {
   })?;
   assert_eq!(output.as_str(), "!dlrow olleh");
 
+  // Change `file` such that the file dependency of `ReadFile` becomes inconsistent, but still has the same content.
+  write_until_modified(&file, "!DLROW OLLEH")?;
+
+  let output = pie.require_then_assert(&lower, |tracker| {
+    // `ReadFile` needs to be executed due to its `file` dependency being inconsistent (modified stamp changed).
+    assert!(tracker.one_execute_of(&read));
+    // `Lower` is not executed, because its task dependency to `ReadFile` is consistent (equals stamp is the same).
+    assert!(!tracker.any_execute_of(&lower));
+  })?;
+  assert_eq!(output.as_str(), "!dlrow olleh");
+
   Ok(())
 }
 

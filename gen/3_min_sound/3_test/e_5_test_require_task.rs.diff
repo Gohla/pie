@@ -4,7 +4,7 @@
    let output = pie.require_then_assert_no_execute(&lower)?;
    assert_eq!(output.as_str(), "hello world!");
  
-+  // Change `file` such that the file dependency of `read` becomes inconsistent.
++  // Change `file` such that the file dependency of `ReadFile` becomes inconsistent.
 +  write_until_modified(&file, "!DLROW OLLEH")?;
 +
 +  // 3) Require `ToLower` and assert that both tasks are re-executed in reverse dependency order:
