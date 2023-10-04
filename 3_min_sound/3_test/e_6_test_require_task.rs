@@ -123,7 +123,7 @@ fn test_require_task() -> Result<(), io::Error> {
     assert!(lower_execute.end() > read_execute.end());
 
     // Sanity check: `ReadFile` requires `file` while executing.
-    assert!(file_require > read_require.start());
+    assert!(file_require > read_execute.start());
     assert!(read_execute.end() > file_require);
   })?;
   assert_eq!(output.as_str(), "hello world!");
@@ -170,7 +170,7 @@ fn test_require_task() -> Result<(), io::Error> {
     let file_require = assert_matches!(tracker.first_require_file_index(&file), Some(i) => i);
 
     // Sanity check: `ReadFile` requires `file` while executing.
-    assert!(file_require > read_require.start());
+    assert!(file_require > read_execute.start());
     assert!(read_execute.end() > file_require);
 
     // `ToLower` is executed after `ReadFile` has been executed.

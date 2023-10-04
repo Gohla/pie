@@ -1,0 +1,23 @@
+--- pie/src/context/non_incremental.rs
++++ pie/src/context/non_incremental.rs
+@@ -3,6 +3,7 @@
+ use std::path::Path;
+ 
+ use crate::{Context, Task};
++use crate::dependency::MakeConsistent;
+ use crate::fs::open_if_file;
+ use crate::stamp::{FileStamper, OutputStamper};
+ 
+@@ -18,6 +19,12 @@
+   }
+ }
+ 
++impl<'p, 's, T: Task> MakeConsistent<T> for NonIncrementalContext {
++  fn make_task_consistent(&mut self, task: &T) -> T::Output {
++    task.execute(self)
++  }
++}
++
+ #[cfg(test)]
+ mod test {
+   use super::*;

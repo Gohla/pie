@@ -1,0 +1,22 @@
+--- pie/tests/top_down.rs
++++ pie/tests/top_down.rs
+@@ -236,5 +236,19 @@
+   })?;
+   assert_eq!(output.as_str(), "HELLO, WORLD!");
+ 
++  // Change `file` such that the file dependency of `ReadFile` becomes inconsistent. However, we change its contents
++  // only slightly by turning 'l' characters into capital 'L' characters. Therefore, `ToLower` will still return
++  // `"hello, world!"`.
++  write_until_modified(&file, "HeLLo, WorLd!")?;
++
++  // Require `ToUpper` but assert that it is _not executed_ because `ToUpper`'s task dependency to `ToLower` is still
++  // consistent, because `ToLower` still returns `"hello, world!"` which is the same as last time.
++  let output = pie.require_then_assert(&upper, |tracker| {
++    assert!(tracker.one_execute_of(&read));
++    assert!(tracker.one_execute_of(&lower));
++    assert!(!tracker.any_execute_of(&upper));
++  })?;
++  assert_eq!(output.as_str(), "HELLO, WORLD!");
++
+   Ok(())
+ }

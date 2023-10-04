@@ -1,0 +1,21 @@
+--- pie/tests/common/mod.rs
++++ pie/tests/common/mod.rs
+@@ -64,6 +64,7 @@
+   Return(&'static str),
+   ReadFile(PathBuf, FileStamper),
+   ToLower(Box<TestTask>),
++  ToUpper(Box<TestTask>),
+ }
+ impl Task for TestTask {
+   type Output = Result<TestOutput, ErrorKind>;
+@@ -81,6 +82,10 @@
+         let string = context.require_task(string_provider_task.as_ref())?.into_string();
+         Ok(string.to_lowercase().into())
+       }
++      TestTask::ToUpper(string_provider_task) => {
++        let string = context.require_task(string_provider_task.as_ref())?.into_string();
++        Ok(string.to_uppercase().into())
++      }
+     }
+   }
+ }

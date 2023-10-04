@@ -1,6 +1,6 @@
 --- pie/src/context/non_incremental.rs
 +++ pie/src/context/non_incremental.rs
-@@ -4,15 +4,17 @@
+@@ -4,15 +4,16 @@
  
  use crate::{Context, Task};
  use crate::fs::open_if_file;
@@ -10,10 +10,8 @@
  
  impl<T: Task> Context<T> for NonIncrementalContext {
 -  fn require_file<P: AsRef<Path>>(&mut self, path: P) -> Result<Option<File>, io::Error> {
--    open_if_file(&path)
 +  fn require_file_with_stamper<P: AsRef<Path>>(&mut self, path: P, _stamper: FileStamper) -> Result<Option<File>, io::Error> {
-+    let file = open_if_file(&path)?;
-+    Ok(file)
+     open_if_file(&path)
    }
  
 -  fn require_task(&mut self, task: &T) -> T::Output {

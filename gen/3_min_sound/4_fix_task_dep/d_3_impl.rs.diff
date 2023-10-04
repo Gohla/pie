@@ -1,0 +1,26 @@
+--- pie/src/context/top_down.rs
++++ pie/src/context/top_down.rs
+@@ -3,7 +3,7 @@
+ use std::path::Path;
+ 
+ use crate::{Context, fs, Session, Task};
+-use crate::dependency::{FileDependency, TaskDependency};
++use crate::dependency::{FileDependency, MakeConsistent, TaskDependency};
+ use crate::stamp::{FileStamper, OutputStamper};
+ use crate::store::TaskNode;
+ use crate::tracker::Tracker;
+@@ -58,6 +58,14 @@
+   }
+ }
+ 
++impl<'p, 's, T: Task, A: Tracker<T>> MakeConsistent<T> for TopDownContext<'p, 's, T, T::Output, A> {
++  fn make_task_consistent(&mut self, task: &T) -> T::Output {
++    let node = self.session.store.get_or_create_task_node(task);
++    let (output, _) = self.make_task_consistent(task, node);
++    output
++  }
++}
++
+ impl<'p, 's, T: Task, A: Tracker<T>> TopDownContext<'p, 's, T, T::Output, A> {
+   // Get required task output by executing it if needed, or by getting the output from the store if not needed.
+   fn make_task_consistent(&mut self, task: &T, node: TaskNode) -> (T::Output, bool) {

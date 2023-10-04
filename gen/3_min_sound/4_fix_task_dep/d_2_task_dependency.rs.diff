@@ -1,0 +1,51 @@
+--- pie/src/dependency.rs
++++ pie/src/dependency.rs
+@@ -3,7 +3,7 @@
+ use std::io;
+ use std::path::PathBuf;
+ 
+-use crate::{Context, Task};
++use crate::Task;
+ use crate::fs::open_if_file;
+ use crate::stamp::{FileStamp, FileStamper, OutputStamp, OutputStamper};
+ 
+@@ -89,8 +89,8 @@
+   /// Checks whether this task dependency is inconsistent, returning:
+   /// - `Some(stamp)` if this dependency is inconsistent (with `stamp` being the new stamp of the dependency),
+   /// - `None` if this dependency is consistent.
+-  pub fn is_inconsistent<C: Context<T>>(&self, context: &mut C) -> Option<OutputStamp<T::Output>> {
+-    let output = context.require_task(&self.task);
++  pub fn is_inconsistent<C: MakeConsistent<T>>(&self, context: &mut C) -> Option<OutputStamp<T::Output>> {
++    let output = context.make_task_consistent(&self.task);
+     let new_stamp = self.stamper.stamp(output);
+     if new_stamp == self.stamp {
+       None
+@@ -100,6 +100,11 @@
+   }
+ }
+ 
++/// Make a task consistent without adding dependencies.
++pub trait MakeConsistent<T: Task> {
++  fn make_task_consistent(&mut self, task: &T) -> T::Output;
++}
++
+ 
+ #[derive(Clone, Eq, PartialEq, Debug)]
+ pub enum Dependency<T, O> {
+@@ -118,7 +123,7 @@
+   /// - `Ok(Some(stamp))` if the dependency is inconsistent (with `stamp` being the new stamp of the dependency),
+   /// - `Ok(None)` if the dependency is consistent,
+   /// - `Err(e)` if there was an error checking the dependency for consistency.
+-  pub fn is_inconsistent<C: Context<T>>(&self, context: &mut C) -> Result<Option<Inconsistency<T::Output>>, io::Error> {
++  pub fn is_inconsistent<C: MakeConsistent<T>>(&self, context: &mut C) -> Result<Option<Inconsistency<T::Output>>, io::Error> {
+     let option = match self {
+       Dependency::RequireFile(d) => d.is_inconsistent()?
+         .map(|s| Inconsistency::File(s)),
+@@ -137,6 +142,7 @@
+ 
+   use dev_shared::{create_temp_file, write_until_modified};
+ 
++  use crate::Context;
+   use crate::context::non_incremental::NonIncrementalContext;
+ 
+   use super::*;
