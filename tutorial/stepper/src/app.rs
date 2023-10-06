@@ -292,11 +292,19 @@ pub fn step_all(
       stepper.apply_failure([
         create_diff_from_destination_file("c_test_manifest.rs", "../tests/top_down.rs"),
       ]);
+      stepper.run_cargo_applied(["test", "--test", "top_down", "test_no_superfluous_task_dependencies"], Some(false)).output([
+        CargoOutput::with_modify_fn("c_test_manifest_2.txt", |log|log.split('🏁').nth(1).expect("second build to be in the build log").to_string()),
+        CargoOutput::with_modify_fn("c_test_manifest_3.txt", |log|log.split('🏁').nth(2).expect("third build to be in the build log").to_string())
+      ]);
       stepper.apply_failure([
         create_diff_from_destination_file("d_1_make_consistent.rs", "context/top_down.rs"),
         create_diff_from_destination_file("d_2_task_dependency.rs", "dependency.rs"),
         create_diff_from_destination_file("d_3_impl.rs", "context/top_down.rs"),
         create_diff_from_destination_file("d_4_non_incremental.rs", "context/non_incremental.rs"),
+      ]);
+      stepper.run_cargo_applied(["test", "--test", "top_down", "test_require_task"], Some(false)).output([
+        CargoOutput::with_modify_fn("e_fix_tests_2.txt", |log|log.split('🏁').nth(1).expect("second build to be in the build log").to_string()),
+        CargoOutput::with_modify_fn("e_fix_tests_3.txt", |log|log.split('🏁').nth(2).expect("third build to be in the build log").to_string())
       ]);
       stepper.apply([
         create_diff_from_destination_file("e_fix_tests.rs", "../tests/top_down.rs"),

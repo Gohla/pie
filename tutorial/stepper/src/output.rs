@@ -32,12 +32,18 @@ impl Output {
 
 pub struct CargoOutput {
   output_file_path: PathBuf,
+  modify_fn: Option<Box<dyn Fn(String) -> String>>,
 }
 
 impl CargoOutput {
   pub fn new(output_file_path: impl Into<PathBuf>) -> Output {
     let output_file_path = output_file_path.into();
-    Output::CargoOutput(Self { output_file_path })
+    Output::CargoOutput(Self { output_file_path, modify_fn: None })
+  }
+
+  pub fn with_modify_fn(output_file_path: impl Into<PathBuf>, modify_fn: impl Fn(String) -> String + 'static) -> Output {
+    let output_file_path = output_file_path.into();
+    Output::CargoOutput(Self { output_file_path, modify_fn: Some(Box::new(modify_fn)) })
   }
 }
 
@@ -49,11 +55,16 @@ impl CargoOutput {
     };
 
     let output_file_path = applied.stepper.generated_root_directory.join(&self.output_file_path);
-    let cargo_output = if let Some(str) = applied.stepper.destination_root_directory.to_str() {
+    let mut cargo_output = if let Some(str) = applied.stepper.destination_root_directory.to_str() {
       cargo_output.replace(str, "")
     } else {
       cargo_output.clone()
     };
+
+    if let Some(modify_fn) = &self.modify_fn {
+      cargo_output = modify_fn(cargo_output);
+    }
+
     crate::util::write_to_file(cargo_output.as_bytes(), output_file_path, false)
       .context("failed to write cargo output to file")?;
     Ok(())

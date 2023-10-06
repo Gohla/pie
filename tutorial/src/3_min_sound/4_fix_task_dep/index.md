@@ -63,7 +63,13 @@ Test `test_no_superfluous_task_dependencies` will fail as expected, which we wil
 ```
 
 Inspect the build log with `cargo test --test top_down test_no_superfluous_task_dependencies`.
-In the last build, you will see that `ToUpper` is required, and it will check its dependency to `ReadFile`.
+The third (last) build log should look like this:
+
+```
+{{#include ../../gen/3_min_sound/4_fix_task_dep/c_test_manifest_3.txt:2:}}
+```
+
+In this last build, `ToUpper` is required, and it will check its dependency to `ReadFile`.
 But that shouldn't happen, because `ToUpper` only has a dependency to `ToLower`!
 There seems to be a bug where `ToLower`'s task dependency to `ReadFile`, somehow ended up with `ToUpper`.
 
@@ -90,9 +96,15 @@ This is the cause of the bug.
 Even if we are only _consistency checking_ a task to see if it should be executed, we could end up adding a task dependency to the current executing task, which is not correct.
 We only manifested the bug in the last test due to having a chain of 2 task dependencies, and by carefully controlling what is being executed and what is being checked.
 
-Inspect the build log for the second `require_then_assert` call in the `test_no_superfluous_task_dependencies` test.
-You will see that we are executing `ToUpper`, then require `ToLower`, then _consistency check_ `ReadFile`, which in turn _requires_ `ReadFile`.
-At the end of that require, an incorrect dependency from `ToUpper` to `ReadFile` is made.
+Recall the second build in the `test_no_superfluous_task_dependencies` test.
+The build log for that build looks like:
+
+```
+{{#include ../../gen/3_min_sound/4_fix_task_dep/c_test_manifest_2.txt:2:}}
+```
+
+In this build we are executing `ToUpper`, then require `ToLower`, then _consistency check_ `ReadFile`, which in turn _requires_ `ReadFile`.
+At the end of that require, an incorrect dependency from `ToUpper` to `ReadFile` is made (although not really visible in the log).
 This incorrect dependency then later breaks incrementality.
 
 To fix this bug, we need to make sure that we only add task dependencies when an executing task directly requires another task, not when consistency checking!
@@ -154,16 +166,28 @@ An `assert!(execute.start() > require.start())` in this test now fails, which is
 This is because our changes have correctly removed several superfluous task requires, which influences these assertions.
 
 Inspect the build log for this test with `cargo test --test top_down test_require_task`.
-In the second build, `ReadFile` is now no longer required, and instead is only checked.
+The second build now looks like:
+
+```
+{{#include ../../gen/3_min_sound/4_fix_task_dep/e_fix_tests_2.txt:2:}}
+```
+
+In this second build, `ReadFile` is now no longer required, and instead is only checked.
 This is correct, and does not make any assertions fail.
 
-In the third build, `ReadFile` is also no longer required at the start, but later on in the build it _is_ required when `ToLower` is executed.
-This is correct, as it is only _checked_ at the start, but _required_ later while `ToLower` is executing.
+The third build now looks like:
+
+```
+{{#include ../../gen/3_min_sound/4_fix_task_dep/e_fix_tests_3.txt:2:}}
+```
+
+In this third build, `ReadFile` is also no longer required at the start, but later on in the build it _is_ required when `ToLower` is executed.
+This is correct, as it is only _checked_ (using `make_task_consistent`) at the start, but _required_ later while `ToLower` is executing.
 
 The problem is that this assertion just does not hold anymore, as a task can be executed without first being required.
-What does hold, is that a task is only executed after either being checked _or_ required.
+What does hold, is that a task is only executed after being checked _or_ required.
 However, we don't track checking in the event tracker, so we will just remove this assertion to keep the tutorial going.
-We will also update the build logs in the comments to reflect our changes.
+We will also update the expected build logs in the comments to reflect our changes.
 
 Fix the tests by modifying `pie/src/tests/top_down.rs`:
                     
