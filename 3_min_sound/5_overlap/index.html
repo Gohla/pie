@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Setup - Build your own Programmatic Incremental Build System</title>
+        <title>Prevent Overlapping File Writes - Build your own Programmatic Incremental Build System</title>
 
 
         <!-- Custom HTML head -->
@@ -85,7 +85,7 @@
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div class="sidebar-scrollbox">
-                <ol class="chapter"><li class="chapter-item expanded "><div><strong aria-hidden="true">1.</strong> Introduction</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">2.</strong> Programmability</div></li><li><ol class="section"><li class="chapter-item expanded "><a href="../../1_programmability/0_setup/index.html" class="active"><strong aria-hidden="true">2.1.</strong> Setup</a></li><li class="chapter-item expanded "><a href="../../1_programmability/1_api/index.html"><strong aria-hidden="true">2.2.</strong> Programmable Build System API</a></li><li class="chapter-item expanded "><a href="../../1_programmability/2_non_incremental/index.html"><strong aria-hidden="true">2.3.</strong> Non-Incremental Context</a></li></ol></li><li class="chapter-item expanded "><a href="../../2_incrementality/index.html"><strong aria-hidden="true">3.</strong> Incrementality</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../../2_incrementality/1_require_file/index.html"><strong aria-hidden="true">3.1.</strong> Requiring Files</a></li><li class="chapter-item expanded "><a href="../../2_incrementality/2_stamp/index.html"><strong aria-hidden="true">3.2.</strong> Stamps</a></li><li class="chapter-item expanded "><a href="../../2_incrementality/3_dependency/index.html"><strong aria-hidden="true">3.3.</strong> Dynamic Dependencies</a></li><li class="chapter-item expanded "><a href="../../2_incrementality/4_store/index.html"><strong aria-hidden="true">3.4.</strong> Dependency Graph Store</a></li><li class="chapter-item expanded "><a href="../../2_incrementality/5_context/index.html"><strong aria-hidden="true">3.5.</strong> Incremental Top-Down Context</a></li><li class="chapter-item expanded "><a href="../../2_incrementality/6_example/index.html"><strong aria-hidden="true">3.6.</strong> Incrementality Example</a></li></ol></li><li class="chapter-item expanded "><a href="../../3_min_sound/index.html"><strong aria-hidden="true">4.</strong> Testing Incrementality & Soundness</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../../3_min_sound/1_session/index.html"><strong aria-hidden="true">4.1.</strong> Minimality with Sessions</a></li><li class="chapter-item expanded "><a href="../../3_min_sound/2_tracker/index.html"><strong aria-hidden="true">4.2.</strong> Tracking Build Events</a></li><li class="chapter-item expanded "><a href="../../3_min_sound/3_test/index.html"><strong aria-hidden="true">4.3.</strong> Integration Testing</a></li><li class="chapter-item expanded "><a href="../../3_min_sound/4_fix_task_dep/index.html"><strong aria-hidden="true">4.4.</strong> Fix Superfluous Task Dependency</a></li><li class="chapter-item expanded "><a href="../../3_min_sound/5_overlap/index.html"><strong aria-hidden="true">4.5.</strong> Prevent Overlapping File Writes</a></li><li class="chapter-item expanded "><div><strong aria-hidden="true">4.6.</strong> Prevent Hidden Dependencies</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">4.7.</strong> Prevent Cycles</div></li></ol></li><li class="chapter-item expanded "><div><strong aria-hidden="true">5.</strong> Improvements</div></li><li><ol class="section"><li class="chapter-item expanded "><div><strong aria-hidden="true">5.1.</strong> Serialization</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">5.2.</strong> More Stampers</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">5.3.</strong> Configurable Hashing</div></li></ol></li><li class="chapter-item expanded "><div><strong aria-hidden="true">6.</strong> Efficiency</div></li><li><ol class="section"><li class="chapter-item expanded "><div><strong aria-hidden="true">6.1.</strong> Incremental Bottom-Up Context</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">6.2.</strong> Observability</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">6.3.</strong> Deferred Tasks</div></li></ol></li><li class="chapter-item expanded "><li class="part-title">Appendix</li><li class="chapter-item expanded "><div><strong aria-hidden="true">7.</strong> Multiple Task Types</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">8.</strong> On Static Dependencies</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">9.</strong> On Declarativity</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">10.</strong> Related Work</div></li></ol>
+                <ol class="chapter"><li class="chapter-item expanded "><div><strong aria-hidden="true">1.</strong> Introduction</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">2.</strong> Programmability</div></li><li><ol class="section"><li class="chapter-item expanded "><a href="../../1_programmability/0_setup/index.html"><strong aria-hidden="true">2.1.</strong> Setup</a></li><li class="chapter-item expanded "><a href="../../1_programmability/1_api/index.html"><strong aria-hidden="true">2.2.</strong> Programmable Build System API</a></li><li class="chapter-item expanded "><a href="../../1_programmability/2_non_incremental/index.html"><strong aria-hidden="true">2.3.</strong> Non-Incremental Context</a></li></ol></li><li class="chapter-item expanded "><a href="../../2_incrementality/index.html"><strong aria-hidden="true">3.</strong> Incrementality</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../../2_incrementality/1_require_file/index.html"><strong aria-hidden="true">3.1.</strong> Requiring Files</a></li><li class="chapter-item expanded "><a href="../../2_incrementality/2_stamp/index.html"><strong aria-hidden="true">3.2.</strong> Stamps</a></li><li class="chapter-item expanded "><a href="../../2_incrementality/3_dependency/index.html"><strong aria-hidden="true">3.3.</strong> Dynamic Dependencies</a></li><li class="chapter-item expanded "><a href="../../2_incrementality/4_store/index.html"><strong aria-hidden="true">3.4.</strong> Dependency Graph Store</a></li><li class="chapter-item expanded "><a href="../../2_incrementality/5_context/index.html"><strong aria-hidden="true">3.5.</strong> Incremental Top-Down Context</a></li><li class="chapter-item expanded "><a href="../../2_incrementality/6_example/index.html"><strong aria-hidden="true">3.6.</strong> Incrementality Example</a></li></ol></li><li class="chapter-item expanded "><a href="../../3_min_sound/index.html"><strong aria-hidden="true">4.</strong> Testing Incrementality & Soundness</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../../3_min_sound/1_session/index.html"><strong aria-hidden="true">4.1.</strong> Minimality with Sessions</a></li><li class="chapter-item expanded "><a href="../../3_min_sound/2_tracker/index.html"><strong aria-hidden="true">4.2.</strong> Tracking Build Events</a></li><li class="chapter-item expanded "><a href="../../3_min_sound/3_test/index.html"><strong aria-hidden="true">4.3.</strong> Integration Testing</a></li><li class="chapter-item expanded "><a href="../../3_min_sound/4_fix_task_dep/index.html"><strong aria-hidden="true">4.4.</strong> Fix Superfluous Task Dependency</a></li><li class="chapter-item expanded "><a href="../../3_min_sound/5_overlap/index.html" class="active"><strong aria-hidden="true">4.5.</strong> Prevent Overlapping File Writes</a></li><li class="chapter-item expanded "><div><strong aria-hidden="true">4.6.</strong> Prevent Hidden Dependencies</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">4.7.</strong> Prevent Cycles</div></li></ol></li><li class="chapter-item expanded "><div><strong aria-hidden="true">5.</strong> Improvements</div></li><li><ol class="section"><li class="chapter-item expanded "><div><strong aria-hidden="true">5.1.</strong> Serialization</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">5.2.</strong> More Stampers</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">5.3.</strong> Configurable Hashing</div></li></ol></li><li class="chapter-item expanded "><div><strong aria-hidden="true">6.</strong> Efficiency</div></li><li><ol class="section"><li class="chapter-item expanded "><div><strong aria-hidden="true">6.1.</strong> Incremental Bottom-Up Context</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">6.2.</strong> Observability</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">6.3.</strong> Deferred Tasks</div></li></ol></li><li class="chapter-item expanded "><li class="part-title">Appendix</li><li class="chapter-item expanded "><div><strong aria-hidden="true">7.</strong> Multiple Task Types</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">8.</strong> On Static Dependencies</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">9.</strong> On Declarativity</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">10.</strong> Related Work</div></li></ol>
             </div>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
         </nav>
@@ -146,7 +146,7 @@
                         <a href="https://github.com/Gohla/pie/" title="Git repository" aria-label="Git repository">
                             <i id="git-repository-button" class="fa fa-github"></i>
                         </a>
-                        <a href="https://github.com/Gohla/pie/edit/master/tutorial/src/1_programmability/0_setup/index.md" title="Suggest an edit" aria-label="Suggest an edit">
+                        <a href="https://github.com/Gohla/pie/edit/master/tutorial/src/3_min_sound/5_overlap/index.md" title="Suggest an edit" aria-label="Suggest an edit">
                             <i id="git-edit-button" class="fa fa-edit"></i>
                         </a>
 
@@ -175,48 +175,43 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1 id="setup"><a class="header" href="#setup">Setup</a></h1>
+                        <h1 id="prevent-overlapping-file-writes"><a class="header" href="#prevent-overlapping-file-writes">Prevent Overlapping File Writes</a></h1>
 <div id="admonition-under-construction" class="admonition warning">
 <div class="admonition-title">
 <p>Under construction</p>
 <p><a class="admonition-anchor-link" href="#admonition-under-construction"></a></p>
 </div>
 <div>
-<p>This page was quickly created to make setup possible, but is unfinished.</p>
+<p>This section is under construction.</p>
 </div>
 </div>
-<p>Make sure <a href="https://www.rust-lang.org/tools/install">Rust is installed</a>.</p>
-<p>We start by creating a new Rust crate.
-Create the <code>pie</code> directory and create the <code>pie/Cargo.toml</code> file with the following contents:</p>
-<pre><code class="language-toml ">[package]
-name = &quot;pie&quot;
-version = &quot;0.1.0&quot;
-edition = &quot;2021&quot;
-</code></pre>
-<p>Then create the <code>pie/src</code> directory and create the <code>pie/src/lib.rs</code> file, which will be left empty for now.</p>
-<p>Run <code>cargo build</code> to test if the project was set up correctly.
-The output should look something like:</p>
-<pre><code class="language-shell ">   Compiling pie v0.1.0 (/pie)
-    Finished dev [unoptimized + debuginfo] target(s) in 0.09s
-</code></pre>
-<details id="admonition-download-source-code" class="admonition example">
-<summary class="admonition-title">
-<p>Download source code</p>
-<p><a class="admonition-anchor-link" href="#admonition-download-source-code"></a></p>
-</summary>
-<div>
-<p>You can <a href="../../gen/1_programmability/0_setup/source.zip">download the source files up to this point</a>.</p>
-</div>
-</details>
+<p>So far we have only considered reading files in the build system.
+However, there are many tasks that also write files.
+For example, a C compiler reads a C source file (and header files) and writes an object file with the compiled result, which is typically an intermediate file that gets passed to a linker.
+Another example is a file copy task that reads a file and copies it to another file.</p>
+<p>We can handle file writes in tasks with <code>context.require_file</code>.
+However, what should happen when two tasks write to the same file?
+In a non-incremental setting, the last writer wins by overwriting (or appending to) the file.
+Does this behaviour also occur in our incremental build system?</p>
+<p>Unfortunately, this is not always the case in our incremental build system, because we can <code>require</code> individual tasks.
+This is a bit tricky to explain without an example, so we will first add some testing tasks and write a test that showcases the problem.
+In this section, we will continue with:</p>
+<ol>
+<li>Add the <code>WriteFile</code> and <code>Sequence</code> tasks to the testing tasks.</li>
+<li>Create a <code>test_overlapping_file_write</code> test to showcase a soundness hole.</li>
+<li>Introduce a new kind of dependency: a <em>provide file dependency</em> for writing to (and creating) files.</li>
+<li>Prevent overlapping file writes by checking for them at runtime, fixing the soundness hole.</li>
+</ol>
+<h2 id="add-writefile-and-sequence-tasks"><a class="header" href="#add-writefile-and-sequence-tasks">Add <code>WriteFile</code> and <code>Sequence</code> tasks</a></h2>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-
-                            <a rel="next" href="../../1_programmability/1_api/index.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
-                                <i class="fa fa-angle-right"></i>
+                            <a rel="prev" href="../../3_min_sound/4_fix_task_dep/index.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
                             </a>
+
 
                         <div style="clear: both"></div>
                     </nav>
@@ -224,10 +219,10 @@ The output should look something like:</p>
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-
-                    <a rel="next" href="../../1_programmability/1_api/index.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
-                        <i class="fa fa-angle-right"></i>
+                    <a rel="prev" href="../../3_min_sound/4_fix_task_dep/index.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
                     </a>
+
             </nav>
 
         </div>

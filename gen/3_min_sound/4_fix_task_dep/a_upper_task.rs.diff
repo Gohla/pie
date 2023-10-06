@@ -9,11 +9,11 @@
  impl Task for TestTask {
    type Output = Result<TestOutput, ErrorKind>;
 @@ -81,6 +82,10 @@
-         let string = context.require_task(string_provider_task.as_ref())?.into_string();
+         let string = context.require_task(string_provider_task)?.into_string();
          Ok(string.to_lowercase().into())
        }
 +      TestTask::ToUpper(string_provider_task) => {
-+        let string = context.require_task(string_provider_task.as_ref())?.into_string();
++        let string = context.require_task(string_provider_task)?.into_string();
 +        Ok(string.to_uppercase().into())
 +      }
      }

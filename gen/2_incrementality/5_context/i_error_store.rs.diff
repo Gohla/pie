@@ -1,14 +1,6 @@
 --- pie/src/context/top_down.rs
 +++ pie/src/context/top_down.rs
-@@ -27,6 +27,7 @@
-   }
- }
- 
-+
- impl<T: Task> Context<T> for TopDownContext<T, T::Output> {
-   fn require_file_with_stamper<P: AsRef<Path>>(&mut self, path: P, stamper: FileStamper) -> Result<Option<File>, io::Error> {
-     let Some(current_executing_task_node) = &self.current_executing_task else {
-@@ -80,6 +81,10 @@
+@@ -80,6 +80,10 @@
      for dependency in dependencies {
        match dependency.is_inconsistent(self) {
          Ok(Some(_)) => return true,

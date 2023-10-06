@@ -1,8 +1,9 @@
+use std::fs;
 use std::io::{BufWriter, ErrorKind, Read, Stdout};
 use std::path::PathBuf;
 
 use pie::{Context, Pie, Task};
-use pie::stamp::FileStamper;
+use pie::stamp::{FileStamper, OutputStamper};
 use pie::tracker::CompositeTracker;
 use pie::tracker::event::EventTracker;
 use pie::tracker::writing::WritingTracker;
@@ -63,7 +64,10 @@ impl<T: Task> TestPieExt<T> for TestPie<T> {
 pub enum TestTask {
   Return(&'static str),
   ReadFile(PathBuf, FileStamper),
+  WriteFile(Box<TestTask>, PathBuf, FileStamper),
   ToLower(Box<TestTask>),
+  ToUpper(Box<TestTask>),
+  Sequence(Vec<TestTask>),
 }
 impl Task for TestTask {
   type Output = Result<TestOutput, ErrorKind>;
@@ -77,9 +81,25 @@ impl Task for TestTask {
         }
         Ok(string.into())
       }
+      TestTask::WriteFile(string_provider_task, path, stamper) => {
+        let string = context.require_task(string_provider_task.as_ref())?.into_string();
+        fs::write(path, string.as_bytes()).map_err(|e| e.kind())?;
+        context.require_file_with_stamper(path, *stamper).map_err(|e| e.kind())?;
+        Ok(TestOutput::Unit)
+      }
       TestTask::ToLower(string_provider_task) => {
         let string = context.require_task(string_provider_task)?.into_string();
         Ok(string.to_lowercase().into())
+      }
+      TestTask::ToUpper(string_provider_task) => {
+        let string = context.require_task(string_provider_task)?.into_string();
+        Ok(string.to_uppercase().into())
+      }
+      TestTask::Sequence(tasks) => {
+        for task in tasks {
+          context.require_task_with_stamper(task, OutputStamper::Inconsequential)?;
+        }
+        Ok(TestOutput::Unit)
       }
     }
   }
@@ -89,19 +109,25 @@ impl Task for TestTask {
 #[derive(Clone, Eq, PartialEq, Hash, Debug)]
 pub enum TestOutput {
   String(String),
+  Unit,
 }
 impl From<String> for TestOutput {
   fn from(value: String) -> Self { Self::String(value) }
+}
+impl From<()> for TestOutput {
+  fn from(_: ()) -> Self { Self::Unit }
 }
 impl TestOutput {
   pub fn as_str(&self) -> &str {
     match self {
       Self::String(s) => &s,
+      _ => panic!("{:?} does not contain a string", self),
     }
   }
   pub fn into_string(self) -> String {
     match self {
       Self::String(s) => s,
+      _ => panic!("{:?} does not contain a string", self),
     }
   }
 }

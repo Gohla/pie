@@ -73,17 +73,17 @@ impl Task for TestTask {
       TestTask::Return(string) => Ok(string.to_string().into()),
       TestTask::ReadFile(path, stamper) => {
         let mut string = String::new();
-        if let Some(mut file) = context.require_file_with_stamper(&path, *stamper).map_err(|e| e.kind())? {
+        if let Some(mut file) = context.require_file_with_stamper(path, *stamper).map_err(|e| e.kind())? {
           file.read_to_string(&mut string).map_err(|e| e.kind())?;
         }
         Ok(string.into())
       }
       TestTask::ToLower(string_provider_task) => {
-        let string = context.require_task(string_provider_task.as_ref())?.into_string();
+        let string = context.require_task(string_provider_task)?.into_string();
         Ok(string.to_lowercase().into())
       }
       TestTask::ToUpper(string_provider_task) => {
-        let string = context.require_task(string_provider_task.as_ref())?.into_string();
+        let string = context.require_task(string_provider_task)?.into_string();
         Ok(string.to_uppercase().into())
       }
     }

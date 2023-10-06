@@ -27,7 +27,6 @@ impl<T: Task> TopDownContext<T, T::Output> {
   }
 }
 
-
 impl<T: Task> Context<T> for TopDownContext<T, T::Output> {
   fn require_file_with_stamper<P: AsRef<Path>>(&mut self, path: P, stamper: FileStamper) -> Result<Option<File>, io::Error> {
     let Some(current_executing_task_node) = &self.current_executing_task else {

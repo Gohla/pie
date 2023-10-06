@@ -1,6 +1,6 @@
 --- pie/src/context/top_down.rs
 +++ pie/src/context/top_down.rs
-@@ -6,21 +6,25 @@
+@@ -6,20 +6,24 @@
  use crate::dependency::{FileDependency, TaskDependency};
  use crate::stamp::{FileStamper, OutputStamper};
  use crate::store::TaskNode;
@@ -26,13 +26,12 @@
    }
  }
  
- 
 -impl<'p, 's, T: Task> Context<T> for TopDownContext<'p, 's, T, T::Output> {
 +impl<'p, 's, T: Task, A: Tracker<T>> Context<T> for TopDownContext<'p, 's, T, T::Output, A> {
    fn require_file_with_stamper<P: AsRef<Path>>(&mut self, path: P, stamper: FileStamper) -> Result<Option<File>, io::Error> {
      let Some(current_executing_task_node) = &self.session.current_executing_task else {
        return fs::open_if_file(path); // No current executing task, so no dependency needs to be made.
-@@ -28,31 +32,38 @@
+@@ -27,31 +31,38 @@
      let path = path.as_ref();
      let node = self.session.store.get_or_create_file_node(path);
      let (dependency, file) = FileDependency::new_with_file(path, stamper)?;
@@ -74,7 +73,7 @@
        if self.session.store.add_task_require_dependency(current_executing_task_node, &node, dependency).is_err() {
          let current_executing_task = self.session.store.get_task(current_executing_task_node);
          panic!("Cyclic task dependency; current executing task '{:?}' is requiring task '{:?}' which was already required", current_executing_task, task);
-@@ -64,16 +75,19 @@
+@@ -63,16 +74,19 @@
    }
  }
  
