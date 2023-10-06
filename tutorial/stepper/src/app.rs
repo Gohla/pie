@@ -276,9 +276,9 @@ pub fn step_all(
         create_diff_from_destination_file("e_4_test_require_task.rs", "../tests/top_down.rs"),
         create_diff_from_destination_file("e_5_test_require_task.rs", "../tests/top_down.rs"),
         create_diff_from_destination_file("e_6_test_require_task.rs", "../tests/top_down.rs"),
-      ]).output([
-        SourceArchive::new("source.zip"),
-      ]);
+      ]).output(
+        SourceArchive::new("source.zip")
+      );
     });
 
     stepper.with_path("4_fix_task_dep", |stepper| {
@@ -308,7 +308,15 @@ pub fn step_all(
       ]);
       stepper.apply([
         create_diff_from_destination_file("e_fix_tests.rs", "../tests/top_down.rs"),
-      ]);
+      ]).output(
+        SourceArchive::new("source.zip")
+      );
     });
+
+    stepper.with_path("5_overlap", |stepper| {
+      stepper.apply([
+        create_diff_from_destination_file("a_test_tasks.rs", "../tests/common/mod.rs"),
+      ]);
+    })
   });
 }

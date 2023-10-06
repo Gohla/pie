@@ -73,7 +73,7 @@ This is also the reason for the `Eq` and `Hash` trait bounds on the `Task` trait
 
 Change `pie/src/store.rs` to add hash maps to map between these things:
 
-```diff2html fromfile
+```diff2html fromfile linebyline
 ../../gen/2_incrementality/4_store/d1_mapping_diff.rs.diff
 ```
 

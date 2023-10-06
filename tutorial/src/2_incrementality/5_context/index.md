@@ -208,13 +208,13 @@ When dependency checking result in an error, we should store the error for the u
 
 Change `pie/src/context/mod.rs` to store dependency check errors and give users access to it:
 
-```diff2html fromfile
+```diff2html fromfile linebyline
 ../../gen/2_incrementality/5_context/h_error_field.rs.diff
 ```
 
 And then change `pie/src/context/mod.rs` to store these errors:
 
-```diff2html fromfile
+```diff2html fromfile linebyline
 ../../gen/2_incrementality/5_context/i_error_store.rs.diff
 ```
 

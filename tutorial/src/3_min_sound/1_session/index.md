@@ -123,7 +123,7 @@ Check that the example works with `cargo run --example incremental`, and check t
 Now we can ensure minimality by keeping track whether a task has been required this session.
 Change `pie/lib.rs`:
 
-```diff2html fromfile
+```diff2html fromfile linebyline
 ../../gen/3_min_sound/1_session/h_lib_consistent.rs.diff
 ```
 

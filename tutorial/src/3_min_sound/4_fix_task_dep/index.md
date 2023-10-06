@@ -17,7 +17,7 @@ Modify `pie/src/tests/common/mod.rs` to add another task:
 ../../gen/3_min_sound/4_fix_task_dep/a_upper_task.rs.diff
 ```
 
-The `ToUpper` task does (as expected) the opposite of the `ToLower` task: it requires the string producing task and returns the string in uppercase.
+The `ToUpper` task does (as expected) the opposite of the `ToLower` task: it requires the string providing task and returns the string in uppercase.
 
 ## Test case setup
 
@@ -197,3 +197,7 @@ Fix the tests by modifying `pie/src/tests/top_down.rs`:
 
 Confirm this fixes the tests with `cargo test`.
 All tests are green! 🎉🎉🎉
+
+```admonish example title="Download source code" collapsible=true
+You can [download the source files up to this point](../../gen/3_min_sound/4_fix_task_dep/source.zip).
+```
