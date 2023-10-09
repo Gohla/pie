@@ -128,7 +128,7 @@ And you can read the output file with:
 ```rust
 {
   let output_file = pie.require_then_assert_no_execute(&write_1)?;
-  assert_eq!(read_to_string(&output_file)?, "Hi there");
+  assert_eq!(read_to_string(output_file.as_path())?, "Hi there");
 }
 ```
 
