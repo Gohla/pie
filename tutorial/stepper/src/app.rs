@@ -316,6 +316,8 @@ pub fn step_all(
     stepper.with_path("5_overlap", |stepper| {
       stepper.apply([
         create_diff_from_destination_file("a_test_tasks.rs", "../tests/common/mod.rs"),
+        create_diff_from_destination_file("b_test_issue.rs", "../tests/top_down.rs"),
+        add("c_test_separate.rs", "../tests/top_down.rs"),
       ]);
     })
   });

@@ -1,9 +1,9 @@
-use std::fs;
 use std::io::{BufWriter, ErrorKind, Read, Stdout};
 use std::path::PathBuf;
 
+use dev_shared::write_until_modified;
 use pie::{Context, Pie, Task};
-use pie::stamp::{FileStamper, OutputStamper};
+use pie::stamp::FileStamper;
 use pie::tracker::CompositeTracker;
 use pie::tracker::event::EventTracker;
 use pie::tracker::writing::WritingTracker;
@@ -83,7 +83,7 @@ impl Task for TestTask {
       }
       TestTask::WriteFile(string_provider_task, path, stamper) => {
         let string = context.require_task(string_provider_task.as_ref())?.into_string();
-        fs::write(path, string.as_bytes()).map_err(|e| e.kind())?;
+        write_until_modified(path, string.as_bytes()).map_err(|e| e.kind())?;
         context.require_file_with_stamper(path, *stamper).map_err(|e| e.kind())?;
         Ok(TestOutput::Unit)
       }
@@ -97,7 +97,7 @@ impl Task for TestTask {
       }
       TestTask::Sequence(tasks) => {
         for task in tasks {
-          context.require_task_with_stamper(task, OutputStamper::Inconsequential)?;
+          context.require_task(task)?;
         }
         Ok(TestOutput::Unit)
       }
