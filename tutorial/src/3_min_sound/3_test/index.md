@@ -5,7 +5,7 @@
 First we start by adding testing utilities (it never ends, does it?) that will make writing integration tests more convenient.
 Unfortunately, we can't use `dev_shared` for this, as we would need to add a dependency to from `dev_shared` to `pie`, resulting in a dependency cycle because `pie` depends on `dev_shared`.
 
-```admonish info title="Development dependency cycle" collapsible=true
+```admonish tip title="Development dependency cycle" collapsible=true
 If you would create this cycle, the code would still compile, but there would be 2 different instances of `pie` at the same time: one with unit testing enabled (`#[cfg(test)]`), and one without.
 Even though these libraries are very similar, they are effectively 2 completely different libraries.
 When `pie` uses code from `dev_shared` that depends again on `pie`, then there will be errors about types and traits not matching.

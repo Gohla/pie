@@ -112,7 +112,7 @@ It is very important to create a new session each time in this example, because 
 If we use a single session, our changes are never seen, and we just execute each task once, which is not what we want.
 Therefore, every time we make changes to source files, or expect that changes have been made to source files, we must create a new session.
 
-```admonish
+```admonish question title="Multiple Sessions?"
 In changes D and E, Rust is smart enough to allow creating a new session even though the previous `session` variable is still active, because it knows that we don't use that previous session anymore. 
 ```
 

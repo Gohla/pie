@@ -48,17 +48,16 @@ The `Equals` stamper simply wraps the output of a task, so the stamp is equal wh
 
 Output stamps are generic over the task output type `O`.
 
-```admonish info title="Trait bounds and derive macros" collapsible=true
+```admonish tip title="Trait Bounds and Derive Macros" collapsible=true
 Because `O` is used in the enum, the `derive` attributes on `OutputStamp` create bounds over `O`.
 Thus, `OutputStamp` is only `Clone` when `O` is `Clone`, `OutputStamp` is only `Eq` when `O` is `Eq`, and so forth.
 Because we declared `Task::Output` with bound `Clone + Eq + Debug`, we can be sure that `OutputStamp` is always `Clone`, `Eq`, and `Debug`.
 ```
 
-```admonish info title="User-defined stamps" collapsible=true
+```admonish question title="User-Defined Stamps?" collapsible=true
 `FileStamper` and `OutputStamper` could also be a trait which would allow users of the library to implement their own stampers.
 For simplicity, we do not explore that option in this tutorial.
-If you feel adventurous, you could try to implement this after you've finished the tutorial.
-Do note that this introduces a lot of extra generics and trait bounds everywhere, which can be a bit cumbersome.
+In the actual PIE library, stampers (called checkers) can be implemented by users of the library!
 ```
 
 ## Tests
@@ -73,10 +72,12 @@ Add to `pie/src/stamp.rs`:
 We test file stamps by creating a stamp, changing the file, creating a new stamp, and then compare the stamps.
 We test task output stamps by just passing a different output value to the `stamp` function, and then compare the stamps.
 
-Run `cargo test` to confirm the stamp implementation.
+Run `cargo test` to test the stamp implementation.
+However, a test could fail on some operating systems.
+Do continue to the next subsection if this happens.
 
-```admonish warning
-Test `test_modified_file_stamper` will likely fail. Do continue to the next section, because we're going to fix it!
+```admonish warning title="Likely Test Failure"
+Test `test_modified_file_stamper` will likely fail. Do continue to the next subsection, because we're going to fix it!
 ```
 
 ## Testing with file modified time, correctly

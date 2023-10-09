@@ -31,7 +31,7 @@ Your project structure should now look like:
 
 Confirm your module structure is correct by building with `cargo build`.
 
-```admonish info title="Rust Help" collapsible=true
+```admonish tip title="Rust Help: Modules, Visibility" collapsible=true
 Modules are typically [separated into different files](https://doc.rust-lang.org/book/ch07-05-separating-modules-into-different-files.html).
 Modules are declared with `mod context`. 
 Then, the contents of a module are defined either by creating a sibling file with the same name: `context.rs`, or by creating a sibling directory with the same name, with a `mod.rs` file in it: `context/mod.rs`.
@@ -51,7 +51,7 @@ Implement the non-incremental context in `pie/src/context/non_incremental.rs` by
 This `NonIncrementalContext` is extremely simple: in `require_task` we unconditionally execute the task, and pass `self` along so the task we're calling can require additional tasks.
 Let's write some tests to see if this does what we expect.
 
-```admonish info title="Rust Help" collapsible=true
+```admonish tip title="Rust Help: Crates (Libraries), Structs, Trait Implementations, Last Expression" collapsible=true
 In Rust, libraries are called [crates](https://doc.rust-lang.org/book/ch07-01-packages-and-crates.html).
 We import the `Context` and `Task` traits from the root of your crate (i.e., the `src/lib.rs` file) using `crate::` as a prefix.
 
@@ -93,7 +93,7 @@ The output should look something like:
 Which indicates that the test indeed succeeds!
 You can experiment by returning a different string from `ReturnHelloWorld::execute` to see what a failed test looks like.
 
-```admonish info title="Rust Help" collapsible=true
+```admonish tip title="Rust Help: Unit Testing, Nested Items, Unused Parameters, Assertion Macros" collapsible=true
 [Unit tests](https://doc.rust-lang.org/book/ch11-03-test-organization.html#the-tests-module-and-cfgtest) for a module 
 are typically defined by creating a nested module named `test` with the `#[cfg(test)]` attribute applied to it. In that
 `test` module, you apply `#[test]` to testing functions, which then get executed when you run `cargo test`.
@@ -149,28 +149,31 @@ But that is not allowed:
 This is because the `Task` trait defines `execute` to take a `Context<Self>`, thus every implementation of `Task` must adhere to this, so we can't solve it this way.
 
 Effectively, due to the way we defined `Task` and `Context`, we can only use *a single task implementation*.
-However, there is a good reason for this which will become more apparent once we implement incrementality.
+This is to simplify the implementation in this tutorial, as supporting multiple task types complicates matters a lot.
 
-```admonish info title="Why only a single Task type?" collapsible=true
-The gist of it is that an incremental context wants to build a *single dependency graph* and cache task outputs, so that we can figure out from the graph whether a task is affected by a change, and just return its output if it is not affected.
+```admonish question title="Why only a Single Task Type?" collapsible=true
+Currently, our context is parameterized by the type of tasks: `Context<T>`.
+Again, this is for simplicity.
+
+An incremental context wants to build a *single dependency graph* and cache task outputs, so that we can figure out from the graph whether a task is affected by a change, and just return its output if it is not affected.
 Therefore, a context implementation will maintain a `Store<T>`.
 
+Consider the case with two different task types
 A `Context<ReturnHelloWorld>` and `Context<ToLowerCase>` would then have a `Store<ReturnHelloWorld>` and `Store<ToLowerCase>` respectively.
 These two stores would then maintain two different dependency graphs, one where the nodes in the graph are `ReturnHelloWorld` and one where the nodes are `ToLowerCase`.
 But that won't work, as we need a single dependency graph over all tasks to figure out what is affected.
+Therefore, we are restricted to a single task type in this tutorial.
 
-There are several solutions to this problem.
-For example, we could use [trait objects](https://doc.rust-lang.org/book/ch17-02-trait-objects.html).
-However, this introduces a whole slew of problems because many traits that we use are not trait-object safe. 
+To solve this, we would need to remove the `T` generic parameter from `Context`, and instead use [trait objects](https://doc.rust-lang.org/book/ch17-02-trait-objects.html).
+However, this introduces a whole slew of problems because many traits that we use are not inherently trait-object safe. 
 `Clone` is not object safe because it requires `Sized`. 
 `Eq` is not object safe because it uses `Self`. 
-Serializing trait-objects is problematic.
+Serializing trait objects is problematic.
 There are workarounds for all these things, but it is not pretty and very complicated.
 
-Another solution would be to encapsulate different tasks into a single type, using (procedural) macros to automatically generate this single task type.
-This solution is more feasible, but still introduces a lot of complexity which is not worth it in this tutorial.
-
-Therefore, in this tutorial we will keep it simple.
+The actual PIE library supports arbitrary task types through trait objects.
+We very carefully control where generic types are introduced, and which traits need to be object-safe.
+Check out the PIE library if you want to know more! 
 ```
 
 For now, we will solve this by just using a single task type which is an enumeration of the different possible tasks.
@@ -192,7 +195,7 @@ When the variant is `ReturnHelloWorld`, we require `&Self::ReturnHelloWorld` thr
 This now works due to only having a single task type.
 Run the test with `cargo test` to confirm it is working.
 
-```admonish info title="Rust Help" collapsible=true
+```admonish tip title="Rust Help: Enum" collapsible=true
 [Enums](https://doc.rust-lang.org/book/ch06-01-defining-an-enum.html) define a type by a set of variants, similar to enums in other languages, sometimes called tagged unions in other languages.
 The `match` expression matches the variant and dispatches based on that, similar to switch statements in other languages.
 ```

@@ -20,7 +20,7 @@ The reason for this complicated type is:
 * Tasks can create a dependency to a file that does not exist, and the existence of that file affects the task. For example, a task that prints true or false based on if a file exists. If the file does not exist (or it is a directory), we cannot open it, so we cannot return a `File`, hence we use `Option<File>` to return `None`.
 * Otherwise, we return `Ok(Some(file))` so that the task can read the opened file.
 
-```admonish info title="Rust Help" collapsible=true
+```admonish tip title="Rust Help: Error Handling with Result, Optional, AsRef Conversion" collapsible=true
 [Recoverable error handling](https://doc.rust-lang.org/book/ch09-02-recoverable-errors-with-result.html) in Rust is done with the `Result<T, E>` type, which can either be `Ok(t)` or `Err(e)`.
 In contrast to many languages which use exceptions, throwing, and exception handling; Rust treats recoverable errors just as regular values.
 
@@ -53,7 +53,7 @@ The reason for these functions is that the standard library function `std::fs::m
 Furthermore, `open_if_file` works around an issue where opening a directory on Windows (and possibly other operating systems) is an error, where we want to treat it as `None` again.
 The documentation comments explain the exact behaviour.
 
-```admonish info title="Rust Help" collapsible=true
+```admonish tip title="Rust Help: Error Propagation, Documentation Comments" collapsible=true
 The `?` operator makes it easy to [propgate errors](https://doc.rust-lang.org/book/ch09-02-recoverable-errors-with-result.html#a-shortcut-for-propagating-errors-the--operator).
 Because errors are just values in Rust, to propgate an error, you'd normally have to match each result and manually propagate the error.
 The `r?` operator applied to a `Result` `r` does this for you, it basically desugars to something like `match r { Err(e) => return Err(e), _ => {} }`.
@@ -77,7 +77,7 @@ Create the `dev_shared/Cargo.toml` file with the following contents:
 
 We've added the `tempfile` dependency here already, which is a crate that creates and automatically cleans up temporary files and directories.
 
-```admonish info title="Rust Help" collapsible=true
+```admonish tip title="Rust Help: Dependencies" collapsible=true
 We use other libraries (crates) by [specifying dependencies](https://doc.rust-lang.org/cargo/reference/specifying-dependencies.html).
 Because basically every Rust library adheres to [semantic versioning](https://semver.org/), we can use `"3"` as a version requirement which indicates that we will use the most up-to-date `3.x.x` version.
 ```
@@ -120,7 +120,7 @@ The `tempfile` library takes care of deleting temporary files when they go out o
 We use `assert_matches!` to assert that `metadata` is `Some(metadata)`, binding `metadata` in the ` => { ... }` block in which we assert that the metadata describes a file.
 We will use this macro more in future integration tests.
 
-```admonish info title="Rust Help" collapsible=true
+```admonish tip title="Rust Help: Result in Tests" collapsible=true
 Tests can [return `Result`](https://doc.rust-lang.org/book/ch11-01-writing-tests.html#using-resultt-e-in-tests).
 When a test returns an `Err`, the test fails.
 This allows us to write more concise tests using error propagation.

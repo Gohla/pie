@@ -12,7 +12,7 @@ On the other hand, an incremental build context wants to *selectively execute ta
 To that end, a build context will selectively execute tasks, tasks require other tasks through the build context, the build context selectively executes those, and so forth.
 Thus, tasks and build contexts are mutually recursive.
 
-```admonish
+```admonish abstract title="Context"
 In this tutorial, we will be using the words *context*, *build context*, and *build system* interchangeably, typically using just *context* as it is concise.
 ```
 
@@ -28,7 +28,7 @@ Add the following code to your `pie/src/lib.rs` file:
 {{#include a_api.rs}}
 ```
 
-```admonish
+```admonish tip
 If this seems overwhelming to you, don't worry. We will go through the API and explain things. But more importantly, the API should become more clear once we implement it in the next section and subsequent chapters.
 Furthermore, if you're new to Rust and/or need help understanding certain concepts, I will try to explain them in Rust Help blocks. They are collapsed by default to reduce distraction, clicking the header opens them. See the first Rust Help block at the end of this section.
 ```
@@ -59,7 +59,7 @@ The output should look something like:
 {{#include ../../gen/1_programmability/1_api/a_cargo.txt}}
 ```
 
-```admonish info title="Rust Help" collapsible=true
+```admonish tip title="Rust Help: Modules, Imports, Ownership, Traits, Methods, Supertraits, Associated Types, Visibility" collapsible=true
 [The Rust Programming Language](https://doc.rust-lang.org/book/ch00-00-introduction.html) is an introductory book about Rust. I will try to provide links to the book where possible.
 
 Rust has a [module system](https://doc.rust-lang.org/book/ch07-00-managing-growing-projects-with-packages-crates-and-modules.html) for project organization. The `lib.rs` file is the "main file" of a library. Later on, we will be creating more modules in different files.

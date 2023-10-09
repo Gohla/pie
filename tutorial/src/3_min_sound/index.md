@@ -13,7 +13,7 @@ The recursive nature of checking task dependencies ensures that indirect changes
 By defining minimality and soundness in terms of dependencies, a task author forgetting to create a dependency or not choosing the correct stamper, does not change whether our build system is minimal and sound.
 PIE works under the assumption that task authors correctly list all dependencies that mark their task as affected by a change when it actually is. 
 
-```admonish info title="Preventing task authoring mistakes" collapsible=true
+```admonish info title="Preventing Task Authoring Mistakes" collapsible=true
 It is of course possible to make mistakes when authoring tasks, for example by creating a dependency to the wrong file, or by forgetting to create a file dependency.
 Unfortunately, there is no easy way to solve this.
 
@@ -41,7 +41,7 @@ We will continue as follows:
 5) Find a soundness hole where a task reads from a file before another task writes to it. Fix it by catching these mistakes with dynamic verification.
 6) Find a soundness hole where cyclic task execution can still occur. Fix it by changing how task dependencies are stored.
 
-```admonish info title="Proving minimality and soundness?" collapsible=true
+```admonish question title="Proving Minimality and Soundness?" collapsible=true
 While proving minimality and soundness would be a very interesting exercise, I am not at all an expert in formal proofs in proof assistants such as [Coq](https://coq.inria.fr/), [Agda](https://wiki.portal.chalmers.se/agda/pmwiki.php), etc.
 If that is something that interests you, do pursue it and get in touch!
 ```

@@ -10,8 +10,8 @@ create-missing = false
 
 [output.html]
 preferred-dark-theme = "ayu"
-additional-js = ["src/diff2html-ui-base.min.js"]
-additional-css = ["src/diff2html.min.css", "src/mdbook-admonish.css"]
+additional-js = ["./diff2html-ui-base.min.js"]
+additional-css = ["./diff2html.min.css", "./mdbook-admonish.css"]
 git-repository-url = "https://github.com/Gohla/pie/"
 edit-url-template = "https://github.com/Gohla/pie/edit/master/tutorial/{path}"
 
@@ -26,4 +26,4 @@ runnable = false
 
 [preprocessor.admonish]
 command = "mdbook-admonish"
-assets_version = "2.0.0" # do not edit: managed by `mdbook-admonish install`
+assets_version = "2.0.2" # do not edit: managed by `mdbook-admonish install`

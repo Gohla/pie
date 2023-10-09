@@ -58,7 +58,7 @@ We assert this inside the `require_then_assert` block.
 But, if you run the tests with `cargo test`, this test will fail!
 How can that be?
 
-```admonish warning
+```admonish failure title="Expected Test Failure"
 Test `test_no_superfluous_task_dependencies` will fail as expected, which we will fix in this section!
 ```
 
@@ -158,8 +158,8 @@ Modify `pie/src/context/non_incremental.rs`:
 If you run `cargo test` now, `test_no_superfluous_task_dependencies` should succeed, indicating that we fixed the bug!
 However, `test_require_task` now fails 😅.
 
-```admonish warning
-Test `test_require_task` will fail, which we will now fix!
+```admonish failure title="Expected Test Failure"
+Test `test_require_task` will fail as expected, which we will now fix!
 ```
 
 An `assert!(execute.start() > require.start())` in this test now fails, which is a sanity check asserting that "executes starts" should be later than "require starts"

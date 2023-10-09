@@ -8,7 +8,7 @@ In other words, `Store` encapsulates the dependency graph.
 However, writing a dependency graph data structure is outside of the scope of this tutorial, so we will be using the `pie_graph` library which we prepared exactly for this use case.
 The graph from this library is a directed acyclic graph (DAG), meaning that edges are directed and there may be no cycles in edges, as that would prohibit topological orderings.
 
-```admonish info title="Graph library" collapsible=true
+```admonish tip title="Graph Library" collapsible=true
 The `pie_graph` library is a modified version of the great [`incremental-topo`](https://github.com/declanvk/incremental-topo/) library which implements incremental topological ordering: it keeps the topological ordering up-to-date incrementally while nodes and edges are added and removed.
 That is exactly what we need, as dynamic dependencies prevents us from calculating the topological ordering in one go, and calculating the topological ordering after every task execution is prohibitively expensive.
 The implementation in the `incremental-topo` library is based on a [paper by D. J. Pearce and P. H. J. Kelly](http://www.doc.ic.ac.uk/~phjk/Publications/DynamicTopoSortAlg-JEA-07.pdf) that describes several dynamic topological sort algorithms for directed acyclic graphs.
@@ -51,7 +51,7 @@ The second argument is the type of data to attach to edges, which is `Dependency
 
 We implement `Default` for the store to initialize it.
 
-```admonish info title="Deriving default" collapsible=true
+```admonish question title="Why not Derive Default?" collapsible=true
 We cannot derive this `Default` implementation even though it seems we should be able to, because the derived implementation will require `T` and `O` to be `Default`, and this is not always the case.
 This is because the `Default` derive macro is conservative and adds a `: Default` bound to *every* generic argument in the `Default` trait implementation, and there is no way to disable this behaviour.
 Therefore, we implement `Default` ourselves.
@@ -86,9 +86,9 @@ To prevent accidentally using a file node as a task node, and vice versa, change
 The `FileNode` and `TaskNode` types are [newtypes](https://rust-unofficial.github.io/patterns/patterns/behavioural/newtype.html) that wrap a `Node` into a specific type of node.
 The `Borrow` implementations will make subsequent code a bit more concise by automatically converting `&FileNode` and `&TaskNode`s to `&Node`s.
 
-```admonish info title="Newtypes" collapsible=true
+```admonish question title="Do these Newtypes Improve Type-Safety?" collapsible=true
 Because the `Node`s inside the newtypes are not public, it is not possible to construct a `FileNode` or `TaskNode` outside of this module.
-Therefore, if we only accept and create `FileNode` and `TaskNode` in the `Store` API, it is not possible to use the wrong kind of node.
+Therefore, if we only accept and create `FileNode` and `TaskNode` in the `Store` API, it is not possible to use the wrong kind of node, increasing type-safety.
 
 The `Borrow` implementation does leak outside of this module, but not outside of this crate (library).
 This is because the visibility of a trait implementation is the intersection of the visibilities of the trait and type it is implemented on.
@@ -119,7 +119,7 @@ Therefore, when we call these methods, we should document why it is valid (if th
 
 We're also documenting the panics in a `# Panics` section in the documentation comment, as is common practice in Rust.
 
-```admonish info title="Triggering these panics" collapsible=true
+```admonish question title="How to Trigger these Panics?" collapsible=true
 Because only `Store` can create `FileNode`s and `TaskNode`s, and all methods only take these values as inputs, these panics will not happen under normal usage.
 The only way to trigger these panics (in safe Rust) would be to create two stores, and use the nodes from one store in another.
 However, since this is a private module, we just need to make sure that we don't do that.
@@ -222,7 +222,7 @@ This works because `"hello.txt"` and `"world.txt"` are different paths, thus the
 Test `test_file_mapping_panics` triggers the panic in `get_file_path` by creating a `FileNode` with a "fake store", and then using that rogue file node in another store.
 While it is unlikely that we will make this mistake when using `Store`, it is good to confirm that this panics.
 
-```admonish info title="Rust help" collapsible=true
+```admonish tip title="Testing Panics" collapsible=true
 The `#[should_panic]` attribute makes the test succeed if it panics, and fail if it does not panic.
 ```
 

@@ -49,7 +49,7 @@ A `TaskDependency` stores the `task` the dependency is about, along with its `st
 Task dependencies are generic over the type of tasks `T`, and their type of outputs `O`.
 We also add immutable getters here.
 
-```admonish info title="Trait bounds on structs" collapsible=true
+```admonish question title="Why not a Trait Bound on TaskDependency?" collapsible=true
 We chose not to put a `Task` trait bound on `TaskDependency`, and instead put the bound on the impl.
 There are several up and downsides that should be considered when making such a decision.
 
@@ -98,11 +98,16 @@ We wrap the changed stamp in an `Inconsistency` enum, and map to the correct var
 Because `Dependency` can store a `TaskDependency`, we need to propagate the `T` and `O` generics.
 Likewise, `Inconsistency` propagates the `O` generic for `OutputStamp`.
 
-```admonish info title="User-defined dependencies" collapsible=true
+```admonish question title="User-Defined Dependencies?" collapsible=true
 Like with stampers, `Dependency` could also be a trait to allow users of the library to define their own dependencies.
-However, as we will see later, these dynamic dependencies also require validation, and I am unsure how such a `Dependency` trait should look.
-Therefore, we don't have an appendix on how to implement this.
-But, if you have an idea on how to this nicely (after you've completed this tutorial), please get in touch! 
+However, there are two requirements that make it hard to define such a trait:
+
+1) We can implement different `Context`s which treat some dependencies differently. 
+For example, in the actual PIE library, we have a bottom-up context that schedules tasks from the bottom-up.
+This bottom-up context treats file and task dependencies in a completely different way compared to the top-down context.
+2) Dynamic dependencies also require validation to ensure correctness, which we will do later on in the tutorial.
+
+It is currently unclear to me how to create a `Dependency` trait with these requirements in mind. 
 ```
 
 ## Tests
@@ -125,7 +130,7 @@ Since we use the `Equals` output stamper, and `"test1"` does not equal `"test2"`
 
 Note that we are both testing the specific dependencies (`FileDependency` and `TaskDependency`), and the general `Dependency`.
 
-```admonish
+```admonish title="Testing Shortcuts"
 Normally, a task such as `ReadStringFromFile` shound return a `Result<String, io::Error>`, but for testing purposes we are just using panics with `expect`.
 
 In the file dependency case, using `Dependency` requires an explicit type annotation because there is no task to infer the type from.
