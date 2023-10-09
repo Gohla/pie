@@ -29,7 +29,8 @@ after = ["links", "external-links"]
 [preprocessor.admonish]
 renderers = ["html"]
 after = ["links"]
-assets_version = "2.0.2" # do not edit: managed by `mdbook-admonish install`
+assets_version = "3.0.0" # do not edit: managed by `mdbook-admonish install`
+command = "mdbook-admonish"
 
 [preprocessor.external-links]
 renderers = ["html"]
