@@ -51,7 +51,7 @@ We could, however, implement a stamper that ignores changes to the `Ok` variant 
 Now we write a test to showcase the issue.
 Add the following test to `pie/tests/top_down.rs`:
 
-```diff2html
+```diff2html linebyline
 {{#include ../../gen/3_min_sound/5_overlap/b_test_issue.rs.diff}}
 ```
 

@@ -307,11 +307,13 @@ table.d2h-diff-table td, th {
 }
 
 .d2h-file-diff .d2h-del.d2h-change {
-  background-color: #fdf2d0
+  /* CHANGE: use variables */
+  background-color: var(--code-change-bg)
 }
 
 .d2h-file-diff .d2h-ins.d2h-change {
-  background-color: #ded
+  /* CHANGE: use variables */
+  background-color: var(--code-ins-line-bg)
 }
 
 .d2h-file-list-wrapper {
