@@ -136,15 +136,18 @@ To implement this dependency, we will:
 
 1) Add a `ProvideFile` variant to `Dependency`.
 2) Add a `add_file_provide_dependency` method to `Store`.
-3) Add a `provide_file` method to `Context`.
-4) Implement `provide_file` in `TopDownContext` (and `NonIncrementalContext`).
+3) Add `provide_file` / `provide_file_with_stamper` / `default_provide_file_stamper` methods to `Context`.
+4) Implement `provide_file_with_stamper` in `TopDownContext` (and `NonIncrementalContext`).
 
 ### Add `ProvideFile` variant to `Dependency`
 
 ### Add `add_file_provide_dependency` method to `Store`
 
-### Add `provide_file` method to `Context`
+### Add methods to `Context`
 
-### Implement `provide_file` in `TopDownContext`
+### Implement `provide_file_with_stamper` in `NonIncrementalContext`
 
-### Implement `provide_file` in `NonIncrementalContext`
+### Implement `provide_file_with_stamper` in `TopDownContext`
+
+
+## Detect and disallow overlapping provided files
