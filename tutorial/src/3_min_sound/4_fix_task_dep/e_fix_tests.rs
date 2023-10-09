@@ -183,7 +183,7 @@ fn test_require_task() -> Result<(), io::Error> {
   let output = pie.require_then_assert(&lower, |tracker| {
     // `ReadFile` needs to be executed due to its `file` dependency being inconsistent (modified stamp changed).
     assert!(tracker.one_execute_of(&read));
-    // `Lower` is not executed, because its task dependency to `ReadFile` is consistent (equals stamp is the same).
+    // `ToLower` is not executed, because its task dependency to `ReadFile` is consistent (equals stamp is the same).
     assert!(!tracker.any_execute_of(&lower));
   })?;
   assert_eq!(output.as_str(), "!dlrow olleh");
@@ -211,7 +211,7 @@ fn test_no_superfluous_task_dependencies() -> Result<(), io::Error> {
   let lower = ToLower(Box::new(read.clone()));
   let upper = ToUpper(Box::new(lower.clone()));
 
-  // Require `ToLower` and assert that `ReadFile` and `Lower` are executed because they are new, but not `ToUpper`,
+  // Require `ToLower` and assert that `ReadFile` and `ToLower` are executed because they are new, but not `ToUpper`,
   // because it not required by anything. `ToLower` will return `"hello, world!"`.
   let output = pie.require_then_assert(&lower, |tracker| {
     assert!(tracker.one_execute_of(&read));
