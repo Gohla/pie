@@ -19,11 +19,19 @@ edit-url-template = "https://github.com/Gohla/pie/edit/master/tutorial/{path}"
 copy-js = false
 runnable = false
 
-# TODO: disabled because it inserts markup into raw HTML produced by diff2html.
-#[preprocessor.external-links]
+# Run all preprocessors after "links" so that `{{ #include }}` first gets processed.
 
 [preprocessor.diff2html]
+renderers = ["html"]
+# Run after "external-links" because it inserts markup into raw HTML produced by diff2html, breaking it.
+after = ["links", "external-links"]
 
 [preprocessor.admonish]
-command = "mdbook-admonish"
+renderers = ["html"]
+after = ["links"]
 assets_version = "2.0.2" # do not edit: managed by `mdbook-admonish install`
+
+[preprocessor.external-links]
+renderers = ["html"]
+# Run after "admonish" so that links inside it get properly processed.
+after = ["links", "admonish"]
