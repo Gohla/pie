@@ -16,7 +16,7 @@
 +  let lower = ToLower(Box::new(read.clone()));
 +  let upper = ToUpper(Box::new(lower.clone()));
 +
-+  // Require `ToLower` and assert that `ReadFile` and `Lower` are executed because they are new, but not `ToUpper`,
++  // Require `ToLower` and assert that `ReadFile` and `ToLower` are executed because they are new, but not `ToUpper`,
 +  // because it not required by anything. `ToLower` will return `"hello, world!"`.
 +  let output = pie.require_then_assert(&lower, |tracker| {
 +    assert!(tracker.one_execute_of(&read));

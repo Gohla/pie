@@ -29,8 +29,8 @@
         <link rel="stylesheet" href="../../ayu-highlight.css">
 
         <!-- Custom theme stylesheets -->
-        <link rel="stylesheet" href="../../src/diff2html.min.css">
-        <link rel="stylesheet" href="../../src/mdbook-admonish.css">
+        <link rel="stylesheet" href="../.././diff2html.min.css">
+        <link rel="stylesheet" href="../.././mdbook-admonish.css">
 
     </head>
     <body>
@@ -176,7 +176,7 @@
                 <div id="content" class="content">
                     <main>
                         <h1 id="prevent-overlapping-file-writes"><a class="header" href="#prevent-overlapping-file-writes">Prevent Overlapping File Writes</a></h1>
-<div id="admonition-under-construction" class="admonition warning">
+<div id="admonition-under-construction" class="admonition admonish-warning">
 <div class="admonition-title">
 <p>Under construction</p>
 <p><a class="admonition-anchor-link" href="#admonition-under-construction"></a></p>
@@ -198,11 +198,291 @@ This is a bit tricky to explain without an example, so we will first add some te
 In this section, we will continue with:</p>
 <ol>
 <li>Add the <code>WriteFile</code> and <code>Sequence</code> tasks to the testing tasks.</li>
-<li>Create a <code>test_overlapping_file_write</code> test to showcase a soundness hole.</li>
+<li>Create a <code>test_overlapping_file_write</code> test to showcase the issue.</li>
 <li>Introduce a new kind of dependency: a <em>provide file dependency</em> for writing to (and creating) files.</li>
-<li>Prevent overlapping file writes by checking for them at runtime, fixing the soundness hole.</li>
+<li>Prevent overlapping file writes by checking for them at runtime, fixing the issue.</li>
 </ol>
 <h2 id="add-writefile-and-sequence-tasks"><a class="header" href="#add-writefile-and-sequence-tasks">Add <code>WriteFile</code> and <code>Sequence</code> tasks</a></h2>
+<p>Add the <code>WriteFile</code> and <code>Sequence</code> tasks to <code>pie/tests/common/mod.rs</code>: </p>
+<div class="diff2html" id="diff2html_0"></div>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    let diff = String.raw`--- pie/tests/common/mod.rs
++++ pie/tests/common/mod.rs
+@@ -1,6 +1,7 @@
+ use std::io::{BufWriter, ErrorKind, Read, Stdout};
+ use std::path::PathBuf;
+ 
++use dev_shared::write_until_modified;
+ use pie::{Context, Pie, Task};
+ use pie::stamp::FileStamper;
+ use pie::tracker::CompositeTracker;
+@@ -63,8 +64,10 @@
+ pub enum TestTask {
+   Return(&'static str),
+   ReadFile(PathBuf, FileStamper),
++  WriteFile(Box<TestTask>, PathBuf, FileStamper),
+   ToLower(Box<TestTask>),
+   ToUpper(Box<TestTask>),
++  Sequence(Vec<TestTask>),
+ }
+ impl Task for TestTask {
+   type Output = Result<TestOutput, ErrorKind>;
+@@ -78,6 +81,12 @@
+         }
+         Ok(string.into())
+       }
++      TestTask::WriteFile(string_provider_task, path, stamper) => {
++        let string = context.require_task(string_provider_task.as_ref())?.into_string();
++        write_until_modified(path, string.as_bytes()).map_err(|e| e.kind())?;
++        context.require_file_with_stamper(path, *stamper).map_err(|e| e.kind())?;
++        Ok(TestOutput::Unit)
++      }
+       TestTask::ToLower(string_provider_task) => {
+         let string = context.require_task(string_provider_task)?.into_string();
+         Ok(string.to_lowercase().into())
+@@ -86,6 +95,12 @@
+         let string = context.require_task(string_provider_task)?.into_string();
+         Ok(string.to_uppercase().into())
+       }
++      TestTask::Sequence(tasks) => {
++        for task in tasks {
++          context.require_task(task)?;
++        }
++        Ok(TestOutput::Unit)
++      }
+     }
+   }
+ }
+@@ -94,19 +109,25 @@
+ #[derive(Clone, Eq, PartialEq, Hash, Debug)]
+ pub enum TestOutput {
+   String(String),
++  Unit,
+ }
+ impl From<String> for TestOutput {
+   fn from(value: String) -> Self { Self::String(value) }
+ }
++impl From<()> for TestOutput {
++  fn from(_: ()) -> Self { Self::Unit }
++}
+ impl TestOutput {
+   pub fn as_str(&self) -> &str {
+     match self {
+       Self::String(s) => &s,
++      _ => panic!("{:?} does not contain a string", self),
+     }
+   }
+   pub fn into_string(self) -> String {
+     match self {
+       Self::String(s) => s,
++      _ => panic!("{:?} does not contain a string", self),
+     }
+   }
+ }
+`;
+    let target = document.getElementById('diff2html_0');
+    let configuration = {
+      drawFileList: false,
+      fileListToggle: false,
+      fileContentToggle: false,
+
+      outputFormat: 'line-by-line',
+      matching: 'lines',
+    };
+    let diff2htmlUi = new Diff2HtmlUI(target, diff, configuration, hljs);
+    diff2htmlUi.draw();
+  });
+</script>
+<p><code>WriteFile</code> requires a string providing task to produce a string, writes that string to given file, then requires the file with given stamper to create a dependency.
+It uses <code>write_until_modified</code> to ensure that writes change the modification time, which we need for consistent testing.
+<code>Sequence</code> requires multiple tasks stored as a <code>Vec&lt;TestTask&gt;</code>.
+Both return <code>TestOutput::Unit</code> when successful, but propagate errors.
+<code>TestOutput::Unit</code> is like <code>()</code>, the unit type with a single value.</p>
+<p>Because <code>TestOutput</code> now has two variants, the <code>as_str</code> and <code>into_string</code> methods can now fail with a panic (which is fine for testing).</p>
+<details id="admonition-why-not-use-the-inconsequential-stamper" class="admonition admonish-question">
+<summary class="admonition-title">
+<p>Why not use the Inconsequential Stamper?</p>
+<p><a class="admonition-anchor-link" href="#admonition-why-not-use-the-inconsequential-stamper"></a></p>
+</summary>
+<div>
+<p><code>Sequence</code> ignores <code>Result::Ok</code> outputs from required tasks, but it propagates <code>Result::Err</code> outputs. 
+Therefore, we cannot use the <code>Inconsequential</code> output stamper, as it would not re-execute <code>Sequence</code> when a task it requires goes from returning <code>Ok</code> to <code>Err</code>, and vice versa.</p>
+<p>We could, however, implement a stamper that ignores changes to the <code>Ok</code> variant of results, but not the <code>Err</code> variant, to increase incrementality.</p>
+</div>
+</details>
+<h2 id="test-to-showcase-the-issue"><a class="header" href="#test-to-showcase-the-issue">Test to showcase the issue</a></h2>
+<p>Now we write a test to showcase the issue.
+Add the following test to <code>pie/tests/top_down.rs</code>:</p>
+<div class="diff2html" id="diff2html_1"></div>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    let diff = String.raw`--- pie/tests/top_down.rs
++++ pie/tests/top_down.rs
+@@ -1,4 +1,4 @@
+-use std::fs::write;
++use std::fs::{read_to_string, write};
+ use std::io;
+ use std::ops::RangeInclusive;
+ 
+@@ -245,3 +245,42 @@
+ 
+   Ok(())
+ }
++
++#[test]
++fn test_show_overlap_issue() -> Result<(), io::Error> {
++  let mut pie = test_pie();
++  let temp_dir = create_temp_dir()?;
++
++  let output_file = temp_dir.path().join("out.txt");
++
++  let ret = Return("Hi there");
++  let write_1 = WriteFile(Box::new(ret.clone()), output_file.clone(), FileStamper::Modified);
++
++  let input_file = temp_dir.path().join("in.txt");
++  write(&input_file, "Hello, World!")?;
++  let read = ReadFile(input_file.clone(), FileStamper::Modified);
++  let write_2 = WriteFile(Box::new(read.clone()), output_file.clone(), FileStamper::Modified);
++
++  let seq = Sequence(vec![write_1.clone(), write_2.clone()]);
++
++  // Require ${"`"}seq${"`"}. The last writer, ${"`"}write_2${"`"} (${"`"}WriteFile(ReadFile(input_file))${"`"}), wins because ${"`"}Sequence${"`"} executes
++  // tasks in order.
++  pie.require(&seq)?;
++  // Assert that ${"`"}output_file${"`"} contains the string from ${"`"}input_file${"`"}.
++  assert_eq!(read_to_string(&output_file)?, "Hello, World!");
++
++  // Change ${"`"}input_file${"`"} such that ${"`"}write_2${"`"} becomes inconsistent.
++  write_until_modified(&input_file, "World, Hello?")?;
++
++  // Require ${"`"}write_1${"`"} and assert that it is executed, because ${"`"}write_2${"`"} modified ${"`"}output_file${"`"} after ${"`"}write_1${"`"}, thus
++  // ${"`"}write_1${"`"}'s file dependency to ${"`"}output_file${"`"} is inconsistent.
++  pie.require_then_assert_one_execute(&write_1)?;
++  // However, because we required ${"`"}write_1${"`"} directly, instead of through ${"`"}seq${"`"}, ${"`"}output_file${"`"} contains the string that
++  // ${"`"}ret${"`"} returned, even though ${"`"}write_2${"`"} is inconsistent and should win.
++  assert_eq!(read_to_string(&output_file)?, "Hi there");
++  // The contents of ${"`"}output_file${"`"} is thus dependent on which tasks and in which order we require them. This
++  // inconsistent behaviour is undesirable.
++  // Note: this is asserting the current behaviour, not the desired behaviour, which is to disallow this!
++
++  Ok(())
++}
+`;
+    let target = document.getElementById('diff2html_1');
+    let configuration = {
+      drawFileList: false,
+      fileListToggle: false,
+      fileContentToggle: false,
+
+      outputFormat: 'line-by-line',
+      matching: 'lines',
+    };
+    let diff2htmlUi = new Diff2HtmlUI(target, diff, configuration, hljs);
+    diff2htmlUi.draw();
+  });
+</script>
+<p>In this test, we create 2 <code>WriteFile</code> tasks that both write to <code>output_file</code>.
+<code>write_1</code> gets the string to write from <code>ret</code>, which returns <code>&quot;Hi there&quot;</code>.
+<code>write_2</code> gets the string to write from <code>read</code>, which returns the contents of <code>input_file</code>.
+Both write tasks are put into a <code>Sequence</code>, with first <code>write_1</code>, then <code>write_2</code>.</p>
+<p>We require <code>seq</code> and assert that <code>output_file</code> should contain the result of executing <code>write_2</code>, which requires <code>read</code> to get the contents of <code>input_file</code>.
+This result makes sense, it’s what would happen in a non-incremental setting.</p>
+<p>However, we then modify <code>input_file</code> to make <code>write_2</code> inconsistent, and then require <code>write_1</code> directly instead of requiring <code>seq</code>.
+The result is that <code>output_file</code> now contains <code>&quot;Hi there&quot;</code>, even though <code>write_2</code> is inconsistent!</p>
+<p>This behaviour stems from the fact that we can <code>require</code> individual tasks, which is actually a great feature, not a bug!
+When we <code>require</code> a task, we are asking the build system to make <strong>that task</strong> consistent.
+We are <strong>not</strong> asking the build system to make <strong>all</strong> tasks consistent.
+The build system recursively checks and executes only the tasks that are absolutely necessary to make that task consistent.
+If it would not do that, it would not truly be incremental!
+Therefore, we cannot (and shouldn’t) get rid of this feature, and instead need to find another solution to this problem.</p>
+<p>As we saw in this test, <code>output_file</code> is not in a consistent state, because <code>write_2</code> is inconsistent and needs to be executed to bring <code>output_file</code> into a consistent state.
+However, if <code>write_2</code> would write to another file, there would be no inconsistency.
+Let’s write a test with separate output files.</p>
+<p>Add the following test to <code>pie/tests/top_down.rs</code>:</p>
+<pre><code class="language-rust ">#[test]
+fn test_separate_output_files() -&gt; Result&lt;(), io::Error&gt; {
+  let mut pie = test_pie();
+  let temp_dir = create_temp_dir()?;
+
+  let ret = Return(&quot;Hi there&quot;);
+  let output_file_1 = temp_dir.path().join(&quot;out_1.txt&quot;);
+  let write_1 = WriteFile(Box::new(ret.clone()), output_file_1.clone(), FileStamper::Modified);
+
+  let input_file = temp_dir.path().join(&quot;in.txt&quot;);
+  write(&amp;input_file, &quot;Hello, World!&quot;)?;
+  let read = ReadFile(input_file.clone(), FileStamper::Modified);
+  let output_file_2 = temp_dir.path().join(&quot;out_2.txt&quot;);
+  let write_2 = WriteFile(Box::new(read.clone()), output_file_2.clone(), FileStamper::Modified);
+
+  let seq = Sequence(vec![write_1.clone(), write_2.clone()]);
+
+  pie.require(&amp;seq)?;
+  assert_eq!(read_to_string(&amp;output_file_1)?, &quot;Hi there&quot;);
+  assert_eq!(read_to_string(&amp;output_file_2)?, &quot;Hello, World!&quot;);
+
+  write_until_modified(&amp;input_file, &quot;World, Hello?&quot;)?;
+
+  // Require `write_1` to make `output_file_1` consistent.
+  pie.require_then_assert_no_execute(&amp;write_1)?;
+  assert_eq!(read_to_string(&amp;output_file_1)?, &quot;Hi there&quot;);
+  // Require `write_2` to make `output_file_2` consistent.
+  pie.require_then_assert_one_execute(&amp;write_2)?;
+  assert_eq!(read_to_string(&amp;output_file_2)?, &quot;World, Hello?&quot;);
+
+  Ok(())
+}</code></pre>
+<p>Here, <code>write_1</code> writes to <code>output_file_1</code>, and <code>write_2</code> writes to <code>output_file_2</code>.
+Thus, requiring <code>write_1</code> makes <code>output_file_1</code> consistent.
+Requiring <code>write_2</code> makes <code>output_file_2</code> consistent.
+The last two <code>require_then_assert_no_execute</code> statements do this, and there are no inconsistencies with these separate output files.
+Therefore, to prevent confusion, inconsistencies, and (subtle) incrementality bugs, we will detect overlapping file writes and disallow them.</p>
+<p>Before continuing, confirm both tests succeed with <code>cargo test</code>.
+We will modify the first test to assert the desired behaviour later.</p>
+<details id="admonition-reduce-programming-errors-by-returning-paths" class="admonition admonish-tip">
+<summary class="admonition-title">
+<p>Reduce Programming Errors by Returning Paths</p>
+<p><a class="admonition-anchor-link" href="#admonition-reduce-programming-errors-by-returning-paths"></a></p>
+</summary>
+<div>
+<p>In this last test, we can still make a programming error where we read an output file without first requiring the task that makes that output file consistent.
+We can mostly solve that by having <code>WriteFile</code> return the path it wrote to:</p>
+<pre><code class="language-rust">TestTask::WriteFile(string_provider_task, path, stamper) =&gt; {
+  let string = context.require_task(string_provider_task.as_ref())?.into_string();
+  write_until_modified(path, string.as_bytes()).map_err(|e| e.kind())?;
+  context.require_file_with_stamper(path, *stamper).map_err(|e| e.kind())?;
+  Ok(TestOutput::Path(path.clone()))
+}</code></pre>
+<p>Then you can have <code>WriteFile</code> take ownership of the path so we don’t accidentally use it:</p>
+<pre><code class="language-rust">let ret = Return(&quot;Hi there&quot;);
+let write_1 = WriteFile(Box::new(ret.clone()), temp_dir.path().join(&quot;out_1.txt&quot;), FileStamper::Modified);</code></pre>
+<p>And you can read the output file with:</p>
+<pre><code class="language-rust">{
+  let output_file = pie.require_then_assert_no_execute(&amp;write_1)?;
+  assert_eq!(read_to_string(output_file.as_path())?, &quot;Hi there&quot;);
+}</code></pre>
+<p>You can still manually construct the path to the output file and read it to break this, but at least this prevents most accidental reads.</p>
+</div>
+</details>
+<h2 id="implement-provided-files"><a class="header" href="#implement-provided-files">Implement provided files</a></h2>
+<p>We currently have no means to disallow overlapping file writes.
+We only have one kind of file dependency: require file, which is currently used for both reading from and writing to files.
+It’s perfectly fine to read from a single file from multiple tasks, so we can’t disallow multiple tasks from creating a require file dependency to the same file.
+Therefore, we must introduce a new kind of dependency for writing to (and creating) files: the <em>provide file dependency</em>.
+A file may only be provided by one task.</p>
+<p>To implement this dependency, we will:</p>
+<ol>
+<li>Add a <code>ProvideFile</code> variant to <code>Dependency</code>.</li>
+<li>Add a <code>add_file_provide_dependency</code> method to <code>Store</code>.</li>
+<li>Add <code>provide_file</code> / <code>provide_file_with_stamper</code> / <code>default_provide_file_stamper</code> methods to <code>Context</code>.</li>
+<li>Implement <code>provide_file_with_stamper</code> in <code>TopDownContext</code> (and <code>NonIncrementalContext</code>).</li>
+</ol>
+<h3 id="add-providefile-variant-to-dependency"><a class="header" href="#add-providefile-variant-to-dependency">Add <code>ProvideFile</code> variant to <code>Dependency</code></a></h3>
+<h3 id="add-add_file_provide_dependency-method-to-store"><a class="header" href="#add-add_file_provide_dependency-method-to-store">Add <code>add_file_provide_dependency</code> method to <code>Store</code></a></h3>
+<h3 id="add-methods-to-context"><a class="header" href="#add-methods-to-context">Add methods to <code>Context</code></a></h3>
+<h3 id="implement-provide_file_with_stamper-in-nonincrementalcontext"><a class="header" href="#implement-provide_file_with_stamper-in-nonincrementalcontext">Implement <code>provide_file_with_stamper</code> in <code>NonIncrementalContext</code></a></h3>
+<h3 id="implement-provide_file_with_stamper-in-topdowncontext"><a class="header" href="#implement-provide_file_with_stamper-in-topdowncontext">Implement <code>provide_file_with_stamper</code> in <code>TopDownContext</code></a></h3>
+<h2 id="detect-and-disallow-overlapping-provided-files"><a class="header" href="#detect-and-disallow-overlapping-provided-files">Detect and disallow overlapping provided files</a></h2>
 
                     </main>
 
@@ -244,7 +524,7 @@ In this section, we will continue with:</p>
         <script src="../../book.js"></script>
 
         <!-- Custom JS scripts -->
-        <script src="../../src/diff2html-ui-base.min.js"></script>
+        <script src="../.././diff2html-ui-base.min.js"></script>
 
 
     </div>

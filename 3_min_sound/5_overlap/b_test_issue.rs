@@ -1,4 +1,4 @@
-use std::fs::write;
+use std::fs::{read_to_string, write};
 use std::io;
 use std::ops::RangeInclusive;
 
@@ -131,9 +131,7 @@ fn test_require_task() -> Result<(), io::Error> {
   // 2) Require `ToLower` again and assert that no tasks are executed because all dependencies are consistent:
   // → ToLower
   //   ? ReadFile
-  //     → ReadFile
-  //       ✓ `file`
-  //     ← Ok(String("HELLO WORLD!"))
+  //     ✓ `file`
   //   ✓ ReadFile
   // ← Ok(String("hello world!"))
   // 🏁
@@ -146,12 +144,10 @@ fn test_require_task() -> Result<(), io::Error> {
   // 3) Require `ToLower` and assert that both tasks are re-executed in reverse dependency order:
   // → ToLower
   //   ? ReadFile
-  //     → ReadFile
-  //       ✗ `file` [inconsistent: modified file stamp change]
-  //       ▶ ReadFile [reason: `file` is inconsistent due to modified file stamp change]
-  //         - `file`
-  //       ◀ Ok(String("!DLROW OLLEH")) [note: returns a different output!]
-  //     ← Ok(String("!DLROW OLLEH"))
+  //     ✗ `file` [inconsistent: modified file stamp change]
+  //     ▶ ReadFile [reason: `file` is inconsistent due to modified file stamp change]
+  //       - `file`
+  //     ◀ Ok(String("!DLROW OLLEH")) [note: returns a different output!]
   //   ✗ ReadFile [inconsistent: equals output stamp change]
   //   ▶ ToLower [reason: ReadFile is inconsistent due to equals output stamp change]
   //     → ReadFile
@@ -200,10 +196,7 @@ fn assert_task_temporally_sound(require: &RangeInclusive<usize>, execute: &Range
   // Require and execute ends come after require and execute starts.
   assert!(require.end() > require.start());
   assert!(execute.end() > execute.start());
-  // A task is only executed if it is required.
-  // - Task execute starts should be later than their requires. 
-  assert!(execute.start() > require.start());
-  // - Task require ends should be later than their executes. 
+  // Task require ends should be later than their executes.
   assert!(require.end() > execute.end());
 }
 
@@ -249,6 +242,45 @@ fn test_no_superfluous_task_dependencies() -> Result<(), io::Error> {
     assert!(!tracker.any_execute_of(&upper));
   })?;
   assert_eq!(output.as_str(), "HELLO, WORLD!");
+
+  Ok(())
+}
+
+#[test]
+fn test_show_overlap_issue() -> Result<(), io::Error> {
+  let mut pie = test_pie();
+  let temp_dir = create_temp_dir()?;
+
+  let output_file = temp_dir.path().join("out.txt");
+
+  let ret = Return("Hi there");
+  let write_1 = WriteFile(Box::new(ret.clone()), output_file.clone(), FileStamper::Modified);
+
+  let input_file = temp_dir.path().join("in.txt");
+  write(&input_file, "Hello, World!")?;
+  let read = ReadFile(input_file.clone(), FileStamper::Modified);
+  let write_2 = WriteFile(Box::new(read.clone()), output_file.clone(), FileStamper::Modified);
+
+  let seq = Sequence(vec![write_1.clone(), write_2.clone()]);
+
+  // Require `seq`. The last writer, `write_2` (`WriteFile(ReadFile(input_file))`), wins because `Sequence` executes
+  // tasks in order.
+  pie.require(&seq)?;
+  // Assert that `output_file` contains the string from `input_file`.
+  assert_eq!(read_to_string(&output_file)?, "Hello, World!");
+
+  // Change `input_file` such that `write_2` becomes inconsistent.
+  write_until_modified(&input_file, "World, Hello?")?;
+
+  // Require `write_1` and assert that it is executed, because `write_2` modified `output_file` after `write_1`, thus
+  // `write_1`'s file dependency to `output_file` is inconsistent.
+  pie.require_then_assert_one_execute(&write_1)?;
+  // However, because we required `write_1` directly, instead of through `seq`, `output_file` contains the string that
+  // `ret` returned, even though `write_2` is inconsistent and should win.
+  assert_eq!(read_to_string(&output_file)?, "Hi there");
+  // The contents of `output_file` is thus dependent on which tasks and in which order we require them. This
+  // inconsistent behaviour is undesirable.
+  // Note: this is asserting the current behaviour, not the desired behaviour, which is to disallow this!
 
   Ok(())
 }

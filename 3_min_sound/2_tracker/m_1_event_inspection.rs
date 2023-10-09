@@ -10,16 +10,14 @@ impl<T: Task> Event<T, T::Output> {
     }
   }
 
-  /// Returns `Some(&data)` if this is a [require task start event](Event::RequireTaskStart) for `task`, or `None` 
-  /// otherwise.
+  /// Returns `Some(&data)` if this is a [require start event](Event::RequireTaskStart) for `task`, or `None` otherwise.
   pub fn match_require_task_start(&self, task: &T) -> Option<&RequireTaskStart<T>> {
     match self {
       Event::RequireTaskStart(data) if data.task == *task => Some(data),
       _ => None,
     }
   }
-  /// Returns `Some(&data)` if this is a [require task start event](Event::RequireTaskStart) for `task`, or `None` 
-  /// otherwise.
+  /// Returns `Some(&data)` if this is a [require end event](Event::RequireTaskEnd) for `task`, or `None` otherwise.
   pub fn match_require_task_end(&self, task: &T) -> Option<&RequireTaskEnd<T, T::Output>> {
     match self {
       Event::RequireTaskEnd(data) if data.task == *task => Some(data),
@@ -42,15 +40,14 @@ impl<T: Task> Event<T, T::Output> {
       _ => false,
     }
   }
-  /// Returns `Some(&data)` if this is a [task execute start event](Event::ExecuteStart) for `task`, or `None` 
-  /// otherwise.
+  /// Returns `Some(&data)` if this is an [execute start event](Event::ExecuteStart) for `task`, or `None` otherwise.
   pub fn match_execute_start(&self, task: &T) -> Option<&ExecuteStart<T>> {
     match self {
       Event::ExecuteStart(data) if data.task == *task => Some(data),
       _ => None,
     }
   }
-  /// Returns `Some(&data)` if this is a [task execute end event](Event::ExecuteStart) for `task`, or `None` otherwise.
+  /// Returns `Some(&data)` if this is an [execute end event](Event::ExecuteEnd) for `task`, or `None` otherwise.
   pub fn match_execute_end(&self, task: &T) -> Option<&ExecuteEnd<T, T::Output>> {
     match self {
       Event::ExecuteEnd(data) if data.task == *task => Some(data),

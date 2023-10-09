@@ -29,8 +29,8 @@
         <link rel="stylesheet" href="../../ayu-highlight.css">
 
         <!-- Custom theme stylesheets -->
-        <link rel="stylesheet" href="../../src/diff2html.min.css">
-        <link rel="stylesheet" href="../../src/mdbook-admonish.css">
+        <link rel="stylesheet" href="../.././diff2html.min.css">
+        <link rel="stylesheet" href="../.././mdbook-admonish.css">
 
     </head>
     <body>
@@ -253,14 +253,14 @@ pub trait Tracker&lt;T: Task&gt; {
   fn execute_end(&amp;mut self, task: &amp;T, output: &amp;T::Output) {}
 }</code></pre>
 <p>The <code>Tracker</code> trait is generic over <code>Task</code>.</p>
-<div id="admonition-note" class="admonition note">
+<div id="admonition-trait-bound" class="admonition admonish-note">
 <div class="admonition-title">
-<p>Note</p>
-<p><a class="admonition-anchor-link" href="#admonition-note"></a></p>
+<p>Trait Bound</p>
+<p><a class="admonition-anchor-link" href="#admonition-trait-bound"></a></p>
 </div>
 <div>
-<p>Here, we chose to put the <code>Task</code> constraint on the trait itself.
-This will not lead to cascading constraints, as the <code>Tracker</code> trait will only be used as a constraint in <code>impl</code>s, not in structs or other traits.</p>
+<p>Here, we chose to put the <code>Task</code> trait bound on the trait itself.
+This will not lead to cascading trait bounds, as the <code>Tracker</code> trait will only be used as a bound in <code>impl</code>s, not in structs or other traits.</p>
 </div>
 </div>
 <p><code>Tracker</code> has methods corresponding to events that happen during a build, such as a build starting, requiring a file, requiring a task, checking a dependency, and executing a task.
@@ -269,24 +269,25 @@ Then end variants usually have more parameters as more info is available when so
 <p>Tracker methods accept <code>&amp;mut self</code> so that tracker implementations can perform mutation, such as storing a build event.
 We provide default methods that do nothing so that implementors of <code>Tracker</code> only have to override the methods for events they are interested in.
 We use <code>#[allow(unused_variables)]</code> on the trait to not give warnings for unused variables, as all variables are unused due to the empty default implementations.</p>
-<details id="admonition-references-in-result-and-option" class="admonition info">
+<details id="admonition-rust-help-references-in-result-and-option" class="admonition admonish-tip">
 <summary class="admonition-title">
-<p>References in Result and Option</p>
-<p><a class="admonition-anchor-link" href="#admonition-references-in-result-and-option"></a></p>
+<p>Rust Help: References in Result and Option</p>
+<p><a class="admonition-anchor-link" href="#admonition-rust-help-references-in-result-and-option"></a></p>
 </summary>
 <div>
 <p>The <code>check_dependency_end</code> method accepts the inconsistency as <code>Result&lt;Option&lt;&amp;Inconsistency&lt;T::Output&gt;&gt;, &amp;io::Error&gt;</code>.
 The reason we accept it like this is that many methods in <code>Result</code> and <code>Option</code> take <code>self</code>, not <code>&amp;self</code>, and therefore cannot be called on <code>&amp;Result&lt;T, E&gt;</code> and <code>&amp;Option&lt;T&gt;</code>.</p>
-<p>We can turn <code>&amp;Result&lt;T, E&gt;</code> into <code>Result&lt;&amp;T, &amp;E&gt;</code> with <a href="https://doc.rust-lang.org/std/result/enum.Result.html#method.as_ref"><code>as_ref</code></a> (same for <code>Option</code>).
+<p>We can turn <code>&amp;Result&lt;T, E&gt;</code> into <code>Result&lt;&amp;T, &amp;E&gt;</code> with <a href="https://doc.rust-lang.org/std/result/enum.Result.html#method.as_ref" title="" target="_blank">
+<code>as_ref</code></a> (same for <code>Option</code>).
 Since trackers always want to work with <code>Result&lt;&amp;T, &amp;E&gt;</code>, it makes more sense for the caller of the tracker method to call <code>as_ref</code> to turn their result into <code>Result&lt;&amp;T, &amp;E&gt;</code>.</p>
 <p>The final reason to accept <code>Result&lt;&amp;T, &amp;E&gt;</code> is that if you have a <code>&amp;T</code> or <code>&amp;E</code>, you can easily construct a <code>Result&lt;&amp;T, &amp;E&gt;</code> with <code>Ok(&amp;t)</code> and <code>Err(&amp;e)</code>.
 However, you <em>cannot</em> construct a <code>&amp;Result&lt;T, E&gt;</code> from <code>&amp;T</code> or <code>&amp;E</code>, so <code>Result&lt;&amp;T, &amp;E&gt;</code> is a more flexible type.</p>
 </div>
 </details>
-<details id="admonition-default-methods" class="admonition info">
+<details id="admonition-are-these-default-methods-useful" class="admonition admonish-question">
 <summary class="admonition-title">
-<p>Default methods</p>
-<p><a class="admonition-anchor-link" href="#admonition-default-methods"></a></p>
+<p>Are these Default Methods Useful?</p>
+<p><a class="admonition-anchor-link" href="#admonition-are-these-default-methods-useful"></a></p>
 </summary>
 <div>
 <p>Adding a method to <code>Tracker</code> with a default implementation ensures that implementations of <code>Tracker</code> do not have to be changed to work with the new method.
@@ -304,16 +305,17 @@ In this tutorial we chose the convenient option, but be sure to think about thes
 pub struct NoopTracker;
 impl&lt;T: Task&gt; Tracker&lt;T&gt; for NoopTracker {}</code></pre>
 <p>Due to the default methods that do nothing on <code>Tracker</code>, this implementation is extremely simple. </p>
-<details id="admonition-removing-tracker-overhead" class="admonition info">
+<details id="admonition-rust-help-removing-tracker-overhead" class="admonition admonish-tip">
 <summary class="admonition-title">
-<p>Removing tracker overhead</p>
-<p><a class="admonition-anchor-link" href="#admonition-removing-tracker-overhead"></a></p>
+<p>Rust Help: Removing Tracker Overhead</p>
+<p><a class="admonition-anchor-link" href="#admonition-rust-help-removing-tracker-overhead"></a></p>
 </summary>
 <div>
 <p>We will use generics to select which tracker implementation to use.
 Therefore, all calls to trackers are statically dispatched, and could be inlined.
-Because <code>NoopTracker</code> only has empty methods, and those empty methods can be inlined, using <code>NoopTracker</code> will effectively remove all tracking code from your binary, thus removing the overhead of tracking if you don't want it.</p>
-<p>In this tutorial, we do not annotate methods with <a href="https://nnethercote.github.io/perf-book/inlining.html"><code>#[inline]</code></a>, meaning that the Rust compiler (and the LLVM backend) will make its own decisions on what to make inlineable and what not.
+Because <code>NoopTracker</code> only has empty methods, and those empty methods can be inlined, using <code>NoopTracker</code> will effectively remove all tracking code from your binary, thus removing the overhead of tracking if you don’t want it.</p>
+<p>In this tutorial, we do not annotate methods with <a href="https://nnethercote.github.io/perf-book/inlining.html" title="" target="_blank">
+<code>#[inline]</code></a>, meaning that the Rust compiler (and the LLVM backend) will make its own decisions on what to make inlineable and what not.
 If you care about performance here, be sure to annotate those default empty methods with <code>#[inline]</code>.</p>
 </div>
 </details>
@@ -418,13 +420,13 @@ If you care about performance here, be sure to annotate those default empty meth
 <p>We use <code>A</code> as the generic argument for tracker types in the source code.
 The <code>Pie</code> struct owns the tracker, similarly to how it owns the store.
 <code>Pie</code> can be created with a specific tracker with <code>with_tracker</code>, and provides access to the tracker with <code>tracker</code> and <code>tracker_mut</code>.</p>
-<details id="admonition-default-type" class="admonition info">
+<details id="admonition-rust-help-default-type" class="admonition admonish-tip">
 <summary class="admonition-title">
-<p>Default type</p>
-<p><a class="admonition-anchor-link" href="#admonition-default-type"></a></p>
+<p>Rust Help: Default Type</p>
+<p><a class="admonition-anchor-link" href="#admonition-rust-help-default-type"></a></p>
 </summary>
 <div>
-<p>We assign <code>NoopTracker</code> as the default type for trackers in <code>Pie</code>, so that no tracking is performed when we use the <code>Pie</code> type without an explicit tracker type.
+<p>We assign <code>NoopTracker</code> as the <a href="https://doc.rust-lang.org/book/ch19-03-advanced-traits.html#default-generic-type-parameters-and-operator-overloading" title="" target="_blank">default type</a> for trackers in <code>Pie</code>, so that no tracking is performed when we use the <code>Pie</code> type without an explicit tracker type.
 The <code>Default</code> implementation only works with <code>NoopTracker</code>, because we <code>impl Default for Pie&lt;T, T::Output&gt;</code>, which is equivalent to <code>impl Default for Pie&lt;T, T::Output, NoopTracker&gt;</code> due to the default type.</p>
 </div>
 </details>
@@ -565,7 +567,7 @@ Modify <code>pie/src/context/top_down.rs</code>:</p>
 </ul>
 <p>Check that the code compiles with <code>cargo test</code>.
 Existing code should keep working due to the <code>NoopTracker</code> default type in <code>Pie</code>.</p>
-<p>We won't modify <code>NonIncrementalContext</code> to use a tracker, as <code>NonIncrementalContext</code> has no state, so we cannot pass a tracker to it.</p>
+<p>We won’t modify <code>NonIncrementalContext</code> to use a tracker, as <code>NonIncrementalContext</code> has no state, so we cannot pass a tracker to it.</p>
 <h2 id="implement-writing-tracker"><a class="header" href="#implement-writing-tracker">Implement writing tracker</a></h2>
 <p>Now we can implement some interesting trackers.
 We start with a simple <code>WritingTracker</code> that writes build events to some writer.</p>
@@ -667,9 +669,9 @@ impl&lt;W: Write&gt; WritingTracker&lt;W&gt; {
 The text to write is passed into these methods using <code>std::fmt::Arguments</code> for flexibility, accepting the result of <code>format_args!</code>.
 <code>WritingTracker</code> keeps track of <code>indentation</code> to show recursive dependency checking and execution, which is controlled with <code>indent</code> and <code>unindent</code>.
 Since we are usually writing to buffers, we must <code>flush</code> them to observe the output.</p>
-<details id="admonition-failing-writes" class="admonition info">
+<details id="admonition-failing-writes" class="admonition admonish-note">
 <summary class="admonition-title">
-<p>Failing writes</p>
+<p>Failing Writes</p>
 <p><a class="admonition-anchor-link" href="#admonition-failing-writes"></a></p>
 </summary>
 <div>
@@ -680,13 +682,15 @@ You could store the latest write error and give access to it, which at least all
 This in turn because <code>TopDownContext</code> does not return <code>Result</code> for <code>require_task</code> due to the trade-offs discussed in the section on <code>TopDownContext</code>.</p>
 </div>
 </details>
-<details id="admonition-saturating-arithmetic" class="admonition info">
+<details id="admonition-rust-help-saturating-arithmetic" class="admonition admonish-tip">
 <summary class="admonition-title">
-<p>Saturating arithmetic</p>
-<p><a class="admonition-anchor-link" href="#admonition-saturating-arithmetic"></a></p>
+<p>Rust Help: Saturating Arithmetic</p>
+<p><a class="admonition-anchor-link" href="#admonition-rust-help-saturating-arithmetic"></a></p>
 </summary>
 <div>
-<p>We use <code>saturating_add</code> and <code>saturating_sub</code> for safety, which are saturating arithmetic operations that saturate at the numeric bounds instead of overflowing.
+<p>We use <a href="https://doc.rust-lang.org/stable/std/primitive.u32.html#method.saturating_add" title="" target="_blank">
+<code>saturating_add</code></a> and <a href="https://doc.rust-lang.org/stable/std/primitive.u32.html#method.saturating_sub" title="" target="_blank">
+<code>saturating_sub</code></a> for safety, which are saturating arithmetic operations that saturate at the numeric bounds instead of overflowing.
 For example, <code>0u32.saturating_sub(1)</code> will result in <code>0</code> instead of overflowing into <code>4294967295</code>.</p>
 <p>These saturating operations are not really needed when calls to <code>indent</code> and <code>unindent</code> are balanced.
 However, if we make a mistake, it is better to write no indentation than to write 4294967295 spaces of indentation.</p>
@@ -786,7 +790,7 @@ In <code>check_dependency_end</code> we write the old and new stamps if a depend
 <p>This tracker is very verbose.
 You can add configuration booleans to control what should be written, but in this tutorial we will keep it simple like this.</p>
 <p>Check that the code compiles with <code>cargo test</code>.</p>
-<p>Let's try out our writing tracker in the incrementality example by modifying <code>pie/examples/incremental.rs</code>:</p>
+<p>Let’s try out our writing tracker in the incrementality example by modifying <code>pie/examples/incremental.rs</code>:</p>
 <div class="diff2html" id="diff2html_4"></div>
 <script>
   document.addEventListener('DOMContentLoaded', function () {
@@ -834,55 +838,55 @@ You can add configuration booleans to control what should be written, but in thi
 <p>We remove the <code>println!</code> statements from tasks and create <code>Pie</code> with <code>WritingTracker</code>.
 Now run the example with <code>cargo run --example incremental</code>, and you should see the writing tracker print to standard output:</p>
 <pre><code>   Compiling pie v0.1.0 (/pie)
-    Finished dev [unoptimized + debuginfo] target(s) in 0.60s
+    Finished dev [unoptimized + debuginfo] target(s) in 0.76s
      Running `/pie/target/debug/examples/incremental`
 A) New task: expect `read_task` to execute
-→ ReadStringFromFile(&quot;/tmp/.tmp4dJCfh/input.txt&quot;, Modified)
- ▶ ReadStringFromFile(&quot;/tmp/.tmp4dJCfh/input.txt&quot;, Modified)
-  - /tmp/.tmp4dJCfh/input.txt
+→ ReadStringFromFile(&quot;/tmp/.tmp8WvZjK/input.txt&quot;, Modified)
+ ▶ ReadStringFromFile(&quot;/tmp/.tmp8WvZjK/input.txt&quot;, Modified)
+  - /tmp/.tmp8WvZjK/input.txt
  ◀ Ok(&quot;Hi&quot;)
 ← Ok(&quot;Hi&quot;)
 🏁
 
 B) Reuse: expect no execution
-→ ReadStringFromFile(&quot;/tmp/.tmp4dJCfh/input.txt&quot;, Modified)
- ✓ /tmp/.tmp4dJCfh/input.txt
+→ ReadStringFromFile(&quot;/tmp/.tmp8WvZjK/input.txt&quot;, Modified)
+ ✓ /tmp/.tmp8WvZjK/input.txt
 ← Ok(&quot;Hi&quot;)
 🏁
 
 C) Inconsistent file dependency: expect `read_task` to execute
-→ ReadStringFromFile(&quot;/tmp/.tmp4dJCfh/input.txt&quot;, Modified)
- ✗ /tmp/.tmp4dJCfh/input.txt (old: Modified(Some(SystemTime { tv_sec: 1696602034, tv_nsec: 804923575 })) ≠ new: Modified(Some(SystemTime { tv_sec: 1696602034, tv_nsec: 808923565 })))
- ▶ ReadStringFromFile(&quot;/tmp/.tmp4dJCfh/input.txt&quot;, Modified)
-  - /tmp/.tmp4dJCfh/input.txt
+→ ReadStringFromFile(&quot;/tmp/.tmp8WvZjK/input.txt&quot;, Modified)
+ ✗ /tmp/.tmp8WvZjK/input.txt (old: Modified(Some(SystemTime { tv_sec: 1696860215, tv_nsec: 285296314 })) ≠ new: Modified(Some(SystemTime { tv_sec: 1696860215, tv_nsec: 289296381 })))
+ ▶ ReadStringFromFile(&quot;/tmp/.tmp8WvZjK/input.txt&quot;, Modified)
+  - /tmp/.tmp8WvZjK/input.txt
  ◀ Ok(&quot;Hello&quot;)
 ← Ok(&quot;Hello&quot;)
 🏁
 
 D) Different tasks: expect `read_task_b_modified` and `read_task_b_exists` to execute
-→ ReadStringFromFile(&quot;/tmp/.tmp4dJCfh/input_b.txt&quot;, Modified)
- ▶ ReadStringFromFile(&quot;/tmp/.tmp4dJCfh/input_b.txt&quot;, Modified)
-  - /tmp/.tmp4dJCfh/input_b.txt
+→ ReadStringFromFile(&quot;/tmp/.tmp8WvZjK/input_b.txt&quot;, Modified)
+ ▶ ReadStringFromFile(&quot;/tmp/.tmp8WvZjK/input_b.txt&quot;, Modified)
+  - /tmp/.tmp8WvZjK/input_b.txt
  ◀ Ok(&quot;Test&quot;)
 ← Ok(&quot;Test&quot;)
 🏁
-→ ReadStringFromFile(&quot;/tmp/.tmp4dJCfh/input_b.txt&quot;, Exists)
- ▶ ReadStringFromFile(&quot;/tmp/.tmp4dJCfh/input_b.txt&quot;, Exists)
-  - /tmp/.tmp4dJCfh/input_b.txt
+→ ReadStringFromFile(&quot;/tmp/.tmp8WvZjK/input_b.txt&quot;, Exists)
+ ▶ ReadStringFromFile(&quot;/tmp/.tmp8WvZjK/input_b.txt&quot;, Exists)
+  - /tmp/.tmp8WvZjK/input_b.txt
  ◀ Ok(&quot;Test&quot;)
 ← Ok(&quot;Test&quot;)
 🏁
 
 E) Different stampers: expect only `read_task_b_modified` to execute
-→ ReadStringFromFile(&quot;/tmp/.tmp4dJCfh/input_b.txt&quot;, Modified)
- ✗ /tmp/.tmp4dJCfh/input_b.txt (old: Modified(Some(SystemTime { tv_sec: 1696602034, tv_nsec: 808923565 })) ≠ new: Modified(Some(SystemTime { tv_sec: 1696602034, tv_nsec: 812923555 })))
- ▶ ReadStringFromFile(&quot;/tmp/.tmp4dJCfh/input_b.txt&quot;, Modified)
-  - /tmp/.tmp4dJCfh/input_b.txt
+→ ReadStringFromFile(&quot;/tmp/.tmp8WvZjK/input_b.txt&quot;, Modified)
+ ✗ /tmp/.tmp8WvZjK/input_b.txt (old: Modified(Some(SystemTime { tv_sec: 1696860215, tv_nsec: 289296381 })) ≠ new: Modified(Some(SystemTime { tv_sec: 1696860215, tv_nsec: 293296447 })))
+ ▶ ReadStringFromFile(&quot;/tmp/.tmp8WvZjK/input_b.txt&quot;, Modified)
+  - /tmp/.tmp8WvZjK/input_b.txt
  ◀ Ok(&quot;Test Test&quot;)
 ← Ok(&quot;Test Test&quot;)
 🏁
-→ ReadStringFromFile(&quot;/tmp/.tmp4dJCfh/input_b.txt&quot;, Exists)
- ✓ /tmp/.tmp4dJCfh/input_b.txt
+→ ReadStringFromFile(&quot;/tmp/.tmp8WvZjK/input_b.txt&quot;, Exists)
+ ✓ /tmp/.tmp8WvZjK/input_b.txt
 ← Ok(&quot;Test&quot;)
 🏁
 </code></pre>
@@ -1035,7 +1039,7 @@ We also store the index of every event, so we can easily check whether an event 
 When a new build starts, we clear the events.</p>
 <p>Now we will add code to inspect the build events.
 This is quite a bit of code that we will be using in integration testing to test incrementality and soundness.
-We'll add in just two steps to keep the tutorial going, and we will use this code in the next section, but feel free to take some time to inspect the code.</p>
+We’ll add in just two steps to keep the tutorial going, and we will use this code in the next section, but feel free to take some time to inspect the code.</p>
 <p>First we add some methods to <code>Event</code> to make finding the right event and getting its data easier for the rest of the code.
 Add the following code to <code>pie/src/tracker/event.rs</code>:</p>
 <pre><code class="language-rust ">impl&lt;T: Task&gt; Event&lt;T, T::Output&gt; {
@@ -1049,16 +1053,14 @@ Add the following code to <code>pie/src/tracker/event.rs</code>:</p>
     }
   }
 
-  /// Returns `Some(&amp;data)` if this is a [require task start event](Event::RequireTaskStart) for `task`, or `None` 
-  /// otherwise.
+  /// Returns `Some(&amp;data)` if this is a [require start event](Event::RequireTaskStart) for `task`, or `None` otherwise.
   pub fn match_require_task_start(&amp;self, task: &amp;T) -&gt; Option&lt;&amp;RequireTaskStart&lt;T&gt;&gt; {
     match self {
       Event::RequireTaskStart(data) if data.task == *task =&gt; Some(data),
       _ =&gt; None,
     }
   }
-  /// Returns `Some(&amp;data)` if this is a [require task start event](Event::RequireTaskStart) for `task`, or `None` 
-  /// otherwise.
+  /// Returns `Some(&amp;data)` if this is a [require end event](Event::RequireTaskEnd) for `task`, or `None` otherwise.
   pub fn match_require_task_end(&amp;self, task: &amp;T) -&gt; Option&lt;&amp;RequireTaskEnd&lt;T, T::Output&gt;&gt; {
     match self {
       Event::RequireTaskEnd(data) if data.task == *task =&gt; Some(data),
@@ -1081,15 +1083,14 @@ Add the following code to <code>pie/src/tracker/event.rs</code>:</p>
       _ =&gt; false,
     }
   }
-  /// Returns `Some(&amp;data)` if this is a [task execute start event](Event::ExecuteStart) for `task`, or `None` 
-  /// otherwise.
+  /// Returns `Some(&amp;data)` if this is an [execute start event](Event::ExecuteStart) for `task`, or `None` otherwise.
   pub fn match_execute_start(&amp;self, task: &amp;T) -&gt; Option&lt;&amp;ExecuteStart&lt;T&gt;&gt; {
     match self {
       Event::ExecuteStart(data) if data.task == *task =&gt; Some(data),
       _ =&gt; None,
     }
   }
-  /// Returns `Some(&amp;data)` if this is a [task execute end event](Event::ExecuteStart) for `task`, or `None` otherwise.
+  /// Returns `Some(&amp;data)` if this is an [execute end event](Event::ExecuteEnd) for `task`, or `None` otherwise.
   pub fn match_execute_end(&amp;self, task: &amp;T) -&gt; Option&lt;&amp;ExecuteEnd&lt;T, T::Output&gt;&gt; {
     match self {
       Event::ExecuteEnd(data) if data.task == *task =&gt; Some(data),
@@ -1242,7 +1243,7 @@ impl&lt;T: Task, A1: Tracker&lt;T&gt;, A2: Tracker&lt;T&gt;&gt; Tracker&lt;T&gt;
 Its tuple fields are <code>pub</code> so it can be constructed with <code>CompositeTracker(t1, t2)</code> and the contained trackers can be accessed with <code>c.0</code> and <code>c.1</code>.</p>
 <p>Check that the code compiles with <code>cargo test</code>.</p>
 <p>Now that the build event tracking infrastructure is in place, we can start integration testing!</p>
-<details id="admonition-download-source-code" class="admonition example">
+<details id="admonition-download-source-code" class="admonition admonish-example">
 <summary class="admonition-title">
 <p>Download source code</p>
 <p><a class="admonition-anchor-link" href="#admonition-download-source-code"></a></p>
@@ -1298,7 +1299,7 @@ Its tuple fields are <code>pub</code> so it can be constructed with <code>Compos
         <script src="../../book.js"></script>
 
         <!-- Custom JS scripts -->
-        <script src="../../src/diff2html-ui-base.min.js"></script>
+        <script src="../.././diff2html-ui-base.min.js"></script>
 
 
     </div>

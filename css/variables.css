@@ -44,6 +44,8 @@
   --code-ins-bg: rgb(171, 242, 188);
   --code-del-line-bg: rgb(255, 235, 233);
   --code-del-bg: rgb(255, 205, 205);
+  --code-change-line-bg: rgb(253, 242, 208);
+  --code-change-bg: rgb(253, 242, 208);
 
   --table-border-color: hsl(0, 0%, 80%);
   --table-header-bg: hsl(0, 0%, 95%);
@@ -93,6 +95,8 @@
   --code-ins-bg: rgb(41, 87, 50);
   --code-del-line-bg: rgb(59, 42, 42);
   --code-del-bg: rgb(59, 42, 42);
+  --code-change-line-bg: rgb(128, 122, 105);
+  --code-change-bg: rgb(128, 122, 105);
 
   --table-border-color: hsl(210, 25%, 50%);
   --table-header-bg: hsl(210, 25%, 25%);

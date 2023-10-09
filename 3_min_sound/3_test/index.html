@@ -29,8 +29,8 @@
         <link rel="stylesheet" href="../../ayu-highlight.css">
 
         <!-- Custom theme stylesheets -->
-        <link rel="stylesheet" href="../../src/diff2html.min.css">
-        <link rel="stylesheet" href="../../src/mdbook-admonish.css">
+        <link rel="stylesheet" href="../.././diff2html.min.css">
+        <link rel="stylesheet" href="../.././mdbook-admonish.css">
 
     </head>
     <body>
@@ -178,17 +178,17 @@
                         <h1 id="integration-testing"><a class="header" href="#integration-testing">Integration Testing</a></h1>
 <h2 id="testing-utilities"><a class="header" href="#testing-utilities">Testing utilities</a></h2>
 <p>First we start by adding testing utilities (it never ends, does it?) that will make writing integration tests more convenient.
-Unfortunately, we can't use <code>dev_shared</code> for this, as we would need to add a dependency to from <code>dev_shared</code> to <code>pie</code>, resulting in a dependency cycle because <code>pie</code> depends on <code>dev_shared</code>.</p>
-<details id="admonition-development-dependency-cycle" class="admonition info">
+Unfortunately, we can’t use <code>dev_shared</code> for this, as we would need to add a dependency to from <code>dev_shared</code> to <code>pie</code>, resulting in a dependency cycle because <code>pie</code> depends on <code>dev_shared</code>.</p>
+<details id="admonition-development-dependency-cycle" class="admonition admonish-note">
 <summary class="admonition-title">
-<p>Development dependency cycle</p>
+<p>Development Dependency Cycle</p>
 <p><a class="admonition-anchor-link" href="#admonition-development-dependency-cycle"></a></p>
 </summary>
 <div>
 <p>If you would create this cycle, the code would still compile, but there would be 2 different instances of <code>pie</code> at the same time: one with unit testing enabled (<code>#[cfg(test)]</code>), and one without.
 Even though these libraries are very similar, they are effectively 2 completely different libraries.
 When <code>pie</code> uses code from <code>dev_shared</code> that depends again on <code>pie</code>, then there will be errors about types and traits not matching.</p>
-<p>This is <a href="https://github.com/rust-lang/cargo/issues/6765">probably a bug in cargo</a>, or at least undesired behaviour. 
+<p>This is <a href="https://github.com/rust-lang/cargo/issues/6765" title="" target="_blank">probably a bug in cargo</a>, or at least undesired behaviour. 
 It should allow this cycle and make it work correctly, or disallow it.</p>
 </div>
 </details>
@@ -262,13 +262,16 @@ This is very convenient for integration testing, as most tests will follow the p
 <li><code>require_then_assert_one_execute</code> which does the same but asserts that it has been executed exactly once.</li>
 </ul>
 <p>We implement <code>TestPieExt</code> for <code>TestPie</code> so that we can call <code>require_then_assert</code> on any <code>TestPie</code> instance.</p>
-<details id="admonition-extension-trait" class="admonition info">
+<details id="admonition-rust-help-extension-trait" class="admonition admonish-tip">
 <summary class="admonition-title">
-<p>Extension trait</p>
-<p><a class="admonition-anchor-link" href="#admonition-extension-trait"></a></p>
+<p>Rust Help: Extension Trait</p>
+<p><a class="admonition-anchor-link" href="#admonition-rust-help-extension-trait"></a></p>
 </summary>
 <div>
-<p>Extension traits are a pattern in Rust where we can add methods to an existing type via an extension trait and an implementation of the extension trait for the existing type.</p>
+<p>Rust does not allow adding methods to an existing type/trait to ensure forward compatibility.
+For example, if your library could add a method <code>foo</code> to <code>String</code>, but in a later Rust version the <code>String::foo</code> method would be added to the standard library, then all users of your library will run into an ambiguity and fail to compile.</p>
+<p>Extension traits are a pattern in Rust where we can add methods to an existing type via a trait (typically named <code>TraitExt</code>) and an implementation of that trait for the existing type.
+Because the extension trait must be imported to make the methods available to the current module, this can only cause compatibility issues if the trait is actually imported.</p>
 </div>
 </details>
 <p>We still need to define a task for testing.
@@ -309,7 +312,7 @@ We implement <code>From&lt;String&gt;</code> for <code>TestOutput</code> so we c
 <code>as_str</code> performs the opposite operation.</p>
 <p>Check that the code compiles with <code>cargo test</code>.</p>
 <h2 id="first-integration-test"><a class="header" href="#first-integration-test">First integration test</a></h2>
-<p>Now we're ready to test incrementality and soundness of the top-down incremental context through integration tests.
+<p>Now we’re ready to test incrementality and soundness of the top-down incremental context through integration tests.
 Create the <code>pie/src/tests/top_down.rs</code> file and add to it:</p>
 <pre><code class="language-rust ">use std::io;
 
@@ -337,7 +340,8 @@ fn test_execution() -&gt; Result&lt;(), io::Error&gt; {
 }</code></pre>
 <p>In this first <code>test_execution</code> test we are just making sure that new tasks are executed, assert that the order of operations is correct, and check the task output.
 We use <code>require_then_assert</code> to require the task and then perform assertions through a closure.
-We're using <code>tracker.slice()</code> to get a slice of all build events, and assert (using <a href="https://docs.rs/assert_matches/latest/assert_matches/macro.assert_matches.html"><code>assert_matches!</code></a> again) that the following operations happen in order:</p>
+We’re using <code>tracker.slice()</code> to get a slice of all build events, and assert (using <a href="https://docs.rs/assert_matches/latest/assert_matches/macro.assert_matches.html" title="" target="_blank">
+<code>assert_matches!</code></a> again) that the following operations happen in order:</p>
 <ul>
 <li>start requiring <code>task</code>,</li>
 <li>start executing <code>task</code>,</li>
@@ -348,15 +352,15 @@ We're using <code>tracker.slice()</code> to get a slice of all build events, and
 Finally, we assert that the output equals what we expect.</p>
 <p>Check that this test succeeds with <code>cargo test</code>.
 To see what test failures look like, temporarily change <code>events.get(2)</code> to <code>events.get(3)</code> for example.</p>
-<details id="admonition-integration-testing-in-rust" class="admonition info">
+<details id="admonition-rust-help-integration-testing" class="admonition admonish-tip">
 <summary class="admonition-title">
-<p>Integration testing in Rust</p>
-<p><a class="admonition-anchor-link" href="#admonition-integration-testing-in-rust"></a></p>
+<p>Rust Help: Integration Testing</p>
+<p><a class="admonition-anchor-link" href="#admonition-rust-help-integration-testing"></a></p>
 </summary>
 <div>
-<p><a href="https://doc.rust-lang.org/rust-by-example/testing/integration_testing.html">Integration tests</a> in Rust are for testing whether the different parts of your library work together correctly.
+<p><a href="https://doc.rust-lang.org/rust-by-example/testing/integration_testing.html" title="" target="_blank">Integration tests</a> in Rust are for testing whether the different parts of your library work together correctly.
 Integration tests have access to the public API of your crate.</p>
-<p>In this <code>top_down.rs</code> integration test file, we're importing <code>common/mod.rs</code> by creating a module for it via <code>mod common;</code>.
+<p>In this <code>top_down.rs</code> integration test file, we’re importing <code>common/mod.rs</code> by creating a module for it via <code>mod common;</code>.
 If we create another integration testing file, we would again create a module for it in that integration testing file.
 This is because every file in the <code>tests</code> directory is compiled as a separate crate, and can basically be seen as a separate <code>lib.rs</code> or <code>main.rs</code> file.</p>
 <p>Putting the testing utilities behind a <code>common</code> directory ensures that it will not be compiled as a separate integration testing crate.</p>
@@ -365,7 +369,7 @@ This is because every file in the <code>tests</code> directory is compiled as a 
 <h2 id="testing-incrementality-and-soundness"><a class="header" href="#testing-incrementality-and-soundness">Testing incrementality and soundness</a></h2>
 <p>We will now test incrementality and soundness.</p>
 <h3 id="no-dependencies"><a class="header" href="#no-dependencies">No dependencies</a></h3>
-<p>Let's first test that requiring a task without dependencies twice, only executes it once.
+<p>Let’s first test that requiring a task without dependencies twice, only executes it once.
 Add the following test to <code>pie/src/tests/top_down.rs</code>:</p>
 <pre><code class="language-rust ">#[test]
 fn test_reuse() -&gt; Result&lt;(), io::Error&gt; {
@@ -378,25 +382,25 @@ fn test_reuse() -&gt; Result&lt;(), io::Error&gt; {
   pie.require_then_assert_no_execute(&amp;task)?;
   Ok(())
 }</code></pre>
-<p>We're using <code>require</code> and <code>require_then_assert_no_execute</code> from <code>TestPieExt</code> which require the same task twice, in two different sessions.
+<p>We’re using <code>require</code> and <code>require_then_assert_no_execute</code> from <code>TestPieExt</code> which require the same task twice, in two different sessions.
 Since <code>Return</code> has no dependencies, it should only ever be executed once, after which its output is cached for all eternity.</p>
 <p>Check that this test succeeds with <code>cargo test</code>.</p>
-<div id="admonition-reading-standard-output-from-tests" class="admonition info">
+<div id="admonition-rust-help-reading-standard-output-from-tests" class="admonition admonish-tip">
 <div class="admonition-title">
-<p>Reading standard output from tests</p>
-<p><a class="admonition-anchor-link" href="#admonition-reading-standard-output-from-tests"></a></p>
+<p>Rust Help: Reading Standard Output from Tests</p>
+<p><a class="admonition-anchor-link" href="#admonition-rust-help-reading-standard-output-from-tests"></a></p>
 </div>
 <div>
-<p>Cargo runs tests in parallel by default, which is good to run all tests as fast as possible (and it's also safe due to Rust's memory-safety and thread-safety guarantees!)
+<p>Cargo runs tests in parallel by default, which is good to run all tests as fast as possible (and it’s also safe due to Rust’s memory-safety and thread-safety guarantees!)
 However, this mixes the standard outputs of all tests, which makes reading the build log from our writing tracker impossible.
 If you want to see the standard output, either:</p>
 <ul>
-<li>Run tests <a href="https://doc.rust-lang.org/book/ch11-02-running-tests.html#running-tests-in-parallel-or-consecutively">consecutively</a> with: <code>cargo test -- --test-threads=1</code></li>
-<li>Run a <a href="https://doc.rust-lang.org/book/ch11-02-running-tests.html#running-single-tests">single test</a> in the <code>top_down</code> integration test file with: <code>cargo test --test top_down test_reuse</code></li>
+<li>Run tests <a href="https://doc.rust-lang.org/book/ch11-02-running-tests.html#running-tests-in-parallel-or-consecutively" title="" target="_blank">consecutively</a> with: <code>cargo test -- --test-threads=1</code></li>
+<li>Run a <a href="https://doc.rust-lang.org/book/ch11-02-running-tests.html#running-single-tests" title="" target="_blank">single test</a> in the <code>top_down</code> integration test file with: <code>cargo test --test top_down test_reuse</code></li>
 </ul>
 <p>The second command should result in something like:</p>
 <pre><code>    Finished test [unoptimized + debuginfo] target(s) in 0.02s
-     Running tests/top_down.rs (/pie/target/debug/deps/top_down-f3ccd54b22b9bd68)
+     Running tests/top_down.rs (/pie/target/debug/deps/top_down-42542c8e62e3a02e)
 
 running 1 test
 → Return(&quot;Hello, World!&quot;)
@@ -447,7 +451,7 @@ Therefore, we need to add a task that has dependencies.</p>
        TestTask::Return(string) => Ok(string.to_string().into()),
 +      TestTask::ReadFile(path, stamper) => {
 +        let mut string = String::new();
-+        if let Some(mut file) = context.require_file_with_stamper(&path, *stamper).map_err(|e| e.kind())? {
++        if let Some(mut file) = context.require_file_with_stamper(path, *stamper).map_err(|e| e.kind())? {
 +          file.read_to_string(&mut string).map_err(|e| e.kind())?;
 +        }
 +        Ok(string.into())
@@ -559,8 +563,8 @@ It is a new task because its stamper is different, and it is not re-executed whe
 But for testing purposes, this is fine. </p>
 <p>Check that this test succeeds with <code>cargo test</code>.</p>
 <h3 id="testing-task-dependencies"><a class="header" href="#testing-task-dependencies">Testing task dependencies</a></h3>
-<p>Now it's time to test the more complicated task dependencies.
-For that, we'll implement a task that depends on another task.
+<p>Now it’s time to test the more complicated task dependencies.
+For that, we’ll implement a task that depends on another task.
 Modify <code>pie/src/tests/common/mod.rs</code>:</p>
 <div class="diff2html" id="diff2html_2"></div>
 <script>
@@ -575,13 +579,7 @@ Modify <code>pie/src/tests/common/mod.rs</code>:</p>
  }
  impl Task for TestTask {
    type Output = Result<TestOutput, ErrorKind>;
-@@ -71,11 +72,15 @@
-       TestTask::Return(string) => Ok(string.to_string().into()),
-       TestTask::ReadFile(path, stamper) => {
-         let mut string = String::new();
--        if let Some(mut file) = context.require_file_with_stamper(&path, *stamper).map_err(|e| e.kind())? {
-+        if let Some(mut file) = context.require_file_with_stamper(path, *stamper).map_err(|e| e.kind())? {
-           file.read_to_string(&mut string).map_err(|e| e.kind())?;
+@@ -76,6 +77,10 @@
          }
          Ok(string.into())
        }
@@ -618,10 +616,10 @@ Modify <code>pie/src/tests/common/mod.rs</code>:</p>
 </script>
 <p>We add a <code>ToLower</code> task that requires another task (stored as <code>Box&lt;TestTask&gt;</code>) to get a <code>String</code>, which it then converts to lower case.
 We also add the <code>into_string</code> method to <code>TestOutput</code> for conveniently getting an owned <code>String</code> from a <code>TestOutput</code>.</p>
-<details id="admonition-boxing-to-prevent-cyclic-size-calculation" class="admonition info">
+<details id="admonition-rust-help-boxing-to-prevent-cyclic-size-calculation" class="admonition admonish-tip">
 <summary class="admonition-title">
-<p>Boxing to prevent cyclic size calculation</p>
-<p><a class="admonition-anchor-link" href="#admonition-boxing-to-prevent-cyclic-size-calculation"></a></p>
+<p>Rust Help: Boxing to Prevent Cyclic Size Calculation</p>
+<p><a class="admonition-anchor-link" href="#admonition-rust-help-boxing-to-prevent-cyclic-size-calculation"></a></p>
 </summary>
 <div>
 <p>We store the string providing task as <code>Box&lt;TestTask&gt;</code> in order to prevent cyclic size calculation, which would cause <code>TestTask</code> to have an undetermined size.
@@ -631,11 +629,11 @@ This is due to several reasons:</p>
 <li>The size of an <code>enum</code> is the size of the largest variant.</li>
 <li>The size of a struct is the sum of the size of the fields.</li>
 </ul>
-<p>If we don't box the task, to calculate the size of the <code>ToLower</code> enum variant, we need to calculate the size of <code>TestTask</code>, which would require calculating the size of the <code>ToLower</code> variant, and so forth.
-Therefore, we can't calulate the size of <code>ToLower</code> nor <code>TestTask</code>, which is an error.</p>
+<p>If we don’t box the task, to calculate the size of the <code>ToLower</code> enum variant, we need to calculate the size of <code>TestTask</code>, which would require calculating the size of the <code>ToLower</code> variant, and so forth.
+Therefore, we can’t calulate the size of <code>ToLower</code> nor <code>TestTask</code>, which is an error.</p>
 <p>Boxing solves this because <code>Box&lt;TestTask&gt;</code> allocates a <code>TestTask</code> on the heap, and then creates a pointer to it.
 Therefore, the size of <code>Box&lt;TestTask&gt;</code> is the size of one pointer, breaking the cycle in the size calculations.</p>
-<p>Note that this explanation <a href="https://doc.rust-lang.org/nomicon/exotic-sizes.html">simplifies many aspects of Rust's size calculation</a>.</p>
+<p>Note that this explanation <a href="https://doc.rust-lang.org/nomicon/exotic-sizes.html" title="" target="_blank">simplifies many aspects of Rust’s size calculation</a>.</p>
 </div>
 </details>
 <p>Now add a test to <code>pie/src/tests/top_down.rs</code>: </p>
@@ -680,7 +678,7 @@ In this test, we want to test three properties:</p>
 <ol>
 <li>When we require <code>lower</code> for the first time, it will require <code>read</code>, which will require <code>file</code>, <code>read</code> will return the contents of <code>file</code> as a string, and <code>lower</code> will turn that string into lowercase and return it. </li>
 <li>When we require <code>lower</code> when <code>file</code> has not been changed, no task is executed.</li>
-<li>When we require <code>lower</code> when <code>file</code>'s contents <em>have changed</em>, then first <code>read</code> must be executed, and then <code>lower</code> must be executed with the output of <code>read</code>.</li>
+<li>When we require <code>lower</code> when <code>file</code>’s contents <em>have changed</em>, then first <code>read</code> must be executed, and then <code>lower</code> must be executed with the output of <code>read</code>.</li>
 </ol>
 <h4 id="initial-require"><a class="header" href="#initial-require">Initial require</a></h4>
 <p>Test the first property by adding the following code to <code>pie/src/tests/top_down.rs</code>:</p>
@@ -907,9 +905,9 @@ Add the following code to <code>pie/src/tests/top_down.rs</code>:</p>
     diff2htmlUi.draw();
   });
 </script>
-<p>We first change the <code>file</code> contents such that <code>read</code>'s <code>file</code> dependency becomes inconsistent, and then require <code>lower</code> again.
+<p>We first change the <code>file</code> contents such that <code>read</code>’s <code>file</code> dependency becomes inconsistent, and then require <code>lower</code> again.
 In the <code>require_then_assert</code> block we first assert that both tasks are required and executed, <code>file</code> is required, and perform sanity checks again.</p>
-<p>Now let's go back to the build log in the comment, which is lot more complicated this time due to recursive consistency checking. The gist is:</p>
+<p>Now let’s go back to the build log in the comment, which is lot more complicated this time due to recursive consistency checking. The gist is:</p>
 <ul>
 <li>To check if <code>lower</code> should be executed, we check its dependencies: a task dependency to <code>read</code>.
 <ul>
@@ -917,7 +915,7 @@ In the <code>require_then_assert</code> block we first assert that both tasks ar
 <li><code>read</code> executes and now returns <code>&quot;!DLROW OLLEH&quot;</code> instead of <code>&quot;HELLO WORLD!&quot;</code>.</li>
 </ul>
 </li>
-<li>Then we are back to checking <code>lower</code>'s task dependency to <code>read</code>, which is inconsistent because <code>read</code> returns a different value, which is inconsistent due to the equals output stamper. </li>
+<li>Then we are back to checking <code>lower</code>’s task dependency to <code>read</code>, which is inconsistent because <code>read</code> returns a different value, which is inconsistent due to the equals output stamper. </li>
 <li>Thus, we execute <code>lower</code> which requires <code>read</code>.</li>
 <li>We can skip checking <code>read</code> because we already checked and executed it: it is deemed consistent this session. We immediately return its output <code>&quot;!DLROW OLLEH&quot;</code> to <code>lower</code>.</li>
 <li><code>lower</code> turns the string lowercase and returns it.</li>
@@ -927,10 +925,10 @@ This is important for incrementality because if <code>read</code> had not return
 We test this property with the last 3 assertions in the <code>require_then_assert</code> block.</p>
 <p>Finally, we assert that the output is <code>&quot;!dlrow olleh&quot;</code> as expected.
 Confirm that this test succeeds with <code>cargo test</code>.</p>
-<p>Now that we're testing task dependencies anyway, let's also test a fourth property: the early cutoff behaviour.</p>
+<p>Now that we’re testing task dependencies anyway, let’s also test a fourth property: the early cutoff behaviour.</p>
 <h4 id="early-cutoff"><a class="header" href="#early-cutoff">Early cutoff</a></h4>
 <p>Early cutoff can happen in this test when <code>read</code> is re-executed due to its file dependency being inconsistent (modified file stamp change), but returns the same output as last time.
-In that case, we don't have to execute <code>lower</code> because its task dependency to <code>read</code> is still consistent (equals output stamp is the same).
+In that case, we don’t have to execute <code>lower</code> because its task dependency to <code>read</code> is still consistent (equals output stamp is the same).
 We can trigger this case in this test by changing <code>file</code> such that its last modified date changes, but its contents stay the same.</p>
 <p>Add the following code to <code>pie/src/tests/top_down.rs</code>:</p>
 <div class="diff2html" id="diff2html_7"></div>
@@ -948,7 +946,7 @@ We can trigger this case in this test by changing <code>file</code> such that it
 +  let output = pie.require_then_assert(&lower, |tracker| {
 +    // ${"`"}ReadFile${"`"} needs to be executed due to its ${"`"}file${"`"} dependency being inconsistent (modified stamp changed).
 +    assert!(tracker.one_execute_of(&read));
-+    // ${"`"}Lower${"`"} is not executed, because its task dependency to ${"`"}ReadFile${"`"} is consistent (equals stamp is the same).
++    // ${"`"}ToLower${"`"} is not executed, because its task dependency to ${"`"}ReadFile${"`"} is consistent (equals stamp is the same).
 +    assert!(!tracker.any_execute_of(&lower));
 +  })?;
 +  assert_eq!(output.as_str(), "!dlrow olleh");
@@ -972,12 +970,27 @@ We can trigger this case in this test by changing <code>file</code> such that it
 </script>
 <p>We change <code>file</code> in the way we discussed, and then assert that <code>read</code> is executed, but <code>lower</code> is not.
 Confirm that this test succeeds with <code>cargo test</code>.</p>
-<p>Nice! These tests give quite some confidence that what we've been doing so far seems to be sound and incremental.
+<div id="admonition-benefits-of-early-cutoff" class="admonition admonish-info">
+<div class="admonition-title">
+<p>Benefits of Early Cutoff</p>
+<p><a class="admonition-anchor-link" href="#admonition-benefits-of-early-cutoff"></a></p>
+</div>
+<div>
+<p>Early cutoff is one of the great benefits of a build system with precise dynamic dependencies.
+In larger builds, it can cut off large parts of the build which do not need to be executed.</p>
+<p>In our build system, we only have the simple equals output stamper.
+But if you extend the build system with user-defined stampers (which isn’t too hard), task authors have much more control over early cutoff.
+For example, we could require a task that parses a configuration file, but use a stamper that extracts only the particular configuration option our task is using.
+Then, our task will only be re-executed if that configuration option changes.</p>
+<p>Thus, stampers can increase the precision of task dependencies, which in turn increases incrementality with early cutoff.</p>
+</div>
+</div>
+<p>Nice! These tests give quite some confidence that what we’ve been doing so far seems to be sound and incremental.
 We can (and should) of course write more tests for better coverage of the implementation.
-For example, we haven't tested tasks with multiple dependencies yet.
+For example, we haven’t tested tasks with multiple dependencies yet.
 However, in this tutorial we will move on to a couple of specific tests first, because there are several issues still hiding in our implementation: (at least) one bug, and three soundness holes.
-After we've uncovered those issues and fix them, feel free to write more tests yourself!</p>
-<details id="admonition-download-source-code" class="admonition example">
+After we’ve uncovered those issues and fix them, feel free to write more tests yourself!</p>
+<details id="admonition-download-source-code" class="admonition admonish-example">
 <summary class="admonition-title">
 <p>Download source code</p>
 <p><a class="admonition-anchor-link" href="#admonition-download-source-code"></a></p>
@@ -1033,7 +1046,7 @@ After we've uncovered those issues and fix them, feel free to write more tests y
         <script src="../../book.js"></script>
 
         <!-- Custom JS scripts -->
-        <script src="../../src/diff2html-ui-base.min.js"></script>
+        <script src="../.././diff2html-ui-base.min.js"></script>
 
 
     </div>

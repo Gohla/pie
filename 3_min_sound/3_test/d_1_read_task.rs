@@ -71,7 +71,7 @@ impl Task for TestTask {
       TestTask::Return(string) => Ok(string.to_string().into()),
       TestTask::ReadFile(path, stamper) => {
         let mut string = String::new();
-        if let Some(mut file) = context.require_file_with_stamper(&path, *stamper).map_err(|e| e.kind())? {
+        if let Some(mut file) = context.require_file_with_stamper(path, *stamper).map_err(|e| e.kind())? {
           file.read_to_string(&mut string).map_err(|e| e.kind())?;
         }
         Ok(string.into())

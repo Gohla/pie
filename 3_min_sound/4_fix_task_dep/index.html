@@ -29,8 +29,8 @@
         <link rel="stylesheet" href="../../ayu-highlight.css">
 
         <!-- Custom theme stylesheets -->
-        <link rel="stylesheet" href="../../src/diff2html.min.css">
-        <link rel="stylesheet" href="../../src/mdbook-admonish.css">
+        <link rel="stylesheet" href="../.././diff2html.min.css">
+        <link rel="stylesheet" href="../.././mdbook-admonish.css">
 
     </head>
     <body>
@@ -177,11 +177,11 @@
                     <main>
                         <h1 id="fix-superfluous-task-dependency"><a class="header" href="#fix-superfluous-task-dependency">Fix Superfluous Task Dependency</a></h1>
 <p>There is actually a massive bug in our implementation.
-If you noticed the issue while following this tutorial, you're pretty observant!
-If you didn't catch it, don't worry. 
-I actually didn't catch it either up until this point!</p>
+If you noticed the issue while following this tutorial, you’re pretty observant!
+If you didn’t catch it, don’t worry. 
+I actually didn’t catch it either up until this point!</p>
 <p>I decided to keep the bug in to show how hard it is to test incrementality and soundness.</p>
-<p>Let's start by adding another testing task which we need to uncover the bug, and then write a test that manifests the bug.</p>
+<p>Let’s start by adding another testing task which we need to uncover the bug, and then write a test that manifests the bug.</p>
 <h2 id="add-toupper-task"><a class="header" href="#add-toupper-task">Add <code>ToUpper</code> task</a></h2>
 <p>Modify <code>pie/src/tests/common/mod.rs</code> to add another task:</p>
 <div class="diff2html" id="diff2html_0"></div>
@@ -247,7 +247,7 @@ Modify <code>pie/src/tests/top_down.rs</code> to add another test:</p>
 +  let lower = ToLower(Box::new(read.clone()));
 +  let upper = ToUpper(Box::new(lower.clone()));
 +
-+  // Require ${"`"}ToLower${"`"} and assert that ${"`"}ReadFile${"`"} and ${"`"}Lower${"`"} are executed because they are new, but not ${"`"}ToUpper${"`"},
++  // Require ${"`"}ToLower${"`"} and assert that ${"`"}ReadFile${"`"} and ${"`"}ToLower${"`"} are executed because they are new, but not ${"`"}ToUpper${"`"},
 +  // because it not required by anything. ${"`"}ToLower${"`"} will return ${"`"}"hello, world!"${"`"}.
 +  let output = pie.require_then_assert(&lower, |tracker| {
 +    assert!(tracker.one_execute_of(&read));
@@ -333,16 +333,16 @@ The important part of this setup is that <code>ToLower</code> returns <code>&quo
 <p>We change <code>file</code> in a very specific way: we capitalize the <code>l</code> characters to <code>L</code> characters.
 We do this to trigger early cutoff.
 By changing <code>file</code> in this way, we expect <code>ReadFile</code> to execute and return <code>&quot;HeLLo, WorLd!&quot;</code>.
-This in turn means that <code>ToLower</code>'s task dependency to <code>ReadFile</code> is inconsistent, because the output changed, so <code>ToLower</code> is executed.
+This in turn means that <code>ToLower</code>’s task dependency to <code>ReadFile</code> is inconsistent, because the output changed, so <code>ToLower</code> is executed.
 However, <code>ToLower</code> changes those <code>L</code> characters back into <code>l</code> and returns <code>&quot;hello, world!&quot;</code>, which is the same as last time.
-Therefore, <code>ToUpper</code>'s task dependency to <code>ToLower</code> is still consistent, and we can cut off the build early.
+Therefore, <code>ToUpper</code>’s task dependency to <code>ToLower</code> is still consistent, and we can cut off the build early.
 We assert this inside the <code>require_then_assert</code> block.</p>
 <p>But, if you run the tests with <code>cargo test</code>, this test will fail!
 How can that be?</p>
-<div id="admonition-warning" class="admonition warning">
+<div id="admonition-expected-test-failure" class="admonition admonish-failure">
 <div class="admonition-title">
-<p>Warning</p>
-<p><a class="admonition-anchor-link" href="#admonition-warning"></a></p>
+<p>Expected Test Failure</p>
+<p><a class="admonition-anchor-link" href="#admonition-expected-test-failure"></a></p>
 </div>
 <div>
 <p>Test <code>test_no_superfluous_task_dependencies</code> will fail as expected, which we will fix in this section!</p>
@@ -350,23 +350,23 @@ How can that be?</p>
 </div>
 <p>Inspect the build log with <code>cargo test --test top_down test_no_superfluous_task_dependencies</code>.
 The third (last) build log should look like this:</p>
-<pre><code>→ ToUpper(ToLower(ReadFile(&quot;/tmp/.tmpC4p995/in.txt&quot;, Modified)))
- ? ReadFile(&quot;/tmp/.tmpC4p995/in.txt&quot;, Modified)
-  → ReadFile(&quot;/tmp/.tmpC4p995/in.txt&quot;, Modified)
-   ✗ /tmp/.tmpC4p995/in.txt (old: Modified(Some(SystemTime { tv_sec: 1696602044, tv_nsec: 100900691 })) ≠ new: Modified(Some(SystemTime { tv_sec: 1696602044, tv_nsec: 104900681 })))
-   ▶ ReadFile(&quot;/tmp/.tmpC4p995/in.txt&quot;, Modified)
-    - /tmp/.tmpC4p995/in.txt
+<pre><code>→ ToUpper(ToLower(ReadFile(&quot;/tmp/.tmp8JYaSi/in.txt&quot;, Modified)))
+ ? ReadFile(&quot;/tmp/.tmp8JYaSi/in.txt&quot;, Modified)
+  → ReadFile(&quot;/tmp/.tmp8JYaSi/in.txt&quot;, Modified)
+   ✗ /tmp/.tmp8JYaSi/in.txt (old: Modified(Some(SystemTime { tv_sec: 1696860226, tv_nsec: 973456553 })) ≠ new: Modified(Some(SystemTime { tv_sec: 1696860226, tv_nsec: 977456619 })))
+   ▶ ReadFile(&quot;/tmp/.tmp8JYaSi/in.txt&quot;, Modified)
+    - /tmp/.tmp8JYaSi/in.txt
    ◀ Ok(String(&quot;HeLLo, WorLd!&quot;))
   ← Ok(String(&quot;HeLLo, WorLd!&quot;))
- ✗ ReadFile(&quot;/tmp/.tmpC4p995/in.txt&quot;, Modified) (old: Equals(Ok(String(&quot;Hello, World!&quot;))) ≠ new: Equals(Ok(String(&quot;HeLLo, WorLd!&quot;))))
- ▶ ToUpper(ToLower(ReadFile(&quot;/tmp/.tmpC4p995/in.txt&quot;, Modified)))
-  → ToLower(ReadFile(&quot;/tmp/.tmpC4p995/in.txt&quot;, Modified))
-   ? ReadFile(&quot;/tmp/.tmpC4p995/in.txt&quot;, Modified)
-    → ReadFile(&quot;/tmp/.tmpC4p995/in.txt&quot;, Modified)
+ ✗ ReadFile(&quot;/tmp/.tmp8JYaSi/in.txt&quot;, Modified) (old: Equals(Ok(String(&quot;Hello, World!&quot;))) ≠ new: Equals(Ok(String(&quot;HeLLo, WorLd!&quot;))))
+ ▶ ToUpper(ToLower(ReadFile(&quot;/tmp/.tmp8JYaSi/in.txt&quot;, Modified)))
+  → ToLower(ReadFile(&quot;/tmp/.tmp8JYaSi/in.txt&quot;, Modified))
+   ? ReadFile(&quot;/tmp/.tmp8JYaSi/in.txt&quot;, Modified)
+    → ReadFile(&quot;/tmp/.tmp8JYaSi/in.txt&quot;, Modified)
     ← Ok(String(&quot;HeLLo, WorLd!&quot;))
-   ✗ ReadFile(&quot;/tmp/.tmpC4p995/in.txt&quot;, Modified) (old: Equals(Ok(String(&quot;Hello, World!&quot;))) ≠ new: Equals(Ok(String(&quot;HeLLo, WorLd!&quot;))))
-   ▶ ToLower(ReadFile(&quot;/tmp/.tmpC4p995/in.txt&quot;, Modified))
-    → ReadFile(&quot;/tmp/.tmpC4p995/in.txt&quot;, Modified)
+   ✗ ReadFile(&quot;/tmp/.tmp8JYaSi/in.txt&quot;, Modified) (old: Equals(Ok(String(&quot;Hello, World!&quot;))) ≠ new: Equals(Ok(String(&quot;HeLLo, WorLd!&quot;))))
+   ▶ ToLower(ReadFile(&quot;/tmp/.tmp8JYaSi/in.txt&quot;, Modified))
+    → ReadFile(&quot;/tmp/.tmp8JYaSi/in.txt&quot;, Modified)
     ← Ok(String(&quot;HeLLo, WorLd!&quot;))
    ◀ Ok(String(&quot;hello, world!&quot;))
   ← Ok(String(&quot;hello, world!&quot;))
@@ -374,8 +374,8 @@ The third (last) build log should look like this:</p>
 ← Ok(String(&quot;HELLO, WORLD!&quot;))
 </code></pre>
 <p>In this last build, <code>ToUpper</code> is required, and it will check its dependency to <code>ReadFile</code>.
-But that shouldn't happen, because <code>ToUpper</code> only has a dependency to <code>ToLower</code>!
-There seems to be a bug where <code>ToLower</code>'s task dependency to <code>ReadFile</code>, somehow ended up with <code>ToUpper</code>.</p>
+But that shouldn’t happen, because <code>ToUpper</code> only has a dependency to <code>ToLower</code>!
+There seems to be a bug where <code>ToLower</code>’s task dependency to <code>ReadFile</code>, somehow ended up with <code>ToUpper</code>.</p>
 <p>We need to go back to our consistency checking code to find the cause.</p>
 <h2 id="finding-the-cause"><a class="header" href="#finding-the-cause">Finding the cause</a></h2>
 <p>In the previous chapter, we implemented dynamic dependencies including an <code>is_inconsistent</code> method to check if a dependency is consistent.
@@ -433,14 +433,14 @@ Even if we are only <em>consistency checking</em> a task to see if it should be 
 We only manifested the bug in the last test due to having a chain of 2 task dependencies, and by carefully controlling what is being executed and what is being checked.</p>
 <p>Recall the second build in the <code>test_no_superfluous_task_dependencies</code> test.
 The build log for that build looks like:</p>
-<pre><code>→ ToUpper(ToLower(ReadFile(&quot;/tmp/.tmpC4p995/in.txt&quot;, Modified)))
- ▶ ToUpper(ToLower(ReadFile(&quot;/tmp/.tmpC4p995/in.txt&quot;, Modified)))
-  → ToLower(ReadFile(&quot;/tmp/.tmpC4p995/in.txt&quot;, Modified))
-   ? ReadFile(&quot;/tmp/.tmpC4p995/in.txt&quot;, Modified)
-    → ReadFile(&quot;/tmp/.tmpC4p995/in.txt&quot;, Modified)
-     ✓ /tmp/.tmpC4p995/in.txt
+<pre><code>→ ToUpper(ToLower(ReadFile(&quot;/tmp/.tmp8JYaSi/in.txt&quot;, Modified)))
+ ▶ ToUpper(ToLower(ReadFile(&quot;/tmp/.tmp8JYaSi/in.txt&quot;, Modified)))
+  → ToLower(ReadFile(&quot;/tmp/.tmp8JYaSi/in.txt&quot;, Modified))
+   ? ReadFile(&quot;/tmp/.tmp8JYaSi/in.txt&quot;, Modified)
+    → ReadFile(&quot;/tmp/.tmp8JYaSi/in.txt&quot;, Modified)
+     ✓ /tmp/.tmp8JYaSi/in.txt
     ← Ok(String(&quot;Hello, World!&quot;))
-   ✓ ReadFile(&quot;/tmp/.tmpC4p995/in.txt&quot;, Modified)
+   ✓ ReadFile(&quot;/tmp/.tmp8JYaSi/in.txt&quot;, Modified)
   ← Ok(String(&quot;hello, world!&quot;))
  ◀ Ok(String(&quot;HELLO, WORLD!&quot;))
 ← Ok(String(&quot;HELLO, WORLD!&quot;))
@@ -542,7 +542,7 @@ This is a refactoring, so the <code>require_task_with_stamper</code> method will
 If it is already consistent, we return the cached output.
 In both cases we also use and update <code>self.session.consistent</code>: the set of already consistent tasks this session. </p>
 <p>Now we need to change the <code>is_inconsistent</code> methods on dependencies to use <code>make_task_consistent</code> instead.
-However, the <code>is_inconsistent</code> method is generic over <code>Context</code>, which doesn't expose the <code>make_task_consistent</code> method.
+However, the <code>is_inconsistent</code> method is generic over <code>Context</code>, which doesn’t expose the <code>make_task_consistent</code> method.
 We also do not want to expose <code>make_task_consistent</code> to users of the library, as it would allow tasks authors to make tasks consistent without adding dependencies, which could break incrementality.
 Therefore, we will define a <code>MakeConsistent</code> trait in the dependency module, and have <code>TopDownContext</code> implement that.</p>
 <p>Modify <code>pie/src/dependency.rs</code>:</p>
@@ -713,37 +713,37 @@ Modify <code>pie/src/context/non_incremental.rs</code>:</p>
 </script>
 <p>If you run <code>cargo test</code> now, <code>test_no_superfluous_task_dependencies</code> should succeed, indicating that we fixed the bug!
 However, <code>test_require_task</code> now fails 😅.</p>
-<div id="admonition-warning-1" class="admonition warning">
+<div id="admonition-expected-test-failure-1" class="admonition admonish-failure">
 <div class="admonition-title">
-<p>Warning</p>
-<p><a class="admonition-anchor-link" href="#admonition-warning-1"></a></p>
+<p>Expected Test Failure</p>
+<p><a class="admonition-anchor-link" href="#admonition-expected-test-failure-1"></a></p>
 </div>
 <div>
-<p>Test <code>test_require_task</code> will fail, which we will now fix!</p>
+<p>Test <code>test_require_task</code> will fail as expected, which we will now fix!</p>
 </div>
 </div>
-<p>An <code>assert!(execute.start() &gt; require.start())</code> in this test now fails, which is a sanity check asserting that &quot;executes starts&quot; should be later than &quot;require starts&quot;
+<p>An <code>assert!(execute.start() &gt; require.start())</code> in this test now fails, which is a sanity check asserting that “executes starts” should be later than “require starts”
 This is because our changes have correctly removed several superfluous task requires, which influences these assertions.</p>
 <p>Inspect the build log for this test with <code>cargo test --test top_down test_require_task</code>.
 The second build now looks like:</p>
-<pre><code>→ ToLower(ReadFile(&quot;/tmp/.tmpgKYpCs/in.txt&quot;, Modified))
- ? ReadFile(&quot;/tmp/.tmpgKYpCs/in.txt&quot;, Modified)
-  ✓ /tmp/.tmpgKYpCs/in.txt
- ✓ ReadFile(&quot;/tmp/.tmpgKYpCs/in.txt&quot;, Modified)
+<pre><code>→ ToLower(ReadFile(&quot;/tmp/.tmpZRcH7L/in.txt&quot;, Modified))
+ ? ReadFile(&quot;/tmp/.tmpZRcH7L/in.txt&quot;, Modified)
+  ✓ /tmp/.tmpZRcH7L/in.txt
+ ✓ ReadFile(&quot;/tmp/.tmpZRcH7L/in.txt&quot;, Modified)
 ← Ok(String(&quot;hello world!&quot;))
 </code></pre>
 <p>In this second build, <code>ReadFile</code> is now no longer required, and instead is only checked.
 This is correct, and does not make any assertions fail.</p>
 <p>The third build now looks like:</p>
-<pre><code>→ ToLower(ReadFile(&quot;/tmp/.tmpgKYpCs/in.txt&quot;, Modified))
- ? ReadFile(&quot;/tmp/.tmpgKYpCs/in.txt&quot;, Modified)
-  ✗ /tmp/.tmpgKYpCs/in.txt (old: Modified(Some(SystemTime { tv_sec: 1696602045, tv_nsec: 584897004 })) ≠ new: Modified(Some(SystemTime { tv_sec: 1696602045, tv_nsec: 588896994 })))
-  ▶ ReadFile(&quot;/tmp/.tmpgKYpCs/in.txt&quot;, Modified)
-   - /tmp/.tmpgKYpCs/in.txt
+<pre><code>→ ToLower(ReadFile(&quot;/tmp/.tmpZRcH7L/in.txt&quot;, Modified))
+ ? ReadFile(&quot;/tmp/.tmpZRcH7L/in.txt&quot;, Modified)
+  ✗ /tmp/.tmpZRcH7L/in.txt (old: Modified(Some(SystemTime { tv_sec: 1696860228, tv_nsec: 737484460 })) ≠ new: Modified(Some(SystemTime { tv_sec: 1696860228, tv_nsec: 741484515 })))
+  ▶ ReadFile(&quot;/tmp/.tmpZRcH7L/in.txt&quot;, Modified)
+   - /tmp/.tmpZRcH7L/in.txt
   ◀ Ok(String(&quot;!DLROW OLLEH&quot;))
- ✗ ReadFile(&quot;/tmp/.tmpgKYpCs/in.txt&quot;, Modified) (old: Equals(Ok(String(&quot;HELLO WORLD!&quot;))) ≠ new: Equals(Ok(String(&quot;!DLROW OLLEH&quot;))))
- ▶ ToLower(ReadFile(&quot;/tmp/.tmpgKYpCs/in.txt&quot;, Modified))
-  → ReadFile(&quot;/tmp/.tmpgKYpCs/in.txt&quot;, Modified)
+ ✗ ReadFile(&quot;/tmp/.tmpZRcH7L/in.txt&quot;, Modified) (old: Equals(Ok(String(&quot;HELLO WORLD!&quot;))) ≠ new: Equals(Ok(String(&quot;!DLROW OLLEH&quot;))))
+ ▶ ToLower(ReadFile(&quot;/tmp/.tmpZRcH7L/in.txt&quot;, Modified))
+  → ReadFile(&quot;/tmp/.tmpZRcH7L/in.txt&quot;, Modified)
   ← Ok(String(&quot;!DLROW OLLEH&quot;))
  ◀ Ok(String(&quot;!dlrow olleh&quot;))
 ← Ok(String(&quot;!dlrow olleh&quot;))
@@ -752,7 +752,7 @@ This is correct, and does not make any assertions fail.</p>
 This is correct, as it is only <em>checked</em> (using <code>make_task_consistent</code>) at the start, but <em>required</em> later while <code>ToLower</code> is executing.</p>
 <p>The problem is that this assertion just does not hold anymore, as a task can be executed without first being required.
 What does hold, is that a task is only executed after being checked <em>or</em> required.
-However, we don't track checking in the event tracker, so we will just remove this assertion to keep the tutorial going.
+However, we don’t track checking in the event tracker, so we will just remove this assertion to keep the tutorial going.
 We will also update the expected build logs in the comments to reflect our changes.</p>
 <p>Fix the tests by modifying <code>pie/src/tests/top_down.rs</code>:</p>
 <div class="diff2html" id="diff2html_7"></div>
@@ -816,7 +816,7 @@ We will also update the expected build logs in the comments to reflect our chang
 </script>
 <p>Confirm this fixes the tests with <code>cargo test</code>.
 All tests are green! 🎉🎉🎉</p>
-<details id="admonition-download-source-code" class="admonition example">
+<details id="admonition-download-source-code" class="admonition admonish-example">
 <summary class="admonition-title">
 <p>Download source code</p>
 <p><a class="admonition-anchor-link" href="#admonition-download-source-code"></a></p>
@@ -872,7 +872,7 @@ All tests are green! 🎉🎉🎉</p>
         <script src="../../book.js"></script>
 
         <!-- Custom JS scripts -->
-        <script src="../../src/diff2html-ui-base.min.js"></script>
+        <script src="../.././diff2html-ui-base.min.js"></script>
 
 
     </div>

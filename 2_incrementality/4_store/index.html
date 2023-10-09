@@ -29,8 +29,8 @@
         <link rel="stylesheet" href="../../ayu-highlight.css">
 
         <!-- Custom theme stylesheets -->
-        <link rel="stylesheet" href="../../src/diff2html.min.css">
-        <link rel="stylesheet" href="../../src/mdbook-admonish.css">
+        <link rel="stylesheet" href="../.././diff2html.min.css">
+        <link rel="stylesheet" href="../.././mdbook-admonish.css">
 
     </head>
     <body>
@@ -182,15 +182,16 @@ Context implementations will use methods on <code>Store</code> to query and muta
 In other words, <code>Store</code> encapsulates the dependency graph.</p>
 <p>However, writing a dependency graph data structure is outside of the scope of this tutorial, so we will be using the <code>pie_graph</code> library which we prepared exactly for this use case.
 The graph from this library is a directed acyclic graph (DAG), meaning that edges are directed and there may be no cycles in edges, as that would prohibit topological orderings.</p>
-<details id="admonition-graph-library" class="admonition info">
+<details id="admonition-graph-library" class="admonition admonish-tip">
 <summary class="admonition-title">
-<p>Graph library</p>
+<p>Graph Library</p>
 <p><a class="admonition-anchor-link" href="#admonition-graph-library"></a></p>
 </summary>
 <div>
-<p>The <code>pie_graph</code> library is a modified version of the great <a href="https://github.com/declanvk/incremental-topo/"><code>incremental-topo</code></a> library which implements incremental topological ordering: it keeps the topological ordering up-to-date incrementally while nodes and edges are added and removed.
+<p>The <code>pie_graph</code> library is a modified version of the great <a href="https://github.com/declanvk/incremental-topo/" title="" target="_blank">
+<code>incremental-topo</code></a> library which implements incremental topological ordering: it keeps the topological ordering up-to-date incrementally while nodes and edges are added and removed.
 That is exactly what we need, as dynamic dependencies prevents us from calculating the topological ordering in one go, and calculating the topological ordering after every task execution is prohibitively expensive.
-The implementation in the <code>incremental-topo</code> library is based on a <a href="http://www.doc.ic.ac.uk/~phjk/Publications/DynamicTopoSortAlg-JEA-07.pdf">paper by D. J. Pearce and P. H. J. Kelly</a> that describes several dynamic topological sort algorithms for directed acyclic graphs.</p>
+The implementation in the <code>incremental-topo</code> library is based on a <a href="http://www.doc.ic.ac.uk/~phjk/Publications/DynamicTopoSortAlg-JEA-07.pdf" title="" target="_blank">paper by D. J. Pearce and P. H. J. Kelly</a> that describes several dynamic topological sort algorithms for directed acyclic graphs.</p>
 </div>
 </details>
 <p>Add the <code>pie_graph</code> dependency to <code>pie/Cargo.toml</code>:</p>
@@ -290,13 +291,13 @@ The nodes in our graph are either files or tasks, and the edges are dependencies
 <p>The first generic argument to <code>DAG</code> is the type of data to attach to nodes, which is <code>NodeData&lt;T, O&gt;</code> in our case.
 Because nodes can be files or tasks, <code>NodeData&lt;T, O&gt;</code> enumerates these, storing the path for files, and the task along with its output for tasks.
 We store file paths as <code>PathBuf</code>, which is the owned version of <code>Path</code> (similar to <code>String</code> being the owned version of <code>str</code>).
-The task output is stored as <code>Option&lt;O&gt;</code> because we can add a task to the graph without having executed it, so we don't have its output yet.</p>
+The task output is stored as <code>Option&lt;O&gt;</code> because we can add a task to the graph without having executed it, so we don’t have its output yet.</p>
 <p>The second argument is the type of data to attach to edges, which is <code>Dependency&lt;T, O&gt;</code>, using the <code>Dependency</code> enum we defined earlier.</p>
 <p>We implement <code>Default</code> for the store to initialize it.</p>
-<details id="admonition-deriving-default" class="admonition info">
+<details id="admonition-why-not-derive-default" class="admonition admonish-question">
 <summary class="admonition-title">
-<p>Deriving default</p>
-<p><a class="admonition-anchor-link" href="#admonition-deriving-default"></a></p>
+<p>Why not Derive Default?</p>
+<p><a class="admonition-anchor-link" href="#admonition-why-not-derive-default"></a></p>
 </summary>
 <div>
 <p>We cannot derive this <code>Default</code> implementation even though it seems we should be able to, because the derived implementation will require <code>T</code> and <code>O</code> to be <code>Default</code>, and this is not always the case.
@@ -306,7 +307,7 @@ Therefore, we implement <code>Default</code> ourselves.</p>
 </div>
 </details>
 <h2 id="graph-nodes"><a class="header" href="#graph-nodes">Graph nodes</a></h2>
-<p>A node in <code>DAG</code> is represented by a <code>Node</code>, which is a transparent identifier (sometimes called a <a href="https://en.wikipedia.org/wiki/Handle_(computing)">handle</a>) that points to the node and its data.
+<p>A node in <code>DAG</code> is represented by a <code>Node</code>, which is a transparent identifier (sometimes called a <a href="https://en.wikipedia.org/wiki/Handle_(computing)" title="" target="_blank">handle</a>) that points to the node and its data.
 We can create nodes in the graph, and then query attached data (<code>NodeData</code>) given a node.
 So <code>DAG</code> allows us to go from <code>Node</code> to a <code>PathBuf</code> and task <code>T</code> through attached <code>NodeData</code>.</p>
 <p>However, we want each unique file and task to be represented by a single unique node in the graph.
@@ -417,16 +418,16 @@ This is also the reason for the <code>Eq</code> and <code>Hash</code> trait boun
     diff2htmlUi.draw();
   });
 </script>
-<p>The <code>FileNode</code> and <code>TaskNode</code> types are <a href="https://rust-unofficial.github.io/patterns/patterns/behavioural/newtype.html">newtypes</a> that wrap a <code>Node</code> into a specific type of node.
+<p>The <code>FileNode</code> and <code>TaskNode</code> types are <a href="https://rust-unofficial.github.io/patterns/patterns/behavioural/newtype.html" title="" target="_blank">newtypes</a> that wrap a <code>Node</code> into a specific type of node.
 The <code>Borrow</code> implementations will make subsequent code a bit more concise by automatically converting <code>&amp;FileNode</code> and <code>&amp;TaskNode</code>s to <code>&amp;Node</code>s.</p>
-<details id="admonition-newtypes" class="admonition info">
+<details id="admonition-do-these-newtypes-improve-type-safety" class="admonition admonish-question">
 <summary class="admonition-title">
-<p>Newtypes</p>
-<p><a class="admonition-anchor-link" href="#admonition-newtypes"></a></p>
+<p>Do these Newtypes Improve Type-Safety?</p>
+<p><a class="admonition-anchor-link" href="#admonition-do-these-newtypes-improve-type-safety"></a></p>
 </summary>
 <div>
 <p>Because the <code>Node</code>s inside the newtypes are not public, it is not possible to construct a <code>FileNode</code> or <code>TaskNode</code> outside of this module.
-Therefore, if we only accept and create <code>FileNode</code> and <code>TaskNode</code> in the <code>Store</code> API, it is not possible to use the wrong kind of node.</p>
+Therefore, if we only accept and create <code>FileNode</code> and <code>TaskNode</code> in the <code>Store</code> API, it is not possible to use the wrong kind of node, increasing type-safety.</p>
 <p>The <code>Borrow</code> implementation does leak outside of this module, but not outside of this crate (library).
 This is because the visibility of a trait implementation is the intersection of the visibilities of the trait and type it is implemented on.
 <code>Borrow</code> is public, but <code>FileNode</code> and <code>TaskNode</code> are only public within this crate.
@@ -498,19 +499,19 @@ We get the attached data given a node, and extract the file path from it.</p>
 Returning an <code>Option&lt;&amp;PathBuf&gt;</code> makes no sense here, as the caller of this method has no way to recover from this.
 Because this is not an end-user-facing API (<code>store</code> module is private), we control all the calls to this method, and thus we are responsible for using these methods in a valid way. 
 Therefore, when we call these methods, we should document why it is valid (if this is not immediately obvious), and we need to test whether we really use it in a valid way.</p>
-<p>We're also documenting the panics in a <code># Panics</code> section in the documentation comment, as is common practice in Rust.</p>
-<details id="admonition-triggering-these-panics" class="admonition info">
+<p>We’re also documenting the panics in a <code># Panics</code> section in the documentation comment, as is common practice in Rust.</p>
+<details id="admonition-how-to-trigger-these-panics" class="admonition admonish-question">
 <summary class="admonition-title">
-<p>Triggering these panics</p>
-<p><a class="admonition-anchor-link" href="#admonition-triggering-these-panics"></a></p>
+<p>How to Trigger these Panics?</p>
+<p><a class="admonition-anchor-link" href="#admonition-how-to-trigger-these-panics"></a></p>
 </summary>
 <div>
 <p>Because only <code>Store</code> can create <code>FileNode</code>s and <code>TaskNode</code>s, and all methods only take these values as inputs, these panics will not happen under normal usage.
 The only way to trigger these panics (in safe Rust) would be to create two stores, and use the nodes from one store in another.
-However, since this is a private module, we just need to make sure that we don't do that.</p>
+However, since this is a private module, we just need to make sure that we don’t do that.</p>
 <p>There are some tricks to prevent even this kind of invalid usage.
-For example, the <a href="https://docs.rs/generativity/latest/generativity/">generativity</a> crate generates unique identifiers based on lifetimes.
-However, that is a bit overkill, especially for an internal API, so we won't be using that.</p>
+For example, the <a href="https://docs.rs/generativity/latest/generativity/" title="" target="_blank">generativity</a> crate generates unique identifiers based on lifetimes.
+However, that is a bit overkill, especially for an internal API, so we won’t be using that.</p>
 </div>
 </details>
 <p>We implement similar methods for task nodes in <code>get_or_create_task_node</code> and <code>get_task</code>.</p>
@@ -602,7 +603,7 @@ An edge does not have its own dedicated representation, and is simply represente
 }</code></pre>
 <p>The <code>get_dependencies_of_task</code> method gets the dependencies (edge data of outgoing edges) of a task, and returns it as an iterator (which is empty if task has no dependencies).
 This method needs explicit lifetime annotations due to the signature of <code>get_outgoing_edge_data</code> and the way we return an iterator using <code>impl Iterator&lt;...</code>.
-We're using <code>debug_assert!</code> here to trigger a panic indicating an unrecoverable programming error only in development mode, because this check is too expensive to run in release (optimized) mode.</p>
+We’re using <code>debug_assert!</code> here to trigger a panic indicating an unrecoverable programming error only in development mode, because this check is too expensive to run in release (optimized) mode.</p>
 <p>The <code>add_file_require_dependency</code> method adds a file dependency.
 Adding an edge to the graph can result in cycles, which are not allowed in a directed <em>acyclic</em> graph (DAG).
 Therefore, <code>graph.add_edge</code> can return an <code>Err</code> indicating that there is a cycle.
@@ -611,7 +612,7 @@ In case of files, this cannot happen because files do not have outgoing dependen
 In <code>add_task_require_dependency</code>, we propagate the cycle detected error (by returning <code>Err(())</code>) to the caller because the caller has more information to create an error message for the user that made a cyclic task dependency.</p>
 <h2 id="resetting-tasks"><a class="header" href="#resetting-tasks">Resetting tasks</a></h2>
 <p>Finally, when we determine that a task is inconsistent and needs to be executed, we first need to remove its output and remove its outgoing dependencies, as those will interfere with incrementality when not removed.
-We do NOT want to remove incoming dependencies, as that would remove dependencies from other tasks to this task, which breaks incrementality, so we can't just remove and re-add the task to the graph.
+We do NOT want to remove incoming dependencies, as that would remove dependencies from other tasks to this task, which breaks incrementality, so we can’t just remove and re-add the task to the graph.
 Add the <code>reset_task</code> method that does this to <code>pie/src/store.rs</code>:</p>
 <pre><code class="language-rust ">impl&lt;T: Task&gt; Store&lt;T, T::Output&gt; {
   /// Reset task `src`, removing its output and removing all its outgoing dependencies.
@@ -630,7 +631,7 @@ Add the <code>reset_task</code> method that does this to <code>pie/src/store.rs<
 }</code></pre>
 <p>This will reset the task output back to <code>None</code>, and remove all outgoing edges (dependencies).</p>
 <h2 id="tests"><a class="header" href="#tests">Tests</a></h2>
-<p>Now we've implemented everything we need for implementing the top-down context, but first we will write some tests.</p>
+<p>Now we’ve implemented everything we need for implementing the top-down context, but first we will write some tests.</p>
 <h3 id="testing-file-mapping"><a class="header" href="#testing-file-mapping">Testing file mapping</a></h3>
 <p>Add the following code to <code>pie/src/store.rs</code> for testing the file mapping:</p>
 <pre><code class="language-rust ">#[cfg(test)]
@@ -689,12 +690,12 @@ We will never execute it because <code>Store</code> does not execute tasks.</p>
 <li><code>get_or_create_file_node</code> calls with different paths should produce different <code>FileNode</code>s.</li>
 </ul>
 <p>This works because <code>&quot;hello.txt&quot;</code> and <code>&quot;world.txt&quot;</code> are different paths, thus their <code>Eq</code> and <code>Hash</code> implementations ensure they get separate spots in the <code>file_to_node</code> hash map.</p>
-<p>Test <code>test_file_mapping_panics</code> triggers the panic in <code>get_file_path</code> by creating a <code>FileNode</code> with a &quot;fake store&quot;, and then using that rogue file node in another store.
+<p>Test <code>test_file_mapping_panics</code> triggers the panic in <code>get_file_path</code> by creating a <code>FileNode</code> with a “fake store”, and then using that rogue file node in another store.
 While it is unlikely that we will make this mistake when using <code>Store</code>, it is good to confirm that this panics.</p>
-<details id="admonition-rust-help" class="admonition info">
+<details id="admonition-rust-help-testing-panics" class="admonition admonish-tip">
 <summary class="admonition-title">
-<p>Rust help</p>
-<p><a class="admonition-anchor-link" href="#admonition-rust-help"></a></p>
+<p>Rust Help: Testing Panics</p>
+<p><a class="admonition-anchor-link" href="#admonition-rust-help-testing-panics"></a></p>
 </summary>
 <div>
 <p>The <code>#[should_panic]</code> attribute makes the test succeed if it panics, and fail if it does not panic.</p>
@@ -943,7 +944,7 @@ Later on we will also see that this is important for soundness of the incrementa
   }</code></pre>
 <p>Here, we ensure that a task with an output and dependencies, does not have an output and dependencies after a reset, while leaving another task untouched.</p>
 <p>Confirm that the store implementation works with <code>cargo test</code>.</p>
-<details id="admonition-download-source-code" class="admonition example">
+<details id="admonition-download-source-code" class="admonition admonish-example">
 <summary class="admonition-title">
 <p>Download source code</p>
 <p><a class="admonition-anchor-link" href="#admonition-download-source-code"></a></p>
@@ -999,7 +1000,7 @@ Later on we will also see that this is important for soundness of the incrementa
         <script src="../../book.js"></script>
 
         <!-- Custom JS scripts -->
-        <script src="../../src/diff2html-ui-base.min.js"></script>
+        <script src="../.././diff2html-ui-base.min.js"></script>
 
 
     </div>

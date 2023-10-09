@@ -29,8 +29,8 @@
         <link rel="stylesheet" href="../../ayu-highlight.css">
 
         <!-- Custom theme stylesheets -->
-        <link rel="stylesheet" href="../../src/diff2html.min.css">
-        <link rel="stylesheet" href="../../src/mdbook-admonish.css">
+        <link rel="stylesheet" href="../.././diff2html.min.css">
+        <link rel="stylesheet" href="../.././mdbook-admonish.css">
 
     </head>
     <body>
@@ -272,7 +272,7 @@ impl&lt;'p, T: Task&gt; Session&lt;'p, T, T::Output&gt; {
 We put the store in <code>Pie</code> because we want to keep the dependency graph and task outputs between build sessions, otherwise we cannot be incremental.</p>
 <p>A <code>Session</code> is created with <code>Pie::new_session</code>, which borrows <code>Pie</code> mutibly, ensuring that there can only be one <code>Session</code> instance (per <code>Pie</code> instance).
 <code>run_in_session</code> is a convenience method that runs given function inside a new session.</p>
-<p><code>Session::require</code> should require the task with the top-down context and return its up-to-date output, which we will implement once we've changed <code>TopDownContext</code>.
+<p><code>Session::require</code> should require the task with the top-down context and return its up-to-date output, which we will implement once we’ve changed <code>TopDownContext</code>.
 The dependency check errors can be accessed with <code>Session::dependency_check_errors</code>.</p>
 <p>Note that <code>Session</code> also has access to <code>Store</code>, because <code>TopDownContext</code> needs access to the store.
 The store is mutibly borrowed from <code>Pie</code>.
@@ -610,13 +610,13 @@ When we want to require multiple tasks, we use <code>new_session</code> and call
 <p>It is very important to create a new session each time in this example, because a task is only checked/executed once each session.
 If we use a single session, our changes are never seen, and we just execute each task once, which is not what we want.
 Therefore, every time we make changes to source files, or expect that changes have been made to source files, we must create a new session.</p>
-<div id="admonition-note" class="admonition note">
+<div id="admonition-multiple-sessions" class="admonition admonish-question">
 <div class="admonition-title">
-<p>Note</p>
-<p><a class="admonition-anchor-link" href="#admonition-note"></a></p>
+<p>Multiple Sessions?</p>
+<p><a class="admonition-anchor-link" href="#admonition-multiple-sessions"></a></p>
 </div>
 <div>
-<p>In changes D and E, Rust is smart enough to allow creating a new session even though the previous <code>session</code> variable is still active, because it knows that we don't use that previous session anymore.</p>
+<p>In changes D and E, Rust is smart enough to allow creating a new session even though the previous <code>session</code> variable is still active, because it knows that we don’t use that previous session anymore.</p>
 </div>
 </div>
 <p>Check that the example works with <code>cargo run --example incremental</code>, and check that the rest of the code works by running <code>cargo test</code>.</p>
@@ -705,12 +705,12 @@ We create a new one each session, because we only want to keep track of which ta
 </script>
 <p>At the start of requiring a task, we check whether the task is already deemed consistent this session, using the <code>consistent</code> hash set in <code>Session</code>.
 If the task is consistent, we skip execution by using <code>!already_consistent &amp;&amp;</code> in the if check.
-Because <code>&amp;&amp;</code> is <a href="https://doc.rust-lang.org/reference/expressions/operator-expr.html#lazy-boolean-operators">short-circuiting (also called lazy)</a>, we even skip the entire <code>should_execute</code> call that checks whether we should execute a task, when the task is already consistent.
+Because <code>&amp;&amp;</code> is <a href="https://doc.rust-lang.org/reference/expressions/operator-expr.html#lazy-boolean-operators" title="" target="_blank">short-circuiting (also called lazy)</a>, we even skip the entire <code>should_execute</code> call that checks whether we should execute a task, when the task is already consistent.
 This increases performance when a lot of consistent tasks are required.</p>
 <p>Finally, at the end of <code>require</code>, we insert the task node into the <code>consistent</code> hash set, to denote that the task is now consistent this session.
-That's it! This was a simple change due to the work we did before to get the <code>Session</code> API in place.</p>
+That’s it! This was a simple change due to the work we did before to get the <code>Session</code> API in place.</p>
 <p>With this new API in place, minimality of task checking and execution in place, and all code adjusted to work with it, we can continue with tracking build events.</p>
-<details id="admonition-download-source-code" class="admonition example">
+<details id="admonition-download-source-code" class="admonition admonish-example">
 <summary class="admonition-title">
 <p>Download source code</p>
 <p><a class="admonition-anchor-link" href="#admonition-download-source-code"></a></p>
@@ -766,7 +766,7 @@ That's it! This was a simple change due to the work we did before to get the <co
         <script src="../../book.js"></script>
 
         <!-- Custom JS scripts -->
-        <script src="../../src/diff2html-ui-base.min.js"></script>
+        <script src="../.././diff2html-ui-base.min.js"></script>
 
 
     </div>

@@ -29,8 +29,8 @@
         <link rel="stylesheet" href="../../ayu-highlight.css">
 
         <!-- Custom theme stylesheets -->
-        <link rel="stylesheet" href="../../src/diff2html.min.css">
-        <link rel="stylesheet" href="../../src/mdbook-admonish.css">
+        <link rel="stylesheet" href="../.././diff2html.min.css">
+        <link rel="stylesheet" href="../.././mdbook-admonish.css">
 
     </head>
     <body>
@@ -217,7 +217,7 @@ impl Task for ReadStringFromFile {
 We cannot use <code>std::io::Error</code> as the error in the <code>Result</code>, because it does not implement <code>Clone</code> nor <code>Eq</code>, which need to be implemented for task outputs.
 Therefore, we use <code>std::io::ErrorKind</code> which does implement these traits.</p>
 <h2 id="exploring-incrementality"><a class="header" href="#exploring-incrementality">Exploring incrementality</a></h2>
-<p>We've implemented the task, now add a <code>main</code> function to <code>pie/examples/incrementality.rs</code>:</p>
+<p>We’ve implemented the task, now add a <code>main</code> function to <code>pie/examples/incrementality.rs</code>:</p>
 <pre><code class="language-rust ">fn main() -&gt; Result&lt;(), io::Error&gt; {
   let temp_dir = create_temp_dir()?;
   let input_file = temp_dir.path().join(&quot;input.txt&quot;);
@@ -238,7 +238,7 @@ Run this example with <code>cargo run --example incremental</code>.
 You should see the <code>println!</code> in <code>ReadStringFromFile</code> appear in your console as the incremental context correctly determines that this task is new (i.e., has no output) and must be executed.
 It should look something like:</p>
 <pre><code>   Compiling pie v0.1.0 (/pie)
-    Finished dev [unoptimized + debuginfo] target(s) in 0.89s
+    Finished dev [unoptimized + debuginfo] target(s) in 1.09s
      Running `/pie/target/debug/examples/incremental`
 A) New task: expect `read_task` to execute
 Reading from input.txt with Modified stamper
@@ -253,14 +253,14 @@ Reading from input.txt with Modified stamper
   assert_eq!(&amp;output, &quot;Hi&quot;);</code></pre>
 <p>Running with <code>cargo run --example incremental</code> should produce output like:</p>
 <pre><code>   Compiling pie v0.1.0 (/pie)
-    Finished dev [unoptimized + debuginfo] target(s) in 0.45s
+    Finished dev [unoptimized + debuginfo] target(s) in 0.56s
      Running `/pie/target/debug/examples/incremental`
 A) New task: expect `read_task` to execute
 Reading from input.txt with Modified stamper
 
 B) Reuse: expect no execution
 </code></pre>
-<p>We don't see the <code>println!</code> from <code>ReadStringFromFile</code>, so it was not executed, so our incremental build system has correctly reused its output!</p>
+<p>We don’t see the <code>println!</code> from <code>ReadStringFromFile</code>, so it was not executed, so our incremental build system has correctly reused its output!</p>
 <p>Normally we would write a test to confirm that the task was executed the first time, and that it was not executed the second time.
 However, this is not trivial.
 How do we know if the task was executed?
@@ -315,7 +315,7 @@ This shows that tasks can depend on the same file with different stampers, which
 <p>Of course, using an <code>Exists</code> stamper for <code>ReadStringFromFile</code> does not make a lot of sense, but this is for demonstration purposes only.</p>
 <p>Running <code>cargo run --example incremental</code> now should produce output like:</p>
 <pre><code>   Compiling pie v0.1.0 (/pie)
-    Finished dev [unoptimized + debuginfo] target(s) in 0.46s
+    Finished dev [unoptimized + debuginfo] target(s) in 0.58s
      Running `/pie/target/debug/examples/incremental`
 A) New task: expect `read_task` to execute
 Reading from input.txt with Modified stamper
@@ -334,7 +334,7 @@ Reading from input_b.txt with Modified stamper
 </code></pre>
 <p>Feel free to experiment more with this example (or new example files) before continuing.
 In the next chapter, we will define minimality and soundness, set up an infrastructure for testing those properties, and fix issues uncovered by testing.</p>
-<details id="admonition-download-source-code" class="admonition example">
+<details id="admonition-download-source-code" class="admonition admonish-example">
 <summary class="admonition-title">
 <p>Download source code</p>
 <p><a class="admonition-anchor-link" href="#admonition-download-source-code"></a></p>
@@ -390,7 +390,7 @@ In the next chapter, we will define minimality and soundness, set up an infrastr
         <script src="../../book.js"></script>
 
         <!-- Custom JS scripts -->
-        <script src="../../src/diff2html-ui-base.min.js"></script>
+        <script src="../.././diff2html-ui-base.min.js"></script>
 
 
     </div>

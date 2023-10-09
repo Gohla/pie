@@ -29,8 +29,8 @@
         <link rel="stylesheet" href="../../ayu-highlight.css">
 
         <!-- Custom theme stylesheets -->
-        <link rel="stylesheet" href="../../src/diff2html.min.css">
-        <link rel="stylesheet" href="../../src/mdbook-admonish.css">
+        <link rel="stylesheet" href="../.././diff2html.min.css">
+        <link rel="stylesheet" href="../.././mdbook-admonish.css">
 
     </head>
     <body>
@@ -245,7 +245,7 @@ impl FileStamper {
     }
   }
 }</code></pre>
-<p>We're implementing <code>FileStamper</code> as an enum for simplicity.</p>
+<p>We’re implementing <code>FileStamper</code> as an enum for simplicity.</p>
 <p>A <code>FileStamper</code> has a single method <code>stamp</code> which takes something that can be dereferenced to a path, and produces a <code>FileStamp</code> or an error if creating the stamp failed.
 For now, we implement only two kinds of file stampers: <code>Exists</code> and <code>Modified</code>.
 The <code>Exists</code> stamper just returns a boolean indicating whether a file exists.
@@ -278,12 +278,12 @@ impl OutputStamper {
   }
 }</code></pre>
 <p>The <code>Inconsequential</code> stamper simply ignores the output and always returns the same stamp (thus is always equal).
-It can be used to create a task dependency where we are interested in some side effect of a task, but don't care about its output.
+It can be used to create a task dependency where we are interested in some side effect of a task, but don’t care about its output.
 The <code>Equals</code> stamper simply wraps the output of a task, so the stamp is equal when the output is equal.</p>
 <p>Output stamps are generic over the task output type <code>O</code>.</p>
-<details id="admonition-trait-bounds-and-derive-macros" class="admonition info">
+<details id="admonition-trait-bounds-and-derive-macros" class="admonition admonish-tip">
 <summary class="admonition-title">
-<p>Trait bounds and derive macros</p>
+<p>Trait Bounds and Derive Macros</p>
 <p><a class="admonition-anchor-link" href="#admonition-trait-bounds-and-derive-macros"></a></p>
 </summary>
 <div>
@@ -292,16 +292,15 @@ Thus, <code>OutputStamp</code> is only <code>Clone</code> when <code>O</code> is
 Because we declared <code>Task::Output</code> with bound <code>Clone + Eq + Debug</code>, we can be sure that <code>OutputStamp</code> is always <code>Clone</code>, <code>Eq</code>, and <code>Debug</code>.</p>
 </div>
 </details>
-<details id="admonition-user-defined-stamps" class="admonition info">
+<details id="admonition-user-defined-stamps" class="admonition admonish-question">
 <summary class="admonition-title">
-<p>User-defined stamps</p>
+<p>User-Defined Stamps?</p>
 <p><a class="admonition-anchor-link" href="#admonition-user-defined-stamps"></a></p>
 </summary>
 <div>
 <p><code>FileStamper</code> and <code>OutputStamper</code> could also be a trait which would allow users of the library to implement their own stampers.
 For simplicity, we do not explore that option in this tutorial.
-If you feel adventurous, you could try to implement this after you've finished the tutorial.
-Do note that this introduces a lot of extra generics and trait bounds everywhere, which can be a bit cumbersome.</p>
+In the actual PIE library, stampers (called checkers) can be implemented by users of the library!</p>
 </div>
 </details>
 <h2 id="tests"><a class="header" href="#tests">Tests</a></h2>
@@ -365,20 +364,22 @@ mod test {
 }</code></pre>
 <p>We test file stamps by creating a stamp, changing the file, creating a new stamp, and then compare the stamps.
 We test task output stamps by just passing a different output value to the <code>stamp</code> function, and then compare the stamps.</p>
-<p>Run <code>cargo test</code> to confirm the stamp implementation.</p>
-<div id="admonition-warning" class="admonition warning">
+<p>Run <code>cargo test</code> to test the stamp implementation.
+However, a test could fail on some operating systems.
+Do continue to the next subsection if this happens.</p>
+<div id="admonition-likely-test-failure" class="admonition admonish-warning">
 <div class="admonition-title">
-<p>Warning</p>
-<p><a class="admonition-anchor-link" href="#admonition-warning"></a></p>
+<p>Likely Test Failure</p>
+<p><a class="admonition-anchor-link" href="#admonition-likely-test-failure"></a></p>
 </div>
 <div>
-<p>Test <code>test_modified_file_stamper</code> will likely fail. Do continue to the next section, because we're going to fix it!</p>
+<p>Test <code>test_modified_file_stamper</code> will likely fail. Do continue to the next subsection, because we’re going to fix it!</p>
 </div>
 </div>
 <h2 id="testing-with-file-modified-time-correctly"><a class="header" href="#testing-with-file-modified-time-correctly">Testing with file modified time, correctly</a></h2>
 <p>Unfortunately, these tests may fail on some operating systems (Linux and Windows in my testing), due to an imprecise file last modified timer.
 What can happen is that we write to a file, making the OS update its modified time to <code>1000</code> (as an example, not a real timestamp), then very quickly write to the file again, making the OS update its modified time to <code>1000</code> again.
-Then, our test will fail because the stamp didn't change even though we expect it to change.</p>
+Then, our test will fail because the stamp didn’t change even though we expect it to change.</p>
 <p>This can happen with an imprecise timer that only increases once every millisecond (again, an example, not a real number) when we perform writes in between that millisecond.
 Even worse, our test can be flaky, sometimes succeeding if we write in between those milliseconds, sometimes failing if we write within a millisecond.</p>
 <p>To solve this, add a function to the filesystem testing utility crate.
@@ -631,7 +632,7 @@ The default is provided by <code>default_require_file_stamper</code> which can b
 </script>
 <p>We just ignore the stampers in <code>NonIncrementalContext</code>, as they are only needed for incrementality.</p>
 <p>Run <code>cargo test</code> to confirm everything still works.</p>
-<details id="admonition-download-source-code" class="admonition example">
+<details id="admonition-download-source-code" class="admonition admonish-example">
 <summary class="admonition-title">
 <p>Download source code</p>
 <p><a class="admonition-anchor-link" href="#admonition-download-source-code"></a></p>
@@ -687,7 +688,7 @@ The default is provided by <code>default_require_file_stamper</code> which can b
         <script src="../../book.js"></script>
 
         <!-- Custom JS scripts -->
-        <script src="../../src/diff2html-ui-base.min.js"></script>
+        <script src="../.././diff2html-ui-base.min.js"></script>
 
 
     </div>

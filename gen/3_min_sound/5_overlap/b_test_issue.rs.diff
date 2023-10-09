@@ -1,0 +1,51 @@
+--- pie/tests/top_down.rs
++++ pie/tests/top_down.rs
+@@ -1,4 +1,4 @@
+-use std::fs::write;
++use std::fs::{read_to_string, write};
+ use std::io;
+ use std::ops::RangeInclusive;
+ 
+@@ -245,3 +245,42 @@
+ 
+   Ok(())
+ }
++
++#[test]
++fn test_show_overlap_issue() -> Result<(), io::Error> {
++  let mut pie = test_pie();
++  let temp_dir = create_temp_dir()?;
++
++  let output_file = temp_dir.path().join("out.txt");
++
++  let ret = Return("Hi there");
++  let write_1 = WriteFile(Box::new(ret.clone()), output_file.clone(), FileStamper::Modified);
++
++  let input_file = temp_dir.path().join("in.txt");
++  write(&input_file, "Hello, World!")?;
++  let read = ReadFile(input_file.clone(), FileStamper::Modified);
++  let write_2 = WriteFile(Box::new(read.clone()), output_file.clone(), FileStamper::Modified);
++
++  let seq = Sequence(vec![write_1.clone(), write_2.clone()]);
++
++  // Require `seq`. The last writer, `write_2` (`WriteFile(ReadFile(input_file))`), wins because `Sequence` executes
++  // tasks in order.
++  pie.require(&seq)?;
++  // Assert that `output_file` contains the string from `input_file`.
++  assert_eq!(read_to_string(&output_file)?, "Hello, World!");
++
++  // Change `input_file` such that `write_2` becomes inconsistent.
++  write_until_modified(&input_file, "World, Hello?")?;
++
++  // Require `write_1` and assert that it is executed, because `write_2` modified `output_file` after `write_1`, thus
++  // `write_1`'s file dependency to `output_file` is inconsistent.
++  pie.require_then_assert_one_execute(&write_1)?;
++  // However, because we required `write_1` directly, instead of through `seq`, `output_file` contains the string that
++  // `ret` returned, even though `write_2` is inconsistent and should win.
++  assert_eq!(read_to_string(&output_file)?, "Hi there");
++  // The contents of `output_file` is thus dependent on which tasks and in which order we require them. This
++  // inconsistent behaviour is undesirable.
++  // Note: this is asserting the current behaviour, not the desired behaviour, which is to disallow this!
++
++  Ok(())
++}
