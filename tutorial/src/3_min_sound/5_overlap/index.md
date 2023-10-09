@@ -23,17 +23,6 @@ In this section, we will continue with:
 3) Introduce a new kind of dependency: a _provide file dependency_ for writing to (and creating) files.
 4) Prevent overlapping file writes by checking for them at runtime, fixing the issue.
 
-[//]: # (We did ensure that the `Store` returns dependencies in the order in which they were added, meaning that dependencies are checked and executed in the order they were created.)
-[//]: # (Also, the `execute` methods of `Task`s are regular parts of the program that are executed from top to bottom, so that is also ordered.)
-[//]: # (So if a `Sequence` task requires two file writing tasks `write_1` and `write_2` in that order, that write to the same `output_file`, then `write_2` will win over `write_1` _when the `Sequence` is required_.)
-[//]: # (So, what's the problem then?)
-[//]: # ()
-[//]: # (Well, in our build system we can `require` individual tasks.)
-[//]: # (If after requiring the `Sequence` task, we require `write_1`, it will be executed because its fi)
-[//]: # (However, in our build system we cannot fully rely on the order in which distinct tasks are executed, because we can `require` individual tasks.)
-[//]: # (For example, in the previous section, we could have required the `read` task instead of the `lower` or `upper` task if we were only)
-[//]: # (unless your `execute` is somehow non-deterministic, but that is another can of worms)
-
 ## Add `WriteFile` and `Sequence` tasks
 
 Add the `WriteFile` and `Sequence` tasks to `pie/tests/common/mod.rs`: 
@@ -103,7 +92,7 @@ Therefore, to prevent confusion, inconsistencies, and (subtle) incrementality bu
 Before continuing, confirm both tests succeed with `cargo test`.
 We will modify the first test to assert the desired behaviour later.
 
-~~~admonish tip title="Reduce Programming Errors with Output Files" collapsible=true
+~~~admonish tip title="Reduce Programming Errors by Returning Paths" collapsible=true
 In this last test, we can still make a programming error where we read an output file without first requiring the task that makes that output file consistent.
 We can mostly solve that by having `WriteFile` return the path it wrote to:
 
@@ -134,3 +123,28 @@ And you can read the output file with:
 
 You can still manually construct the path to the output file and read it to break this, but at least this prevents most accidental reads.
 ~~~
+
+## Implement provided files
+
+We currently have no means to disallow overlapping file writes.
+We only have one kind of file dependency: require file, which is currently used for both reading from and writing to files.
+It's perfectly fine to read from a single file from multiple tasks, so we can't disallow multiple tasks from creating a require file dependency to the same file.
+Therefore, we must introduce a new kind of dependency for writing to (and creating) files: the _provide file dependency_.
+A file may only be provided by one task.
+
+To implement this dependency, we will:
+
+1) Add a `ProvideFile` variant to `Dependency`.
+2) Add a `add_file_provide_dependency` method to `Store`.
+3) Add a `provide_file` method to `Context`.
+4) Implement `provide_file` in `TopDownContext` (and `NonIncrementalContext`).
+
+### Add `ProvideFile` variant to `Dependency`
+
+### Add `add_file_provide_dependency` method to `Store`
+
+### Add `provide_file` method to `Context`
+
+### Implement `provide_file` in `TopDownContext`
+
+### Implement `provide_file` in `NonIncrementalContext`
