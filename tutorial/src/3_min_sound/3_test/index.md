@@ -85,7 +85,7 @@ Finally, we assert that the output equals what we expect.
 Check that this test succeeds with `cargo test`.
 To see what test failures look like, temporarily change `events.get(2)` to `events.get(3)` for example.
 
-```admonish info title="Integration testing in Rust" collapsible=true
+```admonish tip title="Integration testing in Rust" collapsible=true
 [Integration tests](https://doc.rust-lang.org/rust-by-example/testing/integration_testing.html) in Rust are for testing whether the different parts of your library work together correctly.
 Integration tests have access to the public API of your crate.
 
@@ -114,7 +114,7 @@ Since `Return` has no dependencies, it should only ever be executed once, after 
 
 Check that this test succeeds with `cargo test`.
 
-~~~admonish info title="Reading standard output from tests"
+~~~admonish tip title="Reading standard output from tests"
 Cargo runs tests in parallel by default, which is good to run all tests as fast as possible (and it's also safe due to Rust's memory-safety and thread-safety guarantees!)
 However, this mixes the standard outputs of all tests, which makes reading the build log from our writing tracker impossible.
 If you want to see the standard output, either:
@@ -177,7 +177,7 @@ Modify `pie/src/tests/common/mod.rs`:
 We add a `ToLower` task that requires another task (stored as `Box<TestTask>`) to get a `String`, which it then converts to lower case.
 We also add the `into_string` method to `TestOutput` for conveniently getting an owned `String` from a `TestOutput`.
 
-```admonish info title="Boxing to prevent cyclic size calculation" collapsible=true
+```admonish tip title="Boxing to prevent cyclic size calculation" collapsible=true
 We store the string providing task as `Box<TestTask>` in order to prevent cyclic size calculation, which would cause `TestTask` to have an undetermined size.
 This is due to several reasons:
 - In Rust, values are stored on the stack by default. To store something on the stack, Rust needs to know its size *at compile-time*.
@@ -298,6 +298,18 @@ Add the following code to `pie/src/tests/top_down.rs`:
 
 We change `file` in the way we discussed, and then assert that `read` is executed, but `lower` is not.
 Confirm that this test succeeds with `cargo test`.
+
+```admonish info title="Benefits of Early Cutoff"
+Early cutoff is one of the great benefits of a build system with precise dynamic dependencies.
+In larger builds, it can cut off large parts of the build which do not need to be executed.
+
+In our build system, we only have the simple equals output stamper.
+But if you extend the build system with user-defined stampers (which isn't too hard), task authors have much more control over early cutoff.
+For example, we could require a task that parses a configuration file, but use a stamper that extracts only the particular configuration option our task is using.
+Then, our task will only be re-executed if that configuration option changes.
+
+Thus, stampers can increase the precision of task dependencies, which in turn increases incrementality with early cutoff.
+```
 
 Nice! These tests give quite some confidence that what we've been doing so far seems to be sound and incremental.
 We can (and should) of course write more tests for better coverage of the implementation.
