@@ -96,7 +96,7 @@ Or we panic which will end the program but introduces no boilerplate.
 
 In this tutorial, we will go with panics on cycles, because it results in a much simpler system.
 
-```admonish tip title="Recovering from Panics" collapsible=true
+```admonish question title="How to Recover from Panics?" collapsible=true
 Panics either abort the program (when panics are set to abort in `Cargo.toml`), or unwind the call stack and then end the program.
 
 When panics abort, there is nothing we can do about it. 
@@ -153,7 +153,7 @@ We also document this fact in a comment to explain to readers (us in the future)
 Cloning and collecting does have a performance overhead as we need to clone the dependencies and heap allocate a `Vec` to store them.
 For this tutorial, that is fine, but in a real-world application we should minimize cloning if possible and look into reducing heap allocations.
 
-```admonish tip title="Reference Counting to Avoid Clones" collapsible=true
+```admonish tip title="Rust Help: Reference Counting to Avoid Clones" collapsible=true
 Cloning a `Dependency` results in heap allocations, because cloning `FileDependency` clones a `PathBuf` which is a heap allocated string (basically a `Vec<u8>`), and cloning a `TaskDependency` clones the `Task`, which may require allocations as well.
 
 One way to avoid heap allocations in both kinds of dependencies is to store the `PathBuf` and `Task` in a [reference-counting pointer `Rc`](https://doc.rust-lang.org/std/rc/struct.Rc.html).
@@ -169,7 +169,7 @@ Since `Rc` implements `Clone`, any time we `task.clone()`, we would just increas
 When working in a multi-threaded situation, you would use the thread-safe [`Arc`](https://doc.rust-lang.org/std/sync/struct.Arc.html) instead. 
 ```
 
-```admonish tip title="Avoiding the Heap Allocations from String" collapsible=true
+```admonish question title="How to Avoid Heap Allocations from String?" collapsible=true
 A technique for reducing allocations on strings (and string-like types such as `PathBuf`) is to apply [small string optimization](https://fasterthanli.me/articles/small-strings-in-rust), where small strings are stored inline instead of requiring a heap allocation.
 This only works if the strings are usually small enough to fit inline on the stack (for example, 32 bytes).
 
@@ -180,7 +180,7 @@ That may be a good strategy for a build system, where we work with the same file
 There are several crates implementing these techniques, but I have not used one myself yet, so I cannot recommend one.
 ```
 
-```admonish tip title="Avoiding the Heap Allocations from Collecting into Vecs" collapsible=true
+```admonish question title="How to Avoid Heap Allocations from Collecting into Vec?" collapsible=true
 Collecting the elements of an iterator into a `Vec` requires heap allocations as `Vec` is allocated on the heap.
 We can avoid or at least reduce the number of heap allocations by re-using the same `Vec` instead of creating a new one.
 Instead of collecting, you would store the `Vec` in the struct, clear it, and then `extend` it with the iterator.

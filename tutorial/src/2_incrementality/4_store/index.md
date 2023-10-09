@@ -222,7 +222,7 @@ This works because `"hello.txt"` and `"world.txt"` are different paths, thus the
 Test `test_file_mapping_panics` triggers the panic in `get_file_path` by creating a `FileNode` with a "fake store", and then using that rogue file node in another store.
 While it is unlikely that we will make this mistake when using `Store`, it is good to confirm that this panics.
 
-```admonish tip title="Testing Panics" collapsible=true
+```admonish tip title="Rust Help: Testing Panics" collapsible=true
 The `#[should_panic]` attribute makes the test succeed if it panics, and fail if it does not panic.
 ```
 

@@ -27,7 +27,7 @@ Then create the `pie/src/tracker` directory, create the `pie/src/tracker/mod.rs`
 
 The `Tracker` trait is generic over `Task`.
 
-```admonish question title="Trait Bound"
+```admonish note title="Trait Bound"
 Here, we chose to put the `Task` trait bound on the trait itself.
 This will not lead to cascading trait bounds, as the `Tracker` trait will only be used as a bound in `impl`s, not in structs or other traits.
 ```
@@ -40,7 +40,7 @@ Tracker methods accept `&mut self` so that tracker implementations can perform m
 We provide default methods that do nothing so that implementors of `Tracker` only have to override the methods for events they are interested in.
 We use `#[allow(unused_variables)]` on the trait to not give warnings for unused variables, as all variables are unused due to the empty default implementations.
 
-```admonish tip title="References in Result and Option" collapsible=true
+```admonish tip title="Rust Help: References in Result and Option" collapsible=true
 The `check_dependency_end` method accepts the inconsistency as `Result<Option<&Inconsistency<T::Output>>, &io::Error>`.
 The reason we accept it like this is that many methods in `Result` and `Option` take `self`, not `&self`, and therefore cannot be called on `&Result<T, E>` and `&Option<T>`.
 
@@ -51,7 +51,7 @@ The final reason to accept `Result<&T, &E>` is that if you have a `&T` or `&E`, 
 However, you _cannot_ construct a `&Result<T, E>` from `&T` or `&E`, so `Result<&T, &E>` is a more flexible type.
 ```
 
-```admonish tip title="Default Methods" collapsible=true
+```admonish question title="Are these Default Methods Useful?" collapsible=true
 Adding a method to `Tracker` with a default implementation ensures that implementations of `Tracker` do not have to be changed to work with the new method.
 This is both good and bad.
 Good because we can add methods without breaking compatibility.
@@ -71,7 +71,7 @@ Add a no-op tracker, which is a tracker that does nothing, by adding the followi
 
 Due to the default methods that do nothing on `Tracker`, this implementation is extremely simple. 
 
-```admonish tip title="Removing Tracker Overhead" collapsible=true
+```admonish tip title="Rust Help: Removing Tracker Overhead" collapsible=true
 We will use generics to select which tracker implementation to use.
 Therefore, all calls to trackers are statically dispatched, and could be inlined.
 Because `NoopTracker` only has empty methods, and those empty methods can be inlined, using `NoopTracker` will effectively remove all tracking code from your binary, thus removing the overhead of tracking if you don't want it.
@@ -94,8 +94,8 @@ We use `A` as the generic argument for tracker types in the source code.
 The `Pie` struct owns the tracker, similarly to how it owns the store.
 `Pie` can be created with a specific tracker with `with_tracker`, and provides access to the tracker with `tracker` and `tracker_mut`.
 
-```admonish tip title="Default Type" collapsible=true
-We assign `NoopTracker` as the default type for trackers in `Pie`, so that no tracking is performed when we use the `Pie` type without an explicit tracker type.
+```admonish tip title="Rust Help: Default Type" collapsible=true
+We assign `NoopTracker` as the [default type](https://doc.rust-lang.org/book/ch19-03-advanced-traits.html#default-generic-type-parameters-and-operator-overloading) for trackers in `Pie`, so that no tracking is performed when we use the `Pie` type without an explicit tracker type.
 The `Default` implementation only works with `NoopTracker`, because we `impl Default for Pie<T, T::Output>`, which is equivalent to `impl Default for Pie<T, T::Output, NoopTracker>` due to the default type.
 ```
 
@@ -156,7 +156,7 @@ The text to write is passed into these methods using `std::fmt::Arguments` for f
 `WritingTracker` keeps track of `indentation` to show recursive dependency checking and execution, which is controlled with `indent` and `unindent`.
 Since we are usually writing to buffers, we must `flush` them to observe the output.
 
-```admonish question title="Failing Writes" collapsible=true
+```admonish note title="Failing Writes" collapsible=true
 Writes can fail, but we silently ignore them in this tutorial (with `let _ = ...`) for simplicity.
 You could panic when writing fails, but panicking when writing to standard output fails is probably going a bit too far.
 You could store the latest write error and give access to it, which at least allows users of `WritingTracker` check for some errors.
@@ -165,8 +165,8 @@ In general, tracking events can fail, but the current `Tracker` API does not all
 This in turn because `TopDownContext` does not return `Result` for `require_task` due to the trade-offs discussed in the section on `TopDownContext`.
 ```
 
-```admonish tip title="Saturating Arithmetic" collapsible=true
-We use `saturating_add` and `saturating_sub` for safety, which are saturating arithmetic operations that saturate at the numeric bounds instead of overflowing.
+```admonish tip title="Rust Help: Saturating Arithmetic" collapsible=true
+We use [`saturating_add`](https://doc.rust-lang.org/stable/std/primitive.u32.html#method.saturating_add) and [`saturating_sub`](https://doc.rust-lang.org/stable/std/primitive.u32.html#method.saturating_sub) for safety, which are saturating arithmetic operations that saturate at the numeric bounds instead of overflowing.
 For example, `0u32.saturating_sub(1)` will result in `0` instead of overflowing into `4294967295`.
 
 These saturating operations are not really needed when calls to `indent` and `unindent` are balanced.

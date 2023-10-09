@@ -130,7 +130,7 @@ Since we use the `Equals` output stamper, and `"test1"` does not equal `"test2"`
 
 Note that we are both testing the specific dependencies (`FileDependency` and `TaskDependency`), and the general `Dependency`.
 
-```admonish title="Testing Shortcuts"
+```admonish note
 Normally, a task such as `ReadStringFromFile` shound return a `Result<String, io::Error>`, but for testing purposes we are just using panics with `expect`.
 
 In the file dependency case, using `Dependency` requires an explicit type annotation because there is no task to infer the type from.

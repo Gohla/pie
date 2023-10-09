@@ -5,7 +5,7 @@
 First we start by adding testing utilities (it never ends, does it?) that will make writing integration tests more convenient.
 Unfortunately, we can't use `dev_shared` for this, as we would need to add a dependency to from `dev_shared` to `pie`, resulting in a dependency cycle because `pie` depends on `dev_shared`.
 
-```admonish tip title="Development dependency cycle" collapsible=true
+```admonish note title="Development Dependency Cycle" collapsible=true
 If you would create this cycle, the code would still compile, but there would be 2 different instances of `pie` at the same time: one with unit testing enabled (`#[cfg(test)]`), and one without.
 Even though these libraries are very similar, they are effectively 2 completely different libraries.
 When `pie` uses code from `dev_shared` that depends again on `pie`, then there will be errors about types and traits not matching.
@@ -41,8 +41,12 @@ This trait also provides:
 
 We implement `TestPieExt` for `TestPie` so that we can call `require_then_assert` on any `TestPie` instance.
 
-```admonish info title="Extension trait" collapsible=true
-Extension traits are a pattern in Rust where we can add methods to an existing type via an extension trait and an implementation of the extension trait for the existing type.
+```admonish tip title="Rust Help: Extension Trait" collapsible=true
+Rust does not allow adding methods to an existing type/trait to ensure forward compatibility.
+For example, if your library could add a method `foo` to `String`, but in a later Rust version the `String::foo` method would be added to the standard library, then all users of your library will run into an ambiguity and fail to compile.
+
+Extension traits are a pattern in Rust where we can add methods to an existing type via a trait (typically named `TraitExt`) and an implementation of that trait for the existing type.
+Because the extension trait must be imported to make the methods available to the current module, this can only cause compatibility issues if the trait is actually imported.
 ```
 
 We still need to define a task for testing.
@@ -85,7 +89,7 @@ Finally, we assert that the output equals what we expect.
 Check that this test succeeds with `cargo test`.
 To see what test failures look like, temporarily change `events.get(2)` to `events.get(3)` for example.
 
-```admonish tip title="Integration testing in Rust" collapsible=true
+```admonish tip title="Rust Help: Integration Testing" collapsible=true
 [Integration tests](https://doc.rust-lang.org/rust-by-example/testing/integration_testing.html) in Rust are for testing whether the different parts of your library work together correctly.
 Integration tests have access to the public API of your crate.
 
@@ -114,7 +118,7 @@ Since `Return` has no dependencies, it should only ever be executed once, after 
 
 Check that this test succeeds with `cargo test`.
 
-~~~admonish tip title="Reading standard output from tests"
+~~~admonish tip title="Rust Help: Reading Standard Output from Tests"
 Cargo runs tests in parallel by default, which is good to run all tests as fast as possible (and it's also safe due to Rust's memory-safety and thread-safety guarantees!)
 However, this mixes the standard outputs of all tests, which makes reading the build log from our writing tracker impossible.
 If you want to see the standard output, either:
@@ -177,7 +181,7 @@ Modify `pie/src/tests/common/mod.rs`:
 We add a `ToLower` task that requires another task (stored as `Box<TestTask>`) to get a `String`, which it then converts to lower case.
 We also add the `into_string` method to `TestOutput` for conveniently getting an owned `String` from a `TestOutput`.
 
-```admonish tip title="Boxing to prevent cyclic size calculation" collapsible=true
+```admonish tip title="Rust Help: Boxing to Prevent Cyclic Size Calculation" collapsible=true
 We store the string providing task as `Box<TestTask>` in order to prevent cyclic size calculation, which would cause `TestTask` to have an undetermined size.
 This is due to several reasons:
 - In Rust, values are stored on the stack by default. To store something on the stack, Rust needs to know its size *at compile-time*.
