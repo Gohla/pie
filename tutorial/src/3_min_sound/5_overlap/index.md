@@ -313,7 +313,7 @@ As far as I know, there is no _easy_ way to detect overlap statically in the pre
 You'd have to encode file names and paths in the type system, and restrict what kind of names and paths you can use.
 
 Matthew Hammer et al. developed [Fungi, a typed functional language for incremental computation with names](https://arxiv.org/abs/1808.07826) to solve this problem, but it is quite involved!
-Be sure to read that paper and their previous work on [Adapton](http://adapton.org/) if you're interested in that line of research. 
+Be sure to read that paper and their previous work on [Adapton (non-HTTPS)](http://adapton.org/) if you're interested in that line of research. 
 ```
 
 In the next section, we will detect and disallow another inconsistency in incremental builds: hidden dependencies.
