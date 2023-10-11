@@ -210,7 +210,7 @@ pub trait Task: Clone + Eq + Hash + Debug {
   fn execute&lt;C: Context&lt;Self&gt;&gt;(&amp;self, context: &amp;mut C) -&gt; Self::Output;
 }
 
-/// Programmatic incremental build context, enabling tasks to create dynamic dependencies that context implementations 
+/// Programmatic incremental build context, enabling tasks to create dynamic dependencies that context implementations
 /// use for incremental execution.
 pub trait Context&lt;T: Task&gt; {
   /// Requires given `task`, recording a dependency and selectively executing it. Returns its up-to-date output.
@@ -245,7 +245,7 @@ Because of this, the context reference passed to <code>Task::execute</code> is a
 <p>Build the project by running <code>cargo build</code>.
 The output should look something like:</p>
 <pre><code class="language-shell ">   Compiling pie v0.1.0 (/pie)
-    Finished dev [unoptimized + debuginfo] target(s) in 0.07s
+    Finished dev [unoptimized + debuginfo] target(s) in 0.05s
 </code></pre>
 <details id="admonition-rust-help-modules-imports-ownership-traits-methods-supertraits-associated-types-visibility" class="admonition admonish-tip">
 <summary class="admonition-title">

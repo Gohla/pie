@@ -21,7 +21,7 @@ pub trait Tracker<T: Task> {
   /// End: required a task, resulting in a task `dependency` and `output`, and the task `was_executed`.
   fn require_task_end(&mut self, dependency: &TaskDependency<T, T::Output>, output: &T::Output, was_executed: bool) {}
 
-  /// Start: check consistency of `dependency`. 
+  /// Start: check consistency of `dependency`.
   fn check_dependency_start(&mut self, dependency: &Dependency<T, T::Output>) {}
   /// End: checked consistency of `dependency`, possibly found `inconsistency`.
   fn check_dependency_end(

@@ -1,6 +1,6 @@
 
 impl<T: Task> Event<T, T::Output> {
-  /// Returns `Some(&data)` if this is a [require file end event](Event::RequireFileEnd) for file at `path`, or `None` 
+  /// Returns `Some(&data)` if this is a [require file end event](Event::RequireFileEnd) for file at `path`, or `None`
   /// otherwise.
   pub fn match_require_file_end(&self, path: impl AsRef<Path>) -> Option<&RequireFileEnd> {
     let path = path.as_ref();

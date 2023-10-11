@@ -85,7 +85,7 @@ impl<T: Task> TaskDependency<T, T::Output> {
   /// Returns the stamp of this dependency.
   #[allow(dead_code)]
   pub fn stamp(&self) -> &OutputStamp<T::Output> { &self.stamp }
-  
+
   /// Checks whether this task dependency is inconsistent, returning:
   /// - `Some(stamp)` if this dependency is inconsistent (with `stamp` being the new stamp of the dependency),
   /// - `None` if this dependency is consistent.
@@ -197,7 +197,7 @@ mod test {
     assert!(task_dependency.is_inconsistent(&mut context).is_none());
     assert!(dependency.is_inconsistent(&mut context)?.is_none());
 
-    // Change the file, causing the task to return a different output, changing the stamp the stamper will create next 
+    // Change the file, causing the task to return a different output, changing the stamp the stamper will create next
     // time, making the task dependency inconsistent.
     write_until_modified(&temp_file, "test2")?;
     assert!(task_dependency.is_inconsistent(&mut context).is_some());

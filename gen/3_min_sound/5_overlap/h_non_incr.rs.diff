@@ -1,0 +1,13 @@
+--- pie/src/context/non_incremental.rs
++++ pie/src/context/non_incremental.rs
+@@ -14,6 +14,10 @@
+     open_if_file(&path)
+   }
+ 
++  fn provide_file_with_stamper<P: AsRef<Path>>(&mut self, _path: P, _stamper: FileStamper) -> Result<(), io::Error> {
++    Ok(())
++  }
++
+   fn require_task_with_stamper(&mut self, task: &T, _stamper: OutputStamper) -> T::Output {
+     task.execute(self)
+   }

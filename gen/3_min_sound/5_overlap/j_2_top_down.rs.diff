@@ -1,0 +1,17 @@
+--- pie/src/context/top_down.rs
++++ pie/src/context/top_down.rs
+@@ -42,6 +42,14 @@
+     };
+     let path = path.as_ref();
+     let node = self.session.store.get_or_create_file_node(path);
++
++    if let Some(previous_providing_task_node) = self.session.store.get_task_providing_file(&node) {
++      let current_executing_task = self.session.store.get_task(current_executing_task_node);
++      let previous_providing_task = self.session.store.get_task(&previous_providing_task_node);
++      panic!("Overlapping provided file; file '{}' is provided by the current executing task '{:?}' that was \
++              previously provided by task: {:?}", path.display(), current_executing_task, previous_providing_task);
++    }
++
+     let dependency = FileDependency::new(path, stamper)?;
+     self.session.tracker.provide_file_end(&dependency);
+     self.session.store.add_file_provide_dependency(current_executing_task_node, &node, dependency);

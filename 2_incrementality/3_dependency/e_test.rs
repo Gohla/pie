@@ -61,7 +61,7 @@ mod test {
     assert!(task_dependency.is_inconsistent(&mut context).is_none());
     assert!(dependency.is_inconsistent(&mut context)?.is_none());
 
-    // Change the file, causing the task to return a different output, changing the stamp the stamper will create next 
+    // Change the file, causing the task to return a different output, changing the stamp the stamper will create next
     // time, making the task dependency inconsistent.
     write_until_modified(&temp_file, "test2")?;
     assert!(task_dependency.is_inconsistent(&mut context).is_some());

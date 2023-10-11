@@ -1,14 +1,6 @@
 --- pie/src/context/top_down.rs
 +++ pie/src/context/top_down.rs
-@@ -23,6 +23,7 @@
-   }
- }
- 
-+
- impl<'p, 's, T: Task, A: Tracker<T>> Context<T> for TopDownContext<'p, 's, T, T::Output, A> {
-   fn require_file_with_stamper<P: AsRef<Path>>(&mut self, path: P, stamper: FileStamper) -> Result<Option<File>, io::Error> {
-     let Some(current_executing_task_node) = &self.session.current_executing_task else {
-@@ -38,9 +39,28 @@
+@@ -38,9 +38,28 @@
  
    fn require_task_with_stamper(&mut self, task: &T, stamper: OutputStamper) -> T::Output {
      self.session.tracker.require_task_start(task, &stamper);
@@ -18,8 +10,7 @@
 +
 +    let dependency = TaskDependency::new(task.clone(), stamper, output.clone());
 +    self.session.tracker.require_task_end(&dependency, &output, was_executed);
- 
--    // Get required task output by executing it if needed, or by getting the output from the store if not needed.
++
 +    // Create task require dependency if a task is currently executing (i.e., we are not requiring the initial task).
 +    if let Some(current_executing_task_node) = &self.session.current_executing_task {
 +      if self.session.store.add_task_require_dependency(current_executing_task_node, &node, dependency).is_err() {
@@ -27,7 +18,8 @@
 +        panic!("Cyclic task dependency; current executing task '{:?}' is requiring task '{:?}' which was already required", current_executing_task, task);
 +      }
 +    }
-+
+ 
+-    // Get required task output by executing it if needed, or by getting the output from the store if not needed.
 +    output
 +  }
 +}
@@ -38,7 +30,7 @@
      let already_consistent = self.session.consistent.contains(&node);
      let should_execute = !already_consistent && self.should_execute_task(&node);
      let output = if should_execute {
-@@ -57,24 +77,11 @@
+@@ -57,24 +76,11 @@
        // executed and `should_execute_task` ensures that the task has an output.
        self.session.store.get_task_output(&node).clone()
      };

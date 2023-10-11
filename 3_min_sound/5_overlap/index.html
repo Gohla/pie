@@ -176,15 +176,6 @@
                 <div id="content" class="content">
                     <main>
                         <h1 id="prevent-overlapping-file-writes"><a class="header" href="#prevent-overlapping-file-writes">Prevent Overlapping File Writes</a></h1>
-<div id="admonition-under-construction" class="admonition admonish-warning">
-<div class="admonition-title">
-<p>Under construction</p>
-<p><a class="admonition-anchor-link" href="#admonition-under-construction"></a></p>
-</div>
-<div>
-<p>This section is under construction.</p>
-</div>
-</div>
 <p>So far we have only considered reading files in the build system.
 However, there are many tasks that also write files.
 For example, a C compiler reads a C source file (and header files) and writes an object file with the compiled result, which is typically an intermediate file that gets passed to a linker.
@@ -473,16 +464,744 @@ A file may only be provided by one task.</p>
 <p>To implement this dependency, we will:</p>
 <ol>
 <li>Add a <code>ProvideFile</code> variant to <code>Dependency</code>.</li>
+<li>Update <code>Tracker</code> and implementations to handle file provide dependencies.</li>
 <li>Add a <code>add_file_provide_dependency</code> method to <code>Store</code>.</li>
-<li>Add <code>provide_file</code> / <code>provide_file_with_stamper</code> / <code>default_provide_file_stamper</code> methods to <code>Context</code>.</li>
-<li>Implement <code>provide_file_with_stamper</code> in <code>TopDownContext</code> (and <code>NonIncrementalContext</code>).</li>
+<li>Add <code>provide_file</code> methods to <code>Context</code> and implement them in implementations.</li>
 </ol>
 <h3 id="add-providefile-variant-to-dependency"><a class="header" href="#add-providefile-variant-to-dependency">Add <code>ProvideFile</code> variant to <code>Dependency</code></a></h3>
+<p>Modify <code>pie/src/dependency.rs</code>:</p>
+<div class="diff2html" id="diff2html_2"></div>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    let diff = String.raw`--- pie/src/dependency.rs
++++ pie/src/dependency.rs
+@@ -109,6 +109,7 @@
+ #[derive(Clone, Eq, PartialEq, Debug)]
+ pub enum Dependency<T, O> {
+   RequireFile(FileDependency),
++  ProvideFile(FileDependency),
+   RequireTask(TaskDependency<T, O>),
+ }
+ 
+@@ -127,6 +128,8 @@
+     let option = match self {
+       Dependency::RequireFile(d) => d.is_inconsistent()?
+         .map(|s| Inconsistency::File(s)),
++      Dependency::ProvideFile(d) => d.is_inconsistent()?
++        .map(|s| Inconsistency::File(s)),
+       Dependency::RequireTask(d) => d.is_inconsistent(context)
+         .map(|s| Inconsistency::Task(s)),
+     };
+@@ -171,14 +174,17 @@
+     write(&temp_file, "test1")?;
+ 
+     let file_dependency = FileDependency::new(temp_file.path(), FileStamper::Modified)?;
+-    let dependency: Dependency<ReadStringFromFile, String> = Dependency::RequireFile(file_dependency.clone());
++    let require_dependency: Dependency<ReadStringFromFile, String> = Dependency::RequireFile(file_dependency.clone());
++    let provide_dependency: Dependency<ReadStringFromFile, String> = Dependency::ProvideFile(file_dependency.clone());
+     assert!(file_dependency.is_inconsistent()?.is_none());
+-    assert!(dependency.is_inconsistent(&mut context)?.is_none());
++    assert!(require_dependency.is_inconsistent(&mut context)?.is_none());
++    assert!(provide_dependency.is_inconsistent(&mut context)?.is_none());
+ 
+     // Change the file, changing the stamp the stamper will create next time, making the file dependency inconsistent.
+     write_until_modified(&temp_file, "test2")?;
+     assert!(file_dependency.is_inconsistent()?.is_some());
+-    assert!(dependency.is_inconsistent(&mut context)?.is_some());
++    assert!(require_dependency.is_inconsistent(&mut context)?.is_some());
++    assert!(provide_dependency.is_inconsistent(&mut context)?.is_some());
+ 
+     Ok(())
+   }
+`;
+    let target = document.getElementById('diff2html_2');
+    let configuration = {
+      drawFileList: false,
+      fileListToggle: false,
+      fileContentToggle: false,
+
+      outputFormat: 'side-by-side',
+      matching: 'lines',
+    };
+    let diff2htmlUi = new Diff2HtmlUI(target, diff, configuration, hljs);
+    diff2htmlUi.draw();
+  });
+</script>
+<p>We add the <code>ProvideFile</code> variant to <code>Dependency</code>, handle it in <code>is_inconsistent</code>, and update the unit test to also test that variant.
+If you compile the code, you’ll get an error because this new variant needs to be handled in <code>WritingTracker</code>, so let’s update the trackers first.</p>
+<h3 id="update-tracker-and-implementations"><a class="header" href="#update-tracker-and-implementations">Update <code>Tracker</code> and implementations</a></h3>
+<p>Update <code>pie/src/tracker/mod.rs</code>:</p>
+<div class="diff2html" id="diff2html_3"></div>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    let diff = String.raw`--- pie/src/tracker/mod.rs
++++ pie/src/tracker/mod.rs
+@@ -15,8 +15,10 @@
+   /// End: completed build.
+   fn build_end(&mut self) {}
+ 
+-  /// End: created a file ${"`"}dependency${"`"}.
++  /// End: created a require file ${"`"}dependency${"`"}.
+   fn require_file_end(&mut self, dependency: &FileDependency) {}
++  /// End: created a provide file ${"`"}dependency${"`"}.
++  fn provide_file_end(&mut self, dependency: &FileDependency) {}
+   /// Start: require ${"`"}task${"`"} using ${"`"}stamper${"`"}.
+   fn require_task_start(&mut self, task: &T, stamper: &OutputStamper) {}
+   /// End: required a task, resulting in a task ${"`"}dependency${"`"} and ${"`"}output${"`"}, and the task ${"`"}was_executed${"`"}.
+@@ -55,6 +57,10 @@
+     self.1.build_end();
+   }
+ 
++  fn provide_file_end(&mut self, dependency: &FileDependency) {
++    self.0.provide_file_end(dependency);
++    self.1.provide_file_end(dependency);
++  }
+   fn require_file_end(&mut self, dependency: &FileDependency) {
+     self.0.require_file_end(dependency);
+     self.1.require_file_end(dependency);
+`;
+    let target = document.getElementById('diff2html_3');
+    let configuration = {
+      drawFileList: false,
+      fileListToggle: false,
+      fileContentToggle: false,
+
+      outputFormat: 'side-by-side',
+      matching: 'lines',
+    };
+    let diff2htmlUi = new Diff2HtmlUI(target, diff, configuration, hljs);
+    diff2htmlUi.draw();
+  });
+</script>
+<p>We add <code>provide_file_end</code> to <code>Tracker</code> and handle it in <code>CompositeTracker</code>.</p>
+<p>Update <code>pie/src/tracker/writing.rs</code>:</p>
+<div class="diff2html" id="diff2html_4"></div>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    let diff = String.raw`--- pie/src/tracker/writing.rs
++++ pie/src/tracker/writing.rs
+@@ -70,8 +70,11 @@
+   }
+ 
+   fn require_file_end(&mut self, dependency: &FileDependency) {
+-    self.writeln(format_args!("- {}", dependency.path().display()));
++    self.writeln(format_args!("r {}", dependency.path().display()));
+   }
++  fn provide_file_end(&mut self, dependency: &FileDependency) {
++    self.writeln(format_args!("p {}", dependency.path().display()));
++  }
+   fn require_task_start(&mut self, task: &T, _stamper: &OutputStamper) {
+     self.writeln(format_args!("→ {:?}", task));
+     self.indent();
+@@ -99,7 +102,7 @@
+     inconsistency: Result<Option<&Inconsistency<T::Output>>, &io::Error>
+   ) {
+     match dependency {
+-      Dependency::RequireFile(d) => {
++      Dependency::RequireFile(d) | Dependency::ProvideFile(d) => {
+         match inconsistency {
+           Err(e) => self.writeln(format_args!("✗ {} (err: {:?})", d.path().display(), e)),
+           Ok(Some(Inconsistency::File(s))) =>
+`;
+    let target = document.getElementById('diff2html_4');
+    let configuration = {
+      drawFileList: false,
+      fileListToggle: false,
+      fileContentToggle: false,
+
+      outputFormat: 'side-by-side',
+      matching: 'lines',
+    };
+    let diff2htmlUi = new Diff2HtmlUI(target, diff, configuration, hljs);
+    diff2htmlUi.draw();
+  });
+</script>
+<p>We change <code>require_file_end</code> to print <code>r</code> instead of <code>-</code> to distinguish it from file provides.
+We implement the <code>provide_file_end</code> method, printing the provided file.
+Finally, we support the <code>Dependency::ProvideFile</code> variant by adding a branch for it in the match statement.</p>
+<p>This fixes the compilation error.
+Check that everything works with <code>cargo test</code>.</p>
 <h3 id="add-add_file_provide_dependency-method-to-store"><a class="header" href="#add-add_file_provide_dependency-method-to-store">Add <code>add_file_provide_dependency</code> method to <code>Store</code></a></h3>
-<h3 id="add-methods-to-context"><a class="header" href="#add-methods-to-context">Add methods to <code>Context</code></a></h3>
-<h3 id="implement-provide_file_with_stamper-in-nonincrementalcontext"><a class="header" href="#implement-provide_file_with_stamper-in-nonincrementalcontext">Implement <code>provide_file_with_stamper</code> in <code>NonIncrementalContext</code></a></h3>
-<h3 id="implement-provide_file_with_stamper-in-topdowncontext"><a class="header" href="#implement-provide_file_with_stamper-in-topdowncontext">Implement <code>provide_file_with_stamper</code> in <code>TopDownContext</code></a></h3>
+<p>First we need to support provide file dependencies in the <code>Store</code>.
+Update <code>pie/src/store.rs</code>:</p>
+<div class="diff2html" id="diff2html_5"></div>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    let diff = String.raw`--- pie/src/store.rs
++++ pie/src/store.rs
+@@ -163,6 +163,18 @@
+       _ => {},
+     }
+   }
++  /// Add a file provide ${"`"}dependency${"`"} from task ${"`"}src${"`"} to file ${"`"}dst${"`"}.
++  ///
++  /// # Panics
++  ///
++  /// Panics if ${"`"}src${"`"} or ${"`"}dst${"`"} were not found in the dependency graph, or if a cycle is created by adding this dependency.
++  pub fn add_file_provide_dependency(&mut self, src: &TaskNode, dst: &FileNode, dependency: FileDependency) {
++    match self.graph.add_edge(src, dst, Dependency::ProvideFile(dependency)) {
++      Err(pie_graph::Error::NodeMissing) => panic!("BUG: source node {:?} or destination node {:?} was not found in the dependency graph", src, dst),
++      Err(pie_graph::Error::CycleDetected) => panic!("BUG: cycle detected when adding file dependency from {:?} to {:?}", src, dst),
++      _ => {},
++    }
++  }
+   /// Adds a task require ${"`"}dependency${"`"} from task ${"`"}src${"`"} to task ${"`"}dst${"`"}.
+   ///
+   /// # Errors
+@@ -366,13 +378,13 @@
+ 
+     // Add file dependency from task B to file C.
+     let file_dependency_b2c = FileDependency::new(&path_c, FileStamper::Exists).unwrap();
+-    store.add_file_require_dependency(&node_b, &node_c, file_dependency_b2c.clone());
++    store.add_file_provide_dependency(&node_b, &node_c, file_dependency_b2c.clone());
+     let deps_of_a: Vec<_> = store.get_dependencies_of_task(&node_a).cloned().collect();
+     assert_eq!(deps_of_a.get(0), Some(&Dependency::RequireFile(file_dependency_a2c.clone())));
+     assert_eq!(deps_of_a.get(1), None);
+     let deps_of_b: Vec<_> = store.get_dependencies_of_task(&node_b).cloned().collect();
+     assert_eq!(deps_of_b.get(0), Some(&Dependency::RequireTask(task_dependency_b2a.clone())));
+-    assert_eq!(deps_of_b.get(1), Some(&Dependency::RequireFile(file_dependency_b2c.clone())));
++    assert_eq!(deps_of_b.get(1), Some(&Dependency::ProvideFile(file_dependency_b2c.clone())));
+     assert_eq!(deps_of_b.get(2), None);
+ 
+     // Add task dependency from task A to task B, creating a cycle.
+@@ -403,6 +415,17 @@
+ 
+   #[test]
+   #[should_panic]
++  fn test_add_file_provide_dependency_panics() {
++    let mut fake_store = Store::default();
++    let fake_file_node = fake_store.get_or_create_file_node("hello.txt");
++    let fake_task_node = fake_store.get_or_create_task_node(&StringConstant::new("Hello"));
++    let mut store: Store<StringConstant, String> = Store::default();
++    let dependency = FileDependency::new("hello.txt", FileStamper::Exists).unwrap();
++    store.add_file_provide_dependency(&fake_task_node, &fake_file_node, dependency);
++  }
++
++  #[test]
++  #[should_panic]
+   fn test_add_task_require_dependency_panics() {
+     let mut fake_store = Store::default();
+     let output = "Hello".to_string();
+`;
+    let target = document.getElementById('diff2html_5');
+    let configuration = {
+      drawFileList: false,
+      fileListToggle: false,
+      fileContentToggle: false,
+
+      outputFormat: 'side-by-side',
+      matching: 'lines',
+    };
+    let diff2htmlUi = new Diff2HtmlUI(target, diff, configuration, hljs);
+    diff2htmlUi.draw();
+  });
+</script>
+<p>We add the <code>add_file_provide_dependency</code> method, which does the same as <code>add_require_provide_dependency</code> but creates a <code>ProvideFile</code> dependency instead.
+We update the <code>test_dependencies</code> unit test to create a provide file dependency, and add a test to check whether <code>add_require_provide_dependency</code> panics when used incorrectly.
+Confirm the changes work with <code>cargo test</code>.</p>
+<h3 id="add-methods-to-context-and-implementations"><a class="header" href="#add-methods-to-context-and-implementations">Add methods to <code>Context</code> and implementations</a></h3>
+<p>We are not creating provide file dependencies yet, so let’s work on that now.
+Add methods to <code>Context</code>, enabling tasks to create provide file dependencies, in <code>pie/src/lib.rs</code>:</p>
+<div class="diff2html" id="diff2html_6"></div>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    let diff = String.raw`--- pie/src/lib.rs
++++ pie/src/lib.rs
+@@ -49,6 +49,19 @@
+   /// Returns the default require file stamper.
+   fn default_require_file_stamper(&self) -> FileStamper { FileStamper::Modified }
+ 
++  /// Provides file at given ${"`"}path${"`"}, recording a dependency to it (using the default provide file stamper). Call this
++  /// method *just after writing to the file*, so that the dependency corresponds to your written data. Returns an
++  /// ${"`"}Err(e)${"`"} if there was an error getting the metadata for given ${"`"}path${"`"}, or if there was an error stamping the file.
++  fn provide_file<P: AsRef<Path>>(&mut self, path: P) -> Result<(), io::Error> {
++    self.provide_file_with_stamper(path, self.default_provide_file_stamper())
++  }
++  /// Provides file at given ${"`"}path${"`"}, recording a dependency to it (using given ${"`"}stamper${"`"}). Call this method
++  /// *just after writing to the file*, so that the dependency corresponds to you written data.  Returns an ${"`"}Err(e)${"`"} if
++  /// there was an error getting the metadata for given ${"`"}path${"`"}, or if there was an error stamping the file.
++  fn provide_file_with_stamper<P: AsRef<Path>>(&mut self, path: P, stamper: FileStamper) -> Result<(), io::Error>;
++  /// Returns the default provide file stamper.
++  fn default_provide_file_stamper(&self) -> FileStamper { FileStamper::Modified }
++
+   /// Requires given ${"`"}task${"`"}, recording a dependency (using the default output stamper) and selectively executing it.
+   /// Returns its up-to-date output.
+   fn require_task(&mut self, task: &T) -> T::Output {
+`;
+    let target = document.getElementById('diff2html_6');
+    let configuration = {
+      drawFileList: false,
+      fileListToggle: false,
+      fileContentToggle: false,
+
+      outputFormat: 'line-by-line',
+      matching: 'lines',
+    };
+    let diff2htmlUi = new Diff2HtmlUI(target, diff, configuration, hljs);
+    diff2htmlUi.draw();
+  });
+</script>
+<p>These methods are like <code>require_file</code>, but must be called <strong>after</strong> writing to the file, so that the stamper creates a stamp that includes the (meta)data that was written to the file.
+Therefore, these methods do not return a <code>File</code> handle, because the caller creates a file handle for writing.</p>
+<p>Implement this method in <code>pie/src/context/non_incremental.rs</code>:</p>
+<div class="diff2html" id="diff2html_7"></div>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    let diff = String.raw`--- pie/src/context/non_incremental.rs
++++ pie/src/context/non_incremental.rs
+@@ -14,6 +14,10 @@
+     open_if_file(&path)
+   }
+ 
++  fn provide_file_with_stamper<P: AsRef<Path>>(&mut self, _path: P, _stamper: FileStamper) -> Result<(), io::Error> {
++    Ok(())
++  }
++
+   fn require_task_with_stamper(&mut self, task: &T, _stamper: OutputStamper) -> T::Output {
+     task.execute(self)
+   }
+`;
+    let target = document.getElementById('diff2html_7');
+    let configuration = {
+      drawFileList: false,
+      fileListToggle: false,
+      fileContentToggle: false,
+
+      outputFormat: 'line-by-line',
+      matching: 'lines',
+    };
+    let diff2htmlUi = new Diff2HtmlUI(target, diff, configuration, hljs);
+    diff2htmlUi.draw();
+  });
+</script>
+<p>The non-incremental context just ignores provided files.</p>
+<p>Implement the method in <code>pie/src/context/top_down.rs</code>:</p>
+<div class="diff2html" id="diff2html_8"></div>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    let diff = String.raw`--- pie/src/context/top_down.rs
++++ pie/src/context/top_down.rs
+@@ -36,6 +36,18 @@
+     Ok(file)
+   }
+ 
++  fn provide_file_with_stamper<P: AsRef<Path>>(&mut self, path: P, stamper: FileStamper) -> Result<(), io::Error> {
++    let Some(current_executing_task_node) = &self.session.current_executing_task else {
++      return Ok(()); // No current executing task, so no dependency needs to be made.
++    };
++    let path = path.as_ref();
++    let node = self.session.store.get_or_create_file_node(path);
++    let dependency = FileDependency::new(path, stamper)?;
++    self.session.tracker.provide_file_end(&dependency);
++    self.session.store.add_file_provide_dependency(current_executing_task_node, &node, dependency);
++    Ok(())
++  }
++
+   fn require_task_with_stamper(&mut self, task: &T, stamper: OutputStamper) -> T::Output {
+     self.session.tracker.require_task_start(task, &stamper);
+ 
+`;
+    let target = document.getElementById('diff2html_8');
+    let configuration = {
+      drawFileList: false,
+      fileListToggle: false,
+      fileContentToggle: false,
+
+      outputFormat: 'line-by-line',
+      matching: 'lines',
+    };
+    let diff2htmlUi = new Diff2HtmlUI(target, diff, configuration, hljs);
+    diff2htmlUi.draw();
+  });
+</script>
+<p>Again, this method is similar to the requiring version, except that it creates a provide file dependency, and returns <code>()</code> instead of a file handle.
+Check that your changes work with <code>cargo test</code>.</p>
 <h2 id="detect-and-disallow-overlapping-provided-files"><a class="header" href="#detect-and-disallow-overlapping-provided-files">Detect and disallow overlapping provided files</a></h2>
+<p>Now we will detect and disallow overlapping provided files.
+The only source of provided files is the <code>provide_file_with_stamper</code> method we just implemented.
+Therefore, we can easily check for overlapping dependencies there.
+Whenever a file provide dependency is made, we just need to check if a task is already providing that file, and disallow that.</p>
+<p>First add a method to <code>Store</code> to get the providing task (if any) for a file.
+Modify <code>pie/src/store.rs</code>:</p>
+<div class="diff2html" id="diff2html_9"></div>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    let diff = String.raw`--- pie/src/store.rs
++++ pie/src/store.rs
+@@ -151,6 +151,23 @@
+     debug_assert!(self.graph.contains_node(src), "BUG: node {:?} was not found in the dependency graph", src);
+     self.graph.get_outgoing_edge_data(src)
+   }
++
++  /// Get the task node that provides file ${"`"}dst${"`"}, or ${"`"}None${"`"} if there is none.
++  ///
++  /// # Panics
++  ///
++  /// Panics in development builds if ${"`"}dst${"`"} was not found in the dependency graph.
++  pub fn get_task_providing_file(&self, dst: &FileNode) -> Option<TaskNode> {
++    debug_assert!(self.graph.contains_node(dst), "BUG: node {:?} was not found in the dependency graph", dst);
++    self.graph.get_incoming_edges(dst).filter_map(|(n, d)|
++      if matches!(d, Dependency::ProvideFile(_)) {
++        Some(TaskNode(*n))
++      } else {
++        None
++      }
++    ).next()
++  }
++
+   /// Add a file require ${"`"}dependency${"`"} from task ${"`"}src${"`"} to file ${"`"}dst${"`"}.
+   ///
+   /// # Panics
+@@ -356,6 +373,7 @@
+ 
+     assert_eq!(store.get_dependencies_of_task(&node_a).next(), None);
+     assert_eq!(store.get_dependencies_of_task(&node_b).next(), None);
++    assert_eq!(store.get_task_providing_file(&node_c), None);
+ 
+     // Add file dependency from task A to file C.
+     let file_dependency_a2c = FileDependency::new(&path_c, FileStamper::Exists).unwrap();
+@@ -364,6 +382,7 @@
+     assert_eq!(deps_of_a.get(0), Some(&Dependency::RequireFile(file_dependency_a2c.clone())));
+     assert_eq!(deps_of_a.get(1), None);
+     assert_eq!(store.get_dependencies_of_task(&node_b).next(), None);
++    assert_eq!(store.get_task_providing_file(&node_c), None);
+ 
+     // Add task dependency from task B to task A.
+     let task_dependency_b2a = TaskDependency::new(task_a.clone(), OutputStamper::Equals, output_a.clone());
+@@ -375,6 +394,7 @@
+     let deps_of_b: Vec<_> = store.get_dependencies_of_task(&node_b).cloned().collect();
+     assert_eq!(deps_of_b.get(0), Some(&Dependency::RequireTask(task_dependency_b2a.clone())));
+     assert_eq!(deps_of_b.get(1), None);
++    assert_eq!(store.get_task_providing_file(&node_c), None);
+ 
+     // Add file dependency from task B to file C.
+     let file_dependency_b2c = FileDependency::new(&path_c, FileStamper::Exists).unwrap();
+@@ -386,6 +406,7 @@
+     assert_eq!(deps_of_b.get(0), Some(&Dependency::RequireTask(task_dependency_b2a.clone())));
+     assert_eq!(deps_of_b.get(1), Some(&Dependency::ProvideFile(file_dependency_b2c.clone())));
+     assert_eq!(deps_of_b.get(2), None);
++    assert_eq!(store.get_task_providing_file(&node_c), Some(node_b));
+ 
+     // Add task dependency from task A to task B, creating a cycle.
+     let task_dependency_a2b = TaskDependency::new(task_a.clone(), OutputStamper::Equals, output_a.clone());
+@@ -404,6 +425,15 @@
+ 
+   #[test]
+   #[should_panic]
++  fn get_task_providing_file_panics() {
++    let mut fake_store: Store<StringConstant, String> = Store::default();
++    let fake_node = fake_store.get_or_create_file_node("hello.txt");
++    let store: Store<StringConstant, String> = Store::default();
++    let _ = store.get_task_providing_file(&fake_node);
++  }
++
++  #[test]
++  #[should_panic]
+   fn test_add_file_require_dependency_panics() {
+     let mut fake_store = Store::default();
+     let fake_file_node = fake_store.get_or_create_file_node("hello.txt");
+`;
+    let target = document.getElementById('diff2html_9');
+    let configuration = {
+      drawFileList: false,
+      fileListToggle: false,
+      fileContentToggle: false,
+
+      outputFormat: 'line-by-line',
+      matching: 'lines',
+    };
+    let diff2htmlUi = new Diff2HtmlUI(target, diff, configuration, hljs);
+    diff2htmlUi.draw();
+  });
+</script>
+<p><code>get_task_providing_file</code> does exactly that.
+We get an iterator over incoming dependency edges for the destination file node using <code>get_incoming_edges</code>.
+We use <a href="https://doc.rust-lang.org/std/iter/trait.Iterator.html#method.filter_map" title="" target="_blank">
+<code>filter_map</code></a> to both filter out non-provide file dependencies, and map to a <code>TaskNode</code> when it is a provide file dependency.
+Only tasks can be the source of provide file dependencies, so it is always correct to create a <code>TaskNode</code> here.
+We get the first (if any) element of the iterator with <code>.next()</code>, which is the task that provides the file.
+Because we will disallow multiple tasks from providing a file, this method will return <code>Option&lt;TaskNode&gt;</code>, since there can only be 0 or 1 task providing a file.</p>
+<p>We modify the dependency test again, testing that <code>get_task_providing_file</code> returns what we expect.</p>
+<p>We assert (in development builds, like <code>get_dependencies_of_task</code>) that the file node must exist in the dependency graph, as a sanity check, and test that. </p>
+<p>Now we’ll use this in <code>provide_file_with_stamper</code> to panic when overlap is detected.
+Modify <code>pie/src/context/top_down.rs</code>:</p>
+<div class="diff2html" id="diff2html_10"></div>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    let diff = String.raw`--- pie/src/context/top_down.rs
++++ pie/src/context/top_down.rs
+@@ -42,6 +42,14 @@
+     };
+     let path = path.as_ref();
+     let node = self.session.store.get_or_create_file_node(path);
++
++    if let Some(previous_providing_task_node) = self.session.store.get_task_providing_file(&node) {
++      let current_executing_task = self.session.store.get_task(current_executing_task_node);
++      let previous_providing_task = self.session.store.get_task(&previous_providing_task_node);
++      panic!("Overlapping provided file; file '{}' is provided by the current executing task '{:?}' that was \
++              previously provided by task: {:?}", path.display(), current_executing_task, previous_providing_task);
++    }
++
+     let dependency = FileDependency::new(path, stamper)?;
+     self.session.tracker.provide_file_end(&dependency);
+     self.session.store.add_file_provide_dependency(current_executing_task_node, &node, dependency);
+`;
+    let target = document.getElementById('diff2html_10');
+    let configuration = {
+      drawFileList: false,
+      fileListToggle: false,
+      fileContentToggle: false,
+
+      outputFormat: 'line-by-line',
+      matching: 'lines',
+    };
+    let diff2htmlUi = new Diff2HtmlUI(target, diff, configuration, hljs);
+    diff2htmlUi.draw();
+  });
+</script>
+<p>If we find a task that provides the file, we panic with a message explaining why.
+Note that we don’t have to check whether <code>previous_providing_task_node == current_executing_task_node</code>, and then not panic.
+This is because when executing a task, we first reset it, which removes all its outgoing dependencies.
+Therefore, <code>current_executing_task_node</code> cannot have a provide file dependency to the file.
+Unless it provides the same file twice, but that is overlap that we also want to disallow.</p>
+<div id="admonition-why-panic" class="admonition admonish-question">
+<div class="admonition-title">
+<p>Why Panic?</p>
+<p><a class="admonition-anchor-link" href="#admonition-why-panic"></a></p>
+</div>
+<div>
+<p>We discussed panicking in the section on the incremental top-down context, but want to reiterate it here.
+Instead of panicking, we could have <code>provide_file_with_stamper</code> return an error indicating overlap was found.
+However, that error would then propagate throughout the entire API.
+Tasks would have to propagate it in their <code>execute</code> method, meaning that <code>Context::require</code> will also be able to return this error.
+When tasks already return their own errors, you’d end up with return types such as <code>Result&lt;Result&lt;AnOutput, AnError&gt;, OverlapError&gt;</code> which are annoying to deal with.</p>
+<p>This is a hard trade-off to make, but in this tutorial (and in the actual PIE library) we will panic.</p>
+</div>
+</div>
+<p>Confirm our changes work with <code>cargo test</code>.
+Wait, shouldn’t the overlap test now fail?
+No, we didn’t change our <code>WriteFile</code> task to use <code>provide_file</code> yet.
+Let’s fix that now.</p>
+<p>Modify <code>pie/tests/common/mod.rs</code>:</p>
+<div class="diff2html" id="diff2html_11"></div>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    let diff = String.raw`--- pie/tests/common/mod.rs
++++ pie/tests/common/mod.rs
+@@ -84,7 +84,7 @@
+       TestTask::WriteFile(string_provider_task, path, stamper) => {
+         let string = context.require_task(string_provider_task.as_ref())?.into_string();
+         write_until_modified(path, string.as_bytes()).map_err(|e| e.kind())?;
+-        context.require_file_with_stamper(path, *stamper).map_err(|e| e.kind())?;
++        context.provide_file_with_stamper(path, *stamper).map_err(|e| e.kind())?;
+         Ok(TestOutput::Unit)
+       }
+       TestTask::ToLower(string_provider_task) => {
+`;
+    let target = document.getElementById('diff2html_11');
+    let configuration = {
+      drawFileList: false,
+      fileListToggle: false,
+      fileContentToggle: false,
+
+      outputFormat: 'side-by-side',
+      matching: 'lines',
+    };
+    let diff2htmlUi = new Diff2HtmlUI(target, diff, configuration, hljs);
+    diff2htmlUi.draw();
+  });
+</script>
+<p>Just replace <code>require_file_with_stamper</code> with <code>provide_file_with_stamper</code> in <code>WriteFile</code>.
+Running <code>cargo test</code> should make the overlap test now fail!</p>
+<div id="admonition-expected-test-failure" class="admonition admonish-failure">
+<div class="admonition-title">
+<p>Expected Test Failure</p>
+<p><a class="admonition-anchor-link" href="#admonition-expected-test-failure"></a></p>
+</div>
+<div>
+<p>Test <code>test_show_overlap_issue</code> will fail as expected, which we will now fix!</p>
+</div>
+</div>
+<p>Modify the test in <code>pie/tests/top_down.rs</code>:</p>
+<div class="diff2html" id="diff2html_12"></div>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    let diff = String.raw`--- pie/tests/top_down.rs
++++ pie/tests/top_down.rs
+@@ -246,44 +246,29 @@
+   Ok(())
+ }
+ 
++#[should_panic(expected = "Overlapping provided file")]
+ #[test]
+-fn test_show_overlap_issue() -> Result<(), io::Error> {
+-  let mut pie = test_pie();
+-  let temp_dir = create_temp_dir()?;
+-
+-  let output_file = temp_dir.path().join("out.txt");
+-
+-  let ret = Return("Hi there");
+-  let write_1 = WriteFile(Box::new(ret.clone()), output_file.clone(), FileStamper::Modified);
+-
+-  let input_file = temp_dir.path().join("in.txt");
+-  write(&input_file, "Hello, World!")?;
+-  let read = ReadFile(input_file.clone(), FileStamper::Modified);
+-  let write_2 = WriteFile(Box::new(read.clone()), output_file.clone(), FileStamper::Modified);
+-
+-  let seq = Sequence(vec![write_1.clone(), write_2.clone()]);
+-
+-  // Require ${"`"}seq${"`"}. The last writer, ${"`"}write_2${"`"} (${"`"}WriteFile(ReadFile(input_file))${"`"}), wins because ${"`"}Sequence${"`"} executes
+-  // tasks in order.
+-  pie.require(&seq)?;
+-  // Assert that ${"`"}output_file${"`"} contains the string from ${"`"}input_file${"`"}.
+-  assert_eq!(read_to_string(&output_file)?, "Hello, World!");
++fn test_overlapping_provided_file_panics() {
++  fn run() -> Result<(), io::Error> {
++    let mut pie = test_pie();
++    let temp_dir = create_temp_dir()?;
+ 
+-  // Change ${"`"}input_file${"`"} such that ${"`"}write_2${"`"} becomes inconsistent.
+-  write_until_modified(&input_file, "World, Hello?")?;
++    let output_file = temp_dir.path().join("out.txt");
++    let input_file = temp_dir.path().join("in.txt");
++    write(&input_file, "Hello, World!")?;
+ 
+-  // Require ${"`"}write_1${"`"} and assert that it is executed, because ${"`"}write_2${"`"} modified ${"`"}output_file${"`"} after ${"`"}write_1${"`"}, thus
+-  // ${"`"}write_1${"`"}'s file dependency to ${"`"}output_file${"`"} is inconsistent.
+-  pie.require_then_assert_one_execute(&write_1)?;
+-  // However, because we required ${"`"}write_1${"`"} directly, instead of through ${"`"}seq${"`"}, ${"`"}output_file${"`"} contains the string that
+-  // ${"`"}ret${"`"} returned, even though ${"`"}write_2${"`"} is inconsistent and should win.
+-  assert_eq!(read_to_string(&output_file)?, "Hi there");
+-  // The contents of ${"`"}output_file${"`"} is thus dependent on which tasks and in which order we require them. This
+-  // inconsistent behaviour is undesirable.
+-  // Note: this is asserting the current behaviour, not the desired behaviour, which is to disallow this!
++    let seq = Sequence(vec![
++      WriteFile(Box::new(Return("Hi there")), output_file.clone(), FileStamper::Modified),
++      WriteFile(Box::new(ReadFile(input_file.clone(), FileStamper::Modified)), output_file.clone(), FileStamper::Modified),
++    ]);
++    // Require ${"`"}seq${"`"}, resulting in overlapping provided files between the two different write tasks.
++    pie.require(&seq)?;
+ 
+-  Ok(())
++    Ok(())
++  }
++  run().unwrap()
+ }
++
+ #[test]
+ fn test_separate_output_files() -> Result<(), io::Error> {
+   let mut pie = test_pie();
+`;
+    let target = document.getElementById('diff2html_12');
+    let configuration = {
+      drawFileList: false,
+      fileListToggle: false,
+      fileContentToggle: false,
+
+      outputFormat: 'side-by-side',
+      matching: 'lines',
+    };
+    let diff2htmlUi = new Diff2HtmlUI(target, diff, configuration, hljs);
+    diff2htmlUi.draw();
+  });
+</script>
+<p>We change the test into one that should panic.
+We use <code>expected = &quot;Overlapping provided file&quot;</code> to indicate that the panic should include <code>&quot;Overlapping provided file&quot;</code>, so that the test does not succeed due to another unrelated panic.</p>
+<p>Unfortunately, tests that should panic may not return a <code>Result</code>.
+We work around that by wrapping the entire test in a nested <code>run</code> function that returns a <code>Result</code>, and by calling <code>run().unwrap()</code> at the end of the test.</p>
+<p>We rename the test to <code>test_overlapping_provided_file_panics</code> which better describes what it is testing and what is expected.
+And we simply the test a lot, because it will panic when we call <code>require</code>, so the other part of the test is no longer required. </p>
+<p>Run <code>cargo test</code> to check that this test will now succeed.</p>
+<p>Let’s add two more tests: one that confirms overlap is detected when we manually <code>require</code> two different tasks, and one that confirms that requiring (and executing) the same task does not cause overlap.
+Add these tests to <code>pie/tests/top_down.rs</code>:</p>
+<div class="diff2html" id="diff2html_13"></div>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    let diff = String.raw`--- pie/tests/top_down.rs
++++ pie/tests/top_down.rs
+@@ -269,6 +269,50 @@
+   run().unwrap()
+ }
+ 
++#[should_panic(expected = "Overlapping provided file")]
++#[test]
++fn test_require_overlapping_provided_file_panics() {
++  fn run() -> Result<(), io::Error> {
++    let mut pie = test_pie();
++    let temp_dir = create_temp_dir()?;
++
++    let output_file = temp_dir.path().join("out.txt");
++
++    let write_1 = WriteFile(Box::new(Return("Hi there")), output_file.clone(), FileStamper::Modified);
++    pie.require(&write_1)?;
++
++    // ${"`"}write_2${"`"} is a different task, so requiring it will cause overlap.
++    let write_2 = WriteFile(Box::new(Return("Hello, World!")), output_file.clone(), FileStamper::Modified);
++    pie.require(&write_2)?;
++
++    Ok(())
++  }
++  run().unwrap()
++}
++
++#[test]
++fn test_same_task_no_overlap() -> Result<(), io::Error> {
++  let mut pie = test_pie();
++  let temp_dir = create_temp_dir()?;
++
++  let output_file = temp_dir.path().join("out.txt");
++  let input_file = temp_dir.path().join("in.txt");
++  write(&input_file, "Hello, World!")?;
++
++  let read = ReadFile(input_file.clone(), FileStamper::Modified);
++  let write = WriteFile(Box::new(read), output_file.clone(), FileStamper::Modified);
++
++  pie.require_then_assert_one_execute(&write)?;
++  // Requiring and executing the same task does not cause overlap.
++  write_until_modified(&input_file, "World, Hello?")?;
++  pie.require_then_assert_one_execute(&write)?;
++  // Even when required indirectly.
++  write_until_modified(&input_file, "Hello, World!")?;
++  pie.require_then_assert_one_execute(&Sequence(vec![write]))?;
++
++  Ok(())
++}
++
+ #[test]
+ fn test_separate_output_files() -> Result<(), io::Error> {
+   let mut pie = test_pie();
+`;
+    let target = document.getElementById('diff2html_13');
+    let configuration = {
+      drawFileList: false,
+      fileListToggle: false,
+      fileContentToggle: false,
+
+      outputFormat: 'line-by-line',
+      matching: 'lines',
+    };
+    let diff2htmlUi = new Diff2HtmlUI(target, diff, configuration, hljs);
+    diff2htmlUi.draw();
+  });
+</script>
+<p>Confirm that these tests also succeed with <code>cargo test</code>.</p>
+<p>We’re now preventing the inconsistencies of overlapping file writes that occur in an incremental setting.
+This does require some care when writing to files in a programmatic incremental build system, as task authors need to ensure that distinct tasks only write to distinct files.
+And we only detect this at run-time, while running the build, so task authors must test their tasks, combinations of tasks, and with different inputs, to have some certainty that their tasks have no overlapping file writes.
+However, I think this kind of run-time checking is preferable over incremental builds being inconsistent or incorrect. </p>
+<details id="admonition-detect-overlap-statically" class="admonition admonish-question">
+<summary class="admonition-title">
+<p>Detect Overlap Statically?</p>
+<p><a class="admonition-anchor-link" href="#admonition-detect-overlap-statically"></a></p>
+</summary>
+<div>
+<p>As far as I know, there is no <em>easy</em> way to detect overlap statically in the presence of dynamic dependencies and incrementality.
+You’d have to encode file names and paths in the type system, and restrict what kind of names and paths you can use.</p>
+<p>Matthew Hammer et al. developed <a href="https://arxiv.org/abs/1808.07826" title="" target="_blank">Fungi, a typed functional language for incremental computation with names</a> to solve this problem, but it is quite involved!
+Be sure to read that paper and their previous work on <a href="http://adapton.org/" title="" target="_blank">Adapton</a> if you’re interested in that line of research.</p>
+</div>
+</details>
+<p>In the next section, we will detect and disallow another inconsistency in incremental builds: hidden dependencies.</p>
 
                     </main>
 

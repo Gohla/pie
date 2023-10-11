@@ -6,7 +6,7 @@
  
 -  /// Requires given `task`, recording a dependency and selectively executing it. Returns its up-to-date output.
 -  fn require_task(&mut self, task: &T) -> T::Output;
-+  /// Requires given `task`, recording a dependency (using the default output stamper) and selectively executing it. 
++  /// Requires given `task`, recording a dependency (using the default output stamper) and selectively executing it.
 +  /// Returns its up-to-date output.
 +  fn require_task(&mut self, task: &T) -> T::Output {
 +    self.require_task_with_stamper(task, self.default_output_stamper())

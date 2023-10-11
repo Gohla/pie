@@ -1,0 +1,22 @@
+--- pie/src/lib.rs
++++ pie/src/lib.rs
+@@ -49,6 +49,19 @@
+   /// Returns the default require file stamper.
+   fn default_require_file_stamper(&self) -> FileStamper { FileStamper::Modified }
+ 
++  /// Provides file at given `path`, recording a dependency to it (using the default provide file stamper). Call this
++  /// method *just after writing to the file*, so that the dependency corresponds to your written data. Returns an
++  /// `Err(e)` if there was an error getting the metadata for given `path`, or if there was an error stamping the file.
++  fn provide_file<P: AsRef<Path>>(&mut self, path: P) -> Result<(), io::Error> {
++    self.provide_file_with_stamper(path, self.default_provide_file_stamper())
++  }
++  /// Provides file at given `path`, recording a dependency to it (using given `stamper`). Call this method
++  /// *just after writing to the file*, so that the dependency corresponds to you written data.  Returns an `Err(e)` if
++  /// there was an error getting the metadata for given `path`, or if there was an error stamping the file.
++  fn provide_file_with_stamper<P: AsRef<Path>>(&mut self, path: P, stamper: FileStamper) -> Result<(), io::Error>;
++  /// Returns the default provide file stamper.
++  fn default_provide_file_stamper(&self) -> FileStamper { FileStamper::Modified }
++
+   /// Requires given `task`, recording a dependency (using the default output stamper) and selectively executing it.
+   /// Returns its up-to-date output.
+   fn require_task(&mut self, task: &T) -> T::Output {

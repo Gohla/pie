@@ -238,7 +238,7 @@ Run this example with <code>cargo run --example incremental</code>.
 You should see the <code>println!</code> in <code>ReadStringFromFile</code> appear in your console as the incremental context correctly determines that this task is new (i.e., has no output) and must be executed.
 It should look something like:</p>
 <pre><code>   Compiling pie v0.1.0 (/pie)
-    Finished dev [unoptimized + debuginfo] target(s) in 1.09s
+    Finished dev [unoptimized + debuginfo] target(s) in 0.92s
      Running `/pie/target/debug/examples/incremental`
 A) New task: expect `read_task` to execute
 Reading from input.txt with Modified stamper
@@ -247,13 +247,13 @@ Reading from input.txt with Modified stamper
 <p>If we require the task again, what should happen?</p>
 <p>Insert the following code into the <code>main</code> method:</p>
 <pre><code class="language-rust ">  println!(&quot;\nB) Reuse: expect no execution&quot;);
-  // `read_task` is not new and its file dependency is still consistent. It is consistent because the modified time of 
+  // `read_task` is not new and its file dependency is still consistent. It is consistent because the modified time of
   // `input_file` has not changed, thus the modified stamp is equal.
   let output = context.require_task(&amp;read_task)?;
   assert_eq!(&amp;output, &quot;Hi&quot;);</code></pre>
 <p>Running with <code>cargo run --example incremental</code> should produce output like:</p>
 <pre><code>   Compiling pie v0.1.0 (/pie)
-    Finished dev [unoptimized + debuginfo] target(s) in 0.56s
+    Finished dev [unoptimized + debuginfo] target(s) in 0.48s
      Running `/pie/target/debug/examples/incremental`
 A) New task: expect `read_task` to execute
 Reading from input.txt with Modified stamper
@@ -283,7 +283,7 @@ The comments in the code explain in more detail why the build system behaves in 
   let read_task_b_modified = ReadStringFromFile::new(&amp;input_file_b, FileStamper::Modified);
   let read_task_b_exists = ReadStringFromFile::new(&amp;input_file_b, FileStamper::Exists);
   println!(&quot;\nD) Different tasks: expect `read_task_b_modified` and `read_task_b_exists` to execute&quot;);
-  // Task `read_task`, `read_task_b_modified` and `read_task_b_exists` are different, due to their `Eq` implementation 
+  // Task `read_task`, `read_task_b_modified` and `read_task_b_exists` are different, due to their `Eq` implementation
   // determining that their paths and stampers are different. Therefore, `read_task_b_modified` and `read_task_b_exists`
   // are new tasks, and must be executed.
   let output = context.require_task(&amp;read_task_b_modified)?;
@@ -299,10 +299,10 @@ We require <code>read_task_b_modified</code> and <code>read_task_b_exists</code>
   println!(&quot;\nE) Different stampers: expect only `read_task_b_modified` to execute&quot;);
   // Both `read_task_b_modified` and `read_task_b_exists` read from the same file, but they use different stampers.
   // Therefore, `read_task_b_modified` must be executed because the modified time has changed, but `read_task_b_exists`
-  // will not be executed because its file dependency stamper only checks for existence of the file, and the existence 
+  // will not be executed because its file dependency stamper only checks for existence of the file, and the existence
   // of the file has not changed.
   //
-  // Note that using an `Exists` stamper for this task does not make a lot of sense, since it will only read the file 
+  // Note that using an `Exists` stamper for this task does not make a lot of sense, since it will only read the file
   // on first execute and when it is recreated. But this is just to demonstrate different stampers.
   let output = context.require_task(&amp;read_task_b_modified)?;
   assert_eq!(&amp;output, &quot;Test Test&quot;);
@@ -315,7 +315,7 @@ This shows that tasks can depend on the same file with different stampers, which
 <p>Of course, using an <code>Exists</code> stamper for <code>ReadStringFromFile</code> does not make a lot of sense, but this is for demonstration purposes only.</p>
 <p>Running <code>cargo run --example incremental</code> now should produce output like:</p>
 <pre><code>   Compiling pie v0.1.0 (/pie)
-    Finished dev [unoptimized + debuginfo] target(s) in 0.58s
+    Finished dev [unoptimized + debuginfo] target(s) in 0.49s
      Running `/pie/target/debug/examples/incremental`
 A) New task: expect `read_task` to execute
 Reading from input.txt with Modified stamper

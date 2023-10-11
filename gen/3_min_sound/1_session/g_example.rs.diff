@@ -28,7 +28,7 @@
    assert_eq!(&output, "Hi");
  
    println!("\nB) Reuse: expect no execution");
-   // `read_task` is not new and its file dependency is still consistent. It is consistent because the modified time of 
+   // `read_task` is not new and its file dependency is still consistent. It is consistent because the modified time of
    // `input_file` has not changed, thus the modified stamp is equal.
 -  let output = context.require_task(&read_task)?;
 +  let output = pie.new_session().require(&read_task)?;
@@ -43,7 +43,7 @@
  
    let input_file_b = temp_dir.path().join("input_b.txt");
 @@ -66,9 +63,10 @@
-   // Task `read_task`, `read_task_b_modified` and `read_task_b_exists` are different, due to their `Eq` implementation 
+   // Task `read_task`, `read_task_b_modified` and `read_task_b_exists` are different, due to their `Eq` implementation
    // determining that their paths and stampers are different. Therefore, `read_task_b_modified` and `read_task_b_exists`
    // are new tasks, and must be executed.
 -  let output = context.require_task(&read_task_b_modified)?;
@@ -57,7 +57,7 @@
    write_until_modified(&input_file_b, "Test Test")?;
 @@ -80,9 +78,10 @@
    //
-   // Note that using an `Exists` stamper for this task does not make a lot of sense, since it will only read the file 
+   // Note that using an `Exists` stamper for this task does not make a lot of sense, since it will only read the file
    // on first execute and when it is recreated. But this is just to demonstrate different stampers.
 -  let output = context.require_task(&read_task_b_modified)?;
 +  let mut session = pie.new_session();

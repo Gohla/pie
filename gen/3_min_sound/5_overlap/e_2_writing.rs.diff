@@ -1,0 +1,24 @@
+--- pie/src/tracker/writing.rs
++++ pie/src/tracker/writing.rs
+@@ -70,8 +70,11 @@
+   }
+ 
+   fn require_file_end(&mut self, dependency: &FileDependency) {
+-    self.writeln(format_args!("- {}", dependency.path().display()));
++    self.writeln(format_args!("r {}", dependency.path().display()));
+   }
++  fn provide_file_end(&mut self, dependency: &FileDependency) {
++    self.writeln(format_args!("p {}", dependency.path().display()));
++  }
+   fn require_task_start(&mut self, task: &T, _stamper: &OutputStamper) {
+     self.writeln(format_args!("→ {:?}", task));
+     self.indent();
+@@ -99,7 +102,7 @@
+     inconsistency: Result<Option<&Inconsistency<T::Output>>, &io::Error>
+   ) {
+     match dependency {
+-      Dependency::RequireFile(d) => {
++      Dependency::RequireFile(d) | Dependency::ProvideFile(d) => {
+         match inconsistency {
+           Err(e) => self.writeln(format_args!("✗ {} (err: {:?})", d.path().display(), e)),
+           Ok(Some(Inconsistency::File(s))) =>

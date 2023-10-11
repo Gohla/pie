@@ -232,7 +232,7 @@ Modify <code>pie/src/tests/top_down.rs</code> to add another test:</p>
     let diff = String.raw`--- pie/tests/top_down.rs
 +++ pie/tests/top_down.rs
 @@ -206,3 +206,35 @@
-   // - Task require ends should be later than their executes. 
+   // - Task require ends should be later than their executes.
    assert!(require.end() > execute.end());
  }
 +
@@ -350,23 +350,23 @@ How can that be?</p>
 </div>
 <p>Inspect the build log with <code>cargo test --test top_down test_no_superfluous_task_dependencies</code>.
 The third (last) build log should look like this:</p>
-<pre><code>→ ToUpper(ToLower(ReadFile(&quot;/tmp/.tmp8JYaSi/in.txt&quot;, Modified)))
- ? ReadFile(&quot;/tmp/.tmp8JYaSi/in.txt&quot;, Modified)
-  → ReadFile(&quot;/tmp/.tmp8JYaSi/in.txt&quot;, Modified)
-   ✗ /tmp/.tmp8JYaSi/in.txt (old: Modified(Some(SystemTime { tv_sec: 1696860226, tv_nsec: 973456553 })) ≠ new: Modified(Some(SystemTime { tv_sec: 1696860226, tv_nsec: 977456619 })))
-   ▶ ReadFile(&quot;/tmp/.tmp8JYaSi/in.txt&quot;, Modified)
-    - /tmp/.tmp8JYaSi/in.txt
+<pre><code>→ ToUpper(ToLower(ReadFile(&quot;/tmp/.tmptFf6We/in.txt&quot;, Modified)))
+ ? ReadFile(&quot;/tmp/.tmptFf6We/in.txt&quot;, Modified)
+  → ReadFile(&quot;/tmp/.tmptFf6We/in.txt&quot;, Modified)
+   ✗ /tmp/.tmptFf6We/in.txt (old: Modified(Some(SystemTime { tv_sec: 1697034913, tv_nsec: 830729436 })) ≠ new: Modified(Some(SystemTime { tv_sec: 1697034913, tv_nsec: 834729486 })))
+   ▶ ReadFile(&quot;/tmp/.tmptFf6We/in.txt&quot;, Modified)
+    - /tmp/.tmptFf6We/in.txt
    ◀ Ok(String(&quot;HeLLo, WorLd!&quot;))
   ← Ok(String(&quot;HeLLo, WorLd!&quot;))
- ✗ ReadFile(&quot;/tmp/.tmp8JYaSi/in.txt&quot;, Modified) (old: Equals(Ok(String(&quot;Hello, World!&quot;))) ≠ new: Equals(Ok(String(&quot;HeLLo, WorLd!&quot;))))
- ▶ ToUpper(ToLower(ReadFile(&quot;/tmp/.tmp8JYaSi/in.txt&quot;, Modified)))
-  → ToLower(ReadFile(&quot;/tmp/.tmp8JYaSi/in.txt&quot;, Modified))
-   ? ReadFile(&quot;/tmp/.tmp8JYaSi/in.txt&quot;, Modified)
-    → ReadFile(&quot;/tmp/.tmp8JYaSi/in.txt&quot;, Modified)
+ ✗ ReadFile(&quot;/tmp/.tmptFf6We/in.txt&quot;, Modified) (old: Equals(Ok(String(&quot;Hello, World!&quot;))) ≠ new: Equals(Ok(String(&quot;HeLLo, WorLd!&quot;))))
+ ▶ ToUpper(ToLower(ReadFile(&quot;/tmp/.tmptFf6We/in.txt&quot;, Modified)))
+  → ToLower(ReadFile(&quot;/tmp/.tmptFf6We/in.txt&quot;, Modified))
+   ? ReadFile(&quot;/tmp/.tmptFf6We/in.txt&quot;, Modified)
+    → ReadFile(&quot;/tmp/.tmptFf6We/in.txt&quot;, Modified)
     ← Ok(String(&quot;HeLLo, WorLd!&quot;))
-   ✗ ReadFile(&quot;/tmp/.tmp8JYaSi/in.txt&quot;, Modified) (old: Equals(Ok(String(&quot;Hello, World!&quot;))) ≠ new: Equals(Ok(String(&quot;HeLLo, WorLd!&quot;))))
-   ▶ ToLower(ReadFile(&quot;/tmp/.tmp8JYaSi/in.txt&quot;, Modified))
-    → ReadFile(&quot;/tmp/.tmp8JYaSi/in.txt&quot;, Modified)
+   ✗ ReadFile(&quot;/tmp/.tmptFf6We/in.txt&quot;, Modified) (old: Equals(Ok(String(&quot;Hello, World!&quot;))) ≠ new: Equals(Ok(String(&quot;HeLLo, WorLd!&quot;))))
+   ▶ ToLower(ReadFile(&quot;/tmp/.tmptFf6We/in.txt&quot;, Modified))
+    → ReadFile(&quot;/tmp/.tmptFf6We/in.txt&quot;, Modified)
     ← Ok(String(&quot;HeLLo, WorLd!&quot;))
    ◀ Ok(String(&quot;hello, world!&quot;))
   ← Ok(String(&quot;hello, world!&quot;))
@@ -433,14 +433,14 @@ Even if we are only <em>consistency checking</em> a task to see if it should be 
 We only manifested the bug in the last test due to having a chain of 2 task dependencies, and by carefully controlling what is being executed and what is being checked.</p>
 <p>Recall the second build in the <code>test_no_superfluous_task_dependencies</code> test.
 The build log for that build looks like:</p>
-<pre><code>→ ToUpper(ToLower(ReadFile(&quot;/tmp/.tmp8JYaSi/in.txt&quot;, Modified)))
- ▶ ToUpper(ToLower(ReadFile(&quot;/tmp/.tmp8JYaSi/in.txt&quot;, Modified)))
-  → ToLower(ReadFile(&quot;/tmp/.tmp8JYaSi/in.txt&quot;, Modified))
-   ? ReadFile(&quot;/tmp/.tmp8JYaSi/in.txt&quot;, Modified)
-    → ReadFile(&quot;/tmp/.tmp8JYaSi/in.txt&quot;, Modified)
-     ✓ /tmp/.tmp8JYaSi/in.txt
+<pre><code>→ ToUpper(ToLower(ReadFile(&quot;/tmp/.tmptFf6We/in.txt&quot;, Modified)))
+ ▶ ToUpper(ToLower(ReadFile(&quot;/tmp/.tmptFf6We/in.txt&quot;, Modified)))
+  → ToLower(ReadFile(&quot;/tmp/.tmptFf6We/in.txt&quot;, Modified))
+   ? ReadFile(&quot;/tmp/.tmptFf6We/in.txt&quot;, Modified)
+    → ReadFile(&quot;/tmp/.tmptFf6We/in.txt&quot;, Modified)
+     ✓ /tmp/.tmptFf6We/in.txt
     ← Ok(String(&quot;Hello, World!&quot;))
-   ✓ ReadFile(&quot;/tmp/.tmp8JYaSi/in.txt&quot;, Modified)
+   ✓ ReadFile(&quot;/tmp/.tmptFf6We/in.txt&quot;, Modified)
   ← Ok(String(&quot;hello, world!&quot;))
  ◀ Ok(String(&quot;HELLO, WORLD!&quot;))
 ← Ok(String(&quot;HELLO, WORLD!&quot;))
@@ -458,15 +458,7 @@ Modify the top-down context from <code>pie/src/context/top_down.rs</code>:</p>
   document.addEventListener('DOMContentLoaded', function () {
     let diff = String.raw`--- pie/src/context/top_down.rs
 +++ pie/src/context/top_down.rs
-@@ -23,6 +23,7 @@
-   }
- }
- 
-+
- impl<'p, 's, T: Task, A: Tracker<T>> Context<T> for TopDownContext<'p, 's, T, T::Output, A> {
-   fn require_file_with_stamper<P: AsRef<Path>>(&mut self, path: P, stamper: FileStamper) -> Result<Option<File>, io::Error> {
-     let Some(current_executing_task_node) = &self.session.current_executing_task else {
-@@ -38,9 +39,28 @@
+@@ -38,9 +38,28 @@
  
    fn require_task_with_stamper(&mut self, task: &T, stamper: OutputStamper) -> T::Output {
      self.session.tracker.require_task_start(task, &stamper);
@@ -476,8 +468,7 @@ Modify the top-down context from <code>pie/src/context/top_down.rs</code>:</p>
 +
 +    let dependency = TaskDependency::new(task.clone(), stamper, output.clone());
 +    self.session.tracker.require_task_end(&dependency, &output, was_executed);
- 
--    // Get required task output by executing it if needed, or by getting the output from the store if not needed.
++
 +    // Create task require dependency if a task is currently executing (i.e., we are not requiring the initial task).
 +    if let Some(current_executing_task_node) = &self.session.current_executing_task {
 +      if self.session.store.add_task_require_dependency(current_executing_task_node, &node, dependency).is_err() {
@@ -485,7 +476,8 @@ Modify the top-down context from <code>pie/src/context/top_down.rs</code>:</p>
 +        panic!("Cyclic task dependency; current executing task '{:?}' is requiring task '{:?}' which was already required", current_executing_task, task);
 +      }
 +    }
-+
+ 
+-    // Get required task output by executing it if needed, or by getting the output from the store if not needed.
 +    output
 +  }
 +}
@@ -496,7 +488,7 @@ Modify the top-down context from <code>pie/src/context/top_down.rs</code>:</p>
      let already_consistent = self.session.consistent.contains(&node);
      let should_execute = !already_consistent && self.should_execute_task(&node);
      let output = if should_execute {
-@@ -57,24 +77,11 @@
+@@ -57,24 +76,11 @@
        // executed and ${"`"}should_execute_task${"`"} ensures that the task has an output.
        self.session.store.get_task_output(&node).clone()
      };
@@ -631,15 +623,7 @@ Now we go back to <code>TopDownContext</code> and implement that trait.</p>
  use crate::stamp::{FileStamper, OutputStamper};
  use crate::store::TaskNode;
  use crate::tracker::Tracker;
-@@ -22,7 +22,6 @@
-     output
-   }
- }
--
- 
- impl<'p, 's, T: Task, A: Tracker<T>> Context<T> for TopDownContext<'p, 's, T, T::Output, A> {
-   fn require_file_with_stamper<P: AsRef<Path>>(&mut self, path: P, stamper: FileStamper) -> Result<Option<File>, io::Error> {
-@@ -58,6 +57,14 @@
+@@ -57,6 +57,14 @@
    }
  }
  
@@ -726,24 +710,24 @@ However, <code>test_require_task</code> now fails 😅.</p>
 This is because our changes have correctly removed several superfluous task requires, which influences these assertions.</p>
 <p>Inspect the build log for this test with <code>cargo test --test top_down test_require_task</code>.
 The second build now looks like:</p>
-<pre><code>→ ToLower(ReadFile(&quot;/tmp/.tmpZRcH7L/in.txt&quot;, Modified))
- ? ReadFile(&quot;/tmp/.tmpZRcH7L/in.txt&quot;, Modified)
-  ✓ /tmp/.tmpZRcH7L/in.txt
- ✓ ReadFile(&quot;/tmp/.tmpZRcH7L/in.txt&quot;, Modified)
+<pre><code>→ ToLower(ReadFile(&quot;/tmp/.tmp8G2K4T/in.txt&quot;, Modified))
+ ? ReadFile(&quot;/tmp/.tmp8G2K4T/in.txt&quot;, Modified)
+  ✓ /tmp/.tmp8G2K4T/in.txt
+ ✓ ReadFile(&quot;/tmp/.tmp8G2K4T/in.txt&quot;, Modified)
 ← Ok(String(&quot;hello world!&quot;))
 </code></pre>
 <p>In this second build, <code>ReadFile</code> is now no longer required, and instead is only checked.
 This is correct, and does not make any assertions fail.</p>
 <p>The third build now looks like:</p>
-<pre><code>→ ToLower(ReadFile(&quot;/tmp/.tmpZRcH7L/in.txt&quot;, Modified))
- ? ReadFile(&quot;/tmp/.tmpZRcH7L/in.txt&quot;, Modified)
-  ✗ /tmp/.tmpZRcH7L/in.txt (old: Modified(Some(SystemTime { tv_sec: 1696860228, tv_nsec: 737484460 })) ≠ new: Modified(Some(SystemTime { tv_sec: 1696860228, tv_nsec: 741484515 })))
-  ▶ ReadFile(&quot;/tmp/.tmpZRcH7L/in.txt&quot;, Modified)
-   - /tmp/.tmpZRcH7L/in.txt
+<pre><code>→ ToLower(ReadFile(&quot;/tmp/.tmp8G2K4T/in.txt&quot;, Modified))
+ ? ReadFile(&quot;/tmp/.tmp8G2K4T/in.txt&quot;, Modified)
+  ✗ /tmp/.tmp8G2K4T/in.txt (old: Modified(Some(SystemTime { tv_sec: 1697034915, tv_nsec: 322748156 })) ≠ new: Modified(Some(SystemTime { tv_sec: 1697034915, tv_nsec: 326748206 })))
+  ▶ ReadFile(&quot;/tmp/.tmp8G2K4T/in.txt&quot;, Modified)
+   - /tmp/.tmp8G2K4T/in.txt
   ◀ Ok(String(&quot;!DLROW OLLEH&quot;))
- ✗ ReadFile(&quot;/tmp/.tmpZRcH7L/in.txt&quot;, Modified) (old: Equals(Ok(String(&quot;HELLO WORLD!&quot;))) ≠ new: Equals(Ok(String(&quot;!DLROW OLLEH&quot;))))
- ▶ ToLower(ReadFile(&quot;/tmp/.tmpZRcH7L/in.txt&quot;, Modified))
-  → ReadFile(&quot;/tmp/.tmpZRcH7L/in.txt&quot;, Modified)
+ ✗ ReadFile(&quot;/tmp/.tmp8G2K4T/in.txt&quot;, Modified) (old: Equals(Ok(String(&quot;HELLO WORLD!&quot;))) ≠ new: Equals(Ok(String(&quot;!DLROW OLLEH&quot;))))
+ ▶ ToLower(ReadFile(&quot;/tmp/.tmp8G2K4T/in.txt&quot;, Modified))
+  → ReadFile(&quot;/tmp/.tmp8G2K4T/in.txt&quot;, Modified)
   ← Ok(String(&quot;!DLROW OLLEH&quot;))
  ◀ Ok(String(&quot;!dlrow olleh&quot;))
 ← Ok(String(&quot;!dlrow olleh&quot;))
@@ -793,9 +777,9 @@ We will also update the expected build logs in the comments to reflect our chang
    assert!(require.end() > require.start());
    assert!(execute.end() > execute.start());
 -  // A task is only executed if it is required.
--  // - Task execute starts should be later than their requires. 
+-  // - Task execute starts should be later than their requires.
 -  assert!(execute.start() > require.start());
--  // - Task require ends should be later than their executes. 
+-  // - Task require ends should be later than their executes.
 +  // Task require ends should be later than their executes.
    assert!(require.end() > execute.end());
  }

@@ -6,7 +6,7 @@ use crate::stamp::{FileStamp, FileStamper, OutputStamp, OutputStamper};
 use crate::Task;
 use crate::tracker::Tracker;
 
-/// [`Tracker`] that stores [events](Event) in a [`Vec`], useful in testing to assert that a context implementation is 
+/// [`Tracker`] that stores [events](Event) in a [`Vec`], useful in testing to assert that a context implementation is
 /// incremental and sound.
 #[derive(Clone, Debug)]
 pub struct EventTracker<T, O> {

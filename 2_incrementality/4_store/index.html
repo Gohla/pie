@@ -450,7 +450,7 @@ Add the following code to <code>pie/src/store.rs</code>:</p>
       node
     }
   }
-  /// Gets the path for `node`. 
+  /// Gets the path for `node`.
   ///
   /// # Panics
   ///
@@ -462,7 +462,7 @@ Add the following code to <code>pie/src/store.rs</code>:</p>
     };
     path
   }
-  
+
   /// Gets the task node for `task`, or creates a task node by adding it to the dependency graph.
   pub fn get_or_create_task_node(&amp;mut self, task: &amp;T) -&gt; TaskNode {
     if let Some(node) = self.task_to_node.get(task) {
@@ -477,7 +477,7 @@ Add the following code to <code>pie/src/store.rs</code>:</p>
       node
     }
   }
-  /// Gets the task for `node`. 
+  /// Gets the task for `node`.
   ///
   /// # Panics
   ///
@@ -520,7 +520,7 @@ However, that is a bit overkill, especially for an internal API, so we won’t b
 Therefore, we store the task output in <code>NodeData::Task</code> and add methods to query and manipulate task outputs.
 Add the following code to <code>pie/src/store.rs</code>:</p>
 <pre><code class="language-rust ">impl&lt;T: Task&gt; Store&lt;T, T::Output&gt; {
-  /// Checks whether task `node` has an output. Returns `false` if `node` does not have an output. 
+  /// Checks whether task `node` has an output. Returns `false` if `node` does not have an output.
   ///
   /// # Panics
   ///
@@ -531,7 +531,7 @@ Add the following code to <code>pie/src/store.rs</code>:</p>
     };
     output.is_some()
   }
-  /// Gets the output for task `node`. 
+  /// Gets the output for task `node`.
   ///
   /// # Panics
   ///
@@ -563,7 +563,7 @@ Tasks can depend on other tasks and files, but there are no dependencies between
 An edge does not have its own dedicated representation, and is simply represented by two nodes: the source node and the destination node of the edge.</p>
 <p>Add the following code to <code>pie/src/store.rs</code>:</p>
 <pre><code class="language-rust ">impl&lt;T: Task&gt; Store&lt;T, T::Output&gt; {
-  /// Get all dependencies of task `src`. 
+  /// Get all dependencies of task `src`.
   ///
   /// # Panics
   ///
@@ -788,8 +788,7 @@ Later on we will also see that this is important for soundness of the incrementa
     let fake_node = fake_store.get_or_create_task_node(&amp;StringConstant::new(&quot;Hello&quot;));
     let mut store: Store&lt;StringConstant, String&gt; = Store::default();
     store.set_task_output(&amp;fake_node, &quot;Hello&quot;.to_string());
-  }
-  </code></pre>
+  }</code></pre>
 <p>Test <code>test_task_outputs</code> ensures that:</p>
 <ul>
 <li><code>task_has_output</code> only returns true if given task has an output, </li>

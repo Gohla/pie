@@ -31,7 +31,7 @@
    fn require_file_with_stamper<P: AsRef<Path>>(&mut self, path: P, stamper: FileStamper) -> Result<Option<File>, io::Error> {
      let Some(current_executing_task_node) = &self.session.current_executing_task else {
        return fs::open_if_file(path); // No current executing task, so no dependency needs to be made.
-@@ -27,31 +31,38 @@
+@@ -27,21 +31,26 @@
      let path = path.as_ref();
      let node = self.session.store.get_or_create_file_node(path);
      let (dependency, file) = FileDependency::new_with_file(path, stamper)?;
@@ -58,9 +58,8 @@
 +      self.session.tracker.execute_end(task, &output);
        output
      } else {
--      // Correctness: when `should_execute_task` returns `true`, the above block is executed. Otherwise this block is 
-+      // Correctness: when `should_execute_task` returns `true`, the above block is executed. Otherwise this block is
-       // executed and `should_execute_task` ensures that the task has an output.
+       // Correctness: when `should_execute_task` returns `true`, the above block is executed. Otherwise this block is
+@@ -49,9 +58,11 @@
        self.session.store.get_task_output(&node).clone()
      };
  
@@ -73,7 +72,7 @@
        if self.session.store.add_task_require_dependency(current_executing_task_node, &node, dependency).is_err() {
          let current_executing_task = self.session.store.get_task(current_executing_task_node);
          panic!("Cyclic task dependency; current executing task '{:?}' is requiring task '{:?}' which was already required", current_executing_task, task);
-@@ -63,16 +74,19 @@
+@@ -63,7 +74,7 @@
    }
  }
  
@@ -82,9 +81,7 @@
    /// Checks whether given task should be executed, returning `true` if it should be executed. A task should be executed
    /// if any of its dependencies are inconsistent, or when it has no output.
    fn should_execute_task(&mut self, node: &TaskNode) -> bool {
--    // Borrow: because we pass `self` (which is `&mut self`) to `is_inconsistent` for recursive consistency checking, 
-+    // Borrow: because we pass `self` (which is `&mut self`) to `is_inconsistent` for recursive consistency checking,
-     //         we need to clone and collect dependencies into a `Vec`. Otherwise we have an immutable borrow of `self`
+@@ -72,7 +83,10 @@
      //         through `self.store` while we create a mutable borrow of `self`, which is not allowed.
      let dependencies: Vec<_> = self.session.store.get_dependencies_of_task(node).cloned().collect();
      for dependency in dependencies {

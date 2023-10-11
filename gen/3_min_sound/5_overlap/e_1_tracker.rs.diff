@@ -1,0 +1,25 @@
+--- pie/src/tracker/mod.rs
++++ pie/src/tracker/mod.rs
+@@ -15,8 +15,10 @@
+   /// End: completed build.
+   fn build_end(&mut self) {}
+ 
+-  /// End: created a file `dependency`.
++  /// End: created a require file `dependency`.
+   fn require_file_end(&mut self, dependency: &FileDependency) {}
++  /// End: created a provide file `dependency`.
++  fn provide_file_end(&mut self, dependency: &FileDependency) {}
+   /// Start: require `task` using `stamper`.
+   fn require_task_start(&mut self, task: &T, stamper: &OutputStamper) {}
+   /// End: required a task, resulting in a task `dependency` and `output`, and the task `was_executed`.
+@@ -55,6 +57,10 @@
+     self.1.build_end();
+   }
+ 
++  fn provide_file_end(&mut self, dependency: &FileDependency) {
++    self.0.provide_file_end(dependency);
++    self.1.provide_file_end(dependency);
++  }
+   fn require_file_end(&mut self, dependency: &FileDependency) {
+     self.0.require_file_end(dependency);
+     self.1.require_file_end(dependency);

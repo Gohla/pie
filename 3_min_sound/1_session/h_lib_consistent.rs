@@ -24,30 +24,30 @@ pub trait Task: Clone + Eq + Hash + Debug {
   fn execute<C: Context<Self>>(&self, context: &mut C) -> Self::Output;
 }
 
-/// Programmatic incremental build context, enabling tasks to create dynamic dependencies that context implementations 
+/// Programmatic incremental build context, enabling tasks to create dynamic dependencies that context implementations
 /// use for incremental execution.
 pub trait Context<T: Task> {
-  /// Requires file at given `path`, recording a dependency to it (using the default require file stamper). Call this 
-  /// method *just before reading from the file*, so that the dependency corresponds to the data that you are reading. 
+  /// Requires file at given `path`, recording a dependency to it (using the default require file stamper). Call this
+  /// method *just before reading from the file*, so that the dependency corresponds to the data that you are reading.
   /// Returns:
-  /// - `Ok(Some(file))` if a file exists at given `path`, 
+  /// - `Ok(Some(file))` if a file exists at given `path`,
   /// - `Ok(None)` if no file exists at given `path` (but a directory could exist at given `path`),
-  /// - `Err(e)` if there was an error getting the metadata for given `path`, if there was an error opening the file, or 
+  /// - `Err(e)` if there was an error getting the metadata for given `path`, if there was an error opening the file, or
   ///   if there was an error stamping the file.
   fn require_file<P: AsRef<Path>>(&mut self, path: P) -> Result<Option<File>, io::Error> {
     self.require_file_with_stamper(path, self.default_require_file_stamper())
   }
-  /// Requires file at given `path`, recording a dependency to it (using given `stamper`). Call this method 
+  /// Requires file at given `path`, recording a dependency to it (using given `stamper`). Call this method
   /// *just before reading from the file*, so that the dependency corresponds to the data that you are reading. Returns:
-  /// - `Ok(Some(file))` if a file exists at given `path`, 
+  /// - `Ok(Some(file))` if a file exists at given `path`,
   /// - `Ok(None)` if no file exists at given `path` (but a directory could exist at given `path`),
-  /// - `Err(e)` if there was an error getting the metadata for given `path`, if there was an error opening the file, or 
+  /// - `Err(e)` if there was an error getting the metadata for given `path`, if there was an error opening the file, or
   ///   if there was an error stamping the file.
   fn require_file_with_stamper<P: AsRef<Path>>(&mut self, path: P, stamper: FileStamper) -> Result<Option<File>, io::Error>;
   /// Returns the default require file stamper.
   fn default_require_file_stamper(&self) -> FileStamper { FileStamper::Modified }
 
-  /// Requires given `task`, recording a dependency (using the default output stamper) and selectively executing it. 
+  /// Requires given `task`, recording a dependency (using the default output stamper) and selectively executing it.
   /// Returns its up-to-date output.
   fn require_task(&mut self, task: &T) -> T::Output {
     self.require_task_with_stamper(task, self.default_output_stamper())

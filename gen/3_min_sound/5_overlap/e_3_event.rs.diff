@@ -1,0 +1,141 @@
+--- pie/src/tracker/event.rs
++++ pie/src/tracker/event.rs
+@@ -20,7 +20,8 @@
+ /// Enumeration of important build events.
+ #[derive(Clone, Debug)]
+ pub enum Event<T, O> {
+-  RequireFileEnd(RequireFileEnd),
++  ProvideFileEnd(FileDependencyEnd),
++  RequireFileEnd(FileDependencyEnd),
+ 
+   RequireTaskStart(RequireTaskStart<T>),
+   RequireTaskEnd(RequireTaskEnd<T, O>),
+@@ -29,9 +30,9 @@
+   ExecuteEnd(ExecuteEnd<T, O>),
+ }
+ 
+-/// End: required file at `path` using `stamper` to create `stamp`.
++/// End: required/provided file at `path` using `stamper` to create `stamp`.
+ #[derive(Clone, Debug)]
+-pub struct RequireFileEnd {
++pub struct FileDependencyEnd {
+   pub path: PathBuf,
+   pub stamper: FileStamper,
+   pub stamp: FileStamp,
+@@ -48,9 +49,9 @@
+ #[derive(Clone, Debug)]
+ pub struct RequireTaskEnd<T, O> {
+   pub task: T,
+-  pub output: O,
+   pub stamper: OutputStamper,
+   pub stamp: OutputStamp<O>,
++  pub output: O,
+   pub was_executed: bool,
+   pub index: usize,
+ }
+@@ -74,7 +75,7 @@
+   }
+ 
+   fn require_file_end(&mut self, dependency: &FileDependency) {
+-    let data = RequireFileEnd {
++    let data = FileDependencyEnd {
+       path: dependency.path().into(),
+       stamper: *dependency.stamper(),
+       stamp: *dependency.stamp(),
+@@ -82,6 +83,15 @@
+     };
+     self.events.push(Event::RequireFileEnd(data));
+   }
++  fn provide_file_end(&mut self, dependency: &FileDependency) {
++    let data = FileDependencyEnd {
++      path: dependency.path().into(),
++      stamper: *dependency.stamper(),
++      stamp: *dependency.stamp(),
++      index: self.events.len()
++    };
++    self.events.push(Event::ProvideFileEnd(data));
++  }
+   fn require_task_start(&mut self, task: &T, stamper: &OutputStamper) {
+     let data = RequireTaskStart { task: task.clone(), stamper: stamper.clone(), index: self.events.len() };
+     self.events.push(Event::RequireTaskStart(data));
+@@ -111,22 +121,33 @@
+ impl<T: Task> Event<T, T::Output> {
+   /// Returns `Some(&data)` if this is a [require file end event](Event::RequireFileEnd) for file at `path`, or `None`
+   /// otherwise.
+-  pub fn match_require_file_end(&self, path: impl AsRef<Path>) -> Option<&RequireFileEnd> {
++  pub fn match_require_file_end(&self, path: impl AsRef<Path>) -> Option<&FileDependencyEnd> {
+     let path = path.as_ref();
+     match self {
+       Event::RequireFileEnd(data) if data.path == path => Some(data),
+       _ => None,
+     }
+   }
++  /// Returns `Some(&data)` if this is a [provide file end event](Event::ProvideFileEnd) for file at `path`, or `None`
++  /// otherwise.
++  pub fn match_provide_file_end(&self, path: impl AsRef<Path>) -> Option<&FileDependencyEnd> {
++    let path = path.as_ref();
++    match self {
++      Event::ProvideFileEnd(data) if data.path == path => Some(data),
++      _ => None,
++    }
++  }
+ 
+-  /// Returns `Some(&data)` if this is a [require start event](Event::RequireTaskStart) for `task`, or `None` otherwise.
++  /// Returns `Some(&data)` if this is a [require task start event](Event::RequireTaskStart) for `task`, or `None`
++  /// otherwise.
+   pub fn match_require_task_start(&self, task: &T) -> Option<&RequireTaskStart<T>> {
+     match self {
+       Event::RequireTaskStart(data) if data.task == *task => Some(data),
+       _ => None,
+     }
+   }
+-  /// Returns `Some(&data)` if this is a [require end event](Event::RequireTaskEnd) for `task`, or `None` otherwise.
++  /// Returns `Some(&data)` if this is a [require task start event](Event::RequireTaskStart) for `task`, or `None`
++  /// otherwise.
+   pub fn match_require_task_end(&self, task: &T) -> Option<&RequireTaskEnd<T, T::Output>> {
+     match self {
+       Event::RequireTaskEnd(data) if data.task == *task => Some(data),
+@@ -149,14 +170,15 @@
+       _ => false,
+     }
+   }
+-  /// Returns `Some(&data)` if this is an [execute start event](Event::ExecuteStart) for `task`, or `None` otherwise.
++  /// Returns `Some(&data)` if this is a [task execute start event](Event::ExecuteStart) for `task`, or `None`
++  /// otherwise.
+   pub fn match_execute_start(&self, task: &T) -> Option<&ExecuteStart<T>> {
+     match self {
+       Event::ExecuteStart(data) if data.task == *task => Some(data),
+       _ => None,
+     }
+   }
+-  /// Returns `Some(&data)` if this is an [execute end event](Event::ExecuteEnd) for `task`, or `None` otherwise.
++  /// Returns `Some(&data)` if this is a [task execute end event](Event::ExecuteStart) for `task`, or `None` otherwise.
+   pub fn match_execute_end(&self, task: &T) -> Option<&ExecuteEnd<T, T::Output>> {
+     match self {
+       Event::ExecuteEnd(data) if data.task == *task => Some(data),
+@@ -192,7 +214,7 @@
+ 
+   /// Finds the first [require file end event](Event::RequireFileEnd) for `path` and returns `Some(&data)`, or `None`
+   /// otherwise.
+-  pub fn first_require_file(&self, path: &PathBuf) -> Option<&RequireFileEnd> {
++  pub fn first_require_file(&self, path: &PathBuf) -> Option<&FileDependencyEnd> {
+     self.find_map(|e| e.match_require_file_end(path))
+   }
+   /// Finds the first [require file end event](Event::RequireFileEnd) for `path` and returns `Some(&index)`, or `None`
+@@ -200,6 +222,16 @@
+   pub fn first_require_file_index(&self, path: &PathBuf) -> Option<&usize> {
+     self.first_require_file(path).map(|d| &d.index)
+   }
++  /// Finds the first [provide file end event](Event::ProvideFileEnd) for `path` and returns `Some(&data)`, or `None`
++  /// otherwise.
++  pub fn first_provide_file(&self, path: &PathBuf) -> Option<&FileDependencyEnd> {
++    self.find_map(|e| e.match_provide_file_end(path))
++  }
++  /// Finds the first [provide file end event](Event::ProvideFileEnd) for `path` and returns `Some(&index)`, or `None`
++  /// otherwise.
++  pub fn first_provide_file_index(&self, path: &PathBuf) -> Option<&usize> {
++    self.first_provide_file(path).map(|d| &d.index)
++  }
+ 
+   /// Finds the first require [start](Event::RequireTaskStart) and [end](Event::RequireTaskEnd) event for `task` and
+   /// returns `Some((&start_data, &end_data))`, or `None` otherwise.

@@ -1,6 +1,6 @@
 
 impl<T: Task> Store<T, T::Output> {
-  /// Get all dependencies of task `src`. 
+  /// Get all dependencies of task `src`.
   ///
   /// # Panics
   ///

@@ -27,7 +27,7 @@
 +impl<T: Task, A: Tracker<T>> Pie<T, T::Output, A> {
 +  /// Creates a new [`Pie`] instance with given `tracker`.
 +  pub fn with_tracker(tracker: A) -> Self { Self { store: Store::default(), tracker } }
-+  
++
    /// Creates a new build session. Only one session may be active at once, enforced via mutable (exclusive) borrow.
 -  pub fn new_session(&mut self) -> Session<T, T::Output> { Session::new(self) }
 +  pub fn new_session(&mut self) -> Session<T, T::Output, A> { Session::new(self) }

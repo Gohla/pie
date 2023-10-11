@@ -9,15 +9,7 @@
  use crate::stamp::{FileStamper, OutputStamper};
  use crate::store::TaskNode;
  use crate::tracker::Tracker;
-@@ -22,7 +22,6 @@
-     output
-   }
- }
--
- 
- impl<'p, 's, T: Task, A: Tracker<T>> Context<T> for TopDownContext<'p, 's, T, T::Output, A> {
-   fn require_file_with_stamper<P: AsRef<Path>>(&mut self, path: P, stamper: FileStamper) -> Result<Option<File>, io::Error> {
-@@ -58,6 +57,14 @@
+@@ -57,6 +57,14 @@
    }
  }
  

@@ -238,7 +238,7 @@ pub trait Tracker&lt;T: Task&gt; {
   /// End: required a task, resulting in a task `dependency` and `output`, and the task `was_executed`.
   fn require_task_end(&amp;mut self, dependency: &amp;TaskDependency&lt;T, T::Output&gt;, output: &amp;T::Output, was_executed: bool) {}
 
-  /// Start: check consistency of `dependency`. 
+  /// Start: check consistency of `dependency`.
   fn check_dependency_start(&amp;mut self, dependency: &amp;Dependency&lt;T, T::Output&gt;) {}
   /// End: checked consistency of `dependency`, possibly found `inconsistency`.
   fn check_dependency_end(
@@ -354,7 +354,7 @@ If you care about performance here, be sure to annotate those default empty meth
 +impl<T: Task, A: Tracker<T>> Pie<T, T::Output, A> {
 +  /// Creates a new [${"`"}Pie${"`"}] instance with given ${"`"}tracker${"`"}.
 +  pub fn with_tracker(tracker: A) -> Self { Self { store: Store::default(), tracker } }
-+  
++
    /// Creates a new build session. Only one session may be active at once, enforced via mutable (exclusive) borrow.
 -  pub fn new_session(&mut self) -> Session<T, T::Output> { Session::new(self) }
 +  pub fn new_session(&mut self) -> Session<T, T::Output, A> { Session::new(self) }
@@ -470,7 +470,7 @@ Modify <code>pie/src/context/top_down.rs</code>:</p>
    fn require_file_with_stamper<P: AsRef<Path>>(&mut self, path: P, stamper: FileStamper) -> Result<Option<File>, io::Error> {
      let Some(current_executing_task_node) = &self.session.current_executing_task else {
        return fs::open_if_file(path); // No current executing task, so no dependency needs to be made.
-@@ -27,31 +31,38 @@
+@@ -27,21 +31,26 @@
      let path = path.as_ref();
      let node = self.session.store.get_or_create_file_node(path);
      let (dependency, file) = FileDependency::new_with_file(path, stamper)?;
@@ -497,9 +497,8 @@ Modify <code>pie/src/context/top_down.rs</code>:</p>
 +      self.session.tracker.execute_end(task, &output);
        output
      } else {
--      // Correctness: when ${"`"}should_execute_task${"`"} returns ${"`"}true${"`"}, the above block is executed. Otherwise this block is 
-+      // Correctness: when ${"`"}should_execute_task${"`"} returns ${"`"}true${"`"}, the above block is executed. Otherwise this block is
-       // executed and ${"`"}should_execute_task${"`"} ensures that the task has an output.
+       // Correctness: when ${"`"}should_execute_task${"`"} returns ${"`"}true${"`"}, the above block is executed. Otherwise this block is
+@@ -49,9 +58,11 @@
        self.session.store.get_task_output(&node).clone()
      };
  
@@ -512,7 +511,7 @@ Modify <code>pie/src/context/top_down.rs</code>:</p>
        if self.session.store.add_task_require_dependency(current_executing_task_node, &node, dependency).is_err() {
          let current_executing_task = self.session.store.get_task(current_executing_task_node);
          panic!("Cyclic task dependency; current executing task '{:?}' is requiring task '{:?}' which was already required", current_executing_task, task);
-@@ -63,16 +74,19 @@
+@@ -63,7 +74,7 @@
    }
  }
  
@@ -521,9 +520,7 @@ Modify <code>pie/src/context/top_down.rs</code>:</p>
    /// Checks whether given task should be executed, returning ${"`"}true${"`"} if it should be executed. A task should be executed
    /// if any of its dependencies are inconsistent, or when it has no output.
    fn should_execute_task(&mut self, node: &TaskNode) -> bool {
--    // Borrow: because we pass ${"`"}self${"`"} (which is ${"`"}&mut self${"`"}) to ${"`"}is_inconsistent${"`"} for recursive consistency checking, 
-+    // Borrow: because we pass ${"`"}self${"`"} (which is ${"`"}&mut self${"`"}) to ${"`"}is_inconsistent${"`"} for recursive consistency checking,
-     //         we need to clone and collect dependencies into a ${"`"}Vec${"`"}. Otherwise we have an immutable borrow of ${"`"}self${"`"}
+@@ -72,7 +83,10 @@
      //         through ${"`"}self.store${"`"} while we create a mutable borrow of ${"`"}self${"`"}, which is not allowed.
      let dependencies: Vec<_> = self.session.store.get_dependencies_of_task(node).cloned().collect();
      for dependency in dependencies {
@@ -838,55 +835,55 @@ You can add configuration booleans to control what should be written, but in thi
 <p>We remove the <code>println!</code> statements from tasks and create <code>Pie</code> with <code>WritingTracker</code>.
 Now run the example with <code>cargo run --example incremental</code>, and you should see the writing tracker print to standard output:</p>
 <pre><code>   Compiling pie v0.1.0 (/pie)
-    Finished dev [unoptimized + debuginfo] target(s) in 0.76s
+    Finished dev [unoptimized + debuginfo] target(s) in 0.63s
      Running `/pie/target/debug/examples/incremental`
 A) New task: expect `read_task` to execute
-→ ReadStringFromFile(&quot;/tmp/.tmp8WvZjK/input.txt&quot;, Modified)
- ▶ ReadStringFromFile(&quot;/tmp/.tmp8WvZjK/input.txt&quot;, Modified)
-  - /tmp/.tmp8WvZjK/input.txt
+→ ReadStringFromFile(&quot;/tmp/.tmpOsFJj0/input.txt&quot;, Modified)
+ ▶ ReadStringFromFile(&quot;/tmp/.tmpOsFJj0/input.txt&quot;, Modified)
+  - /tmp/.tmpOsFJj0/input.txt
  ◀ Ok(&quot;Hi&quot;)
 ← Ok(&quot;Hi&quot;)
 🏁
 
 B) Reuse: expect no execution
-→ ReadStringFromFile(&quot;/tmp/.tmp8WvZjK/input.txt&quot;, Modified)
- ✓ /tmp/.tmp8WvZjK/input.txt
+→ ReadStringFromFile(&quot;/tmp/.tmpOsFJj0/input.txt&quot;, Modified)
+ ✓ /tmp/.tmpOsFJj0/input.txt
 ← Ok(&quot;Hi&quot;)
 🏁
 
 C) Inconsistent file dependency: expect `read_task` to execute
-→ ReadStringFromFile(&quot;/tmp/.tmp8WvZjK/input.txt&quot;, Modified)
- ✗ /tmp/.tmp8WvZjK/input.txt (old: Modified(Some(SystemTime { tv_sec: 1696860215, tv_nsec: 285296314 })) ≠ new: Modified(Some(SystemTime { tv_sec: 1696860215, tv_nsec: 289296381 })))
- ▶ ReadStringFromFile(&quot;/tmp/.tmp8WvZjK/input.txt&quot;, Modified)
-  - /tmp/.tmp8WvZjK/input.txt
+→ ReadStringFromFile(&quot;/tmp/.tmpOsFJj0/input.txt&quot;, Modified)
+ ✗ /tmp/.tmpOsFJj0/input.txt (old: Modified(Some(SystemTime { tv_sec: 1697034904, tv_nsec: 282608272 })) ≠ new: Modified(Some(SystemTime { tv_sec: 1697034904, tv_nsec: 286608323 })))
+ ▶ ReadStringFromFile(&quot;/tmp/.tmpOsFJj0/input.txt&quot;, Modified)
+  - /tmp/.tmpOsFJj0/input.txt
  ◀ Ok(&quot;Hello&quot;)
 ← Ok(&quot;Hello&quot;)
 🏁
 
 D) Different tasks: expect `read_task_b_modified` and `read_task_b_exists` to execute
-→ ReadStringFromFile(&quot;/tmp/.tmp8WvZjK/input_b.txt&quot;, Modified)
- ▶ ReadStringFromFile(&quot;/tmp/.tmp8WvZjK/input_b.txt&quot;, Modified)
-  - /tmp/.tmp8WvZjK/input_b.txt
+→ ReadStringFromFile(&quot;/tmp/.tmpOsFJj0/input_b.txt&quot;, Modified)
+ ▶ ReadStringFromFile(&quot;/tmp/.tmpOsFJj0/input_b.txt&quot;, Modified)
+  - /tmp/.tmpOsFJj0/input_b.txt
  ◀ Ok(&quot;Test&quot;)
 ← Ok(&quot;Test&quot;)
 🏁
-→ ReadStringFromFile(&quot;/tmp/.tmp8WvZjK/input_b.txt&quot;, Exists)
- ▶ ReadStringFromFile(&quot;/tmp/.tmp8WvZjK/input_b.txt&quot;, Exists)
-  - /tmp/.tmp8WvZjK/input_b.txt
+→ ReadStringFromFile(&quot;/tmp/.tmpOsFJj0/input_b.txt&quot;, Exists)
+ ▶ ReadStringFromFile(&quot;/tmp/.tmpOsFJj0/input_b.txt&quot;, Exists)
+  - /tmp/.tmpOsFJj0/input_b.txt
  ◀ Ok(&quot;Test&quot;)
 ← Ok(&quot;Test&quot;)
 🏁
 
 E) Different stampers: expect only `read_task_b_modified` to execute
-→ ReadStringFromFile(&quot;/tmp/.tmp8WvZjK/input_b.txt&quot;, Modified)
- ✗ /tmp/.tmp8WvZjK/input_b.txt (old: Modified(Some(SystemTime { tv_sec: 1696860215, tv_nsec: 289296381 })) ≠ new: Modified(Some(SystemTime { tv_sec: 1696860215, tv_nsec: 293296447 })))
- ▶ ReadStringFromFile(&quot;/tmp/.tmp8WvZjK/input_b.txt&quot;, Modified)
-  - /tmp/.tmp8WvZjK/input_b.txt
+→ ReadStringFromFile(&quot;/tmp/.tmpOsFJj0/input_b.txt&quot;, Modified)
+ ✗ /tmp/.tmpOsFJj0/input_b.txt (old: Modified(Some(SystemTime { tv_sec: 1697034904, tv_nsec: 286608323 })) ≠ new: Modified(Some(SystemTime { tv_sec: 1697034904, tv_nsec: 290608374 })))
+ ▶ ReadStringFromFile(&quot;/tmp/.tmpOsFJj0/input_b.txt&quot;, Modified)
+  - /tmp/.tmpOsFJj0/input_b.txt
  ◀ Ok(&quot;Test Test&quot;)
 ← Ok(&quot;Test Test&quot;)
 🏁
-→ ReadStringFromFile(&quot;/tmp/.tmp8WvZjK/input_b.txt&quot;, Exists)
- ✓ /tmp/.tmp8WvZjK/input_b.txt
+→ ReadStringFromFile(&quot;/tmp/.tmpOsFJj0/input_b.txt&quot;, Exists)
+ ✓ /tmp/.tmpOsFJj0/input_b.txt
 ← Ok(&quot;Test&quot;)
 🏁
 </code></pre>
@@ -931,7 +928,7 @@ use crate::stamp::{FileStamp, FileStamper, OutputStamp, OutputStamper};
 use crate::Task;
 use crate::tracker::Tracker;
 
-/// [`Tracker`] that stores [events](Event) in a [`Vec`], useful in testing to assert that a context implementation is 
+/// [`Tracker`] that stores [events](Event) in a [`Vec`], useful in testing to assert that a context implementation is
 /// incremental and sound.
 #[derive(Clone, Debug)]
 pub struct EventTracker&lt;T, O&gt; {
@@ -1043,7 +1040,7 @@ We’ll add in just two steps to keep the tutorial going, and we will use this c
 <p>First we add some methods to <code>Event</code> to make finding the right event and getting its data easier for the rest of the code.
 Add the following code to <code>pie/src/tracker/event.rs</code>:</p>
 <pre><code class="language-rust ">impl&lt;T: Task&gt; Event&lt;T, T::Output&gt; {
-  /// Returns `Some(&amp;data)` if this is a [require file end event](Event::RequireFileEnd) for file at `path`, or `None` 
+  /// Returns `Some(&amp;data)` if this is a [require file end event](Event::RequireFileEnd) for file at `path`, or `None`
   /// otherwise.
   pub fn match_require_file_end(&amp;self, path: impl AsRef&lt;Path&gt;) -&gt; Option&lt;&amp;RequireFileEnd&gt; {
     let path = path.as_ref();
@@ -1126,25 +1123,25 @@ Add the following code to <code>pie/src/tracker/event.rs</code>:</p>
   }
 
 
-  /// Finds the first [require file end event](Event::RequireFileEnd) for `path` and returns `Some(&amp;data)`, or `None` 
+  /// Finds the first [require file end event](Event::RequireFileEnd) for `path` and returns `Some(&amp;data)`, or `None`
   /// otherwise.
   pub fn first_require_file(&amp;self, path: &amp;PathBuf) -&gt; Option&lt;&amp;RequireFileEnd&gt; {
     self.find_map(|e| e.match_require_file_end(path))
   }
-  /// Finds the first [require file end event](Event::RequireFileEnd) for `path` and returns `Some(&amp;index)`, or `None` 
+  /// Finds the first [require file end event](Event::RequireFileEnd) for `path` and returns `Some(&amp;index)`, or `None`
   /// otherwise.
   pub fn first_require_file_index(&amp;self, path: &amp;PathBuf) -&gt; Option&lt;&amp;usize&gt; {
     self.first_require_file(path).map(|d| &amp;d.index)
   }
 
-  /// Finds the first require [start](Event::RequireTaskStart) and [end](Event::RequireTaskEnd) event for `task` and 
+  /// Finds the first require [start](Event::RequireTaskStart) and [end](Event::RequireTaskEnd) event for `task` and
   /// returns `Some((&amp;start_data, &amp;end_data))`, or `None` otherwise.
   pub fn first_require_task(&amp;self, task: &amp;T) -&gt; Option&lt;(&amp;RequireTaskStart&lt;T&gt;, &amp;RequireTaskEnd&lt;T, T::Output&gt;)&gt; {
     let start_data = self.find_map(|e| e.match_require_task_start(task));
     let end_data = self.find_map(|e| e.match_require_task_end(task));
     start_data.zip(end_data)
   }
-  /// Finds the first require [start](Event::RequireTaskStart) and [end](Event::RequireTaskEnd) event for `task` and 
+  /// Finds the first require [start](Event::RequireTaskStart) and [end](Event::RequireTaskEnd) event for `task` and
   /// returns `Some(start_data.index..=end_data.index)`, or `None` otherwise.
   pub fn first_require_task_range(&amp;self, task: &amp;T) -&gt; Option&lt;RangeInclusive&lt;usize&gt;&gt; {
     self.first_require_task(task).map(|(s, e)| s.index..=e.index)
@@ -1163,14 +1160,14 @@ Add the following code to <code>pie/src/tracker/event.rs</code>:</p>
     self.one(|e| e.match_execute_start(task).is_some())
   }
 
-  /// Finds the first execute [start](Event::ExecuteStart) and [end](Event::ExecuteEnd) event for `task` and returns 
+  /// Finds the first execute [start](Event::ExecuteStart) and [end](Event::ExecuteEnd) event for `task` and returns
   /// `Some((&amp;start_data, &amp;end_data))`, or `None` otherwise.
   pub fn first_execute(&amp;self, task: &amp;T) -&gt; Option&lt;(&amp;ExecuteStart&lt;T&gt;, &amp;ExecuteEnd&lt;T, T::Output&gt;)&gt; {
     let start_data = self.find_map(|e| e.match_execute_start(task));
     let end_data = self.find_map(|e| e.match_execute_end(task));
     start_data.zip(end_data)
   }
-  /// Finds the first execute [start](Event::ExecuteStart) and [end](Event::ExecuteEnd) event for `task` and returns 
+  /// Finds the first execute [start](Event::ExecuteStart) and [end](Event::ExecuteEnd) event for `task` and returns
   /// `Some(start_data.index..=end_data.index)`, or `None` otherwise.
   pub fn first_execute_range(&amp;self, task: &amp;T) -&gt; Option&lt;RangeInclusive&lt;usize&gt;&gt; {
     self.first_execute(task).map(|(s, e)| s.index..=e.index)

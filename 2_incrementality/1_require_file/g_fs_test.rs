@@ -14,7 +14,7 @@ mod test {
     let temp_file = create_temp_file()?;
     let metadata = metadata(temp_file)?;
     assert_matches!(metadata, Some(metadata) => {
-      assert!(metadata.is_file());  
+      assert!(metadata.is_file());
     });
     Ok(())
   }

@@ -1,7 +1,7 @@
 --- pie/tests/top_down.rs
 +++ pie/tests/top_down.rs
 @@ -206,3 +206,35 @@
-   // - Task require ends should be later than their executes. 
+   // - Task require ends should be later than their executes.
    assert!(require.end() > execute.end());
  }
 +

@@ -1,0 +1,11 @@
+--- pie/tests/common/mod.rs
++++ pie/tests/common/mod.rs
+@@ -84,7 +84,7 @@
+       TestTask::WriteFile(string_provider_task, path, stamper) => {
+         let string = context.require_task(string_provider_task.as_ref())?.into_string();
+         write_until_modified(path, string.as_bytes()).map_err(|e| e.kind())?;
+-        context.require_file_with_stamper(path, *stamper).map_err(|e| e.kind())?;
++        context.provide_file_with_stamper(path, *stamper).map_err(|e| e.kind())?;
+         Ok(TestOutput::Unit)
+       }
+       TestTask::ToLower(string_provider_task) => {

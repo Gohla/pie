@@ -1,0 +1,74 @@
+--- pie/src/store.rs
++++ pie/src/store.rs
+@@ -151,6 +151,23 @@
+     debug_assert!(self.graph.contains_node(src), "BUG: node {:?} was not found in the dependency graph", src);
+     self.graph.get_outgoing_edge_data(src)
+   }
++
++  /// Get the task node that provides file `dst`, or `None` if there is none.
++  ///
++  /// # Panics
++  ///
++  /// Panics in development builds if `dst` was not found in the dependency graph.
++  pub fn get_task_providing_file(&self, dst: &FileNode) -> Option<TaskNode> {
++    debug_assert!(self.graph.contains_node(dst), "BUG: node {:?} was not found in the dependency graph", dst);
++    self.graph.get_incoming_edges(dst).filter_map(|(n, d)|
++      if matches!(d, Dependency::ProvideFile(_)) {
++        Some(TaskNode(*n))
++      } else {
++        None
++      }
++    ).next()
++  }
++
+   /// Add a file require `dependency` from task `src` to file `dst`.
+   ///
+   /// # Panics
+@@ -356,6 +373,7 @@
+ 
+     assert_eq!(store.get_dependencies_of_task(&node_a).next(), None);
+     assert_eq!(store.get_dependencies_of_task(&node_b).next(), None);
++    assert_eq!(store.get_task_providing_file(&node_c), None);
+ 
+     // Add file dependency from task A to file C.
+     let file_dependency_a2c = FileDependency::new(&path_c, FileStamper::Exists).unwrap();
+@@ -364,6 +382,7 @@
+     assert_eq!(deps_of_a.get(0), Some(&Dependency::RequireFile(file_dependency_a2c.clone())));
+     assert_eq!(deps_of_a.get(1), None);
+     assert_eq!(store.get_dependencies_of_task(&node_b).next(), None);
++    assert_eq!(store.get_task_providing_file(&node_c), None);
+ 
+     // Add task dependency from task B to task A.
+     let task_dependency_b2a = TaskDependency::new(task_a.clone(), OutputStamper::Equals, output_a.clone());
+@@ -375,6 +394,7 @@
+     let deps_of_b: Vec<_> = store.get_dependencies_of_task(&node_b).cloned().collect();
+     assert_eq!(deps_of_b.get(0), Some(&Dependency::RequireTask(task_dependency_b2a.clone())));
+     assert_eq!(deps_of_b.get(1), None);
++    assert_eq!(store.get_task_providing_file(&node_c), None);
+ 
+     // Add file dependency from task B to file C.
+     let file_dependency_b2c = FileDependency::new(&path_c, FileStamper::Exists).unwrap();
+@@ -386,6 +406,7 @@
+     assert_eq!(deps_of_b.get(0), Some(&Dependency::RequireTask(task_dependency_b2a.clone())));
+     assert_eq!(deps_of_b.get(1), Some(&Dependency::ProvideFile(file_dependency_b2c.clone())));
+     assert_eq!(deps_of_b.get(2), None);
++    assert_eq!(store.get_task_providing_file(&node_c), Some(node_b));
+ 
+     // Add task dependency from task A to task B, creating a cycle.
+     let task_dependency_a2b = TaskDependency::new(task_a.clone(), OutputStamper::Equals, output_a.clone());
+@@ -404,6 +425,15 @@
+ 
+   #[test]
+   #[should_panic]
++  fn get_task_providing_file_panics() {
++    let mut fake_store: Store<StringConstant, String> = Store::default();
++    let fake_node = fake_store.get_or_create_file_node("hello.txt");
++    let store: Store<StringConstant, String> = Store::default();
++    let _ = store.get_task_providing_file(&fake_node);
++  }
++
++  #[test]
++  #[should_panic]
+   fn test_add_file_require_dependency_panics() {
+     let mut fake_store = Store::default();
+     let fake_file_node = fake_store.get_or_create_file_node("hello.txt");

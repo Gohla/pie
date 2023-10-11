@@ -1,0 +1,21 @@
+--- pie/src/context/top_down.rs
++++ pie/src/context/top_down.rs
+@@ -36,6 +36,18 @@
+     Ok(file)
+   }
+ 
++  fn provide_file_with_stamper<P: AsRef<Path>>(&mut self, path: P, stamper: FileStamper) -> Result<(), io::Error> {
++    let Some(current_executing_task_node) = &self.session.current_executing_task else {
++      return Ok(()); // No current executing task, so no dependency needs to be made.
++    };
++    let path = path.as_ref();
++    let node = self.session.store.get_or_create_file_node(path);
++    let dependency = FileDependency::new(path, stamper)?;
++    self.session.tracker.provide_file_end(&dependency);
++    self.session.store.add_file_provide_dependency(current_executing_task_node, &node, dependency);
++    Ok(())
++  }
++
+   fn require_task_with_stamper(&mut self, task: &T, stamper: OutputStamper) -> T::Output {
+     self.session.tracker.require_task_start(task, &stamper);
+ 

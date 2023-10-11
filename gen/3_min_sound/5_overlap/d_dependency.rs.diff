@@ -1,0 +1,40 @@
+--- pie/src/dependency.rs
++++ pie/src/dependency.rs
+@@ -109,6 +109,7 @@
+ #[derive(Clone, Eq, PartialEq, Debug)]
+ pub enum Dependency<T, O> {
+   RequireFile(FileDependency),
++  ProvideFile(FileDependency),
+   RequireTask(TaskDependency<T, O>),
+ }
+ 
+@@ -127,6 +128,8 @@
+     let option = match self {
+       Dependency::RequireFile(d) => d.is_inconsistent()?
+         .map(|s| Inconsistency::File(s)),
++      Dependency::ProvideFile(d) => d.is_inconsistent()?
++        .map(|s| Inconsistency::File(s)),
+       Dependency::RequireTask(d) => d.is_inconsistent(context)
+         .map(|s| Inconsistency::Task(s)),
+     };
+@@ -171,14 +174,17 @@
+     write(&temp_file, "test1")?;
+ 
+     let file_dependency = FileDependency::new(temp_file.path(), FileStamper::Modified)?;
+-    let dependency: Dependency<ReadStringFromFile, String> = Dependency::RequireFile(file_dependency.clone());
++    let require_dependency: Dependency<ReadStringFromFile, String> = Dependency::RequireFile(file_dependency.clone());
++    let provide_dependency: Dependency<ReadStringFromFile, String> = Dependency::ProvideFile(file_dependency.clone());
+     assert!(file_dependency.is_inconsistent()?.is_none());
+-    assert!(dependency.is_inconsistent(&mut context)?.is_none());
++    assert!(require_dependency.is_inconsistent(&mut context)?.is_none());
++    assert!(provide_dependency.is_inconsistent(&mut context)?.is_none());
+ 
+     // Change the file, changing the stamp the stamper will create next time, making the file dependency inconsistent.
+     write_until_modified(&temp_file, "test2")?;
+     assert!(file_dependency.is_inconsistent()?.is_some());
+-    assert!(dependency.is_inconsistent(&mut context)?.is_some());
++    assert!(require_dependency.is_inconsistent(&mut context)?.is_some());
++    assert!(provide_dependency.is_inconsistent(&mut context)?.is_some());
+ 
+     Ok(())
+   }
