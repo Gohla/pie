@@ -1,7 +1,5 @@
 use std::borrow::Borrow;
-use std::collections::hash_map::RandomState;
 use std::collections::HashMap;
-use std::hash::BuildHasher;
 use std::path::{Path, PathBuf};
 
 use pie_graph::{DAG, Node};
@@ -11,16 +9,13 @@ use crate::Task;
 
 /// Stores files and tasks, and their dependencies, in a DAG (directed acyclic graph). Provides operations to mutate
 /// and query this graph.
-#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "serde", serde(bound(serialize = "T: serde::Serialize + Task, O: serde::Serialize, H: BuildHasher + Default")))]
-#[cfg_attr(feature = "serde", serde(bound(deserialize = "T: serde::Deserialize<'de> + Task, O: serde::Deserialize<'de>, H: BuildHasher + Default")))]
-pub struct Store<T, O, H = RandomState> {
-  graph: DAG<NodeData<T, O>, Dependency<T, O>, H>,
-  file_to_node: HashMap<PathBuf, FileNode, H>,
-  task_to_node: HashMap<T, TaskNode, H>,
+pub struct Store<T, O> {
+  graph: DAG<NodeData<T, O>, Dependency<T, O>>,
+  file_to_node: HashMap<PathBuf, FileNode>,
+  task_to_node: HashMap<T, TaskNode>,
 }
 
-#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[derive(Debug)]
 enum NodeData<T, O> {
   File(PathBuf),
   Task {
@@ -32,7 +27,6 @@ enum NodeData<T, O> {
 /// Newtype for file `Node`s.
 #[repr(transparent)]
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
-#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct FileNode(Node);
 
 impl Borrow<Node> for &FileNode {
@@ -42,24 +36,14 @@ impl Borrow<Node> for &FileNode {
 /// Newtype for task `Node`s.
 #[repr(transparent)]
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
-#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct TaskNode(Node);
 
 impl Borrow<Node> for &TaskNode {
   fn borrow(&self) -> &Node { &self.0 }
 }
 
-
 impl<T: Task> Default for Store<T, T::Output> {
-  #[inline]
   fn default() -> Self {
-    Self::new()
-  }
-}
-
-impl<T: Task, H: BuildHasher + Default> Store<T, T::Output, H> {
-  #[inline]
-  pub fn new() -> Self {
     Self {
       graph: DAG::default(),
       file_to_node: HashMap::default(),
@@ -68,8 +52,7 @@ impl<T: Task, H: BuildHasher + Default> Store<T, T::Output, H> {
   }
 }
 
-
-impl<T: Task, H: BuildHasher + Default> Store<T, T::Output, H> {
+impl<T: Task> Store<T, T::Output> {
   /// Gets the file node for `path`, or creates a file node by adding it to the dependency graph.
   pub fn get_or_create_file_node(&mut self, path: impl AsRef<Path>) -> FileNode {
     let path = path.as_ref();
@@ -87,6 +70,7 @@ impl<T: Task, H: BuildHasher + Default> Store<T, T::Output, H> {
   /// # Panics
   ///
   /// Panics if `node` was not found in the dependency graph.
+  #[allow(dead_code)]
   pub fn get_file_path(&self, node: &FileNode) -> &PathBuf {
     let Some(NodeData::File(path)) = self.graph.get_node_data(node) else {
       panic!("BUG: node {:?} was not found in the dependency graph", node);
@@ -119,8 +103,9 @@ impl<T: Task, H: BuildHasher + Default> Store<T, T::Output, H> {
     };
     task
   }
+}
 
-
+impl<T: Task> Store<T, T::Output> {
   /// Checks whether task `node` has an output. Returns `false` if `node` does not have an output.
   ///
   /// # Panics
@@ -154,8 +139,9 @@ impl<T: Task, H: BuildHasher + Default> Store<T, T::Output, H> {
     };
     output.replace(new_output);
   }
+}
 
-
+impl<T: Task> Store<T, T::Output> {
   /// Get all dependencies of task `src`.
   ///
   /// # Panics
@@ -165,11 +151,28 @@ impl<T: Task, H: BuildHasher + Default> Store<T, T::Output, H> {
     debug_assert!(self.graph.contains_node(src), "BUG: node {:?} was not found in the dependency graph", src);
     self.graph.get_outgoing_edge_data(src)
   }
+
+  /// Get the task node that provides file `dst`, or `None` if there is none.
+  ///
+  /// # Panics
+  ///
+  /// Panics in development builds if `dst` was not found in the dependency graph.
+  pub fn get_task_providing_file(&self, dst: &FileNode) -> Option<TaskNode> {
+    debug_assert!(self.graph.contains_node(dst), "BUG: node {:?} was not found in the dependency graph", dst);
+    self.graph.get_incoming_edges(dst).filter_map(|(n, d)|
+      if matches!(d, Dependency::ProvideFile(_)) {
+        Some(TaskNode(*n))
+      } else {
+        None
+      }
+    ).next()
+  }
+
   /// Add a file require `dependency` from task `src` to file `dst`.
   ///
   /// # Panics
   ///
-  /// Panics if `src` or `dst` was not found in the dependency graph, or if a cycle is created by adding this dependency.
+  /// Panics if `src` or `dst` were not found in the dependency graph, or if a cycle is created by adding this dependency.
   pub fn add_file_require_dependency(&mut self, src: &TaskNode, dst: &FileNode, dependency: FileDependency) {
     match self.graph.add_edge(src, dst, Dependency::RequireFile(dependency)) {
       Err(pie_graph::Error::NodeMissing) => panic!("BUG: source node {:?} or destination node {:?} was not found in the dependency graph", src, dst),
@@ -205,27 +208,14 @@ impl<T: Task, H: BuildHasher + Default> Store<T, T::Output, H> {
       _ => Ok(()),
     }
   }
-  /// Mutibly gets the task require dependency from task `src` to task `dst`.
-  ///
-  /// # Panics
-  ///
-  /// Panics if `src` or `dst` were not found in the dependency graph, or if the dependency from `src` to `dst` was not
-  /// found in the dependency graph.
-  #[inline]
-  pub fn get_task_require_dependency_mut(&mut self, src: &TaskNode, dst: &TaskNode) -> &mut TaskDependency<T, T::Output> {
-    let Some(Dependency::RequireTask(task_dependency)) = self.graph.get_edge_data_mut(src, dst) else {
-      panic!("BUG: no task dependency was found between source node {:?} and destination node {:?}", src, dst)
-    };
-    task_dependency
-  }
+}
 
-
+impl<T: Task> Store<T, T::Output> {
   /// Reset task `src`, removing its output and removing all its outgoing dependencies.
   ///
   /// # Panics
   ///
   /// Panics if task `src` was not found in the dependency graph.
-  #[inline]
   pub fn reset_task(&mut self, src: &TaskNode) {
     if let Some(NodeData::Task { output, .. }) = self.graph.get_node_data_mut(src) {
       *output = None;
@@ -233,55 +223,6 @@ impl<T: Task, H: BuildHasher + Default> Store<T, T::Output, H> {
       panic!("BUG: node {:?} was not found in the dependency graph", src);
     }
     self.graph.remove_outgoing_edges_of_node(src);
-  }
-
-
-  /// Checks whether there is a direct or transitive dependency from task `src` to task `dst`. Returns false when either
-  /// node was not found in the dependency graph.
-  #[inline]
-  pub fn contains_transitive_task_dependency(&self, src: &TaskNode, dst: &TaskNode) -> bool {
-    self.graph.contains_transitive_edge(src, dst)
-  }
-  /// Compare task `node_a` and  task `node_b`, topographically.
-  ///
-  /// # Panics
-  ///
-  /// Panics if task `node_a` or `node_b` were not found in the dependency graph.
-  #[inline]
-  pub fn topologically_compare(&self, node_a: &TaskNode, node_b: &TaskNode) -> std::cmp::Ordering {
-    self.graph.topo_cmp(node_a, node_b)
-  }
-
-
-  /// Get all file nodes that are provided by task `src`.
-  #[inline]
-  pub fn get_provided_files<'a>(&'a self, src: &'a TaskNode) -> impl Iterator<Item=FileNode> + '_ {
-    self.graph.get_outgoing_edges(src)
-      .filter_map(|(n, d)| if matches!(d, Dependency::ProvideFile(_)) { Some(FileNode(*n)) } else { None })
-  }
-  /// Get all task nodes and corresponding dependencies that require task `dst`.
-  #[inline]
-  pub fn get_tasks_requiring_task<'a>(&'a self, dst: &'a TaskNode) -> impl Iterator<Item=(TaskNode, &TaskDependency<T, T::Output>)> + '_ {
-    self.graph.get_incoming_edges(dst)
-      .filter_map(|(n, d)| d.as_task_dependency().map(|d| (TaskNode(*n), d)))
-  }
-  /// Get all task nodes and corresponding dependencies that require file `dst`.
-  #[inline]
-  pub fn get_tasks_requiring_file<'a>(&'a self, dst: &'a FileNode) -> impl Iterator<Item=(TaskNode, &FileDependency)> + '_ {
-    self.graph.get_incoming_edges(dst)
-      .filter_map(|(n, d)| d.as_require_file_dependency().map(|d| (TaskNode(*n), d)))
-  }
-  /// Get the task node that provides file `dst`, or `None` if there is none.
-  #[inline]
-  pub fn get_task_providing_file(&self, dst: &FileNode) -> Option<TaskNode> {
-    self.graph.get_incoming_edges(dst)
-      .filter_map(|(n, d)| if matches!(d, Dependency::ProvideFile(_)) { Some(TaskNode(*n)) } else { None }).next()
-  }
-  /// Get all task nodes and corresponding dependencies that require or provide file `dst`.
-  #[inline]
-  pub fn get_tasks_requiring_or_providing_file<'a>(&'a self, dst: &'a FileNode, provide: bool) -> impl Iterator<Item=(TaskNode, &FileDependency)> + '_ {
-    self.graph.get_incoming_edges(dst)
-      .filter_map(move |(n, d)| d.as_require_or_provide_file_dependency(provide).map(|d| (TaskNode(*n), d)))
   }
 }
 
@@ -307,7 +248,6 @@ mod test {
       self.0.clone()
     }
   }
-
 
   #[test]
   fn test_file_mapping() {
@@ -433,6 +373,7 @@ mod test {
 
     assert_eq!(store.get_dependencies_of_task(&node_a).next(), None);
     assert_eq!(store.get_dependencies_of_task(&node_b).next(), None);
+    assert_eq!(store.get_task_providing_file(&node_c), None);
 
     // Add file dependency from task A to file C.
     let file_dependency_a2c = FileDependency::new(&path_c, FileStamper::Exists).unwrap();
@@ -441,6 +382,7 @@ mod test {
     assert_eq!(deps_of_a.get(0), Some(&Dependency::RequireFile(file_dependency_a2c.clone())));
     assert_eq!(deps_of_a.get(1), None);
     assert_eq!(store.get_dependencies_of_task(&node_b).next(), None);
+    assert_eq!(store.get_task_providing_file(&node_c), None);
 
     // Add task dependency from task B to task A.
     let task_dependency_b2a = TaskDependency::new(task_a.clone(), OutputStamper::Equals, output_a.clone());
@@ -452,17 +394,19 @@ mod test {
     let deps_of_b: Vec<_> = store.get_dependencies_of_task(&node_b).cloned().collect();
     assert_eq!(deps_of_b.get(0), Some(&Dependency::RequireTask(task_dependency_b2a.clone())));
     assert_eq!(deps_of_b.get(1), None);
+    assert_eq!(store.get_task_providing_file(&node_c), None);
 
     // Add file dependency from task B to file C.
     let file_dependency_b2c = FileDependency::new(&path_c, FileStamper::Exists).unwrap();
-    store.add_file_require_dependency(&node_b, &node_c, file_dependency_b2c.clone());
+    store.add_file_provide_dependency(&node_b, &node_c, file_dependency_b2c.clone());
     let deps_of_a: Vec<_> = store.get_dependencies_of_task(&node_a).cloned().collect();
     assert_eq!(deps_of_a.get(0), Some(&Dependency::RequireFile(file_dependency_a2c.clone())));
     assert_eq!(deps_of_a.get(1), None);
     let deps_of_b: Vec<_> = store.get_dependencies_of_task(&node_b).cloned().collect();
     assert_eq!(deps_of_b.get(0), Some(&Dependency::RequireTask(task_dependency_b2a.clone())));
-    assert_eq!(deps_of_b.get(1), Some(&Dependency::RequireFile(file_dependency_b2c.clone())));
+    assert_eq!(deps_of_b.get(1), Some(&Dependency::ProvideFile(file_dependency_b2c.clone())));
     assert_eq!(deps_of_b.get(2), None);
+    assert_eq!(store.get_task_providing_file(&node_c), Some(node_b));
 
     // Add task dependency from task A to task B, creating a cycle.
     let task_dependency_a2b = TaskDependency::new(task_a.clone(), OutputStamper::Equals, output_a.clone());
@@ -481,6 +425,15 @@ mod test {
 
   #[test]
   #[should_panic]
+  fn get_task_providing_file_panics() {
+    let mut fake_store: Store<StringConstant, String> = Store::default();
+    let fake_node = fake_store.get_or_create_file_node("hello.txt");
+    let store: Store<StringConstant, String> = Store::default();
+    let _ = store.get_task_providing_file(&fake_node);
+  }
+
+  #[test]
+  #[should_panic]
   fn test_add_file_require_dependency_panics() {
     let mut fake_store = Store::default();
     let fake_file_node = fake_store.get_or_create_file_node("hello.txt");
@@ -488,6 +441,17 @@ mod test {
     let mut store: Store<StringConstant, String> = Store::default();
     let dependency = FileDependency::new("hello.txt", FileStamper::Exists).unwrap();
     store.add_file_require_dependency(&fake_task_node, &fake_file_node, dependency);
+  }
+
+  #[test]
+  #[should_panic]
+  fn test_add_file_provide_dependency_panics() {
+    let mut fake_store = Store::default();
+    let fake_file_node = fake_store.get_or_create_file_node("hello.txt");
+    let fake_task_node = fake_store.get_or_create_task_node(&StringConstant::new("Hello"));
+    let mut store: Store<StringConstant, String> = Store::default();
+    let dependency = FileDependency::new("hello.txt", FileStamper::Exists).unwrap();
+    store.add_file_provide_dependency(&fake_task_node, &fake_file_node, dependency);
   }
 
   #[test]
@@ -500,17 +464,6 @@ mod test {
     let mut store: Store<StringConstant, String> = Store::default();
     let dependency = TaskDependency::new(task, OutputStamper::Equals, output);
     let _ = store.add_task_require_dependency(&fake_task_node, &fake_task_node, dependency);
-  }
-
-  #[test]
-  #[should_panic]
-  fn test_get_task_require_dependency_mut_panics() {
-    let mut fake_store = Store::default();
-    let output = "Hello".to_string();
-    let task = StringConstant::new(&output);
-    let fake_task_node = fake_store.get_or_create_task_node(&task);
-    let mut store: Store<StringConstant, String> = Store::default();
-    store.get_task_require_dependency_mut(&fake_task_node, &fake_task_node);
   }
 
 

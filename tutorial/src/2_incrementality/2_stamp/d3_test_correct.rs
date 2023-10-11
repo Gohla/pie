@@ -29,7 +29,7 @@ mod test {
     let stamp = stamper.stamp(&temp_file)?;
     assert_eq!(stamp, stamper.stamp(&temp_file)?);
 
-    // Write until file modified time changes. Required on some OSs due to imprecise modified timer causing the modified 
+    // Write until file modified time changes. Required on some OSs due to imprecise modified timer causing the modified
     // stamp to be the same after fast consecutive writes.
     write_until_modified(&temp_file, format!("{:?}", stamp))?;
     let new_stamp = stamper.stamp(&temp_file)?;

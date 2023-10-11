@@ -54,4 +54,3 @@
     let mut store: Store<StringConstant, String> = Store::default();
     store.set_task_output(&fake_node, "Hello".to_string());
   }
-  

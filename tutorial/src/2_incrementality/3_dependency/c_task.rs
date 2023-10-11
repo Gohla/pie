@@ -23,7 +23,7 @@ impl<T: Task> TaskDependency<T, T::Output> {
   /// Returns the stamp of this dependency.
   #[allow(dead_code)]
   pub fn stamp(&self) -> &OutputStamp<T::Output> { &self.stamp }
-  
+
   /// Checks whether this task dependency is inconsistent, returning:
   /// - `Some(stamp)` if this dependency is inconsistent (with `stamp` being the new stamp of the dependency),
   /// - `None` if this dependency is consistent.

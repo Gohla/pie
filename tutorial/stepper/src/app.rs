@@ -319,6 +319,33 @@ pub fn step_all(
         create_diff_from_destination_file("b_test_issue.rs", "../tests/top_down.rs"),
         add("c_test_separate.rs", "../tests/top_down.rs"),
       ]);
+      stepper.apply([
+        create_diff_from_destination_file("d_dependency.rs", "dependency.rs"),
+        create_diff_from_destination_file("e_1_tracker.rs", "tracker/mod.rs"),
+        create_diff_from_destination_file("e_2_writing.rs", "tracker/writing.rs"),
+        create_diff_from_destination_file("e_3_event.rs", "tracker/event.rs"),
+      ]);
+      stepper.apply([
+        create_diff_from_destination_file("f_store.rs", "store.rs"),
+      ]);
+      stepper.apply([
+        create_diff_from_destination_file("g_context.rs", "lib.rs"),
+        create_diff_from_destination_file("h_non_incr.rs", "context/non_incremental.rs"),
+        create_diff_from_destination_file("i_top_down.rs", "context/top_down.rs"),
+      ]);
+      stepper.apply([
+        create_diff_from_destination_file("j_1_store.rs", "store.rs"),
+        create_diff_from_destination_file("j_2_top_down.rs", "context/top_down.rs"),
+      ]);
+      stepper.apply_failure([
+        create_diff_from_destination_file("k_1_use_provide.rs", "../tests/common/mod.rs"),
+      ]);
+      stepper.apply([
+        create_diff_from_destination_file("k_2_fix_test.rs", "../tests/top_down.rs"),
+      ]);
+      stepper.apply([
+        create_diff_from_destination_file("k_3_more_tests.rs", "../tests/top_down.rs"),
+      ]);
     })
   });
 }

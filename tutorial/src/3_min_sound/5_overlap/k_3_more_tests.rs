@@ -1,4 +1,4 @@
-use std::fs::write;
+use std::fs::{read_to_string, write};
 use std::io;
 use std::ops::RangeInclusive;
 
@@ -131,9 +131,7 @@ fn test_require_task() -> Result<(), io::Error> {
   // 2) Require `ToLower` again and assert that no tasks are executed because all dependencies are consistent:
   // → ToLower
   //   ? ReadFile
-  //     → ReadFile
-  //       ✓ `file`
-  //     ← Ok(String("HELLO WORLD!"))
+  //     ✓ `file`
   //   ✓ ReadFile
   // ← Ok(String("hello world!"))
   // 🏁
@@ -146,12 +144,10 @@ fn test_require_task() -> Result<(), io::Error> {
   // 3) Require `ToLower` and assert that both tasks are re-executed in reverse dependency order:
   // → ToLower
   //   ? ReadFile
-  //     → ReadFile
-  //       ✗ `file` [inconsistent: modified file stamp change]
-  //       ▶ ReadFile [reason: `file` is inconsistent due to modified file stamp change]
-  //         - `file`
-  //       ◀ Ok(String("!DLROW OLLEH")) [note: returns a different output!]
-  //     ← Ok(String("!DLROW OLLEH"))
+  //     ✗ `file` [inconsistent: modified file stamp change]
+  //     ▶ ReadFile [reason: `file` is inconsistent due to modified file stamp change]
+  //       - `file`
+  //     ◀ Ok(String("!DLROW OLLEH")) [note: returns a different output!]
   //   ✗ ReadFile [inconsistent: equals output stamp change]
   //   ▶ ToLower [reason: ReadFile is inconsistent due to equals output stamp change]
   //     → ReadFile
@@ -200,10 +196,7 @@ fn assert_task_temporally_sound(require: &RangeInclusive<usize>, execute: &Range
   // Require and execute ends come after require and execute starts.
   assert!(require.end() > require.start());
   assert!(execute.end() > execute.start());
-  // A task is only executed if it is required.
-  // - Task execute starts should be later than their requires.
-  assert!(execute.start() > require.start());
-  // - Task require ends should be later than their executes.
+  // Task require ends should be later than their executes.
   assert!(require.end() > execute.end());
 }
 
@@ -235,6 +228,120 @@ fn test_no_superfluous_task_dependencies() -> Result<(), io::Error> {
     assert!(tracker.one_execute_of(&upper));
   })?;
   assert_eq!(output.as_str(), "HELLO, WORLD!");
+
+  // Change `file` such that the file dependency of `ReadFile` becomes inconsistent. However, we change its contents
+  // only slightly by turning 'l' characters into capital 'L' characters. Therefore, `ToLower` will still return
+  // `"hello, world!"`.
+  write_until_modified(&file, "HeLLo, WorLd!")?;
+
+  // Require `ToUpper` but assert that it is _not executed_ because `ToUpper`'s task dependency to `ToLower` is still
+  // consistent, because `ToLower` still returns `"hello, world!"` which is the same as last time.
+  let output = pie.require_then_assert(&upper, |tracker| {
+    assert!(tracker.one_execute_of(&read));
+    assert!(tracker.one_execute_of(&lower));
+    assert!(!tracker.any_execute_of(&upper));
+  })?;
+  assert_eq!(output.as_str(), "HELLO, WORLD!");
+
+  Ok(())
+}
+
+#[should_panic(expected = "Overlapping provided file")]
+#[test]
+fn test_overlapping_provided_file_panics() {
+  fn run() -> Result<(), io::Error> {
+    let mut pie = test_pie();
+    let temp_dir = create_temp_dir()?;
+
+    let output_file = temp_dir.path().join("out.txt");
+    let input_file = temp_dir.path().join("in.txt");
+    write(&input_file, "Hello, World!")?;
+
+    let seq = Sequence(vec![
+      WriteFile(Box::new(Return("Hi there")), output_file.clone(), FileStamper::Modified),
+      WriteFile(Box::new(ReadFile(input_file.clone(), FileStamper::Modified)), output_file.clone(), FileStamper::Modified),
+    ]);
+    // Require `seq`, resulting in overlapping provided files between the two different write tasks.
+    pie.require(&seq)?;
+
+    Ok(())
+  }
+  run().unwrap()
+}
+
+#[should_panic(expected = "Overlapping provided file")]
+#[test]
+fn test_require_overlapping_provided_file_panics() {
+  fn run() -> Result<(), io::Error> {
+    let mut pie = test_pie();
+    let temp_dir = create_temp_dir()?;
+
+    let output_file = temp_dir.path().join("out.txt");
+
+    let write_1 = WriteFile(Box::new(Return("Hi there")), output_file.clone(), FileStamper::Modified);
+    pie.require(&write_1)?;
+
+    // `write_2` is a different task, so requiring it will cause overlap.
+    let write_2 = WriteFile(Box::new(Return("Hello, World!")), output_file.clone(), FileStamper::Modified);
+    pie.require(&write_2)?;
+
+    Ok(())
+  }
+  run().unwrap()
+}
+
+#[test]
+fn test_same_task_no_overlap() -> Result<(), io::Error> {
+  let mut pie = test_pie();
+  let temp_dir = create_temp_dir()?;
+
+  let output_file = temp_dir.path().join("out.txt");
+  let input_file = temp_dir.path().join("in.txt");
+  write(&input_file, "Hello, World!")?;
+
+  let read = ReadFile(input_file.clone(), FileStamper::Modified);
+  let write = WriteFile(Box::new(read), output_file.clone(), FileStamper::Modified);
+
+  pie.require_then_assert_one_execute(&write)?;
+  // Requiring and executing the same task does not cause overlap.
+  write_until_modified(&input_file, "World, Hello?")?;
+  pie.require_then_assert_one_execute(&write)?;
+  // Even when required indirectly.
+  write_until_modified(&input_file, "Hello, World!")?;
+  pie.require_then_assert_one_execute(&Sequence(vec![write]))?;
+
+  Ok(())
+}
+
+#[test]
+fn test_separate_output_files() -> Result<(), io::Error> {
+  let mut pie = test_pie();
+  let temp_dir = create_temp_dir()?;
+
+  let ret = Return("Hi there");
+  let output_file_1 = temp_dir.path().join("out_1.txt");
+  let write_1 = WriteFile(Box::new(ret.clone()), output_file_1.clone(), FileStamper::Modified);
+
+  let input_file = temp_dir.path().join("in.txt");
+  write(&input_file, "Hello, World!")?;
+  let read = ReadFile(input_file.clone(), FileStamper::Modified);
+  let output_file_2 = temp_dir.path().join("out_2.txt");
+  let write_2 = WriteFile(Box::new(read.clone()), output_file_2.clone(), FileStamper::Modified);
+
+  let seq = Sequence(vec![write_1.clone(), write_2.clone()]);
+
+  pie.require(&seq)?;
+  assert_eq!(read_to_string(&output_file_1)?, "Hi there");
+  assert_eq!(read_to_string(&output_file_2)?, "Hello, World!");
+
+  write_until_modified(&input_file, "World, Hello?")?;
+
+  // Require `write_1` to make `output_file_1` consistent.
+  pie.require_then_assert_no_execute(&write_1)?;
+  assert_eq!(read_to_string(&output_file_1)?, "Hi there");
+  // Require `write_2` to make `output_file_2` consistent.
+  pie.require_then_assert_one_execute(&write_2)?;
+  assert_eq!(read_to_string(&output_file_2)?, "World, Hello?");
 
   Ok(())
 }

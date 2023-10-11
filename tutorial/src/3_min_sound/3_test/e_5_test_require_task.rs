@@ -190,8 +190,8 @@ fn assert_task_temporally_sound(require: &RangeInclusive<usize>, execute: &Range
   assert!(require.end() > require.start());
   assert!(execute.end() > execute.start());
   // A task is only executed if it is required.
-  // - Task execute starts should be later than their requires. 
+  // - Task execute starts should be later than their requires.
   assert!(execute.start() > require.start());
-  // - Task require ends should be later than their executes. 
+  // - Task require ends should be later than their executes.
   assert!(require.end() > execute.end());
 }

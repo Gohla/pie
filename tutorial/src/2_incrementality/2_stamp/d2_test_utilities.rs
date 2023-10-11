@@ -12,7 +12,7 @@ pub fn create_temp_file() -> Result<NamedTempFile, io::Error> { NamedTempFile::n
 pub fn create_temp_dir() -> Result<TempDir, io::Error> { TempDir::new() }
 
 /// Keeps writing `contents` to file at `path` until its last modified time changes, then returns the modified time.
-/// This is required because some OSs have imprecise modified timers, where the file modified time does not change when 
+/// This is required because some OSs have imprecise modified timers, where the file modified time does not change when
 /// writing in quick succession.
 ///
 /// # Errors

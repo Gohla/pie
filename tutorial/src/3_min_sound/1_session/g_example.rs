@@ -44,7 +44,7 @@ fn main() -> Result<(), io::Error> {
   assert_eq!(&output, "Hi");
 
   println!("\nB) Reuse: expect no execution");
-  // `read_task` is not new and its file dependency is still consistent. It is consistent because the modified time of 
+  // `read_task` is not new and its file dependency is still consistent. It is consistent because the modified time of
   // `input_file` has not changed, thus the modified stamp is equal.
   let output = pie.new_session().require(&read_task)?;
   assert_eq!(&output, "Hi");
@@ -60,7 +60,7 @@ fn main() -> Result<(), io::Error> {
   let read_task_b_modified = ReadStringFromFile::new(&input_file_b, FileStamper::Modified);
   let read_task_b_exists = ReadStringFromFile::new(&input_file_b, FileStamper::Exists);
   println!("\nD) Different tasks: expect `read_task_b_modified` and `read_task_b_exists` to execute");
-  // Task `read_task`, `read_task_b_modified` and `read_task_b_exists` are different, due to their `Eq` implementation 
+  // Task `read_task`, `read_task_b_modified` and `read_task_b_exists` are different, due to their `Eq` implementation
   // determining that their paths and stampers are different. Therefore, `read_task_b_modified` and `read_task_b_exists`
   // are new tasks, and must be executed.
   let mut session = pie.new_session();
@@ -73,10 +73,10 @@ fn main() -> Result<(), io::Error> {
   println!("\nE) Different stampers: expect only `read_task_b_modified` to execute");
   // Both `read_task_b_modified` and `read_task_b_exists` read from the same file, but they use different stampers.
   // Therefore, `read_task_b_modified` must be executed because the modified time has changed, but `read_task_b_exists`
-  // will not be executed because its file dependency stamper only checks for existence of the file, and the existence 
+  // will not be executed because its file dependency stamper only checks for existence of the file, and the existence
   // of the file has not changed.
   //
-  // Note that using an `Exists` stamper for this task does not make a lot of sense, since it will only read the file 
+  // Note that using an `Exists` stamper for this task does not make a lot of sense, since it will only read the file
   // on first execute and when it is recreated. But this is just to demonstrate different stampers.
   let mut session = pie.new_session();
   let output = session.require(&read_task_b_modified)?;

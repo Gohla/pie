@@ -9,9 +9,11 @@ use stamp::{FileStamper, OutputStamper};
 
 use crate::context::top_down::TopDownContext;
 use crate::store::{Store, TaskNode};
+use crate::tracker::{NoopTracker, Tracker};
 
 pub mod stamp;
 pub mod dependency;
+pub mod tracker;
 mod context;
 mod fs;
 mod store;
@@ -47,6 +49,19 @@ pub trait Context<T: Task> {
   /// Returns the default require file stamper.
   fn default_require_file_stamper(&self) -> FileStamper { FileStamper::Modified }
 
+  /// Provides file at given `path`, recording a dependency to it (using the default provide file stamper). Call this
+  /// method *just after writing to the file*, so that the dependency corresponds to your written data. Returns an
+  /// `Err(e)` if there was an error getting the metadata for given `path`, or if there was an error stamping the file.
+  fn provide_file<P: AsRef<Path>>(&mut self, path: P) -> Result<(), io::Error> {
+    self.provide_file_with_stamper(path, self.default_provide_file_stamper())
+  }
+  /// Provides file at given `path`, recording a dependency to it (using given `stamper`). Call this method
+  /// *just after writing to the file*, so that the dependency corresponds to you written data.  Returns an `Err(e)` if
+  /// there was an error getting the metadata for given `path`, or if there was an error stamping the file.
+  fn provide_file_with_stamper<P: AsRef<Path>>(&mut self, path: P, stamper: FileStamper) -> Result<(), io::Error>;
+  /// Returns the default provide file stamper.
+  fn default_provide_file_stamper(&self) -> FileStamper { FileStamper::Modified }
+
   /// Requires given `task`, recording a dependency (using the default output stamper) and selectively executing it.
   /// Returns its up-to-date output.
   fn require_task(&mut self, task: &T) -> T::Output {
@@ -60,36 +75,47 @@ pub trait Context<T: Task> {
 }
 
 /// Main entry point into PIE, a sound and incremental programmatic build system.
-pub struct Pie<T, O> {
+pub struct Pie<T, O, A = NoopTracker> {
   store: Store<T, O>,
+  tracker: A,
 }
 
 impl<T: Task> Default for Pie<T, T::Output> {
-  fn default() -> Self { Self { store: Store::default() } }
+  fn default() -> Self { Self::with_tracker(NoopTracker) }
 }
 
-impl<T: Task> Pie<T, T::Output> {
+impl<T: Task, A: Tracker<T>> Pie<T, T::Output, A> {
+  /// Creates a new [`Pie`] instance with given `tracker`.
+  pub fn with_tracker(tracker: A) -> Self { Self { store: Store::default(), tracker } }
+
   /// Creates a new build session. Only one session may be active at once, enforced via mutable (exclusive) borrow.
-  pub fn new_session(&mut self) -> Session<T, T::Output> { Session::new(self) }
+  pub fn new_session(&mut self) -> Session<T, T::Output, A> { Session::new(self) }
   /// Runs `f` inside a new build session.
-  pub fn run_in_session<R>(&mut self, f: impl FnOnce(Session<T, T::Output>) -> R) -> R {
+  pub fn run_in_session<R>(&mut self, f: impl FnOnce(Session<T, T::Output, A>) -> R) -> R {
     let session = self.new_session();
     f(session)
   }
+
+  /// Gets the [`Tracker`] instance.
+  pub fn tracker(&self) -> &A { &self.tracker }
+  /// Gets the mutable [`Tracker`] instance.
+  pub fn tracker_mut(&mut self) -> &mut A { &mut self.tracker }
 }
 
 /// A session in which builds are executed.
-pub struct Session<'p, T, O> {
+pub struct Session<'p, T, O, A> {
   store: &'p mut Store<T, O>,
+  tracker: &'p mut A,
   current_executing_task: Option<TaskNode>,
   consistent: HashSet<TaskNode>,
   dependency_check_errors: Vec<io::Error>,
 }
 
-impl<'p, T: Task> Session<'p, T, T::Output> {
-  fn new(pie: &'p mut Pie<T, T::Output>) -> Self {
+impl<'p, T: Task, A: Tracker<T>> Session<'p, T, T::Output, A> {
+  fn new(pie: &'p mut Pie<T, T::Output, A>) -> Self {
     Self {
       store: &mut pie.store,
+      tracker: &mut pie.tracker,
       current_executing_task: None,
       consistent: HashSet::default(),
       dependency_check_errors: Vec::default(),
@@ -101,6 +127,11 @@ impl<'p, T: Task> Session<'p, T, T::Output> {
     self.current_executing_task = None;
     TopDownContext::new(self).require_initial(task)
   }
+
+  /// Gets the [`Tracker`] instance.
+  pub fn tracker(&self) -> &A { &self.tracker }
+  /// Gets the mutable [`Tracker`] instance.
+  pub fn tracker_mut(&mut self) -> &mut A { &mut self.tracker }
 
   /// Gets all errors produced during dependency checks.
   pub fn dependency_check_errors(&self) -> &[io::Error] { &self.dependency_check_errors }

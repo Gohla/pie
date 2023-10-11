@@ -1,6 +1,6 @@
 
 impl<T: Task> Store<T, T::Output> {
-  /// Checks whether task `node` has an output. Returns `false` if `node` does not have an output. 
+  /// Checks whether task `node` has an output. Returns `false` if `node` does not have an output.
   ///
   /// # Panics
   ///
@@ -11,7 +11,7 @@ impl<T: Task> Store<T, T::Output> {
     };
     output.is_some()
   }
-  /// Gets the output for task `node`. 
+  /// Gets the output for task `node`.
   ///
   /// # Panics
   ///

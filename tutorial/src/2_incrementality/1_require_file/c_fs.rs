@@ -15,7 +15,7 @@ pub fn metadata(path: impl AsRef<Path>) -> Result<Option<Metadata>, io::Error> {
 }
 
 /// Attempt to open file at given `path`, returning:
-/// - `Ok(Some(file))` if the file exists at given path, 
+/// - `Ok(Some(file))` if the file exists at given path,
 /// - `Ok(None)` if no file exists at given path (but a directory could exist at given path),
 /// - `Err(e)` if there was an error getting the metadata for given path, or if there was an error opening the file.
 ///

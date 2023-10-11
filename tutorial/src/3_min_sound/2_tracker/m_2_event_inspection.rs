@@ -24,25 +24,25 @@ impl<T: Task> EventTracker<T, T::Output> {
   }
 
 
-  /// Finds the first [require file end event](Event::RequireFileEnd) for `path` and returns `Some(&data)`, or `None` 
+  /// Finds the first [require file end event](Event::RequireFileEnd) for `path` and returns `Some(&data)`, or `None`
   /// otherwise.
   pub fn first_require_file(&self, path: &PathBuf) -> Option<&RequireFileEnd> {
     self.find_map(|e| e.match_require_file_end(path))
   }
-  /// Finds the first [require file end event](Event::RequireFileEnd) for `path` and returns `Some(&index)`, or `None` 
+  /// Finds the first [require file end event](Event::RequireFileEnd) for `path` and returns `Some(&index)`, or `None`
   /// otherwise.
   pub fn first_require_file_index(&self, path: &PathBuf) -> Option<&usize> {
     self.first_require_file(path).map(|d| &d.index)
   }
 
-  /// Finds the first require [start](Event::RequireTaskStart) and [end](Event::RequireTaskEnd) event for `task` and 
+  /// Finds the first require [start](Event::RequireTaskStart) and [end](Event::RequireTaskEnd) event for `task` and
   /// returns `Some((&start_data, &end_data))`, or `None` otherwise.
   pub fn first_require_task(&self, task: &T) -> Option<(&RequireTaskStart<T>, &RequireTaskEnd<T, T::Output>)> {
     let start_data = self.find_map(|e| e.match_require_task_start(task));
     let end_data = self.find_map(|e| e.match_require_task_end(task));
     start_data.zip(end_data)
   }
-  /// Finds the first require [start](Event::RequireTaskStart) and [end](Event::RequireTaskEnd) event for `task` and 
+  /// Finds the first require [start](Event::RequireTaskStart) and [end](Event::RequireTaskEnd) event for `task` and
   /// returns `Some(start_data.index..=end_data.index)`, or `None` otherwise.
   pub fn first_require_task_range(&self, task: &T) -> Option<RangeInclusive<usize>> {
     self.first_require_task(task).map(|(s, e)| s.index..=e.index)
@@ -61,14 +61,14 @@ impl<T: Task> EventTracker<T, T::Output> {
     self.one(|e| e.match_execute_start(task).is_some())
   }
 
-  /// Finds the first execute [start](Event::ExecuteStart) and [end](Event::ExecuteEnd) event for `task` and returns 
+  /// Finds the first execute [start](Event::ExecuteStart) and [end](Event::ExecuteEnd) event for `task` and returns
   /// `Some((&start_data, &end_data))`, or `None` otherwise.
   pub fn first_execute(&self, task: &T) -> Option<(&ExecuteStart<T>, &ExecuteEnd<T, T::Output>)> {
     let start_data = self.find_map(|e| e.match_execute_start(task));
     let end_data = self.find_map(|e| e.match_execute_end(task));
     start_data.zip(end_data)
   }
-  /// Finds the first execute [start](Event::ExecuteStart) and [end](Event::ExecuteEnd) event for `task` and returns 
+  /// Finds the first execute [start](Event::ExecuteStart) and [end](Event::ExecuteEnd) event for `task` and returns
   /// `Some(start_data.index..=end_data.index)`, or `None` otherwise.
   pub fn first_execute_range(&self, task: &T) -> Option<RangeInclusive<usize>> {
     self.first_execute(task).map(|(s, e)| s.index..=e.index)

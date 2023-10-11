@@ -3,7 +3,7 @@ use std::io;
 use std::path::Path;
 
 use crate::{Context, fs, Session, Task};
-use crate::dependency::{FileDependency, TaskDependency};
+use crate::dependency::{FileDependency, MakeConsistent, TaskDependency};
 use crate::stamp::{FileStamper, OutputStamper};
 use crate::store::TaskNode;
 use crate::tracker::Tracker;
@@ -36,6 +36,18 @@ impl<'p, 's, T: Task, A: Tracker<T>> Context<T> for TopDownContext<'p, 's, T, T:
     Ok(file)
   }
 
+  fn provide_file_with_stamper<P: AsRef<Path>>(&mut self, path: P, stamper: FileStamper) -> Result<(), io::Error> {
+    let Some(current_executing_task_node) = &self.session.current_executing_task else {
+      return Ok(()); // No current executing task, so no dependency needs to be made.
+    };
+    let path = path.as_ref();
+    let node = self.session.store.get_or_create_file_node(path);
+    let dependency = FileDependency::new(path, stamper)?;
+    self.session.tracker.provide_file_end(&dependency);
+    self.session.store.add_file_provide_dependency(current_executing_task_node, &node, dependency);
+    Ok(())
+  }
+
   fn require_task_with_stamper(&mut self, task: &T, stamper: OutputStamper) -> T::Output {
     self.session.tracker.require_task_start(task, &stamper);
 
@@ -53,6 +65,14 @@ impl<'p, 's, T: Task, A: Tracker<T>> Context<T> for TopDownContext<'p, 's, T, T:
       }
     }
 
+    output
+  }
+}
+
+impl<'p, 's, T: Task, A: Tracker<T>> MakeConsistent<T> for TopDownContext<'p, 's, T, T::Output, A> {
+  fn make_task_consistent(&mut self, task: &T) -> T::Output {
+    let node = self.session.store.get_or_create_task_node(task);
+    let (output, _) = self.make_task_consistent(task, node);
     output
   }
 }

@@ -45,7 +45,7 @@ impl<T: Task> Context<T> for TopDownContext<T, T::Output> {
       self.store.set_task_output(&node, output.clone());
       output
     } else {
-      // Correctness: when `should_execute_task` returns `true`, the above block is executed. Otherwise this block is 
+      // Correctness: when `should_execute_task` returns `true`, the above block is executed. Otherwise this block is
       // executed and `should_execute_task` ensures that the task has an output.
       self.store.get_task_output(&node).clone()
     };

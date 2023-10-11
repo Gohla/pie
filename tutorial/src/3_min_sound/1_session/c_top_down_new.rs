@@ -43,7 +43,7 @@ impl<T: Task> Context<T> for TopDownContext<T, T::Output> {
       self.store.set_task_output(&node, output.clone());
       output
     } else {
-      // Correctness: when `should_execute_task` returns `true`, the above block is executed. Otherwise this block is 
+      // Correctness: when `should_execute_task` returns `true`, the above block is executed. Otherwise this block is
       // executed and `should_execute_task` ensures that the task has an output.
       self.store.get_task_output(&node).clone()
     };
@@ -65,7 +65,7 @@ impl<T: Task> TopDownContext<T, T::Output> {
   /// Checks whether given task should be executed, returning `true` if it should be executed. A task should be executed
   /// if any of its dependencies are inconsistent, or when it has no output.
   fn should_execute_task(&mut self, node: &TaskNode) -> bool {
-    // Borrow: because we pass `self` (which is `&mut self`) to `is_inconsistent` for recursive consistency checking, 
+    // Borrow: because we pass `self` (which is `&mut self`) to `is_inconsistent` for recursive consistency checking,
     //         we need to clone and collect dependencies into a `Vec`. Otherwise we have an immutable borrow of `self`
     //         through `self.store` while we create a mutable borrow of `self`, which is not allowed.
     let dependencies: Vec<_> = self.store.get_dependencies_of_task(node).cloned().collect();

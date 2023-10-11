@@ -12,7 +12,7 @@ impl<T: Task> Store<T, T::Output> {
       node
     }
   }
-  /// Gets the path for `node`. 
+  /// Gets the path for `node`.
   ///
   /// # Panics
   ///
@@ -24,7 +24,7 @@ impl<T: Task> Store<T, T::Output> {
     };
     path
   }
-  
+
   /// Gets the task node for `task`, or creates a task node by adding it to the dependency graph.
   pub fn get_or_create_task_node(&mut self, task: &T) -> TaskNode {
     if let Some(node) = self.task_to_node.get(task) {
@@ -39,7 +39,7 @@ impl<T: Task> Store<T, T::Output> {
       node
     }
   }
-  /// Gets the task for `node`. 
+  /// Gets the task for `node`.
   ///
   /// # Panics
   ///
