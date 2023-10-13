@@ -10,7 +10,7 @@ However, what should happen when two tasks write to the same file?
 In a non-incremental setting, the last writer wins by overwriting (or appending to) the file.
 Does this behaviour also occur in our incremental build system?
 
-Unfortunately, this is not always the case in our incremental build system, because we can `require` individual tasks.
+Unfortunately, this is not always the case in our incremental build system, because we can `require` individual tasks in a specific order that would cause an inconsistency, making the first writer win.
 This is a bit tricky to explain without an example, so we will first add some testing tasks and write a test that showcases the problem.
 In this section, we will continue with:
  
@@ -18,6 +18,7 @@ In this section, we will continue with:
 2) Create a `test_overlapping_file_write` test to showcase the issue.
 3) Introduce a new kind of dependency: a _provide file dependency_ for writing to (and creating) files.
 4) Prevent overlapping file writes by checking for them at runtime, fixing the issue.
+5) Improve and add additional tests
 
 ## Add `WriteFile` and `Sequence` tasks
 
@@ -63,13 +64,18 @@ However, we then modify `input_file` to make `write_2` inconsistent, and then re
 The result is that `output_file` now contains `"Hi there"`, even though `write_2` is inconsistent!
 
 This behaviour stems from the fact that we can `require` individual tasks, which is actually a great feature, not a bug!
-When we `require` a task, we are asking the build system to make **that task** consistent.
+When we `require` a task, we are asking the build system to make **that task** consistent, and get its up-to-date output.
 We are **not** asking the build system to make **all** tasks consistent.
 The build system recursively checks and executes only the tasks that are absolutely necessary to make that task consistent.
 If it would not do that, it would not truly be incremental!
-Therefore, we cannot (and shouldn't) get rid of this feature, and instead need to find another solution to this problem.  
+Therefore, we cannot (and shouldn't) get rid of this feature, and instead need to find another solution to this problem.
 
-As we saw in this test, `output_file` is not in a consistent state, because `write_2` is inconsistent and needs to be executed to bring `output_file` into a consistent state.
+While we require tasks "manually" here, through the `Pie` / `Session` API, this problem can also occur with tasks that require other tasks.
+For example, if `seq` would just be `Sequence(vec![write_1])`, and we'd end up in the same inconsistent state when requiring `seq`.
+Especially in large incremental builds with many different tasks, this can easily occur accidentally, causing subtle incrementality bugs.
+
+Let's go back to the test.
+In the test, `output_file` is not in a consistent state because `write_2` is inconsistent and needs to be executed to bring `output_file` into a consistent state.
 However, if `write_2` would write to another file, there would be no inconsistency.
 Let's write a test with separate output files.
 
@@ -312,8 +318,12 @@ However, I think this kind of run-time checking is preferable over incremental b
 As far as I know, there is no _easy_ way to detect overlap statically in the presence of dynamic dependencies and incrementality.
 You'd have to encode file names and paths in the type system, and restrict what kind of names and paths you can use.
 
-Matthew Hammer et al. developed [Fungi, a typed functional language for incremental computation with names](https://arxiv.org/abs/1808.07826) to solve this problem, but it is quite involved!
+Matthew Hammer et al. developed [Fungi, a typed functional language for incremental computation with names](https://arxiv.org/abs/1808.07826) to solve these kind of problems, but it is quite involved!
 Be sure to read that paper and their previous work on [Adapton (non-HTTPS)](http://adapton.org/) if you're interested in that line of research. 
 ```
 
 In the next section, we will detect and disallow another inconsistency in incremental builds: hidden dependencies.
+
+```admonish example title="Download source code" collapsible=true
+You can [download the source files up to this point](../../gen/3_min_sound/5_overlap/source.zip).
+```

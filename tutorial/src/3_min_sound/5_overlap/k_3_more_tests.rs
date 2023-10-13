@@ -246,6 +246,9 @@ fn test_no_superfluous_task_dependencies() -> Result<(), io::Error> {
   Ok(())
 }
 
+
+// Overlapping provided file tests
+
 #[should_panic(expected = "Overlapping provided file")]
 #[test]
 fn test_overlapping_provided_file_panics() {

@@ -345,7 +345,23 @@ pub fn step_all(
       ]);
       stepper.apply([
         create_diff_from_destination_file("k_3_more_tests.rs", "../tests/top_down.rs"),
+      ]).output(
+        SourceArchive::new("source.zip")
+      );
+    });
+
+    stepper.with_path("6_hidden_dep", |stepper| {
+      stepper.apply([
+        add("a_1_test.rs", "../tests/top_down.rs"),
+        create_diff("a_2_test.rs", "../tests/top_down.rs"),
       ]);
-    })
+      stepper.apply([
+        create_diff_from_destination_file("b_1_store.rs", "store.rs"),
+        create_diff_from_destination_file("b_2_store.rs", "store.rs"),
+      ]);
+      stepper.apply_failure(
+        create_diff_from_destination_file("c_top_down.rs", "context/top_down.rs")
+      );
+    });
   });
 }

@@ -246,6 +246,9 @@ fn test_no_superfluous_task_dependencies() -> Result<(), io::Error> {
   Ok(())
 }
 
+
+// Overlapping provided file tests
+
 #[test]
 fn test_show_overlap_issue() -> Result<(), io::Error> {
   let mut pie = test_pie();
