@@ -1,0 +1,75 @@
+--- pie/src/store.rs
++++ pie/src/store.rs
+@@ -399,6 +399,11 @@
+     assert_eq!(store.get_dependencies_of_task(&node_a).next(), None);
+     assert_eq!(store.get_dependencies_of_task(&node_b).next(), None);
+     assert_eq!(store.get_task_providing_file(&node_c), None);
++    assert_eq!(store.get_tasks_requiring_file(&node_c).next(), None);
++    assert!(!store.contains_transitive_task_dependency(&node_a, &node_a));
++    assert!(!store.contains_transitive_task_dependency(&node_b, &node_b));
++    assert!(!store.contains_transitive_task_dependency(&node_a, &node_b));
++    assert!(!store.contains_transitive_task_dependency(&node_b, &node_a));
+ 
+     // Add file dependency from task A to file C.
+     let file_dependency_a2c = FileDependency::new(&path_c, FileStamper::Exists).unwrap();
+@@ -408,6 +413,11 @@
+     assert_eq!(deps_of_a.get(1), None);
+     assert_eq!(store.get_dependencies_of_task(&node_b).next(), None);
+     assert_eq!(store.get_task_providing_file(&node_c), None);
++    let reqs_to_c: Vec<_> = store.get_tasks_requiring_file(&node_c).collect();
++    assert_eq!(reqs_to_c.get(0), Some(&node_a));
++    assert_eq!(reqs_to_c.get(1), None);
++    assert!(!store.contains_transitive_task_dependency(&node_a, &node_b));
++    assert!(!store.contains_transitive_task_dependency(&node_b, &node_a));
+ 
+     // Add task dependency from task B to task A.
+     let task_dependency_b2a = TaskDependency::new(task_a.clone(), OutputStamper::Equals, output_a.clone());
+@@ -420,6 +430,11 @@
+     assert_eq!(deps_of_b.get(0), Some(&Dependency::RequireTask(task_dependency_b2a.clone())));
+     assert_eq!(deps_of_b.get(1), None);
+     assert_eq!(store.get_task_providing_file(&node_c), None);
++    let reqs_to_c: Vec<_> = store.get_tasks_requiring_file(&node_c).collect();
++    assert_eq!(reqs_to_c.get(0), Some(&node_a));
++    assert_eq!(reqs_to_c.get(1), None);
++    assert!(!store.contains_transitive_task_dependency(&node_a, &node_b));
++    assert!(store.contains_transitive_task_dependency(&node_b, &node_a));
+ 
+     // Add file dependency from task B to file C.
+     let file_dependency_b2c = FileDependency::new(&path_c, FileStamper::Exists).unwrap();
+@@ -432,6 +447,11 @@
+     assert_eq!(deps_of_b.get(1), Some(&Dependency::ProvideFile(file_dependency_b2c.clone())));
+     assert_eq!(deps_of_b.get(2), None);
+     assert_eq!(store.get_task_providing_file(&node_c), Some(node_b));
++    let reqs_to_c: Vec<_> = store.get_tasks_requiring_file(&node_c).collect();
++    assert_eq!(reqs_to_c.get(0), Some(&node_a));
++    assert_eq!(reqs_to_c.get(1), None);
++    assert!(!store.contains_transitive_task_dependency(&node_a, &node_b));
++    assert!(store.contains_transitive_task_dependency(&node_b, &node_a));
+ 
+     // Add task dependency from task A to task B, creating a cycle.
+     let task_dependency_a2b = TaskDependency::new(task_a.clone(), OutputStamper::Equals, output_a.clone());
+@@ -459,6 +479,24 @@
+ 
+   #[test]
+   #[should_panic]
++  fn get_tasks_requiring_file_panics() {
++    let mut fake_store: Store<StringConstant, String> = Store::default();
++    let fake_node = fake_store.get_or_create_file_node("hello.txt");
++    let store: Store<StringConstant, String> = Store::default();
++    let _ = store.get_tasks_requiring_file(&fake_node);
++  }
++
++  #[test]
++  #[should_panic]
++  fn test_contains_transitive_task_dependency_panics() {
++    let mut fake_store = Store::default();
++    let fake_node = fake_store.get_or_create_task_node(&StringConstant::new("Hello"));
++    let store: Store<StringConstant, String> = Store::default();
++    let _ = store.contains_transitive_task_dependency(&fake_node, &fake_node);
++  }
++
++  #[test]
++  #[should_panic]
+   fn test_add_file_require_dependency_panics() {
+     let mut fake_store = Store::default();
+     let fake_file_node = fake_store.get_or_create_file_node("hello.txt");

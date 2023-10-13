@@ -1,20 +1,33 @@
 --- pie/tests/top_down.rs
 +++ pie/tests/top_down.rs
-@@ -246,44 +246,29 @@
-   Ok(())
- }
+@@ -249,43 +249,27 @@
+ 
+ // Overlapping provided file tests
  
 +#[should_panic(expected = "Overlapping provided file")]
  #[test]
 -fn test_show_overlap_issue() -> Result<(), io::Error> {
 -  let mut pie = test_pie();
 -  let temp_dir = create_temp_dir()?;
--
++fn test_overlapping_provided_file_panics() {
++  fn run() -> Result<(), io::Error> {
++    let mut pie = test_pie();
++    let temp_dir = create_temp_dir()?;
+ 
 -  let output_file = temp_dir.path().join("out.txt");
--
++    let output_file = temp_dir.path().join("out.txt");
++    let input_file = temp_dir.path().join("in.txt");
++    write(&input_file, "Hello, World!")?;
+ 
 -  let ret = Return("Hi there");
 -  let write_1 = WriteFile(Box::new(ret.clone()), output_file.clone(), FileStamper::Modified);
--
++    let seq = Sequence(vec![
++      WriteFile(Box::new(Return("Hi there")), output_file.clone(), FileStamper::Modified),
++      WriteFile(Box::new(ReadFile(input_file.clone(), FileStamper::Modified)), output_file.clone(), FileStamper::Modified),
++    ]);
++    // Require `seq`, resulting in overlapping provided files between the two different write tasks.
++    pie.require(&seq)?;
+ 
 -  let input_file = temp_dir.path().join("in.txt");
 -  write(&input_file, "Hello, World!")?;
 -  let read = ReadFile(input_file.clone(), FileStamper::Modified);
@@ -27,17 +40,10 @@
 -  pie.require(&seq)?;
 -  // Assert that `output_file` contains the string from `input_file`.
 -  assert_eq!(read_to_string(&output_file)?, "Hello, World!");
-+fn test_overlapping_provided_file_panics() {
-+  fn run() -> Result<(), io::Error> {
-+    let mut pie = test_pie();
-+    let temp_dir = create_temp_dir()?;
- 
+-
 -  // Change `input_file` such that `write_2` becomes inconsistent.
 -  write_until_modified(&input_file, "World, Hello?")?;
-+    let output_file = temp_dir.path().join("out.txt");
-+    let input_file = temp_dir.path().join("in.txt");
-+    write(&input_file, "Hello, World!")?;
- 
+-
 -  // Require `write_1` and assert that it is executed, because `write_2` modified `output_file` after `write_1`, thus
 -  // `write_1`'s file dependency to `output_file` is inconsistent.
 -  pie.require_then_assert_one_execute(&write_1)?;
@@ -47,19 +53,11 @@
 -  // The contents of `output_file` is thus dependent on which tasks and in which order we require them. This
 -  // inconsistent behaviour is undesirable.
 -  // Note: this is asserting the current behaviour, not the desired behaviour, which is to disallow this!
-+    let seq = Sequence(vec![
-+      WriteFile(Box::new(Return("Hi there")), output_file.clone(), FileStamper::Modified),
-+      WriteFile(Box::new(ReadFile(input_file.clone(), FileStamper::Modified)), output_file.clone(), FileStamper::Modified),
-+    ]);
-+    // Require `seq`, resulting in overlapping provided files between the two different write tasks.
-+    pie.require(&seq)?;
- 
+-
 -  Ok(())
 +    Ok(())
 +  }
 +  run().unwrap()
  }
-+
+ 
  #[test]
- fn test_separate_output_files() -> Result<(), io::Error> {
-   let mut pie = test_pie();

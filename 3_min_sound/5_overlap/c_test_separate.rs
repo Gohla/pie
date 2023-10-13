@@ -1,3 +1,4 @@
+
 #[test]
 fn test_separate_output_files() -> Result<(), io::Error> {
   let mut pie = test_pie();

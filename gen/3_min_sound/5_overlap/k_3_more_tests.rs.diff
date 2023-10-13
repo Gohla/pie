@@ -1,6 +1,6 @@
 --- pie/tests/top_down.rs
 +++ pie/tests/top_down.rs
-@@ -269,6 +269,50 @@
+@@ -272,6 +272,50 @@
    run().unwrap()
  }
  

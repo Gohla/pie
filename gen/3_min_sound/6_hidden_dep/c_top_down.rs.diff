@@ -1,0 +1,35 @@
+--- pie/src/context/top_down.rs
++++ pie/src/context/top_down.rs
+@@ -30,6 +30,16 @@
+     };
+     let path = path.as_ref();
+     let node = self.session.store.get_or_create_file_node(path);
++
++    if let Some(providing_task_node) = self.session.store.get_task_providing_file(&node) {
++      if !self.session.store.contains_transitive_task_dependency(current_executing_task_node, &providing_task_node) {
++        let current_executing_task = self.session.store.get_task(current_executing_task_node);
++        let providing_task = self.session.store.get_task(&providing_task_node);
++        panic!("Hidden dependency; file '{}' is required by the current executing task '{:?}' without a dependency to \
++                providing task: {:?}", path.display(), current_executing_task, providing_task);
++      }
++    }
++
+     let (dependency, file) = FileDependency::new_with_file(path, stamper)?;
+     self.session.tracker.require_file_end(&dependency);
+     self.session.store.add_file_require_dependency(current_executing_task_node, &node, dependency);
+@@ -50,6 +60,15 @@
+               previously provided by task: {:?}", path.display(), current_executing_task, previous_providing_task);
+     }
+ 
++    for requiring_task_node in self.session.store.get_tasks_requiring_file(&node) {
++      if !self.session.store.contains_transitive_task_dependency(&requiring_task_node, current_executing_task_node) {
++        let current_executing_task = self.session.store.get_task(current_executing_task_node);
++        let requiring_task = self.session.store.get_task(&requiring_task_node);
++        panic!("Hidden dependency; file '{}' is provided by the current executing task '{:?}' without a dependency \
++                from requiring task '{:?}' to the current executing task", path.display(), current_executing_task, requiring_task);
++      }
++    }
++
+     let dependency = FileDependency::new(path, stamper)?;
+     self.session.tracker.provide_file_end(&dependency);
+     self.session.store.add_file_provide_dependency(current_executing_task_node, &node, dependency);
