@@ -293,8 +293,8 @@ pub fn step_all(
         create_diff_from_destination_file("c_test_manifest.rs", "../tests/top_down.rs"),
       ]);
       stepper.run_cargo_applied(["test", "--test", "top_down", "test_no_superfluous_task_dependencies"], Some(false)).output([
-        CargoOutput::with_modify_fn("c_test_manifest_2.txt", |log|log.split('🏁').nth(1).expect("second build to be in the build log").to_string()),
-        CargoOutput::with_modify_fn("c_test_manifest_3.txt", |log|log.split('🏁').nth(2).expect("third build to be in the build log").to_string())
+        CargoOutput::with_modify_fn("c_test_manifest_2.txt", |log| log.split('🏁').nth(1).expect("second build to be in the build log").to_string()),
+        CargoOutput::with_modify_fn("c_test_manifest_3.txt", |log| log.split('🏁').nth(2).expect("third build to be in the build log").to_string())
       ]);
       stepper.apply_failure([
         create_diff_from_destination_file("d_1_make_consistent.rs", "context/top_down.rs"),
@@ -303,8 +303,8 @@ pub fn step_all(
         create_diff_from_destination_file("d_4_non_incremental.rs", "context/non_incremental.rs"),
       ]);
       stepper.run_cargo_applied(["test", "--test", "top_down", "test_require_task"], Some(false)).output([
-        CargoOutput::with_modify_fn("e_fix_tests_2.txt", |log|log.split('🏁').nth(1).expect("second build to be in the build log").to_string()),
-        CargoOutput::with_modify_fn("e_fix_tests_3.txt", |log|log.split('🏁').nth(2).expect("third build to be in the build log").to_string())
+        CargoOutput::with_modify_fn("e_fix_tests_2.txt", |log| log.split('🏁').nth(1).expect("second build to be in the build log").to_string()),
+        CargoOutput::with_modify_fn("e_fix_tests_3.txt", |log| log.split('🏁').nth(2).expect("third build to be in the build log").to_string())
       ]);
       stepper.apply([
         create_diff_from_destination_file("e_fix_tests.rs", "../tests/top_down.rs"),
@@ -362,6 +362,14 @@ pub fn step_all(
       stepper.apply_failure(
         create_diff_from_destination_file("c_top_down.rs", "context/top_down.rs")
       );
+      stepper.apply([
+        create_diff("d_1_test.rs", "../tests/top_down.rs"),
+        add("d_2_test.rs", "../tests/top_down.rs"),
+      ]);
+      stepper.apply([
+        create_diff_from_destination_file("e_1_read_origin.rs", "../tests/common/mod.rs"),
+        create_diff_from_destination_file("e_2_read_refactor.rs", "../tests/top_down.rs"),
+      ]);
     });
   });
 }

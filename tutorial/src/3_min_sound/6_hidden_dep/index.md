@@ -64,7 +64,12 @@ There are two ways in which a hidden dependency can be manifested:
 1) When a task R requires file F: if F is provided by task P, and R does not require P, there is a hidden dependency.
 2) When a task P provides file F: if F is required by tasks R*, and one or more tasks from R* does not require P, there is a hidden dependency.
 
-This hints to a check in the `require_file_with_stamper` and `provide_file_with_stamper` methods.
+We already saw an example of the first case in the test.
+The second case occurs when a task first requires a file that is not yet provided by a task, but then later on a task provides it.
+In both cases, the hidden dependency can result in tasks reading from a file that will later be written to (provided) by another task, which leaves those reading tasks in an inconsistent state.
+
+We will need to check for both cases.
+The first case can be checked in the `require_file_with_stamper` method, and the second one in `provide_file_with_stamper`.
 
 Both checks need some way to query whether a task depends on another task.
 We could query whether task R depends on P directly, and that would work fine.
@@ -125,3 +130,58 @@ Test `test_hidden_dependency` will fail as expected, which we will now fix!
 
 ## Fixing and improving the tests
 
+Like with the overlapping provided file test, we'll heavily simplify our test to only test that it panics.
+Modify `pie/tests/top_down.rs`:
+
+```diff2html
+{{#include ../../gen/3_min_sound/6_hidden_dep/d_1_test.rs.diff}}
+```
+
+We check for a `"Hidden dependency"` panic, rename the test, wrap it in a nested `run` function to support `Result`, and simplify it.
+The second call to `require_then_assert_one_execute` will panic due to a hidden dependency: `read` requires `file` without a task dependency to `write`.
+
+Now add a test for the second case to `pie/tests/top_down.rs`:
+
+```rust,
+{{#include d_2_test.rs:2:}}
+```
+
+Here, the second call to `require_then_assert_one_execute` will panic due to a hidden dependency: `write` provides `file` which is required by `read` which does not have a task dependency to `write`.
+
+Confirm both tests succeed with `cargo test`.
+All tests are succeeding again 🎉.
+
+We should also write some tests that show that non-hidden (visible?) dependencies do actually work.
+However, our `ReadFile` task is not capable of making task dependencies at all, so we will need to fix that first (and refactor all uses of `ReadFile` unfortunately).
+
+Modify `pie/tests/common/mod.rs`:
+
+```diff2html
+{{#include ../../gen/3_min_sound/6_hidden_dep/e_1_read_origin.rs.diff}}
+```
+
+We add an optional task argument to `ReadFile`, which we require when the read task is executed.
+We call this optional task argument an `origin`, a shorthand for "originating task".
+This is a pattern that appears in programmatic build systems, where a task requires certain files, but those files could be provided by another task.
+Instead of `Option<Box<TestTask>>`, we can also use `Vec<TestTask>` if multiple originating tasks are required.
+
+```admonish tip title="A Cleaner Approach" collapsible=true
+A slightly cleaner approach would be to make `WriteFile` return the path it wrote to, and change `ReadFile` to accept a task in place of its `PathBuf` argument.
+Then we could pass a `WriteFile` task as the path argument for `ReadFile`.
+We already hinted to this approach in the "Reduce Programming Errors by Returning Paths" block from the previous section.
+
+However, that change would require a bigger refactoring, so we'll go with the simpler (but also more flexible) approach in this tutorial.
+```
+
+Due to disallowing hidden dependencies, we need to make these originating tasks explicit, which unfortunately requires some additional work when authoring tasks.
+However, the reward is that the build system will incrementalize running our tasks for free, and also ensure that the incremental build is correct.
+Also, I think it is not such a bad idea to be explicit about these dependencies, because these really are dependencies that exist in the build!
+
+Now we need to refactor the tests to provide `None` as the origin task for every `ReadFile` task we create.
+Modify `pie/tests/top_down.rs`:
+
+```diff2html
+{{#include ../../gen/3_min_sound/6_hidden_dep/e_2_read_refactor.rs.diff}}
+```
+
+Confirm your changes are correct with `cargo test`.
