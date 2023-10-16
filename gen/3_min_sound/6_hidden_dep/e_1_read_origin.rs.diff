@@ -1,0 +1,23 @@
+--- pie/tests/common/mod.rs
++++ pie/tests/common/mod.rs
+@@ -63,7 +63,7 @@
+ #[derive(Clone, Eq, PartialEq, Hash, Debug)]
+ pub enum TestTask {
+   Return(&'static str),
+-  ReadFile(PathBuf, FileStamper),
++  ReadFile(PathBuf, FileStamper, Option<Box<TestTask>>),
+   WriteFile(Box<TestTask>, PathBuf, FileStamper),
+   ToLower(Box<TestTask>),
+   ToUpper(Box<TestTask>),
+@@ -74,7 +74,10 @@
+   fn execute<C: Context<Self>>(&self, context: &mut C) -> Self::Output {
+     match self {
+       TestTask::Return(string) => Ok(string.to_string().into()),
+-      TestTask::ReadFile(path, stamper) => {
++      TestTask::ReadFile(path, stamper, origin) => {
++        if let Some(origin) = origin {
++          context.require_task(origin)?;
++        }
+         let mut string = String::new();
+         if let Some(mut file) = context.require_file_with_stamper(path, *stamper).map_err(|e| e.kind())? {
+           file.read_to_string(&mut string).map_err(|e| e.kind())?;

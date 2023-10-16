@@ -1,0 +1,83 @@
+--- pie/tests/top_down.rs
++++ pie/tests/top_down.rs
+@@ -46,7 +46,7 @@
+ 
+   let file = temp_dir.path().join("in.txt");
+   write(&file, "HELLO WORLD!")?;
+-  let task = ReadFile(file.clone(), FileStamper::Modified);
++  let task = ReadFile(file.clone(), FileStamper::Modified, None);
+ 
+   // 1) Require task and assert that it is executed because it is new.
+   let output = pie.require_then_assert_one_execute(&task)?;
+@@ -62,7 +62,7 @@
+ 
+   // Repeat the test with `FileStamper::Exists`, which results in a different outcome.
+   write(&file, "HELLO WORLD!")?;
+-  let task = ReadFile(file.clone(), FileStamper::Exists);
++  let task = ReadFile(file.clone(), FileStamper::Exists, None);
+ 
+   // 1) Require task and assert that it is executed because it is new.
+   let output = pie.require_then_assert_one_execute(&task)?;
+@@ -86,7 +86,7 @@
+ 
+   let file = temp_dir.path().join("in.txt");
+   write(&file, "HELLO WORLD!")?;
+-  let read = ReadFile(file.clone(), FileStamper::Modified);
++  let read = ReadFile(file.clone(), FileStamper::Modified, None);
+   let lower = ToLower(Box::new(read.clone()));
+ 
+   // 1) Require `ToLower` and assert that both tasks are executed in dependency order, because both tasks are new:
+@@ -207,7 +207,7 @@
+ 
+   let file = temp_dir.path().join("in.txt");
+   write(&file, "Hello, World!")?;
+-  let read = ReadFile(file.clone(), FileStamper::Modified);
++  let read = ReadFile(file.clone(), FileStamper::Modified, None);
+   let lower = ToLower(Box::new(read.clone()));
+   let upper = ToUpper(Box::new(lower.clone()));
+ 
+@@ -262,7 +262,7 @@
+ 
+     let seq = Sequence(vec![
+       WriteFile(Box::new(Return("Hi there")), output_file.clone(), FileStamper::Modified),
+-      WriteFile(Box::new(ReadFile(input_file.clone(), FileStamper::Modified)), output_file.clone(), FileStamper::Modified),
++      WriteFile(Box::new(ReadFile(input_file.clone(), FileStamper::Modified, None)), output_file.clone(), FileStamper::Modified),
+     ]);
+     // Require `seq`, resulting in overlapping provided files between the two different write tasks.
+     pie.require(&seq)?;
+@@ -302,7 +302,7 @@
+   let input_file = temp_dir.path().join("in.txt");
+   write(&input_file, "Hello, World!")?;
+ 
+-  let read = ReadFile(input_file.clone(), FileStamper::Modified);
++  let read = ReadFile(input_file.clone(), FileStamper::Modified, None);
+   let write = WriteFile(Box::new(read), output_file.clone(), FileStamper::Modified);
+ 
+   pie.require_then_assert_one_execute(&write)?;
+@@ -327,7 +327,7 @@
+ 
+   let input_file = temp_dir.path().join("in.txt");
+   write(&input_file, "Hello, World!")?;
+-  let read = ReadFile(input_file.clone(), FileStamper::Modified);
++  let read = ReadFile(input_file.clone(), FileStamper::Modified, None);
+   let output_file_2 = temp_dir.path().join("out_2.txt");
+   let write_2 = WriteFile(Box::new(read.clone()), output_file_2.clone(), FileStamper::Modified);
+ 
+@@ -362,7 +362,7 @@
+     let file = temp_dir.path().join("in_out.txt");
+     write(&file, "Hello, World!")?;
+ 
+-    let read = ReadFile(file.clone(), FileStamper::Modified);
++    let read = ReadFile(file.clone(), FileStamper::Modified, None);
+     let write = WriteFile(Box::new(Return("Hi there")), file.clone(), FileStamper::Modified);
+ 
+     pie.require_then_assert_one_execute(&write)?;
+@@ -383,7 +383,7 @@
+     let file = temp_dir.path().join("in_out.txt");
+     write(&file, "Hello, World!")?;
+ 
+-    let read = ReadFile(file.clone(), FileStamper::Modified);
++    let read = ReadFile(file.clone(), FileStamper::Modified, None);
+     let write = WriteFile(Box::new(Return("Hi there")), file.clone(), FileStamper::Modified);
+ 
+     pie.require_then_assert_one_execute(&read)?;
