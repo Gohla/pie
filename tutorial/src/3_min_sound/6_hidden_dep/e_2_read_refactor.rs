@@ -249,8 +249,8 @@ fn test_no_superfluous_task_dependencies() -> Result<(), io::Error> {
 
 // Overlapping provided file tests
 
-#[should_panic(expected = "Overlapping provided file")]
 #[test]
+#[should_panic(expected = "Overlapping provided file")]
 fn test_overlapping_provided_file_panics() {
   fn run() -> Result<(), io::Error> {
     let mut pie = test_pie();
@@ -272,8 +272,8 @@ fn test_overlapping_provided_file_panics() {
   run().unwrap()
 }
 
-#[should_panic(expected = "Overlapping provided file")]
 #[test]
+#[should_panic(expected = "Overlapping provided file")]
 fn test_require_overlapping_provided_file_panics() {
   fn run() -> Result<(), io::Error> {
     let mut pie = test_pie();
@@ -352,8 +352,8 @@ fn test_separate_output_files() -> Result<(), io::Error> {
 
 // Hidden dependency tests
 
-#[should_panic(expected = "Hidden dependency")]
 #[test]
+#[should_panic(expected = "Hidden dependency")]
 fn test_require_hidden_dependency_panics() {
   fn run() -> Result<(), io::Error> {
     let mut pie = test_pie();
@@ -373,8 +373,8 @@ fn test_require_hidden_dependency_panics() {
   run().unwrap();
 }
 
-#[should_panic(expected = "Hidden dependency")]
 #[test]
+#[should_panic(expected = "Hidden dependency")]
 fn test_provide_hidden_dependency_panics() {
   fn run() -> Result<(), io::Error> {
     let mut pie = test_pie();

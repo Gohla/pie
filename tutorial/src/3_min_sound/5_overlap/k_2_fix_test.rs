@@ -249,8 +249,8 @@ fn test_no_superfluous_task_dependencies() -> Result<(), io::Error> {
 
 // Overlapping provided file tests
 
-#[should_panic(expected = "Overlapping provided file")]
 #[test]
+#[should_panic(expected = "Overlapping provided file")]
 fn test_overlapping_provided_file_panics() {
   fn run() -> Result<(), io::Error> {
     let mut pie = test_pie();

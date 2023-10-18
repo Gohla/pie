@@ -1,9 +1,5 @@
 # Prevent Hidden Dependencies
 
-```admonish warning title="Under Construction"
-This page is under construction
-```
-
 There is one more file-based inconsistency in our incremental build system that we need to prevent: hidden dependencies.
 A hidden dependency occurs when a task R requires file F that is provided by another task P, without task R requiring task P.
 
@@ -165,17 +161,19 @@ We call this optional task argument an `origin`, a shorthand for "originating ta
 This is a pattern that appears in programmatic build systems, where a task requires certain files, but those files could be provided by another task.
 Instead of `Option<Box<TestTask>>`, we can also use `Vec<TestTask>` if multiple originating tasks are required.
 
-```admonish tip title="A Cleaner Approach" collapsible=true
+```admonish info title="Explicit Dependencies"
+Due to disallowing hidden dependencies, we need to make these originating tasks explicit, which unfortunately requires some additional work when authoring tasks.
+However, the reward is that the build system will incrementalize running our tasks for free, and also ensure that the incremental build is correct.
+Also, I think it is not such a bad idea to be explicit about these dependencies, because these really are dependencies that exist in the build!
+```
+
+```admonish tip title="Returning Paths" collapsible=true
 A slightly cleaner approach would be to make `WriteFile` return the path it wrote to, and change `ReadFile` to accept a task in place of its `PathBuf` argument.
 Then we could pass a `WriteFile` task as the path argument for `ReadFile`.
 We already hinted to this approach in the "Reduce Programming Errors by Returning Paths" block from the previous section.
 
 However, that change would require a bigger refactoring, so we'll go with the simpler (but also more flexible) approach in this tutorial.
 ```
-
-Due to disallowing hidden dependencies, we need to make these originating tasks explicit, which unfortunately requires some additional work when authoring tasks.
-However, the reward is that the build system will incrementalize running our tasks for free, and also ensure that the incremental build is correct.
-Also, I think it is not such a bad idea to be explicit about these dependencies, because these really are dependencies that exist in the build!
 
 Now we need to refactor the tests to provide `None` as the origin task for every `ReadFile` task we create.
 Modify `pie/tests/top_down.rs`:
@@ -185,3 +183,146 @@ Modify `pie/tests/top_down.rs`:
 ```
 
 Confirm your changes are correct with `cargo test`.
+
+Now add the following test to `pie/tests/top_down.rs`:
+
+```rust,
+{{#include f_1_test.rs:2:}}
+```
+
+This is similar to earlier tests, but now we create an explicit dependency from `read` to `write` by passing in the `write` task as the last argument to `ReadFile`.
+When we require `read`, it will first require its origin task `write` to make `file` up-to-date, and then require `file` and read from it.
+This is not a hidden dependency: `file` is provided by `write`, but `read` has a dependency to `write`!
+
+Now let's test what happens if we remove `file`.
+Modify the test in `pie/tests/top_down.rs`:
+
+```diff2html linebyline
+{{#include ../../gen/3_min_sound/6_hidden_dep/f_2_test.rs.diff}}
+```
+
+When we remove `file` and require `read`, `read` will check its task dependency to `write`.
+`write` is inconsistent due to the file being removed (modified stamp becomes `None`), so it will re-execute and re-generate the provided file!
+
+```admonish info title="Benefits of Precise Dynamic Dependencies"
+This is another great benefit of the precise dynamic dependencies in programmatic builds: removing an intermediate or output file does not break the build.
+Instead, the file is just re-generated as needed, and the build is brought into a consistent state again.
+Similarly, modifying `file` would result in the same behaviour: the provided file is re-generated and does not break the build.
+```
+
+```admonish info title="File Contents Hash Stamper"
+Unfortunately, `read` is re-executed because its `file` dependency is inconsistent due to the changed modified date of `file`.
+If we implement a file contents hash stamper and use that as the stamper for `file`, we can prevent this re-execution because the file contents is still the same.
+This of course is not free, as hashing file contents has an I/O and processing (CPU) overhead.
+
+In this case, `read` is so simple that the overhead from a hash stamper would be larger than the gains of not executing `read`.
+But for expensive tasks with lots of I/O operations and/or processing, a file contents hash stamper makes a lot of sense.
+```
+
+As the last test, we will modify `input_file` and confirm that changes to that file propagate to `read`.
+Modify the test in `pie/tests/top_down.rs`:
+
+```diff2html linebyline
+{{#include ../../gen/3_min_sound/6_hidden_dep/f_3_test.rs.diff}}
+```
+
+Confirm the test succeeds with `cargo test`.
+
+We've now fixed the last file dependency inconsistency in the build system.
+Absence of overlapping provided files ensures that provided files always end up in a consistent state, even in a programmatic incremental setting.
+Absence of hidden dependencies ensures that when a task requires a file, that file is always in a consistent (up-to-date) state.
+
+We needed to prevent these issues in order to make the builds correct under incrementality.
+However, we can also use these properties in alternative context implementations to reason about whether certain states can occur.
+For example, the actual PIE library contains a bottom-up incremental build context that instead performs incremental builds from the bottom up.
+There we can use the absence of overlapping provided files and hidden dependencies to reason that a bottom-up build can correctly skip checking tasks in certain situations, increasing incrementality.
+We do not (currently) cover bottom-up builds in this tutorial, but I found it important to highlight that these are fundamental properties.
+
+```admonish question title="Can we Infer Hidden Dependencies?" collapsible=true
+Currently, when we encounter a hidden dependency, we panic to stop the build.
+Can we instead infer the hidden dependency and continue building?
+Unfortunately, not really.
+
+We could infer the first hidden dependency case: task R requires file F, provided by task P, without R requiring P.
+In that case, we could require P before creating a dependency to F, and that could work rather well.
+
+Unfortunately, we cannot infer the second hidden dependency case: task P provides file F, required by tasks R*, with one or more tasks from R* not requiring P.
+At this point, it can already be too late to end up in a consistent state: a task from R* could have already been required/executed and have already read inconsistent file F.
+We could infer the dependency but the task has already read inconsistent state, which is not correct.
+
+We could choose to only infer the first hidden dependency case, but this can be very error-prone and inconsistent.
+Without these explicit dependencies, we would rely on the build system to infer these for us.
+But it could still occur that a task first requires file F before a task provides it, which would still panic due to the second case.
+Whether this happens or not relies on which tasks are required by the user, which tasks are executed by the build system, and the order in which that happens.
+Therefore, it is unfortunately a bad idea to infer hidden dependencies in a programmatic incremental build system.
+```
+
+```admonish warning title="Symbolic Links: An Incremental Build System's Nightmare"
+A file or directory can be a [symbolic link](https://en.wikipedia.org/wiki/Symbolic_link) to another file or directory. 
+In this tutorial we do not deal with symbol links at all, and this is a threat to correctness.
+For example, a task could circumvent a hidden dependency by creating a new symbolic link that links to the file it wants to read, where the linked-to file is provided by a task.
+An overlapping provided file can be made in a similar way.
+
+Therefore, we should resolve symbolic links, right... right?
+Surely this should be easy.
+
+One does not simply resolve a symbolic link in an incremental system.
+The problem is that creating a dependency to a symbolic link, is actually creating two dependencies:
+- a dependency to the symbolic link file/directory, with the stamper working on the _link_,
+- a dependency to the linked-to file/directory, with the stamper working on the linked-to file/directory.
+
+But wait, there's more.
+A symbolic link can point to a file with another symbolic link!
+Therefore, any file dependency could become many file dependencies.
+We have to recursively traverse the symbolic link tree.
+
+What if I told you that there can even be cycles in symbolic links?
+In that case, creating a file dependency actually creates infinite file dependencies!
+
+We chose not to deal with this in the tutorial for simplicity.
+In fact, I would almost refuse to support symbolic links, as they are the root of all evil from an incremental build systems's perspective.
+```
+
+```admonish warning title="Performance Impact of Symbolic Links" collapsible=true
+Symbolic links can be a performance problem, because resolving a symbolic link requires a system call, and we need to resolve every path.
+We need to resolve every path because any path could point to a file or directory that again points to a different file or directory (and this can be recursive even!)
+Therefore, the presence of symbolic links turn simple and cheap path operations into complex and expensive system calls.
+```
+
+```admonish warning title="Non-Canonical Paths"
+There is an even simpler way than symbolic links to circumvent our checks: just create different paths that point to the same file.
+For example, `in_out.txt` and `./in_out.txt` both point to the same file, but are different paths (i.e., comparing them with `Eq` will return `false`).
+
+The issue is that we use non-canonical paths in the dependency graph, and thus also to check for overlapping provided files and hidden dependencies.
+Instead, we should first canonicalize a path, converting relative paths to absolute ones, removing excess `..` `.` parts, and more.
+
+We could use Rust's [`canonicalize`](https://doc.rust-lang.org/std/fs/fn.canonicalize.html) function, but on Windows this returns paths that many tools do not support.
+The [dunce](https://docs.rs/dunce/latest/dunce/) library can resolve this issue by canonicalizing to more compatible paths on Windows.
+
+However, canonicalizing a path also resolves symbolic links.
+If we resolve symbolic links but do not create separate dependencies to link files and linked-to files, we are breaking incrementality and correctness there.
+
+We have four options:
+1) Write our own path canonicalization function that does not resolve symbolic links. Document that a dependency to a symbolic link only results in a dependency to the symbolic link file, which breaks incrementality and correctness when the linked-to file changes.
+2) Write our own path canonicalization function that also correctly resolves symbolic links by creating dependencies to both link files and linked-to files, handle recursion, and handle cycles.
+3) Canonicalize the path. Document that a dependency to a symbolic link only results in a dependency to the pointed-to file, which breaks incrementality and correctness when the link changes.
+4) Don't care about any of this.
+
+In this tutorial, we go for option 4 for simplicity.
+Personally, I would choose for option 3 unless it is critical that symbolic links are handled in a correct way (then I'd have to choose option 2 and be grumpy).
+```
+
+```admonish warning title="Circumventing Checks"
+There are many other ways to circumvent the hidden dependency check.
+A simple one is to just not create a dependency!
+
+We cannot fully waterproof our system, just like you can circumvent Rust's safety with `unsafe` or by sharing mutable state via files. 
+That is fine.
+We should at least try our best to catch accidents, such as accidentally using different non-canonical paths for the same file.
+```
+
+In the next section, we will fix the remaining correctness issue related to cyclic tasks.
+
+```admonish example title="Download source code" collapsible=true
+You can [download the source files up to this point](../../gen/3_min_sound/6_hidden_dep/source.zip).
+```

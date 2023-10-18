@@ -370,6 +370,13 @@ pub fn step_all(
         create_diff_from_destination_file("e_1_read_origin.rs", "../tests/common/mod.rs"),
         create_diff_from_destination_file("e_2_read_refactor.rs", "../tests/top_down.rs"),
       ]);
+      stepper.apply([
+        add("f_1_test.rs", "../tests/top_down.rs"),
+        create_diff("f_2_test.rs", "../tests/top_down.rs"),
+        create_diff("f_3_test.rs", "../tests/top_down.rs"),
+      ]).output(
+        SourceArchive::new("source.zip")
+      );
     });
   });
 }
