@@ -378,5 +378,14 @@ pub fn step_all(
         SourceArchive::new("source.zip")
       );
     });
+
+    stepper.with_path("7_cycle", |stepper| {
+      stepper.apply([
+        create_diff_from_destination_file("a_task.rs", "../tests/common/mod.rs"),
+      ]);
+      stepper.apply_failure([
+        add("b_test.rs", "../tests/top_down.rs"),
+      ]);
+    });
   });
 }

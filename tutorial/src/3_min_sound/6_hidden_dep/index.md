@@ -15,7 +15,7 @@ In this section, we will:
  
 1) Create tests to showcase the hidden dependency problem.
 2) Prevent hidden dependencies by checking for them at runtime, fixing the issue.
-3) Improve and add additional tests
+3) Improve and add additional tests.
 
 ## Test to showcase the issue
 

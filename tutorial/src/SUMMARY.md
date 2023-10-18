@@ -17,7 +17,7 @@
   - [Fix Superfluous Task Dependency](./3_min_sound/4_fix_task_dep/index.md)
   - [Prevent Overlapping File Writes](./3_min_sound/5_overlap/index.md)
   - [Prevent Hidden Dependencies](./3_min_sound/6_hidden_dep/index.md)
-  - [Prevent Cycles]()
+  - [Prevent Cycles](./3_min_sound/7_cycle/index.md)
 - [Improvements]()
   - [Serialization]()
   - [More Stampers]()
