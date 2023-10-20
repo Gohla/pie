@@ -147,6 +147,21 @@ Confirm your changes work and all tests now succeed with `cargo test`.
 Tests `require_self_panics`, `require_cycle_a_panics`, and `require_cycle_b_panics` should now succeed.
 ```
 
+We don't need to write additional tests, as these 3 tests capture the kind of cycles we wanted to fix.
+Additional positive tests are not really needed, as the other tests cover the fact that cycles are only detected when there actually is one.
+
+This is the last correctness issue that needed to be solved.
+Our programmatic incremental build system is now truly incremental (minimal) and correct (sound)!
+There are of course certain caveats, such as non-canonical paths and symbolic links which need to be solved for additional correctness.
+We will not do that in this tutorial, but feel free to solve those issues (and write tests for them!).
+
+This is currently the end of the tutorial.
+I'd still like to write a tutorial going over an example where we use this build system for incremental batch builds, but at the same time also reuse the same build for an interactive environment.
+This example will probably be something like interactively developing a parser with live feedback.
+ 
+I'd also like to go over all kinds of extensions to the build system, as there are a lot of interesting ones.
+Unfortunately, those will not be guided like the rest of this programming tutorial, due to lack of time.
+
 ```admonish example title="Download source code" collapsible=true
 You can [download the source files up to this point](../../gen/3_min_sound/7_cycle/source.zip).
 ```
