@@ -634,6 +634,15 @@ fn test_provide_hidden_dependency_panics() {
 <p>Here, the second call to <code>require_then_assert_one_execute</code> will panic due to a hidden dependency: <code>write</code> provides <code>file</code> which is required by <code>read</code> which does not have a task dependency to <code>write</code>.</p>
 <p>Confirm both tests succeed with <code>cargo test</code>.
 All tests are succeeding again 🎉.</p>
+<div id="admonition-fixed-tests" class="admonition admonish-success">
+<div class="admonition-title">
+<p>Fixed Tests</p>
+<p><a class="admonition-anchor-link" href="#admonition-fixed-tests"></a></p>
+</div>
+<div>
+<p>Test <code>test_require_hidden_dependency_panics</code> (was: <code>test_hidden_dependency</code>) should now succeed.</p>
+</div>
+</div>
 <p>We should also write some tests that show that non-hidden (visible?) dependencies do actually work.
 However, our <code>ReadFile</code> task is not capable of making task dependencies at all, so we will need to fix that first (and refactor all uses of <code>ReadFile</code> unfortunately).</p>
 <p>Modify <code>pie/tests/common/mod.rs</code>:</p>

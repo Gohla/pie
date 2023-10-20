@@ -488,6 +488,15 @@ Now change the tests in <code>pie/src/stamp.rs</code> to use this function:</p>
 </script>
 <p>Now we use <code>write_until_modified</code> to write to the file, ensuring its modified time will change, ensuring the stamp will change when it should.
 Run <code>cargo test</code> to confirm the stamp implementation, which should succeed now.</p>
+<div id="admonition-fixed-tests" class="admonition admonish-success">
+<div class="admonition-title">
+<p>Fixed Tests</p>
+<p><a class="admonition-anchor-link" href="#admonition-fixed-tests"></a></p>
+</div>
+<div>
+<p>Test <code>test_modified_file_stamper</code> should now succeed.</p>
+</div>
+</div>
 <h2 id="stamps-in-context"><a class="header" href="#stamps-in-context">Stamps in Context</a></h2>
 <p>We now have a module dedicated to stamps.
 However, stampers are constructed by users of the library that author tasks, and they need to pass in these stampers when creating dependencies.

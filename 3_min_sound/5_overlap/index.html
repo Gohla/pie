@@ -399,8 +399,7 @@ In the test, <code>output_file</code> is not in a consistent state because <code
 However, if <code>write_2</code> would write to another file, there would be no inconsistency.
 Let’s write a test with separate output files.</p>
 <p>Add the following test to <code>pie/tests/top_down.rs</code>:</p>
-<pre><code class="language-rust ">
-#[test]
+<pre><code class="language-rust ">#[test]
 fn test_separate_output_files() -&gt; Result&lt;(), io::Error&gt; {
   let mut pie = test_pie();
   let temp_dir = create_temp_dir()?;
@@ -1118,6 +1117,15 @@ We work around that by wrapping the entire test in a nested <code>run</code> fun
 <p>We rename the test to <code>test_overlapping_provided_file_panics</code> which better describes what it is testing and what is expected.
 And we simply the test a lot, because it will panic when we call <code>require</code>, so the other part of the test is no longer required. </p>
 <p>Run <code>cargo test</code> to check that this test will now succeed.</p>
+<div id="admonition-fixed-tests" class="admonition admonish-success">
+<div class="admonition-title">
+<p>Fixed Tests</p>
+<p><a class="admonition-anchor-link" href="#admonition-fixed-tests"></a></p>
+</div>
+<div>
+<p>Test <code>test_overlapping_provided_file_panics</code> (was: <code>test_show_overlap_issue</code>) should now succeed.</p>
+</div>
+</div>
 <p>Let’s add two more tests: one that confirms overlap is detected when we manually <code>require</code> two different tasks, and one that confirms that requiring (and executing) the same task does not cause overlap.
 Add these tests to <code>pie/tests/top_down.rs</code>:</p>
 <div class="diff2html" id="diff2html_13"></div>
