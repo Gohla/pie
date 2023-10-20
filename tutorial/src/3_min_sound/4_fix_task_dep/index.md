@@ -158,6 +158,10 @@ Modify `pie/src/context/non_incremental.rs`:
 If you run `cargo test` now, `test_no_superfluous_task_dependencies` should succeed, indicating that we fixed the bug!
 However, `test_require_task` now fails 😅.
 
+```admonish success title="Fixed Tests"
+Test `test_no_superfluous_task_dependencies` should now succeed.
+```
+
 ```admonish failure title="Expected Test Failure"
 Test `test_require_task` will fail as expected, which we will now fix!
 ```
@@ -197,6 +201,10 @@ Fix the tests by modifying `pie/src/tests/top_down.rs`:
 
 Confirm this fixes the tests with `cargo test`.
 All tests are green! 🎉🎉🎉
+
+```admonish success title="Fixed Tests"
+Test `test_require_task` should now succeed.
+```
 
 ```admonish example title="Download source code" collapsible=true
 You can [download the source files up to this point](../../gen/3_min_sound/4_fix_task_dep/source.zip).

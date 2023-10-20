@@ -106,6 +106,10 @@ Now change the tests in `pie/src/stamp.rs` to use this function:
 Now we use `write_until_modified` to write to the file, ensuring its modified time will change, ensuring the stamp will change when it should.
 Run `cargo test` to confirm the stamp implementation, which should succeed now.
 
+```admonish success title="Fixed Tests"
+Test `test_modified_file_stamper` should now succeed.
+```
+
 ## Stamps in Context
 
 We now have a module dedicated to stamps.

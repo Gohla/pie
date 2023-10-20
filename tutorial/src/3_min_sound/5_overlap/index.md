@@ -82,7 +82,7 @@ Let's write a test with separate output files.
 Add the following test to `pie/tests/top_down.rs`:
 
 ```rust,
-{{#include c_test_separate.rs}}
+{{#include c_test_separate.rs:2:}}
 ```
 
 Here, `write_1` writes to `output_file_1`, and `write_2` writes to `output_file_2`.
@@ -299,6 +299,10 @@ We rename the test to `test_overlapping_provided_file_panics` which better descr
 And we simply the test a lot, because it will panic when we call `require`, so the other part of the test is no longer required. 
 
 Run `cargo test` to check that this test will now succeed.
+
+```admonish success title="Fixed Tests"
+Test `test_overlapping_provided_file_panics` (was: `test_show_overlap_issue`) should now succeed.
+```
 
 Let's add two more tests: one that confirms overlap is detected when we manually `require` two different tasks, and one that confirms that requiring (and executing) the same task does not cause overlap.
 Add these tests to `pie/tests/top_down.rs`:

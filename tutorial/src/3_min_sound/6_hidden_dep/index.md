@@ -147,6 +147,10 @@ Here, the second call to `require_then_assert_one_execute` will panic due to a h
 Confirm both tests succeed with `cargo test`.
 All tests are succeeding again 🎉.
 
+```admonish success title="Fixed Tests"
+Test `test_require_hidden_dependency_panics` (was: `test_hidden_dependency`) should now succeed.
+```
+
 We should also write some tests that show that non-hidden (visible?) dependencies do actually work.
 However, our `ReadFile` task is not capable of making task dependencies at all, so we will need to fix that first (and refactor all uses of `ReadFile` unfortunately).
 
