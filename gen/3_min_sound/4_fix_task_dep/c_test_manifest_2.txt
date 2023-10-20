@@ -1,12 +1,12 @@
 
-→ ToUpper(ToLower(ReadFile("/tmp/.tmpO1nHNt/in.txt", Modified)))
- ▶ ToUpper(ToLower(ReadFile("/tmp/.tmpO1nHNt/in.txt", Modified)))
-  → ToLower(ReadFile("/tmp/.tmpO1nHNt/in.txt", Modified))
-   ? ReadFile("/tmp/.tmpO1nHNt/in.txt", Modified)
-    → ReadFile("/tmp/.tmpO1nHNt/in.txt", Modified)
-     ✓ /tmp/.tmpO1nHNt/in.txt
+→ ToUpper(ToLower(ReadFile("/tmp/.tmp89bPiG/in.txt", Modified)))
+ ▶ ToUpper(ToLower(ReadFile("/tmp/.tmp89bPiG/in.txt", Modified)))
+  → ToLower(ReadFile("/tmp/.tmp89bPiG/in.txt", Modified))
+   ? ReadFile("/tmp/.tmp89bPiG/in.txt", Modified)
+    → ReadFile("/tmp/.tmp89bPiG/in.txt", Modified)
+     ✓ /tmp/.tmp89bPiG/in.txt
     ← Ok(String("Hello, World!"))
-   ✓ ReadFile("/tmp/.tmpO1nHNt/in.txt", Modified)
+   ✓ ReadFile("/tmp/.tmp89bPiG/in.txt", Modified)
   ← Ok(String("hello, world!"))
  ◀ Ok(String("HELLO, WORLD!"))
 ← Ok(String("HELLO, WORLD!"))
