@@ -70,3 +70,83 @@ Therefore, we need to first _reserve_ a task dependency in the dependency graph,
 
 ## Reserving task dependencies
 
+To support reserved task dependencies, we will first add a `ReservedRequireTask` variant to `Dependency`.
+Modify `pie/src/dependency.rs`:
+
+```diff2html linebyline
+{{#include ../../gen/3_min_sound/7_cycle/c_1_dependency.rs.diff}}
+```
+
+The `ReservedRequireTask` variant has no data, as this variant needs to be creatable before we have the output of the task.
+
+A reserved task dependency cannot be consistency checked, so we panic if this occurs, but this will never occur if our implementation is correct.
+A reserved task dependency is added from the current executing task that is being made consistent, and we never check a task that is already consistent this session.
+As long as the reserved task dependency is updated to a real `RequireTask` dependency within this session, we will never check a reserved task dependency.
+
+```admonish note title="Properties of the Build System"
+Again, it is great that we have defined these kind of properties/invariants of the build system, so we can informally reason about whether certain situations occur or not.
+```
+
+This change breaks the `WritingTracker`, which we will update in `pie/src/tracker/writing.rs`:
+
+```diff2html linebyline
+{{#include ../../gen/3_min_sound/7_cycle/c_2_writing_tracker.rs.diff}}
+```
+
+Since reserved task dependencies are never checked, we can just ignore them in the `check_dependency_end` method.
+
+Now we update the `Store` with a method to reserve a task dependency, and a method to update a reserved task dependency to a real one.
+Modify `pie/src/store.rs`:
+
+```diff2html
+{{#include ../../gen/3_min_sound/7_cycle/c_3_store.rs.diff}}
+```
+
+We rename `add_task_require_dependency` to `reserve_task_require_dependency`, change it to add `Dependency::ReservedRequireTask` as edge dependency data, and remove the `dependency` parameter since we don't need that anymore.
+Note that this method still creates the dependency edge, and can still create cycles which need to be handled.
+This is good, because this allows us to catch cycles before we start checking and potentially executing a task.
+For example, this will catch the self-cycle created by `TestTask::RequireSelf` because `graph.add_edge` returns a cycle error on a self-cycle.
+
+We add the `update_task_require_dependency` method to update a reserved task dependency to a real one.
+
+As per usual, we will update the tests.
+Modify `pie/src/store.rs`:
+
+```diff2html
+{{#include ../../gen/3_min_sound/7_cycle/c_4_store_test.rs.diff}}
+```
+
+We update `test_dependencies` to reserve and update task dependencies, and rename `test_add_task_require_dependency_panics`.
+We add 2 tests for `update_task_require_dependency`.
+
+The store now handles reserved task dependencies.
+Now we need to use them in `TopDownContext`.
+Task dependencies are made in `require_file_with_stamper`, so we just need to update that method.
+
+Modify `pie/src/context/top_down.rs`:
+
+```diff2html
+{{#include ../../gen/3_min_sound/7_cycle/c_5_top_down.rs.diff}}
+```
+
+Before we call `make_task_consistent` and potentially execute a task, we first reserve the task dependency (if a task is currently executing).
+Since `reserve_task_require_dependency` now can make cycles, we move the cycle check to the start.
+As mentioned before, this will catch self cycles.
+
+Additionally, this will add a dependency edge to the graph that is needed to catch future cycles, such as the cycle between `TestTask::RequireA` and `TestTask::RequireB`.
+For example, `TestTask::RequireA` executes and requires `TestTask::RequireB`, thus we reserve an edge from A to B.
+Then, we require and execute B, which requires A, thus we reserve an edge from B to A, and the cycle is detected!
+If the edge from A to B was not in the graph before executing B, we would not catch this cycle.
+
+After the call to `make_task_consistent` we have the consistent output of the task, and we update the reserved dependency to a real one with `update_task_require_dependency`.
+
+This will correctly detect all cyclic tasks.
+Confirm your changes work and all tests now succeed with `cargo test`.
+
+```admonish success title="Fixed Tests"
+Tests `require_self_panics`, `require_cycle_a_panics`, and `require_cycle_b_panics` should now succeed.
+```
+
+```admonish example title="Download source code" collapsible=true
+You can [download the source files up to this point](../../gen/3_min_sound/7_cycle/source.zip).
+```

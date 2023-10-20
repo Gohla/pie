@@ -76,7 +76,7 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> TopDownContext<'p
     } else { // Return consistent output.
       // If we should not execute the task, the store has an output for it. There are two possible cases:
       // - Not already consistent: `should_execute_task` returned `false` => store has an output for the task.
-      // - Already consistent: previous `make_task_consistent` either executed the task and stored its output, or 
+      // - Already consistent: previous `make_task_consistent` either executed the task and stored its output, or
       //   deemed it consistent => store has an output for the task.
       // In both cases the store has an output for the task, so `get_task_output` will not panic.
       self.session.store.get_task_output(&node).clone()

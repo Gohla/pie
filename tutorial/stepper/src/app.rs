@@ -386,6 +386,15 @@ pub fn step_all(
       stepper.apply_failure([
         add("b_test.rs", "../tests/top_down.rs"),
       ]);
+      stepper.apply([
+        create_diff_from_destination_file("c_1_dependency.rs", "dependency.rs"),
+        create_diff_from_destination_file("c_2_writing_tracker.rs", "tracker/writing.rs"),
+        create_diff_from_destination_file("c_3_store.rs", "store.rs"),
+        create_diff_from_destination_file("c_4_store_test.rs", "store.rs"),
+        create_diff_from_destination_file("c_5_top_down.rs", "context/top_down.rs"),
+      ]).output(
+        SourceArchive::new("source.zip")
+      );
     });
   });
 }
