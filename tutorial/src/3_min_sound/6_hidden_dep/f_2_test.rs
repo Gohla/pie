@@ -22,9 +22,12 @@ fn test_non_hidden_dependency() -> Result<(), io::Error> {
   // `read` should output what `write` wrote, which is what `read_input` read from `input_file`.
   assert_eq!(output.as_str(), "Hi There!");
 
-  // Remove `file` and confirm the provided file is re-generated.
+  // First ensure the modified date of `file` has changed, then remove `file`.
+  write_until_modified(&file, "Hi There!")?;
   std::fs::remove_file(&file)?;
   assert!(!file.exists());
+
+  // Confirm the provided file is re-generated.
   let output = pie.require_then_assert(&read, |tracker| {
     // `write` should execute to re-generate the provided file.
     assert!(tracker.one_execute_of(&write));
