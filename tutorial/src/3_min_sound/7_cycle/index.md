@@ -1,9 +1,5 @@
 # Prevent Cycles
 
-```admonish warning title="Under construction"
-This page is under construction.
-```
-
 In this section, we will fix the remaining correctness issue with cyclic tasks.
 
 Didn't we already catch dependency graph cycles in the Incremental Top-Down Context section?
