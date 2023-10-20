@@ -195,7 +195,7 @@ edition = &quot;2021&quot;
 <p>Run <code>cargo build</code> to test if the project was set up correctly.
 The output should look something like:</p>
 <pre><code class="language-shell ">   Compiling pie v0.1.0 (/pie)
-    Finished dev [unoptimized + debuginfo] target(s) in 0.10s
+    Finished dev [unoptimized + debuginfo] target(s) in 0.09s
 </code></pre>
 <details id="admonition-download-source-code" class="admonition admonish-example">
 <summary class="admonition-title">
@@ -276,7 +276,7 @@ Because of this, the context reference passed to <code>Task::execute</code> is a
 <p>Build the project by running <code>cargo build</code>.
 The output should look something like:</p>
 <pre><code class="language-shell ">   Compiling pie v0.1.0 (/pie)
-    Finished dev [unoptimized + debuginfo] target(s) in 0.05s
+    Finished dev [unoptimized + debuginfo] target(s) in 0.04s
 </code></pre>
 <details id="admonition-rust-help-modules-imports-ownership-traits-methods-supertraits-associated-types-visibility" class="admonition admonish-tip">
 <summary class="admonition-title">
@@ -441,7 +441,7 @@ It returns the output of the task, which we test with <code>assert_eq!</code>.</
 <p>Run the test by running <code>cargo test</code>.
 The output should look something like:</p>
 <pre><code class="language-shell ">   Compiling pie v0.1.0 (/pie)
-    Finished test [unoptimized + debuginfo] target(s) in 0.42s
+    Finished test [unoptimized + debuginfo] target(s) in 0.41s
      Running unittests src/lib.rs (/pie/target/debug/deps/pie-2022d1785b8ce336)
 
 running 1 test
@@ -3275,7 +3275,7 @@ Run this example with <code>cargo run --example incremental</code>.
 You should see the <code>println!</code> in <code>ReadStringFromFile</code> appear in your console as the incremental context correctly determines that this task is new (i.e., has no output) and must be executed.
 It should look something like:</p>
 <pre><code>   Compiling pie v0.1.0 (/pie)
-    Finished dev [unoptimized + debuginfo] target(s) in 1.14s
+    Finished dev [unoptimized + debuginfo] target(s) in 0.97s
      Running `/pie/target/debug/examples/incremental`
 A) New task: expect `read_task` to execute
 Reading from input.txt with Modified stamper
@@ -3290,7 +3290,7 @@ Reading from input.txt with Modified stamper
   assert_eq!(&amp;output, &quot;Hi&quot;);</code></pre>
 <p>Running with <code>cargo run --example incremental</code> should produce output like:</p>
 <pre><code>   Compiling pie v0.1.0 (/pie)
-    Finished dev [unoptimized + debuginfo] target(s) in 0.58s
+    Finished dev [unoptimized + debuginfo] target(s) in 0.49s
      Running `/pie/target/debug/examples/incremental`
 A) New task: expect `read_task` to execute
 Reading from input.txt with Modified stamper
@@ -3352,7 +3352,7 @@ This shows that tasks can depend on the same file with different stampers, which
 <p>Of course, using an <code>Exists</code> stamper for <code>ReadStringFromFile</code> does not make a lot of sense, but this is for demonstration purposes only.</p>
 <p>Running <code>cargo run --example incremental</code> now should produce output like:</p>
 <pre><code>   Compiling pie v0.1.0 (/pie)
-    Finished dev [unoptimized + debuginfo] target(s) in 0.59s
+    Finished dev [unoptimized + debuginfo] target(s) in 0.50s
      Running `/pie/target/debug/examples/incremental`
 A) New task: expect `read_task` to execute
 Reading from input.txt with Modified stamper
@@ -4635,55 +4635,55 @@ You can add configuration booleans to control what should be written, but in thi
 <p>We remove the <code>println!</code> statements from tasks and create <code>Pie</code> with <code>WritingTracker</code>.
 Now run the example with <code>cargo run --example incremental</code>, and you should see the writing tracker print to standard output:</p>
 <pre><code>   Compiling pie v0.1.0 (/pie)
-    Finished dev [unoptimized + debuginfo] target(s) in 0.77s
+    Finished dev [unoptimized + debuginfo] target(s) in 0.63s
      Running `/pie/target/debug/examples/incremental`
 A) New task: expect `read_task` to execute
-→ ReadStringFromFile(&quot;/tmp/.tmpF5uo14/input.txt&quot;, Modified)
- ▶ ReadStringFromFile(&quot;/tmp/.tmpF5uo14/input.txt&quot;, Modified)
-  - /tmp/.tmpF5uo14/input.txt
+→ ReadStringFromFile(&quot;/tmp/.tmpoGbxkl/input.txt&quot;, Modified)
+ ▶ ReadStringFromFile(&quot;/tmp/.tmpoGbxkl/input.txt&quot;, Modified)
+  - /tmp/.tmpoGbxkl/input.txt
  ◀ Ok(&quot;Hi&quot;)
 ← Ok(&quot;Hi&quot;)
 🏁
 
 B) Reuse: expect no execution
-→ ReadStringFromFile(&quot;/tmp/.tmpF5uo14/input.txt&quot;, Modified)
- ✓ /tmp/.tmpF5uo14/input.txt
+→ ReadStringFromFile(&quot;/tmp/.tmpoGbxkl/input.txt&quot;, Modified)
+ ✓ /tmp/.tmpoGbxkl/input.txt
 ← Ok(&quot;Hi&quot;)
 🏁
 
 C) Inconsistent file dependency: expect `read_task` to execute
-→ ReadStringFromFile(&quot;/tmp/.tmpF5uo14/input.txt&quot;, Modified)
- ✗ /tmp/.tmpF5uo14/input.txt (old: Modified(Some(SystemTime { tv_sec: 1697796346, tv_nsec: 236411699 })) ≠ new: Modified(Some(SystemTime { tv_sec: 1697796346, tv_nsec: 240411868 })))
- ▶ ReadStringFromFile(&quot;/tmp/.tmpF5uo14/input.txt&quot;, Modified)
-  - /tmp/.tmpF5uo14/input.txt
+→ ReadStringFromFile(&quot;/tmp/.tmpoGbxkl/input.txt&quot;, Modified)
+ ✗ /tmp/.tmpoGbxkl/input.txt (old: Modified(Some(SystemTime { tv_sec: 1697812813, tv_nsec: 253478423 })) ≠ new: Modified(Some(SystemTime { tv_sec: 1697812813, tv_nsec: 257478481 })))
+ ▶ ReadStringFromFile(&quot;/tmp/.tmpoGbxkl/input.txt&quot;, Modified)
+  - /tmp/.tmpoGbxkl/input.txt
  ◀ Ok(&quot;Hello&quot;)
 ← Ok(&quot;Hello&quot;)
 🏁
 
 D) Different tasks: expect `read_task_b_modified` and `read_task_b_exists` to execute
-→ ReadStringFromFile(&quot;/tmp/.tmpF5uo14/input_b.txt&quot;, Modified)
- ▶ ReadStringFromFile(&quot;/tmp/.tmpF5uo14/input_b.txt&quot;, Modified)
-  - /tmp/.tmpF5uo14/input_b.txt
+→ ReadStringFromFile(&quot;/tmp/.tmpoGbxkl/input_b.txt&quot;, Modified)
+ ▶ ReadStringFromFile(&quot;/tmp/.tmpoGbxkl/input_b.txt&quot;, Modified)
+  - /tmp/.tmpoGbxkl/input_b.txt
  ◀ Ok(&quot;Test&quot;)
 ← Ok(&quot;Test&quot;)
 🏁
-→ ReadStringFromFile(&quot;/tmp/.tmpF5uo14/input_b.txt&quot;, Exists)
- ▶ ReadStringFromFile(&quot;/tmp/.tmpF5uo14/input_b.txt&quot;, Exists)
-  - /tmp/.tmpF5uo14/input_b.txt
+→ ReadStringFromFile(&quot;/tmp/.tmpoGbxkl/input_b.txt&quot;, Exists)
+ ▶ ReadStringFromFile(&quot;/tmp/.tmpoGbxkl/input_b.txt&quot;, Exists)
+  - /tmp/.tmpoGbxkl/input_b.txt
  ◀ Ok(&quot;Test&quot;)
 ← Ok(&quot;Test&quot;)
 🏁
 
 E) Different stampers: expect only `read_task_b_modified` to execute
-→ ReadStringFromFile(&quot;/tmp/.tmpF5uo14/input_b.txt&quot;, Modified)
- ✗ /tmp/.tmpF5uo14/input_b.txt (old: Modified(Some(SystemTime { tv_sec: 1697796346, tv_nsec: 240411868 })) ≠ new: Modified(Some(SystemTime { tv_sec: 1697796346, tv_nsec: 244412037 })))
- ▶ ReadStringFromFile(&quot;/tmp/.tmpF5uo14/input_b.txt&quot;, Modified)
-  - /tmp/.tmpF5uo14/input_b.txt
+→ ReadStringFromFile(&quot;/tmp/.tmpoGbxkl/input_b.txt&quot;, Modified)
+ ✗ /tmp/.tmpoGbxkl/input_b.txt (old: Modified(Some(SystemTime { tv_sec: 1697812813, tv_nsec: 257478481 })) ≠ new: Modified(Some(SystemTime { tv_sec: 1697812813, tv_nsec: 261478539 })))
+ ▶ ReadStringFromFile(&quot;/tmp/.tmpoGbxkl/input_b.txt&quot;, Modified)
+  - /tmp/.tmpoGbxkl/input_b.txt
  ◀ Ok(&quot;Test Test&quot;)
 ← Ok(&quot;Test Test&quot;)
 🏁
-→ ReadStringFromFile(&quot;/tmp/.tmpF5uo14/input_b.txt&quot;, Exists)
- ✓ /tmp/.tmpF5uo14/input_b.txt
+→ ReadStringFromFile(&quot;/tmp/.tmpoGbxkl/input_b.txt&quot;, Exists)
+ ✓ /tmp/.tmpoGbxkl/input_b.txt
 ← Ok(&quot;Test&quot;)
 🏁
 </code></pre>
@@ -5274,7 +5274,7 @@ If you want to see the standard output, either:</p>
 </ul>
 <p>The second command should result in something like:</p>
 <pre><code>    Finished test [unoptimized + debuginfo] target(s) in 0.02s
-     Running tests/top_down.rs (/pie/target/debug/deps/top_down-e37b4e2cf699a6bc)
+     Running tests/top_down.rs (/pie/target/debug/deps/top_down-ffa6e5bc5925c270)
 
 running 1 test
 → Return(&quot;Hello, World!&quot;)
@@ -6048,23 +6048,23 @@ How can that be?</p>
 </div>
 <p>Inspect the build log with <code>cargo test --test top_down test_no_superfluous_task_dependencies</code>.
 The third (last) build log should look like this:</p>
-<pre><code>→ ToUpper(ToLower(ReadFile(&quot;/tmp/.tmp89bPiG/in.txt&quot;, Modified)))
- ? ReadFile(&quot;/tmp/.tmp89bPiG/in.txt&quot;, Modified)
-  → ReadFile(&quot;/tmp/.tmp89bPiG/in.txt&quot;, Modified)
-   ✗ /tmp/.tmp89bPiG/in.txt (old: Modified(Some(SystemTime { tv_sec: 1697796357, tv_nsec: 788875661 })) ≠ new: Modified(Some(SystemTime { tv_sec: 1697796357, tv_nsec: 792875812 })))
-   ▶ ReadFile(&quot;/tmp/.tmp89bPiG/in.txt&quot;, Modified)
-    - /tmp/.tmp89bPiG/in.txt
+<pre><code>→ ToUpper(ToLower(ReadFile(&quot;/tmp/.tmpVLa1jv/in.txt&quot;, Modified)))
+ ? ReadFile(&quot;/tmp/.tmpVLa1jv/in.txt&quot;, Modified)
+  → ReadFile(&quot;/tmp/.tmpVLa1jv/in.txt&quot;, Modified)
+   ✗ /tmp/.tmpVLa1jv/in.txt (old: Modified(Some(SystemTime { tv_sec: 1697812823, tv_nsec: 305626767 })) ≠ new: Modified(Some(SystemTime { tv_sec: 1697812823, tv_nsec: 309626826 })))
+   ▶ ReadFile(&quot;/tmp/.tmpVLa1jv/in.txt&quot;, Modified)
+    - /tmp/.tmpVLa1jv/in.txt
    ◀ Ok(String(&quot;HeLLo, WorLd!&quot;))
   ← Ok(String(&quot;HeLLo, WorLd!&quot;))
- ✗ ReadFile(&quot;/tmp/.tmp89bPiG/in.txt&quot;, Modified) (old: Equals(Ok(String(&quot;Hello, World!&quot;))) ≠ new: Equals(Ok(String(&quot;HeLLo, WorLd!&quot;))))
- ▶ ToUpper(ToLower(ReadFile(&quot;/tmp/.tmp89bPiG/in.txt&quot;, Modified)))
-  → ToLower(ReadFile(&quot;/tmp/.tmp89bPiG/in.txt&quot;, Modified))
-   ? ReadFile(&quot;/tmp/.tmp89bPiG/in.txt&quot;, Modified)
-    → ReadFile(&quot;/tmp/.tmp89bPiG/in.txt&quot;, Modified)
+ ✗ ReadFile(&quot;/tmp/.tmpVLa1jv/in.txt&quot;, Modified) (old: Equals(Ok(String(&quot;Hello, World!&quot;))) ≠ new: Equals(Ok(String(&quot;HeLLo, WorLd!&quot;))))
+ ▶ ToUpper(ToLower(ReadFile(&quot;/tmp/.tmpVLa1jv/in.txt&quot;, Modified)))
+  → ToLower(ReadFile(&quot;/tmp/.tmpVLa1jv/in.txt&quot;, Modified))
+   ? ReadFile(&quot;/tmp/.tmpVLa1jv/in.txt&quot;, Modified)
+    → ReadFile(&quot;/tmp/.tmpVLa1jv/in.txt&quot;, Modified)
     ← Ok(String(&quot;HeLLo, WorLd!&quot;))
-   ✗ ReadFile(&quot;/tmp/.tmp89bPiG/in.txt&quot;, Modified) (old: Equals(Ok(String(&quot;Hello, World!&quot;))) ≠ new: Equals(Ok(String(&quot;HeLLo, WorLd!&quot;))))
-   ▶ ToLower(ReadFile(&quot;/tmp/.tmp89bPiG/in.txt&quot;, Modified))
-    → ReadFile(&quot;/tmp/.tmp89bPiG/in.txt&quot;, Modified)
+   ✗ ReadFile(&quot;/tmp/.tmpVLa1jv/in.txt&quot;, Modified) (old: Equals(Ok(String(&quot;Hello, World!&quot;))) ≠ new: Equals(Ok(String(&quot;HeLLo, WorLd!&quot;))))
+   ▶ ToLower(ReadFile(&quot;/tmp/.tmpVLa1jv/in.txt&quot;, Modified))
+    → ReadFile(&quot;/tmp/.tmpVLa1jv/in.txt&quot;, Modified)
     ← Ok(String(&quot;HeLLo, WorLd!&quot;))
    ◀ Ok(String(&quot;hello, world!&quot;))
   ← Ok(String(&quot;hello, world!&quot;))
@@ -6131,14 +6131,14 @@ Even if we are only <em>consistency checking</em> a task to see if it should be 
 We only manifested the bug in the last test due to having a chain of 2 task dependencies, and by carefully controlling what is being executed and what is being checked.</p>
 <p>Recall the second build in the <code>test_no_superfluous_task_dependencies</code> test.
 The build log for that build looks like:</p>
-<pre><code>→ ToUpper(ToLower(ReadFile(&quot;/tmp/.tmp89bPiG/in.txt&quot;, Modified)))
- ▶ ToUpper(ToLower(ReadFile(&quot;/tmp/.tmp89bPiG/in.txt&quot;, Modified)))
-  → ToLower(ReadFile(&quot;/tmp/.tmp89bPiG/in.txt&quot;, Modified))
-   ? ReadFile(&quot;/tmp/.tmp89bPiG/in.txt&quot;, Modified)
-    → ReadFile(&quot;/tmp/.tmp89bPiG/in.txt&quot;, Modified)
-     ✓ /tmp/.tmp89bPiG/in.txt
+<pre><code>→ ToUpper(ToLower(ReadFile(&quot;/tmp/.tmpVLa1jv/in.txt&quot;, Modified)))
+ ▶ ToUpper(ToLower(ReadFile(&quot;/tmp/.tmpVLa1jv/in.txt&quot;, Modified)))
+  → ToLower(ReadFile(&quot;/tmp/.tmpVLa1jv/in.txt&quot;, Modified))
+   ? ReadFile(&quot;/tmp/.tmpVLa1jv/in.txt&quot;, Modified)
+    → ReadFile(&quot;/tmp/.tmpVLa1jv/in.txt&quot;, Modified)
+     ✓ /tmp/.tmpVLa1jv/in.txt
     ← Ok(String(&quot;Hello, World!&quot;))
-   ✓ ReadFile(&quot;/tmp/.tmp89bPiG/in.txt&quot;, Modified)
+   ✓ ReadFile(&quot;/tmp/.tmpVLa1jv/in.txt&quot;, Modified)
   ← Ok(String(&quot;hello, world!&quot;))
  ◀ Ok(String(&quot;HELLO, WORLD!&quot;))
 ← Ok(String(&quot;HELLO, WORLD!&quot;))
@@ -6417,24 +6417,24 @@ However, <code>test_require_task</code> now fails 😅.</p>
 This is because our changes have correctly removed several superfluous task requires, which influences these assertions.</p>
 <p>Inspect the build log for this test with <code>cargo test --test top_down test_require_task</code>.
 The second build now looks like:</p>
-<pre><code>→ ToLower(ReadFile(&quot;/tmp/.tmp8mwSPS/in.txt&quot;, Modified))
- ? ReadFile(&quot;/tmp/.tmp8mwSPS/in.txt&quot;, Modified)
-  ✓ /tmp/.tmp8mwSPS/in.txt
- ✓ ReadFile(&quot;/tmp/.tmp8mwSPS/in.txt&quot;, Modified)
+<pre><code>→ ToLower(ReadFile(&quot;/tmp/.tmp7QTlzw/in.txt&quot;, Modified))
+ ? ReadFile(&quot;/tmp/.tmp7QTlzw/in.txt&quot;, Modified)
+  ✓ /tmp/.tmp7QTlzw/in.txt
+ ✓ ReadFile(&quot;/tmp/.tmp7QTlzw/in.txt&quot;, Modified)
 ← Ok(String(&quot;hello world!&quot;))
 </code></pre>
 <p>In this second build, <code>ReadFile</code> is now no longer required, and instead is only checked.
 This is correct, and does not make any assertions fail.</p>
 <p>The third build now looks like:</p>
-<pre><code>→ ToLower(ReadFile(&quot;/tmp/.tmp8mwSPS/in.txt&quot;, Modified))
- ? ReadFile(&quot;/tmp/.tmp8mwSPS/in.txt&quot;, Modified)
-  ✗ /tmp/.tmp8mwSPS/in.txt (old: Modified(Some(SystemTime { tv_sec: 1697796359, tv_nsec: 532941668 })) ≠ new: Modified(Some(SystemTime { tv_sec: 1697796359, tv_nsec: 536941820 })))
-  ▶ ReadFile(&quot;/tmp/.tmp8mwSPS/in.txt&quot;, Modified)
-   - /tmp/.tmp8mwSPS/in.txt
+<pre><code>→ ToLower(ReadFile(&quot;/tmp/.tmp7QTlzw/in.txt&quot;, Modified))
+ ? ReadFile(&quot;/tmp/.tmp7QTlzw/in.txt&quot;, Modified)
+  ✗ /tmp/.tmp7QTlzw/in.txt (old: Modified(Some(SystemTime { tv_sec: 1697812824, tv_nsec: 945650784 })) ≠ new: Modified(Some(SystemTime { tv_sec: 1697812824, tv_nsec: 949650843 })))
+  ▶ ReadFile(&quot;/tmp/.tmp7QTlzw/in.txt&quot;, Modified)
+   - /tmp/.tmp7QTlzw/in.txt
   ◀ Ok(String(&quot;!DLROW OLLEH&quot;))
- ✗ ReadFile(&quot;/tmp/.tmp8mwSPS/in.txt&quot;, Modified) (old: Equals(Ok(String(&quot;HELLO WORLD!&quot;))) ≠ new: Equals(Ok(String(&quot;!DLROW OLLEH&quot;))))
- ▶ ToLower(ReadFile(&quot;/tmp/.tmp8mwSPS/in.txt&quot;, Modified))
-  → ReadFile(&quot;/tmp/.tmp8mwSPS/in.txt&quot;, Modified)
+ ✗ ReadFile(&quot;/tmp/.tmp7QTlzw/in.txt&quot;, Modified) (old: Equals(Ok(String(&quot;HELLO WORLD!&quot;))) ≠ new: Equals(Ok(String(&quot;!DLROW OLLEH&quot;))))
+ ▶ ToLower(ReadFile(&quot;/tmp/.tmp7QTlzw/in.txt&quot;, Modified))
+  → ReadFile(&quot;/tmp/.tmp7QTlzw/in.txt&quot;, Modified)
   ← Ok(String(&quot;!DLROW OLLEH&quot;))
  ◀ Ok(String(&quot;!dlrow olleh&quot;))
 ← Ok(String(&quot;!dlrow olleh&quot;))
@@ -8906,11 +8906,6 @@ Additional positive tests are not really needed, as the other tests cover the fa
 Our programmatic incremental build system is now truly incremental (minimal) and correct (sound)!
 There are of course certain caveats, such as non-canonical paths and symbolic links which need to be solved for additional correctness.
 We will not do that in this tutorial, but feel free to solve those issues (and write tests for them!).</p>
-<p>This is currently the end of the tutorial.
-I’d still like to write a tutorial going over an example where we use this build system for incremental batch builds, but at the same time also reuse the same build for an interactive environment.
-This example will probably be something like interactively developing a parser with live feedback.</p>
-<p>I’d also like to go over all kinds of extensions to the build system, as there are a lot of interesting ones.
-Unfortunately, those will not be guided like the rest of this programming tutorial, due to lack of time.</p>
 <details id="admonition-download-source-code" class="admonition admonish-example">
 <summary class="admonition-title">
 <p>Download source code</p>
@@ -8920,6 +8915,64 @@ Unfortunately, those will not be guided like the rest of this programming tutori
 <p>You can <a href="3_min_sound/7_cycle/../../gen/3_min_sound/7_cycle/source.zip">download the source files up to this point</a>.</p>
 </div>
 </details>
+<p>This is currently the end of the guided programming tutorial.</p>
+<h2 id="future-work"><a class="header" href="#future-work">Future work</a></h2>
+<p>I’d still like to write a tutorial going over an example where we use this build system for incremental batch builds, but at the same time also reuse the same build for an interactive environment.
+This example will probably be something like interactively developing a parser with live feedback.</p>
+<p>I’d also like to go over all kinds of extensions to the build system, as there are a lot of interesting ones.
+Unfortunately, those will not be guided like the rest of this programming tutorial, due to lack of time.</p>
+<h2 id="pie-implementations"><a class="header" href="#pie-implementations">PIE implementations</a></h2>
+<p>In this tutorial, you implemented a large part of the PIE, the programmatic incremental build system that I developed during my PhD.
+There are currently two versions of PIE:</p>
+<ul>
+<li>
+<p><a href="https://github.com/metaborg/pie" title="" target="_blank">PIE in Java</a>. The motivation for using Java was so that we could use PIE to correctly incrementalize the <a href="https://spoofax.dev/" title="" target="_blank">Spoofax Language Workbench</a>, a set of tools and interactive development environment (IDE) for developing programming languages. In Spoofax, you develop a programming language by <em>defining</em> the aspects of your language in <em>domain-specific meta-languages</em>, such as SDF3 for syntax definition, and Statix for type system and name binding definitions. </p>
+<p>Applying PIE to Spoofax culminated in <a href="https://spoofax.dev/spoofax-pie/develop/" title="" target="_blank">Spoofax 3</a> (sometimes also called Spoofax-PIE), a new version of Spoofax that uses PIE for all tasks such as generating parsers, running parsers on files to create ASTs, running highlighters on those ASTs to provide syntax highlighting for code editors, etc. Because all tasks are PIE tasks, we can do correct and incremental batch builds of language definitions, but also live development of those language definitions in an IDE, using PIE to get feedback such as inline errors and syntax highlighting as fast as possible.</p>
+</li>
+<li>
+<p><a href="https://github.com/Gohla/pie" title="" target="_blank">PIE in Rust</a>, a superset of what you have been developing in this tutorial. I plan to make this a full-fledged and usable library for incremental batch builds and interactive systems. You are of course free to continue developing the library you made in this tutorial, but I would appreciate users and/or contributions to the PIE library!</p>
+<p>The motivation for developing a PIE library in Rust was to test whether the idea of a programmatic incremental build system really is programming-language agnostic, as a target for developing this tutorial, and to get a higher-performance implementation compared to the Java implementation of PIE. </p>
+<p>In my opinion, implementing PIE in Rust as part of this tutorial is a much nicer experience than implementing it in Java, due to the more powerful type system and great tooling provided by Cargo. However, supporting multiple task types, which we didn’t do in this tutorial, is a bit of a pain due to requiring trait objects, which can be really complicated to work with in certain cases. In Java, everything is a like a trait object, and you get many of these things for free, at the cost of garbage colletion and performance of course.</p>
+</li>
+</ul>
+<h2 id="publications-about-programmatic-incremental-build-system-and-pie"><a class="header" href="#publications-about-programmatic-incremental-build-system-and-pie">Publications about Programmatic Incremental Build System and PIE</a></h2>
+<div id="admonition-under-construction" class="admonition admonish-warning">
+<div class="admonition-title">
+<p>Under construction</p>
+<p><a class="admonition-anchor-link" href="3_min_sound/7_cycle/index.html#admonition-under-construction"></a></p>
+</div>
+<div>
+<p>This subsection is under construction.</p>
+</div>
+</div>
+<h3 id="my-publications"><a class="header" href="#my-publications">My publications</a></h3>
+<p>I wrote two papers about programmatic incremental build systems, and PIE, which you can <a href="https://gkonat.github.io/assets/dissertation/konat_dissertation.pdf" title="" target="_blank">find the most updated versions of in my dissertation</a>.
+I wrote these papers during my time as a PhD candidate at the <a href="https://pl.ewi.tudelft.nl" title="" target="_blank">Programming Languages group</a> at <a href="https://www.tudelft.nl/" title="" target="_blank">Delft University of Technology</a>.</p>
+<p>The two papers are found in my dissertation at:</p>
+<ul>
+<li>
+<p>Chapter 7, page 83: PIE: A Domain-Specific Language for Interactive Software Development Pipelines. </p>
+<p>This describes a domain-specific language (DSL) for programmatic incremental build systems, and introduces the PIE library in Kotlin. This implementation was later changed to a pure Java library to reduce the number of dependencies. </p>
+</li>
+<li>
+<p>Chapter 8, page 109: Scalable Incremental Building with Dynamic Task Dependencies.</p>
+<p>This describes a hybrid incremental build algorithm that builds from the bottom-up, only switching to top-down building when necessary. Bottom-up builds are more efficient with changes that have a small effect (i.e., most changes), due to only <em>checking the part of the dependency graph affected by changes</em>. Therefore, this algorithm <em>scales down to small changes while scaling up to large dependency graphs</em>. </p>
+<p>Unfortunately, we did not implement (hybrid) bottom-up building in this tutorial due to a lack of time. However, the <a href="https://github.com/Gohla/pie" title="" target="_blank">PIE in Rust</a> library has a <a href="https://github.com/Gohla/pie/blob/master/pie/src/context/bottom_up.rs" title="" target="_blank">bottom-up context implementation</a> which you can check out. Due to similarities between the top-down and bottom-up context, some common functionality was <a href="https://github.com/Gohla/pie/blob/master/pie/src/context/mod.rs" title="" target="_blank">extracted into an extension trait</a>.</p>
+</li>
+</ul>
+<h3 id="supervised-publications"><a class="header" href="#supervised-publications">Supervised publications</a></h3>
+<p>TODO: observability</p>
+<p>TODO: improved PIE DSL</p>
+<h3 id="pluto"><a class="header" href="#pluto">Pluto</a></h3>
+<p>PIE is based on <a href="https://www.pl.informatik.uni-mainz.de/files/2019/04/pluto-incremental-build.pdf" title="" target="_blank">Pluto, a programmatic incremental build system</a> developed by Sebastian Erdweg et al.
+This is not a coincidence, as Sebastian Erdweg frequently contributed improvements to our software (Spoofax 2 uses Pluto), he was my PhD copromotor, and coauthored the “Scalable Incremental Building with Dynamic Task Dependencies” paper.</p>
+<p>This paper provides a more formal proof of incrementality and correctness for the top-down build algorithm, which provides confidence that this algorithm works correctly, but also explains the intricate details of the algorithm very well.
+Note that Pluto uses “builder” instead of “task”.
+In fact, a Pluto builder is more like an incremental function that <em>does not carry its input</em>, whereas a PIE task is more like an incremental closure that includes its input.</p>
+<p>PIE uses almost the same top-down build algorithm as Pluto, but there are some technical changes that make PIE more convenient to use.
+In Pluto, tasks are responsible for storing their output and dependencies, called “build units”, which are typically stored in files.
+In PIE, the library handles this for you, which is convenient, but does require a mapping from a <code>Task</code> (using its <code>Eq</code> and <code>Hash</code> impls) to its dependencies and output, which is what the <code>Store</code> does.</p>
+<h3 id="other-related-work"><a class="header" href="#other-related-work">Other related work</a></h3>
 
                     </main>
 

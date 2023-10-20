@@ -615,11 +615,6 @@ Additional positive tests are not really needed, as the other tests cover the fa
 Our programmatic incremental build system is now truly incremental (minimal) and correct (sound)!
 There are of course certain caveats, such as non-canonical paths and symbolic links which need to be solved for additional correctness.
 We will not do that in this tutorial, but feel free to solve those issues (and write tests for them!).</p>
-<p>This is currently the end of the tutorial.
-I’d still like to write a tutorial going over an example where we use this build system for incremental batch builds, but at the same time also reuse the same build for an interactive environment.
-This example will probably be something like interactively developing a parser with live feedback.</p>
-<p>I’d also like to go over all kinds of extensions to the build system, as there are a lot of interesting ones.
-Unfortunately, those will not be guided like the rest of this programming tutorial, due to lack of time.</p>
 <details id="admonition-download-source-code" class="admonition admonish-example">
 <summary class="admonition-title">
 <p>Download source code</p>
@@ -629,6 +624,64 @@ Unfortunately, those will not be guided like the rest of this programming tutori
 <p>You can <a href="../../gen/3_min_sound/7_cycle/source.zip">download the source files up to this point</a>.</p>
 </div>
 </details>
+<p>This is currently the end of the guided programming tutorial.</p>
+<h2 id="future-work"><a class="header" href="#future-work">Future work</a></h2>
+<p>I’d still like to write a tutorial going over an example where we use this build system for incremental batch builds, but at the same time also reuse the same build for an interactive environment.
+This example will probably be something like interactively developing a parser with live feedback.</p>
+<p>I’d also like to go over all kinds of extensions to the build system, as there are a lot of interesting ones.
+Unfortunately, those will not be guided like the rest of this programming tutorial, due to lack of time.</p>
+<h2 id="pie-implementations"><a class="header" href="#pie-implementations">PIE implementations</a></h2>
+<p>In this tutorial, you implemented a large part of the PIE, the programmatic incremental build system that I developed during my PhD.
+There are currently two versions of PIE:</p>
+<ul>
+<li>
+<p><a href="https://github.com/metaborg/pie" title="" target="_blank">PIE in Java</a>. The motivation for using Java was so that we could use PIE to correctly incrementalize the <a href="https://spoofax.dev/" title="" target="_blank">Spoofax Language Workbench</a>, a set of tools and interactive development environment (IDE) for developing programming languages. In Spoofax, you develop a programming language by <em>defining</em> the aspects of your language in <em>domain-specific meta-languages</em>, such as SDF3 for syntax definition, and Statix for type system and name binding definitions. </p>
+<p>Applying PIE to Spoofax culminated in <a href="https://spoofax.dev/spoofax-pie/develop/" title="" target="_blank">Spoofax 3</a> (sometimes also called Spoofax-PIE), a new version of Spoofax that uses PIE for all tasks such as generating parsers, running parsers on files to create ASTs, running highlighters on those ASTs to provide syntax highlighting for code editors, etc. Because all tasks are PIE tasks, we can do correct and incremental batch builds of language definitions, but also live development of those language definitions in an IDE, using PIE to get feedback such as inline errors and syntax highlighting as fast as possible.</p>
+</li>
+<li>
+<p><a href="https://github.com/Gohla/pie" title="" target="_blank">PIE in Rust</a>, a superset of what you have been developing in this tutorial. I plan to make this a full-fledged and usable library for incremental batch builds and interactive systems. You are of course free to continue developing the library you made in this tutorial, but I would appreciate users and/or contributions to the PIE library!</p>
+<p>The motivation for developing a PIE library in Rust was to test whether the idea of a programmatic incremental build system really is programming-language agnostic, as a target for developing this tutorial, and to get a higher-performance implementation compared to the Java implementation of PIE. </p>
+<p>In my opinion, implementing PIE in Rust as part of this tutorial is a much nicer experience than implementing it in Java, due to the more powerful type system and great tooling provided by Cargo. However, supporting multiple task types, which we didn’t do in this tutorial, is a bit of a pain due to requiring trait objects, which can be really complicated to work with in certain cases. In Java, everything is a like a trait object, and you get many of these things for free, at the cost of garbage colletion and performance of course.</p>
+</li>
+</ul>
+<h2 id="publications-about-programmatic-incremental-build-system-and-pie"><a class="header" href="#publications-about-programmatic-incremental-build-system-and-pie">Publications about Programmatic Incremental Build System and PIE</a></h2>
+<div id="admonition-under-construction" class="admonition admonish-warning">
+<div class="admonition-title">
+<p>Under construction</p>
+<p><a class="admonition-anchor-link" href="#admonition-under-construction"></a></p>
+</div>
+<div>
+<p>This subsection is under construction.</p>
+</div>
+</div>
+<h3 id="my-publications"><a class="header" href="#my-publications">My publications</a></h3>
+<p>I wrote two papers about programmatic incremental build systems, and PIE, which you can <a href="https://gkonat.github.io/assets/dissertation/konat_dissertation.pdf" title="" target="_blank">find the most updated versions of in my dissertation</a>.
+I wrote these papers during my time as a PhD candidate at the <a href="https://pl.ewi.tudelft.nl" title="" target="_blank">Programming Languages group</a> at <a href="https://www.tudelft.nl/" title="" target="_blank">Delft University of Technology</a>.</p>
+<p>The two papers are found in my dissertation at:</p>
+<ul>
+<li>
+<p>Chapter 7, page 83: PIE: A Domain-Specific Language for Interactive Software Development Pipelines. </p>
+<p>This describes a domain-specific language (DSL) for programmatic incremental build systems, and introduces the PIE library in Kotlin. This implementation was later changed to a pure Java library to reduce the number of dependencies. </p>
+</li>
+<li>
+<p>Chapter 8, page 109: Scalable Incremental Building with Dynamic Task Dependencies.</p>
+<p>This describes a hybrid incremental build algorithm that builds from the bottom-up, only switching to top-down building when necessary. Bottom-up builds are more efficient with changes that have a small effect (i.e., most changes), due to only <em>checking the part of the dependency graph affected by changes</em>. Therefore, this algorithm <em>scales down to small changes while scaling up to large dependency graphs</em>. </p>
+<p>Unfortunately, we did not implement (hybrid) bottom-up building in this tutorial due to a lack of time. However, the <a href="https://github.com/Gohla/pie" title="" target="_blank">PIE in Rust</a> library has a <a href="https://github.com/Gohla/pie/blob/master/pie/src/context/bottom_up.rs" title="" target="_blank">bottom-up context implementation</a> which you can check out. Due to similarities between the top-down and bottom-up context, some common functionality was <a href="https://github.com/Gohla/pie/blob/master/pie/src/context/mod.rs" title="" target="_blank">extracted into an extension trait</a>.</p>
+</li>
+</ul>
+<h3 id="supervised-publications"><a class="header" href="#supervised-publications">Supervised publications</a></h3>
+<p>TODO: observability</p>
+<p>TODO: improved PIE DSL</p>
+<h3 id="pluto"><a class="header" href="#pluto">Pluto</a></h3>
+<p>PIE is based on <a href="https://www.pl.informatik.uni-mainz.de/files/2019/04/pluto-incremental-build.pdf" title="" target="_blank">Pluto, a programmatic incremental build system</a> developed by Sebastian Erdweg et al.
+This is not a coincidence, as Sebastian Erdweg frequently contributed improvements to our software (Spoofax 2 uses Pluto), he was my PhD copromotor, and coauthored the “Scalable Incremental Building with Dynamic Task Dependencies” paper.</p>
+<p>This paper provides a more formal proof of incrementality and correctness for the top-down build algorithm, which provides confidence that this algorithm works correctly, but also explains the intricate details of the algorithm very well.
+Note that Pluto uses “builder” instead of “task”.
+In fact, a Pluto builder is more like an incremental function that <em>does not carry its input</em>, whereas a PIE task is more like an incremental closure that includes its input.</p>
+<p>PIE uses almost the same top-down build algorithm as Pluto, but there are some technical changes that make PIE more convenient to use.
+In Pluto, tasks are responsible for storing their output and dependencies, called “build units”, which are typically stored in files.
+In PIE, the library handles this for you, which is convenient, but does require a mapping from a <code>Task</code> (using its <code>Eq</code> and <code>Hash</code> impls) to its dependencies and output, which is what the <code>Store</code> does.</p>
+<h3 id="other-related-work"><a class="header" href="#other-related-work">Other related work</a></h3>
 
                     </main>
 
