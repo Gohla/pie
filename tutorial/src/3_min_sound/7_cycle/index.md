@@ -14,7 +14,6 @@ Let's figure that out in this section, in which we will:
 1) Add cyclic tasks to the testing tasks.
 2) Create tests to showcase the cyclic task execution problem.
 3) Prevent cycles by _reserving_ a task dependency before executing the task.
-4) Improve and add additional tests.
 
 ## Add cyclic testing tasks
 
