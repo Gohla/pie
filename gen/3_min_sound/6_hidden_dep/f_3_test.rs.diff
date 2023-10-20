@@ -1,0 +1,13 @@
+--- pie/tests/top_down.rs
++++ pie/tests/top_down.rs
+@@ -40,5 +40,10 @@
+   assert!(file.exists());
+   assert_eq!(output.as_str(), "Hi There!");
+ 
++  // Change `read_input` and confirm the change is propagated to `read`.
++  write_until_modified(&input_file, "Hello There!")?;
++  let output = pie.require(&read)?;
++  assert_eq!(output.as_str(), "Hello There!");
++
+   Ok(())
+ }

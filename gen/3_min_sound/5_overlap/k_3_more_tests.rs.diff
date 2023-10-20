@@ -1,11 +1,10 @@
 --- pie/tests/top_down.rs
 +++ pie/tests/top_down.rs
-@@ -272,6 +272,50 @@
-   run().unwrap()
+@@ -273,6 +273,50 @@
  }
  
+ #[test]
 +#[should_panic(expected = "Overlapping provided file")]
-+#[test]
 +fn test_require_overlapping_provided_file_panics() {
 +  fn run() -> Result<(), io::Error> {
 +    let mut pie = test_pie();
@@ -48,6 +47,7 @@
 +  Ok(())
 +}
 +
- #[test]
++#[test]
  fn test_separate_output_files() -> Result<(), io::Error> {
    let mut pie = test_pie();
+   let temp_dir = create_temp_dir()?;

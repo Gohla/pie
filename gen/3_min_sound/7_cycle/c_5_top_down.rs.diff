@@ -1,0 +1,30 @@
+--- pie/src/context/top_down.rs
++++ pie/src/context/top_down.rs
+@@ -79,17 +79,22 @@
+     self.session.tracker.require_task_start(task, &stamper);
+ 
+     let node = self.session.store.get_or_create_task_node(task);
++    if let Some(current_executing_task_node) = &self.session.current_executing_task {
++      // First reserve a task require dependency to catch cycles before (potentially) executing the task, and to have
++      // the dependency edge in the graph for catching future cycles.
++      if self.session.store.reserve_task_require_dependency(current_executing_task_node, &node).is_err() {
++        let current_executing_task = self.session.store.get_task(current_executing_task_node);
++        panic!("Cyclic task dependency; current executing task '{:?}' is requiring task '{:?}' which was already required", current_executing_task, task);
++      }
++    }
+     let (output, was_executed) = self.make_task_consistent(task, node);
+ 
+     let dependency = TaskDependency::new(task.clone(), stamper, output.clone());
+     self.session.tracker.require_task_end(&dependency, &output, was_executed);
+ 
+-    // Create task require dependency if a task is currently executing (i.e., we are not requiring the initial task).
+     if let Some(current_executing_task_node) = &self.session.current_executing_task {
+-      if self.session.store.add_task_require_dependency(current_executing_task_node, &node, dependency).is_err() {
+-        let current_executing_task = self.session.store.get_task(current_executing_task_node);
+-        panic!("Cyclic task dependency; current executing task '{:?}' is requiring task '{:?}' which was already required", current_executing_task, task);
+-      }
++      // Update the reserved task require dependency to a real task require dependency.
++      self.session.store.update_task_require_dependency(current_executing_task_node, &node, dependency)
+     }
+ 
+     output

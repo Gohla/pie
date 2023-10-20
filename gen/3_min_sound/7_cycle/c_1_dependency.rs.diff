@@ -1,0 +1,29 @@
+--- pie/src/dependency.rs
++++ pie/src/dependency.rs
+@@ -111,6 +111,7 @@
+   RequireFile(FileDependency),
+   ProvideFile(FileDependency),
+   RequireTask(TaskDependency<T, O>),
++  ReservedRequireTask,
+ }
+ 
+ #[derive(Clone, Eq, PartialEq, Debug)]
+@@ -124,6 +125,10 @@
+   /// - `Ok(Some(stamp))` if the dependency is inconsistent (with `stamp` being the new stamp of the dependency),
+   /// - `Ok(None)` if the dependency is consistent,
+   /// - `Err(e)` if there was an error checking the dependency for consistency.
++  ///
++  /// # Panics
++  ///
++  /// Panics when this dependency is a [Dependency::ReservedRequireTask] dependency.
+   pub fn is_inconsistent<C: MakeConsistent<T>>(&self, context: &mut C) -> Result<Option<Inconsistency<T::Output>>, io::Error> {
+     let option = match self {
+       Dependency::RequireFile(d) => d.is_inconsistent()?
+@@ -132,6 +137,7 @@
+         .map(|s| Inconsistency::File(s)),
+       Dependency::RequireTask(d) => d.is_inconsistent(context)
+         .map(|s| Inconsistency::Task(s)),
++      Dependency::ReservedRequireTask => panic!("BUG: consistency checking reserved task dependency"),
+     };
+     Ok(option)
+   }

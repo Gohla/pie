@@ -1,14 +1,13 @@
 --- pie/tests/top_down.rs
 +++ pie/tests/top_down.rs
-@@ -249,43 +249,27 @@
- 
+@@ -250,42 +250,26 @@
  // Overlapping provided file tests
  
-+#[should_panic(expected = "Overlapping provided file")]
  #[test]
 -fn test_show_overlap_issue() -> Result<(), io::Error> {
 -  let mut pie = test_pie();
 -  let temp_dir = create_temp_dir()?;
++#[should_panic(expected = "Overlapping provided file")]
 +fn test_overlapping_provided_file_panics() {
 +  fn run() -> Result<(), io::Error> {
 +    let mut pie = test_pie();

@@ -2,8 +2,8 @@
 
 // Hidden dependency tests
 
-#[should_panic(expected = "Hidden dependency")]
 #[test]
+#[should_panic(expected = "Hidden dependency")]
 fn test_require_hidden_dependency_panics() {
   fn run() -> Result<(), io::Error> {
     let mut pie = test_pie();

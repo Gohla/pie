@@ -1,0 +1,10 @@
+--- pie/src/tracker/writing.rs
++++ pie/src/tracker/writing.rs
+@@ -120,6 +120,7 @@
+           _ => {}, // Other variants cannot occur.
+         }
+       }
++      Dependency::ReservedRequireTask => {} // Ignore: reserved task dependencies are never checked.
+     }
+     self.flush()
+   }

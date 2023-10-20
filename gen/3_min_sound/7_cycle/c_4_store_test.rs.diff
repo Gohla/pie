@@ -1,0 +1,75 @@
+--- pie/src/store.rs
++++ pie/src/store.rs
+@@ -431,10 +431,16 @@
+     assert!(!store.contains_transitive_task_dependency(&node_a, &node_b));
+     assert!(!store.contains_transitive_task_dependency(&node_b, &node_a));
+ 
+-    // Add task dependency from task B to task A.
++    // Reserve task dependency from task B to task A.
+     let task_dependency_b2a = TaskDependency::new(task_a.clone(), OutputStamper::Equals, output_a.clone());
+-    let result = store.add_task_require_dependency(&node_b, &node_a, task_dependency_b2a.clone());
++    let result = store.reserve_task_require_dependency(&node_b, &node_a);
+     assert_eq!(result, Ok(()));
++    let deps_of_b: Vec<_> = store.get_dependencies_of_task(&node_b).cloned().collect();
++    assert_eq!(deps_of_b.get(0), Some(&Dependency::ReservedRequireTask));
++    assert_eq!(deps_of_b.get(1), None);
++
++    // Update task dependency from task B to task A.
++    store.update_task_require_dependency(&node_b, &node_a, task_dependency_b2a.clone());
+     let deps_of_a: Vec<_> = store.get_dependencies_of_task(&node_a).cloned().collect();
+     assert_eq!(deps_of_a.get(0), Some(&Dependency::RequireFile(file_dependency_a2c.clone())));
+     assert_eq!(deps_of_a.get(1), None);
+@@ -465,9 +471,8 @@
+     assert!(!store.contains_transitive_task_dependency(&node_a, &node_b));
+     assert!(store.contains_transitive_task_dependency(&node_b, &node_a));
+ 
+-    // Add task dependency from task A to task B, creating a cycle.
+-    let task_dependency_a2b = TaskDependency::new(task_a.clone(), OutputStamper::Equals, output_a.clone());
+-    let result = store.add_task_require_dependency(&node_a, &node_b, task_dependency_a2b);
++    // Reserve task dependency from task A to task B, creating a cycle.
++    let result = store.reserve_task_require_dependency(&node_a, &node_b);
+     assert_eq!(result, Err(())); // Creates a cycle: error
+   }
+ 
+@@ -531,14 +536,39 @@
+ 
+   #[test]
+   #[should_panic]
+-  fn test_add_task_require_dependency_panics() {
++  fn test_reserve_task_require_dependency_panics() {
++    let mut fake_store = Store::default();
++    let output = "Hello".to_string();
++    let task = StringConstant::new(&output);
++    let fake_task_node = fake_store.get_or_create_task_node(&task);
++    let mut store: Store<StringConstant, String> = Store::default();
++    let _ = store.reserve_task_require_dependency(&fake_task_node, &fake_task_node);
++  }
++
++  #[test]
++  #[should_panic]
++  fn test_update_task_require_dependency_panics_node() {
+     let mut fake_store = Store::default();
+     let output = "Hello".to_string();
+     let task = StringConstant::new(&output);
+     let fake_task_node = fake_store.get_or_create_task_node(&task);
+     let mut store: Store<StringConstant, String> = Store::default();
+     let dependency = TaskDependency::new(task, OutputStamper::Equals, output);
+-    let _ = store.add_task_require_dependency(&fake_task_node, &fake_task_node, dependency);
++    store.update_task_require_dependency(&fake_task_node, &fake_task_node, dependency);
++  }
++
++  #[test]
++  #[should_panic]
++  fn test_update_task_require_dependency_panics_dependency() {
++    let mut store: Store<StringConstant, String> = Store::default();
++    let output_a = "Hello".to_string();
++    let task_a = StringConstant::new(&output_a);
++    let task_node_a = store.get_or_create_task_node(&task_a);
++    let output_b = "World".to_string();
++    let task_b = StringConstant::new(&output_b);
++    let task_node_b = store.get_or_create_task_node(&task_b);
++    let dependency = TaskDependency::new(task_b, OutputStamper::Equals, output_b);
++    store.update_task_require_dependency(&task_node_a, &task_node_b, dependency);
+   }
+ 
+ 

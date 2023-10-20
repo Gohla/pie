@@ -1,0 +1,26 @@
+--- pie/tests/top_down.rs
++++ pie/tests/top_down.rs
+@@ -22,5 +22,23 @@
+   // `read` should output what `write` wrote, which is what `read_input` read from `input_file`.
+   assert_eq!(output.as_str(), "Hi There!");
+ 
++  // First ensure the modified date of `file` has changed, then remove `file`.
++  write_until_modified(&file, "Hi There!")?;
++  std::fs::remove_file(&file)?;
++  assert!(!file.exists());
++
++  // Confirm the provided file is re-generated.
++  let output = pie.require_then_assert(&read, |tracker| {
++    // `write` should execute to re-generate the provided file.
++    assert!(tracker.one_execute_of(&write));
++    // `read_input` is not executed because its file dependency to `input_file` is consistent.
++    assert!(!tracker.any_execute_of(&read_input));
++    // `read` is executed because its `file` dependency is inconsistent, due to it having a new modified date. If we use
++    // a file hash stamper, we can prevent this re-execution.
++    assert!(tracker.one_execute_of(&read));
++  })?;
++  assert!(file.exists());
++  assert_eq!(output.as_str(), "Hi There!");
++
+   Ok(())
+ }

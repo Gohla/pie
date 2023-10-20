@@ -1,0 +1,39 @@
+--- pie/src/store.rs
++++ pie/src/store.rs
+@@ -217,7 +217,7 @@
+       _ => {},
+     }
+   }
+-  /// Adds a task require `dependency` from task `src` to task `dst`.
++  /// Reserves a task require dependency from task `src` to task `dst`.
+   ///
+   /// # Errors
+   ///
+@@ -226,13 +226,25 @@
+   /// # Panics
+   ///
+   /// Panics if `src` or `dst` were not found in the dependency graph.
+-  pub fn add_task_require_dependency(&mut self, src: &TaskNode, dst: &TaskNode, dependency: TaskDependency<T, T::Output>) -> Result<(), ()> {
+-    match self.graph.add_edge(src, dst, Dependency::RequireTask(dependency)) {
++  pub fn reserve_task_require_dependency(&mut self, src: &TaskNode, dst: &TaskNode) -> Result<(), ()> {
++    match self.graph.add_edge(src, dst, Dependency::ReservedRequireTask) {
+       Err(pie_graph::Error::NodeMissing) => panic!("BUG: source node {:?} or destination node {:?} was not found in the dependency graph", src, dst),
+       Err(pie_graph::Error::CycleDetected) => Err(()),
+       _ => Ok(()),
+     }
+   }
++  /// Updates a reserved task require dependency from task `src` to task `dst`, to `dependency`.
++  ///
++  /// # Panics
++  ///
++  /// Panics if `src` or `dst` were not found in the dependency graph, or if the dependency between `src` and `dst` is
++  /// not a reserved task dependency.
++  pub fn update_task_require_dependency(&mut self, src: &TaskNode, dst: &TaskNode, dependency: TaskDependency<T, T::Output>) {
++    let Some(d @ Dependency::ReservedRequireTask) = self.graph.get_edge_data_mut(src, dst) else {
++      panic!("BUG: no reserved task dependency was found between source node {:?} and destination node {:?}", src, dst)
++    };
++    *d = Dependency::RequireTask(dependency);
++  }
+ }
+ 
+ impl<T: Task> Store<T, T::Output> {

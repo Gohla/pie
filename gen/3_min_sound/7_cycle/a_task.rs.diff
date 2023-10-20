@@ -1,0 +1,22 @@
+--- pie/tests/common/mod.rs
++++ pie/tests/common/mod.rs
+@@ -68,6 +68,9 @@
+   ToLower(Box<TestTask>),
+   ToUpper(Box<TestTask>),
+   Sequence(Vec<TestTask>),
++  RequireSelf,
++  RequireA,
++  RequireB,
+ }
+ impl Task for TestTask {
+   type Output = Result<TestOutput, ErrorKind>;
+@@ -104,6 +107,9 @@
+         }
+         Ok(TestOutput::Unit)
+       }
++      TestTask::RequireSelf => context.require_task(&TestTask::RequireSelf),
++      TestTask::RequireA => context.require_task(&TestTask::RequireB),
++      TestTask::RequireB => context.require_task(&TestTask::RequireA),
+     }
+   }
+ }
