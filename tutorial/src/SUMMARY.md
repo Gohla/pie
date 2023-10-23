@@ -1,6 +1,6 @@
-- [Introduction]()
+- [Introduction](./0_intro/index.md)
+  - [Setup](./0_intro/1_setup/index.md) 
 - [Programmability]()
-  - [Setup](./1_programmability/0_setup/index.md)
   - [Programmable Build System API](./1_programmability/1_api/index.md)
   - [Non-Incremental Context](./1_programmability/2_non_incremental/index.md)
 - [Incrementality](./2_incrementality/index.md)
@@ -18,18 +18,4 @@
   - [Prevent Overlapping File Writes](./3_min_sound/5_overlap/index.md)
   - [Prevent Hidden Dependencies](./3_min_sound/6_hidden_dep/index.md)
   - [Prevent Cycles](./3_min_sound/7_cycle/index.md)
-- [Improvements]()
-  - [Serialization]()
-  - [More Stampers]()
-  - [Configurable Hashing]()
-- [Efficiency]()
-  - [Incremental Bottom-Up Context]()
-  - [Observability]()
-  - [Deferred Tasks]()
-
-# Appendix
-
-- [Multiple Task Types]()
-- [On Static Dependencies]()
-- [On Declarativity]()
-- [Related Work]()
+- [What's Next?](./4_next/index.md)

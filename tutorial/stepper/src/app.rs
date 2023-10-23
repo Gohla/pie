@@ -32,8 +32,8 @@ pub fn step_all(
   };
   stepper.add_substitution("%%%PIE_GRAPH_DEPENDENCY%%%", pie_graph_dependency);
 
-  stepper.with_path("1_programmability", |stepper| {
-    stepper.with_path("0_setup", |stepper| {
+  stepper.with_path("0_intro", |stepper| {
+    stepper.with_path("1_setup", |stepper| {
       stepper
         .apply([
           add("Cargo.toml", "../Cargo.toml"),
@@ -44,6 +44,9 @@ pub fn step_all(
           SourceArchive::new("source.zip"),
         ]);
     });
+  });
+
+  stepper.with_path("1_programmability", |stepper| {
     stepper.with_path("1_api", |stepper| {
       stepper
         .apply([
