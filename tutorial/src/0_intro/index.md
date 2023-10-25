@@ -27,18 +27,77 @@ A programmatic incremental build system is a mix between an incremental build sy
 - _Automatic_: The build system takes care of incrementality and correctness. Build authors _do not_ have to manually implement incrementality. Instead, they only have to explicitly _declare dependencies_.
 - _Multipurpose_: The same build script can be used for incremental batch builds in a terminal, but also for live feedback in an interactive environment such as an IDE. For example, a compiler implemented in this build system can provide incremental batch compilation but also incremental editor services such as syntax highlighting or code completion.
 
-As a small teaser, here is a simplified version of a build script that... in Rust.
-```admonish warning title="Under construction"
-Example is under construction:
-- TODO: example
-- TODO: explain very broadly the concepts in the example: tasks, dependencies, etc.
+#### Teaser Toy Example
+
+As a small teaser, here is a simplified version of a programmatic incremental toy build script that copies a text file by reading and writing:
+
+```rust
+struct ReadFile { file: PathBuf }
+impl Task for ReadFile {
+  fn execute<C: Context>(&self, context: &mut C) -> Result<String, io::Error> {
+    context.require_file(&self.file)?;
+    fs::read_to_string(&self.file)
+  }
+}
+
+struct WriteFile<T> { task: T, file: PathBuf }
+impl<T: Task> Task for WriteFile<T> {
+  fn execute<C: Context>(&self, context: &mut C) -> Result<(), io::Error> {
+    let string: String = context.require_task(&self.task)?;
+    fs::write(&self.file, string.as_bytes())?;
+    context.provide_file(&self.file)
+  }
+}
+
+fn main() {
+  let read_task = ReadFile { file: PathBuf::from("in.txt") };
+  let write_task = WriteFile { task: read_task, file: PathBuf::from("out.txt") };
+  Pie::default().new_session().require(&write_task);
+}
 ```
 
-I prefer writing builds in a programming language like this, over having to _encode_ a build into a YAML file with underspecified semantics, and over having to learn and use a build scripting language with limited tooling.
+The unit of computation in a programmatic incremental build system is a _task_.
+A task is kind of like a closure, a function along with its inputs that can be executed, but incremental.
+For example, the `ReadFile` task carries the file path it reads from.
+When we `execute` the task, it reads from the file and returns its text as a string.
+However, due to incrementality, we declare the file as a `require_file` dependency through `context`, such that this task is only re-executed when the file changes!
+
+Note that this file read dependency is created _while the task is executing_.
+We call these _dynamic dependencies_.
+This is one of the main benefits of programmatic incremental build systems: you create dependencies _while the build is executing_, instead of having to declare them upfront!
+
+Dynamic dependencies are also created between tasks.
+For example, `WriteFile` carries a task as input, which it requires with `context.require_task` to retrieve the text for writing to a file.
+We'll cover how this works later on in the tutorial.
+For now, let's zoom back out to the motivation of programmatic incremental build systems.
+
+#### Back to Motivation
+
+I prefer writing builds in a programming language like this, over having to _encode_ a build into a YAML file with underspecified semantics, and over having to learn and use a new build scripting language with limited tooling.
 By _programming builds_, I can reuse my knowledge of the programming language, I get help from the compiler and IDE that I'd normally get while programming, I can modularize and reuse parts of my build as a library, and can use other programming language features such as unit testing, integration testing, benchmarking, etc.
+
+Programmatic builds _do not exclude declarativity_, however.
+You can layer declarative features on top of programmatic builds, such as declarative configuration files that determine _what_ should be built without having to specify _how_ things are built.
+For example, you could write a task like the one from the example, which reads and parses a config file, and then dispatch tasks that build required things.
+Therefore, programmatic builds are useful for both small one-off builds, and for creating larger incremental build systems that work with a lot of user inputs.
+
+Dynamic dependencies enable creating precise dependencies, _without requiring staging_, as is often found in build systems with static dependencies.
+For example, dynamic dependencies in [Make](https://www.gnu.org/software/make/) requires staging: generate new makefiles and recursively execute them, which is tedious and error-prone.
+[Gradle](https://gradle.org/) has a two-staged build process: first configure the task graph, then incrementally execute it.
+In the execution stage, you cannot modify dependencies or create new tasks.
+Therefore, more work needs to be done in the configuration stage, which is not (fully) incrementalized.
+Dynamic dependencies solve these problems by doing away with staging!
+
+Finally, precise dynamic dependencies enable incrementality but also correctness.
+A task is re-executed when one or more of its dependencies become inconsistent.
+For example, the `WriteFile` task from the example is re-executed when the task dependency returns different text, or when the file it writes to is modified or deleted.
+This is both incremental and correct.
+
+#### Disadvantages
 
 Of course, programmatic incremental build systems also have some disadvantages.
 These disadvantages become more clear during the tutorial, but I want to list them here to be up-front about it:
+
 - The build system is more complicated, but hopefully this tutorial can help mitigate some of that by understanding the key ideas through implementation and experimentation.
 - Some correctness properties are checked while building. Therefore, you need to test your builds to try to catch these issues before they reach users. However, I think that testing builds is something you should do regardless of the build system, to be more confident about the correctness of your build.
 - More tracking is required at runtime compared to non-programmatic build systems. However, in our experience, the overhead is not excessive unless you try to do very fine-grained incrementalization. For fine-grained incrementalization, [incremental computing](https://en.wikipedia.org/wiki/Incremental_computing) approaches are more well suited.
