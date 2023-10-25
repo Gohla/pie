@@ -1,15 +1,15 @@
 tutorial
-├── dev_shared
+├── pie
+│   ├── Cargo.toml
+│   ├── Cargo.lock
 │   ├── src
+│   │   ├── fs.rs
+│   │   ├── context
+│   │   │   ├── mod.rs
+│   │   │   └── non_incremental.rs
 │   │   └── lib.rs
-│   └── Cargo.toml
-└── pie
-    ├── src
-    │   ├── fs.rs
-    │   ├── context
-    │   │   ├── non_incremental.rs
-    │   │   └── mod.rs
-    │   └── lib.rs
+│   └── target
+└── dev_shared
     ├── Cargo.toml
-    ├── Cargo.lock
-    └── target
+    └── src
+        └── lib.rs

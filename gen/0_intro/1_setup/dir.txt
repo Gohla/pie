@@ -2,8 +2,5 @@ pie
 ├── Cargo.toml
 ├── Cargo.lock
 ├── src
-│   ├── context
-│   │   ├── mod.rs
-│   │   └── non_incremental.rs
 │   └── lib.rs
 └── target
