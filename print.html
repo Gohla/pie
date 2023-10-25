@@ -290,16 +290,26 @@ Once RustRover comes out of preview, you will need to pay for it though (or appl
 <p>In this tutorial, we will create a subset of the <a href="https://github.com/Gohla/pie" title="" target="_blank">PIE in Rust</a> library, so we want to create a Rust library called <code>pie</code>.
 However, later on in the tutorial we will also create an additional library for unit testing utilities, so we need to set up a Rust project that supports multiple libraries.</p>
 <p>Therefore, first create a <code>programmatic-builds</code> directory, which will serve as the root directory of the project.
-This does not have to be called <code>programmatic-builds</code>, you can use a different name.
-The rest of the tutorial assumes that you are in your <code>programmatic-builds</code> root directory!</p>
-<p>Create the <code>pie</code> directory, and then create the <code>pie/Cargo.toml</code> file with the following contents:</p>
+This does not have to be called <code>programmatic-builds</code>, you can use a different name.</p>
+<div id="admonition-important" class="admonition admonish-warning">
+<div class="admonition-title">
+<p>Important</p>
+<p><a class="admonition-anchor-link" href="0_intro/1_setup/index.html#admonition-important"></a></p>
+</div>
+<div>
+<p>In the rest of the tutorial, we assume that you are in your <code>programmatic-builds</code> root directory.
+So if you are instructed to create files or directories, they are always relative to your <code>programmatic-builds</code> root directory!</p>
+</div>
+</div>
+<p>Now let’s set up the <code>pie</code> library.
+Create the <code>pie</code> directory, and then create the <code>pie/Cargo.toml</code> file with the following contents:</p>
 <pre><code class="language-toml ">[package]
 name = &quot;pie&quot;
 version = &quot;0.1.0&quot;
 edition = &quot;2021&quot;
 </code></pre>
-<p>Then create the <code>pie/src</code> directory and create the <code>pie/src/lib.rs</code> file, which will be left empty for now.
-This marks <code>pie</code> as a Rust library, with version “0.1.0” and using Rust edition 2021.
+<p>Then create the <code>pie/src</code> directory and create the <code>pie/src/lib.rs</code> file, which will be left empty for now.</p>
+<p>This marks <code>pie</code> as a Rust library, with version “0.1.0” and using Rust edition 2021.
 The directory structure should look as follows (inside your <code>programmatic-builds</code> root directory):</p>
 <pre><code>pie
 ├── Cargo.toml
@@ -308,12 +318,23 @@ The directory structure should look as follows (inside your <code>programmatic-b
 │   └── lib.rs
 └── target
 </code></pre>
-<p>Run <code>cargo build</code> to test if the project was set up correctly.
-The output should look something like:</p>
+<p>Now we can build the project to see if it was set up correctly.
+Open up a terminal, go into the <code>pie</code> directory, and run <code>cargo build</code>.
+If all is well, the output should look something like:</p>
 <pre><code class="language-shell ">   Compiling pie v0.1.0 (/pie)
-    Finished dev [unoptimized + debuginfo] target(s) in 0.13s
+    Finished dev [unoptimized + debuginfo] target(s) in 0.11s
 </code></pre>
-<p>That means that Cargo has successfully built your project!</p>
+<div id="admonition-important-1" class="admonition admonish-warning">
+<div class="admonition-title">
+<p>Important</p>
+<p><a class="admonition-anchor-link" href="0_intro/1_setup/index.html#admonition-important-1"></a></p>
+</div>
+<div>
+<p>In the rest of the tutorial, if you are instructed to run <code>cargo</code> commands, always run them inside the <code>pie</code> directory!</p>
+</div>
+</div>
+<p>If you’re using a Rust editor or IDE, it probably also has a mechanism for running cargo on your project.
+You can of course use that in place of running cargo from a terminal. </p>
 <details id="admonition-rust-editions" class="admonition admonish-tip">
 <summary class="admonition-title">
 <p>Rust Editions</p>
@@ -3432,7 +3453,7 @@ Run this example with <code>cargo run --example incremental</code>.
 You should see the <code>println!</code> in <code>ReadStringFromFile</code> appear in your console as the incremental context correctly determines that this task is new (i.e., has no output) and must be executed.
 It should look something like:</p>
 <pre><code>   Compiling pie v0.1.0 (/pie)
-    Finished dev [unoptimized + debuginfo] target(s) in 1.14s
+    Finished dev [unoptimized + debuginfo] target(s) in 1.20s
      Running `/pie/target/debug/examples/incremental`
 A) New task: expect `read_task` to execute
 Reading from input.txt with Modified stamper
@@ -3447,7 +3468,7 @@ Reading from input.txt with Modified stamper
   assert_eq!(&amp;output, &quot;Hi&quot;);</code></pre>
 <p>Running with <code>cargo run --example incremental</code> should produce output like:</p>
 <pre><code>   Compiling pie v0.1.0 (/pie)
-    Finished dev [unoptimized + debuginfo] target(s) in 0.55s
+    Finished dev [unoptimized + debuginfo] target(s) in 0.57s
      Running `/pie/target/debug/examples/incremental`
 A) New task: expect `read_task` to execute
 Reading from input.txt with Modified stamper
@@ -3509,7 +3530,7 @@ This shows that tasks can depend on the same file with different stampers, which
 <p>Of course, using an <code>Exists</code> stamper for <code>ReadStringFromFile</code> does not make a lot of sense, but this is for demonstration purposes only.</p>
 <p>Running <code>cargo run --example incremental</code> now should produce output like:</p>
 <pre><code>   Compiling pie v0.1.0 (/pie)
-    Finished dev [unoptimized + debuginfo] target(s) in 0.56s
+    Finished dev [unoptimized + debuginfo] target(s) in 0.59s
      Running `/pie/target/debug/examples/incremental`
 A) New task: expect `read_task` to execute
 Reading from input.txt with Modified stamper
@@ -4792,55 +4813,55 @@ You can add configuration booleans to control what should be written, but in thi
 <p>We remove the <code>println!</code> statements from tasks and create <code>Pie</code> with <code>WritingTracker</code>.
 Now run the example with <code>cargo run --example incremental</code>, and you should see the writing tracker print to standard output:</p>
 <pre><code>   Compiling pie v0.1.0 (/pie)
-    Finished dev [unoptimized + debuginfo] target(s) in 0.72s
+    Finished dev [unoptimized + debuginfo] target(s) in 0.78s
      Running `/pie/target/debug/examples/incremental`
 A) New task: expect `read_task` to execute
-→ ReadStringFromFile(&quot;/tmp/.tmpR2pqy8/input.txt&quot;, Modified)
- ▶ ReadStringFromFile(&quot;/tmp/.tmpR2pqy8/input.txt&quot;, Modified)
-  - /tmp/.tmpR2pqy8/input.txt
+→ ReadStringFromFile(&quot;/tmp/.tmpHOCHe6/input.txt&quot;, Modified)
+ ▶ ReadStringFromFile(&quot;/tmp/.tmpHOCHe6/input.txt&quot;, Modified)
+  - /tmp/.tmpHOCHe6/input.txt
  ◀ Ok(&quot;Hi&quot;)
 ← Ok(&quot;Hi&quot;)
 🏁
 
 B) Reuse: expect no execution
-→ ReadStringFromFile(&quot;/tmp/.tmpR2pqy8/input.txt&quot;, Modified)
- ✓ /tmp/.tmpR2pqy8/input.txt
+→ ReadStringFromFile(&quot;/tmp/.tmpHOCHe6/input.txt&quot;, Modified)
+ ✓ /tmp/.tmpHOCHe6/input.txt
 ← Ok(&quot;Hi&quot;)
 🏁
 
 C) Inconsistent file dependency: expect `read_task` to execute
-→ ReadStringFromFile(&quot;/tmp/.tmpR2pqy8/input.txt&quot;, Modified)
- ✗ /tmp/.tmpR2pqy8/input.txt (old: Modified(Some(SystemTime { tv_sec: 1698243694, tv_nsec: 253366638 })) ≠ new: Modified(Some(SystemTime { tv_sec: 1698243694, tv_nsec: 257366827 })))
- ▶ ReadStringFromFile(&quot;/tmp/.tmpR2pqy8/input.txt&quot;, Modified)
-  - /tmp/.tmpR2pqy8/input.txt
+→ ReadStringFromFile(&quot;/tmp/.tmpHOCHe6/input.txt&quot;, Modified)
+ ✗ /tmp/.tmpHOCHe6/input.txt (old: Modified(Some(SystemTime { tv_sec: 1698244688, tv_nsec: 451881978 })) ≠ new: Modified(Some(SystemTime { tv_sec: 1698244688, tv_nsec: 455882006 })))
+ ▶ ReadStringFromFile(&quot;/tmp/.tmpHOCHe6/input.txt&quot;, Modified)
+  - /tmp/.tmpHOCHe6/input.txt
  ◀ Ok(&quot;Hello&quot;)
 ← Ok(&quot;Hello&quot;)
 🏁
 
 D) Different tasks: expect `read_task_b_modified` and `read_task_b_exists` to execute
-→ ReadStringFromFile(&quot;/tmp/.tmpR2pqy8/input_b.txt&quot;, Modified)
- ▶ ReadStringFromFile(&quot;/tmp/.tmpR2pqy8/input_b.txt&quot;, Modified)
-  - /tmp/.tmpR2pqy8/input_b.txt
+→ ReadStringFromFile(&quot;/tmp/.tmpHOCHe6/input_b.txt&quot;, Modified)
+ ▶ ReadStringFromFile(&quot;/tmp/.tmpHOCHe6/input_b.txt&quot;, Modified)
+  - /tmp/.tmpHOCHe6/input_b.txt
  ◀ Ok(&quot;Test&quot;)
 ← Ok(&quot;Test&quot;)
 🏁
-→ ReadStringFromFile(&quot;/tmp/.tmpR2pqy8/input_b.txt&quot;, Exists)
- ▶ ReadStringFromFile(&quot;/tmp/.tmpR2pqy8/input_b.txt&quot;, Exists)
-  - /tmp/.tmpR2pqy8/input_b.txt
+→ ReadStringFromFile(&quot;/tmp/.tmpHOCHe6/input_b.txt&quot;, Exists)
+ ▶ ReadStringFromFile(&quot;/tmp/.tmpHOCHe6/input_b.txt&quot;, Exists)
+  - /tmp/.tmpHOCHe6/input_b.txt
  ◀ Ok(&quot;Test&quot;)
 ← Ok(&quot;Test&quot;)
 🏁
 
 E) Different stampers: expect only `read_task_b_modified` to execute
-→ ReadStringFromFile(&quot;/tmp/.tmpR2pqy8/input_b.txt&quot;, Modified)
- ✗ /tmp/.tmpR2pqy8/input_b.txt (old: Modified(Some(SystemTime { tv_sec: 1698243694, tv_nsec: 257366827 })) ≠ new: Modified(Some(SystemTime { tv_sec: 1698243694, tv_nsec: 261367017 })))
- ▶ ReadStringFromFile(&quot;/tmp/.tmpR2pqy8/input_b.txt&quot;, Modified)
-  - /tmp/.tmpR2pqy8/input_b.txt
+→ ReadStringFromFile(&quot;/tmp/.tmpHOCHe6/input_b.txt&quot;, Modified)
+ ✗ /tmp/.tmpHOCHe6/input_b.txt (old: Modified(Some(SystemTime { tv_sec: 1698244688, tv_nsec: 455882006 })) ≠ new: Modified(Some(SystemTime { tv_sec: 1698244688, tv_nsec: 459882034 })))
+ ▶ ReadStringFromFile(&quot;/tmp/.tmpHOCHe6/input_b.txt&quot;, Modified)
+  - /tmp/.tmpHOCHe6/input_b.txt
  ◀ Ok(&quot;Test Test&quot;)
 ← Ok(&quot;Test Test&quot;)
 🏁
-→ ReadStringFromFile(&quot;/tmp/.tmpR2pqy8/input_b.txt&quot;, Exists)
- ✓ /tmp/.tmpR2pqy8/input_b.txt
+→ ReadStringFromFile(&quot;/tmp/.tmpHOCHe6/input_b.txt&quot;, Exists)
+ ✓ /tmp/.tmpHOCHe6/input_b.txt
 ← Ok(&quot;Test&quot;)
 🏁
 </code></pre>
@@ -5431,7 +5452,7 @@ If you want to see the standard output, either:</p>
 </ul>
 <p>The second command should result in something like:</p>
 <pre><code>    Finished test [unoptimized + debuginfo] target(s) in 0.03s
-     Running tests/top_down.rs (/pie/target/debug/deps/top_down-5721a47d1773779e)
+     Running tests/top_down.rs (/pie/target/debug/deps/top_down-74103b21ad5fcb7e)
 
 running 1 test
 → Return(&quot;Hello, World!&quot;)
@@ -6205,23 +6226,23 @@ How can that be?</p>
 </div>
 <p>Inspect the build log with <code>cargo test --test top_down test_no_superfluous_task_dependencies</code>.
 The third (last) build log should look like this:</p>
-<pre><code>→ ToUpper(ToLower(ReadFile(&quot;/tmp/.tmpOm3QNz/in.txt&quot;, Modified)))
- ? ReadFile(&quot;/tmp/.tmpOm3QNz/in.txt&quot;, Modified)
-  → ReadFile(&quot;/tmp/.tmpOm3QNz/in.txt&quot;, Modified)
-   ✗ /tmp/.tmpOm3QNz/in.txt (old: Modified(Some(SystemTime { tv_sec: 1698243705, tv_nsec: 589901913 })) ≠ new: Modified(Some(SystemTime { tv_sec: 1698243705, tv_nsec: 593902101 })))
-   ▶ ReadFile(&quot;/tmp/.tmpOm3QNz/in.txt&quot;, Modified)
-    - /tmp/.tmpOm3QNz/in.txt
+<pre><code>→ ToUpper(ToLower(ReadFile(&quot;/tmp/.tmpT154JJ/in.txt&quot;, Modified)))
+ ? ReadFile(&quot;/tmp/.tmpT154JJ/in.txt&quot;, Modified)
+  → ReadFile(&quot;/tmp/.tmpT154JJ/in.txt&quot;, Modified)
+   ✗ /tmp/.tmpT154JJ/in.txt (old: Modified(Some(SystemTime { tv_sec: 1698244700, tv_nsec: 343963528 })) ≠ new: Modified(Some(SystemTime { tv_sec: 1698244700, tv_nsec: 347963555 })))
+   ▶ ReadFile(&quot;/tmp/.tmpT154JJ/in.txt&quot;, Modified)
+    - /tmp/.tmpT154JJ/in.txt
    ◀ Ok(String(&quot;HeLLo, WorLd!&quot;))
   ← Ok(String(&quot;HeLLo, WorLd!&quot;))
- ✗ ReadFile(&quot;/tmp/.tmpOm3QNz/in.txt&quot;, Modified) (old: Equals(Ok(String(&quot;Hello, World!&quot;))) ≠ new: Equals(Ok(String(&quot;HeLLo, WorLd!&quot;))))
- ▶ ToUpper(ToLower(ReadFile(&quot;/tmp/.tmpOm3QNz/in.txt&quot;, Modified)))
-  → ToLower(ReadFile(&quot;/tmp/.tmpOm3QNz/in.txt&quot;, Modified))
-   ? ReadFile(&quot;/tmp/.tmpOm3QNz/in.txt&quot;, Modified)
-    → ReadFile(&quot;/tmp/.tmpOm3QNz/in.txt&quot;, Modified)
+ ✗ ReadFile(&quot;/tmp/.tmpT154JJ/in.txt&quot;, Modified) (old: Equals(Ok(String(&quot;Hello, World!&quot;))) ≠ new: Equals(Ok(String(&quot;HeLLo, WorLd!&quot;))))
+ ▶ ToUpper(ToLower(ReadFile(&quot;/tmp/.tmpT154JJ/in.txt&quot;, Modified)))
+  → ToLower(ReadFile(&quot;/tmp/.tmpT154JJ/in.txt&quot;, Modified))
+   ? ReadFile(&quot;/tmp/.tmpT154JJ/in.txt&quot;, Modified)
+    → ReadFile(&quot;/tmp/.tmpT154JJ/in.txt&quot;, Modified)
     ← Ok(String(&quot;HeLLo, WorLd!&quot;))
-   ✗ ReadFile(&quot;/tmp/.tmpOm3QNz/in.txt&quot;, Modified) (old: Equals(Ok(String(&quot;Hello, World!&quot;))) ≠ new: Equals(Ok(String(&quot;HeLLo, WorLd!&quot;))))
-   ▶ ToLower(ReadFile(&quot;/tmp/.tmpOm3QNz/in.txt&quot;, Modified))
-    → ReadFile(&quot;/tmp/.tmpOm3QNz/in.txt&quot;, Modified)
+   ✗ ReadFile(&quot;/tmp/.tmpT154JJ/in.txt&quot;, Modified) (old: Equals(Ok(String(&quot;Hello, World!&quot;))) ≠ new: Equals(Ok(String(&quot;HeLLo, WorLd!&quot;))))
+   ▶ ToLower(ReadFile(&quot;/tmp/.tmpT154JJ/in.txt&quot;, Modified))
+    → ReadFile(&quot;/tmp/.tmpT154JJ/in.txt&quot;, Modified)
     ← Ok(String(&quot;HeLLo, WorLd!&quot;))
    ◀ Ok(String(&quot;hello, world!&quot;))
   ← Ok(String(&quot;hello, world!&quot;))
@@ -6288,14 +6309,14 @@ Even if we are only <em>consistency checking</em> a task to see if it should be 
 We only manifested the bug in the last test due to having a chain of 2 task dependencies, and by carefully controlling what is being executed and what is being checked.</p>
 <p>Recall the second build in the <code>test_no_superfluous_task_dependencies</code> test.
 The build log for that build looks like:</p>
-<pre><code>→ ToUpper(ToLower(ReadFile(&quot;/tmp/.tmpOm3QNz/in.txt&quot;, Modified)))
- ▶ ToUpper(ToLower(ReadFile(&quot;/tmp/.tmpOm3QNz/in.txt&quot;, Modified)))
-  → ToLower(ReadFile(&quot;/tmp/.tmpOm3QNz/in.txt&quot;, Modified))
-   ? ReadFile(&quot;/tmp/.tmpOm3QNz/in.txt&quot;, Modified)
-    → ReadFile(&quot;/tmp/.tmpOm3QNz/in.txt&quot;, Modified)
-     ✓ /tmp/.tmpOm3QNz/in.txt
+<pre><code>→ ToUpper(ToLower(ReadFile(&quot;/tmp/.tmpT154JJ/in.txt&quot;, Modified)))
+ ▶ ToUpper(ToLower(ReadFile(&quot;/tmp/.tmpT154JJ/in.txt&quot;, Modified)))
+  → ToLower(ReadFile(&quot;/tmp/.tmpT154JJ/in.txt&quot;, Modified))
+   ? ReadFile(&quot;/tmp/.tmpT154JJ/in.txt&quot;, Modified)
+    → ReadFile(&quot;/tmp/.tmpT154JJ/in.txt&quot;, Modified)
+     ✓ /tmp/.tmpT154JJ/in.txt
     ← Ok(String(&quot;Hello, World!&quot;))
-   ✓ ReadFile(&quot;/tmp/.tmpOm3QNz/in.txt&quot;, Modified)
+   ✓ ReadFile(&quot;/tmp/.tmpT154JJ/in.txt&quot;, Modified)
   ← Ok(String(&quot;hello, world!&quot;))
  ◀ Ok(String(&quot;HELLO, WORLD!&quot;))
 ← Ok(String(&quot;HELLO, WORLD!&quot;))
@@ -6574,24 +6595,24 @@ However, <code>test_require_task</code> now fails 😅.</p>
 This is because our changes have correctly removed several superfluous task requires, which influences these assertions.</p>
 <p>Inspect the build log for this test with <code>cargo test --test top_down test_require_task</code>.
 The second build now looks like:</p>
-<pre><code>→ ToLower(ReadFile(&quot;/tmp/.tmpwG1KrV/in.txt&quot;, Modified))
- ? ReadFile(&quot;/tmp/.tmpwG1KrV/in.txt&quot;, Modified)
-  ✓ /tmp/.tmpwG1KrV/in.txt
- ✓ ReadFile(&quot;/tmp/.tmpwG1KrV/in.txt&quot;, Modified)
+<pre><code>→ ToLower(ReadFile(&quot;/tmp/.tmpJDwzGs/in.txt&quot;, Modified))
+ ? ReadFile(&quot;/tmp/.tmpJDwzGs/in.txt&quot;, Modified)
+  ✓ /tmp/.tmpJDwzGs/in.txt
+ ✓ ReadFile(&quot;/tmp/.tmpJDwzGs/in.txt&quot;, Modified)
 ← Ok(String(&quot;hello world!&quot;))
 </code></pre>
 <p>In this second build, <code>ReadFile</code> is now no longer required, and instead is only checked.
 This is correct, and does not make any assertions fail.</p>
 <p>The third build now looks like:</p>
-<pre><code>→ ToLower(ReadFile(&quot;/tmp/.tmpwG1KrV/in.txt&quot;, Modified))
- ? ReadFile(&quot;/tmp/.tmpwG1KrV/in.txt&quot;, Modified)
-  ✗ /tmp/.tmpwG1KrV/in.txt (old: Modified(Some(SystemTime { tv_sec: 1698243707, tv_nsec: 417987638 })) ≠ new: Modified(Some(SystemTime { tv_sec: 1698243707, tv_nsec: 421987825 })))
-  ▶ ReadFile(&quot;/tmp/.tmpwG1KrV/in.txt&quot;, Modified)
-   - /tmp/.tmpwG1KrV/in.txt
+<pre><code>→ ToLower(ReadFile(&quot;/tmp/.tmpJDwzGs/in.txt&quot;, Modified))
+ ? ReadFile(&quot;/tmp/.tmpJDwzGs/in.txt&quot;, Modified)
+  ✗ /tmp/.tmpJDwzGs/in.txt (old: Modified(Some(SystemTime { tv_sec: 1698244702, tv_nsec: 227976274 })) ≠ new: Modified(Some(SystemTime { tv_sec: 1698244702, tv_nsec: 231976301 })))
+  ▶ ReadFile(&quot;/tmp/.tmpJDwzGs/in.txt&quot;, Modified)
+   - /tmp/.tmpJDwzGs/in.txt
   ◀ Ok(String(&quot;!DLROW OLLEH&quot;))
- ✗ ReadFile(&quot;/tmp/.tmpwG1KrV/in.txt&quot;, Modified) (old: Equals(Ok(String(&quot;HELLO WORLD!&quot;))) ≠ new: Equals(Ok(String(&quot;!DLROW OLLEH&quot;))))
- ▶ ToLower(ReadFile(&quot;/tmp/.tmpwG1KrV/in.txt&quot;, Modified))
-  → ReadFile(&quot;/tmp/.tmpwG1KrV/in.txt&quot;, Modified)
+ ✗ ReadFile(&quot;/tmp/.tmpJDwzGs/in.txt&quot;, Modified) (old: Equals(Ok(String(&quot;HELLO WORLD!&quot;))) ≠ new: Equals(Ok(String(&quot;!DLROW OLLEH&quot;))))
+ ▶ ToLower(ReadFile(&quot;/tmp/.tmpJDwzGs/in.txt&quot;, Modified))
+  → ReadFile(&quot;/tmp/.tmpJDwzGs/in.txt&quot;, Modified)
   ← Ok(String(&quot;!DLROW OLLEH&quot;))
  ◀ Ok(String(&quot;!dlrow olleh&quot;))
 ← Ok(String(&quot;!dlrow olleh&quot;))

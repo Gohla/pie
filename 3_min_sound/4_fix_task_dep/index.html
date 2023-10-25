@@ -350,23 +350,23 @@ How can that be?</p>
 </div>
 <p>Inspect the build log with <code>cargo test --test top_down test_no_superfluous_task_dependencies</code>.
 The third (last) build log should look like this:</p>
-<pre><code>→ ToUpper(ToLower(ReadFile(&quot;/tmp/.tmpOm3QNz/in.txt&quot;, Modified)))
- ? ReadFile(&quot;/tmp/.tmpOm3QNz/in.txt&quot;, Modified)
-  → ReadFile(&quot;/tmp/.tmpOm3QNz/in.txt&quot;, Modified)
-   ✗ /tmp/.tmpOm3QNz/in.txt (old: Modified(Some(SystemTime { tv_sec: 1698243705, tv_nsec: 589901913 })) ≠ new: Modified(Some(SystemTime { tv_sec: 1698243705, tv_nsec: 593902101 })))
-   ▶ ReadFile(&quot;/tmp/.tmpOm3QNz/in.txt&quot;, Modified)
-    - /tmp/.tmpOm3QNz/in.txt
+<pre><code>→ ToUpper(ToLower(ReadFile(&quot;/tmp/.tmpT154JJ/in.txt&quot;, Modified)))
+ ? ReadFile(&quot;/tmp/.tmpT154JJ/in.txt&quot;, Modified)
+  → ReadFile(&quot;/tmp/.tmpT154JJ/in.txt&quot;, Modified)
+   ✗ /tmp/.tmpT154JJ/in.txt (old: Modified(Some(SystemTime { tv_sec: 1698244700, tv_nsec: 343963528 })) ≠ new: Modified(Some(SystemTime { tv_sec: 1698244700, tv_nsec: 347963555 })))
+   ▶ ReadFile(&quot;/tmp/.tmpT154JJ/in.txt&quot;, Modified)
+    - /tmp/.tmpT154JJ/in.txt
    ◀ Ok(String(&quot;HeLLo, WorLd!&quot;))
   ← Ok(String(&quot;HeLLo, WorLd!&quot;))
- ✗ ReadFile(&quot;/tmp/.tmpOm3QNz/in.txt&quot;, Modified) (old: Equals(Ok(String(&quot;Hello, World!&quot;))) ≠ new: Equals(Ok(String(&quot;HeLLo, WorLd!&quot;))))
- ▶ ToUpper(ToLower(ReadFile(&quot;/tmp/.tmpOm3QNz/in.txt&quot;, Modified)))
-  → ToLower(ReadFile(&quot;/tmp/.tmpOm3QNz/in.txt&quot;, Modified))
-   ? ReadFile(&quot;/tmp/.tmpOm3QNz/in.txt&quot;, Modified)
-    → ReadFile(&quot;/tmp/.tmpOm3QNz/in.txt&quot;, Modified)
+ ✗ ReadFile(&quot;/tmp/.tmpT154JJ/in.txt&quot;, Modified) (old: Equals(Ok(String(&quot;Hello, World!&quot;))) ≠ new: Equals(Ok(String(&quot;HeLLo, WorLd!&quot;))))
+ ▶ ToUpper(ToLower(ReadFile(&quot;/tmp/.tmpT154JJ/in.txt&quot;, Modified)))
+  → ToLower(ReadFile(&quot;/tmp/.tmpT154JJ/in.txt&quot;, Modified))
+   ? ReadFile(&quot;/tmp/.tmpT154JJ/in.txt&quot;, Modified)
+    → ReadFile(&quot;/tmp/.tmpT154JJ/in.txt&quot;, Modified)
     ← Ok(String(&quot;HeLLo, WorLd!&quot;))
-   ✗ ReadFile(&quot;/tmp/.tmpOm3QNz/in.txt&quot;, Modified) (old: Equals(Ok(String(&quot;Hello, World!&quot;))) ≠ new: Equals(Ok(String(&quot;HeLLo, WorLd!&quot;))))
-   ▶ ToLower(ReadFile(&quot;/tmp/.tmpOm3QNz/in.txt&quot;, Modified))
-    → ReadFile(&quot;/tmp/.tmpOm3QNz/in.txt&quot;, Modified)
+   ✗ ReadFile(&quot;/tmp/.tmpT154JJ/in.txt&quot;, Modified) (old: Equals(Ok(String(&quot;Hello, World!&quot;))) ≠ new: Equals(Ok(String(&quot;HeLLo, WorLd!&quot;))))
+   ▶ ToLower(ReadFile(&quot;/tmp/.tmpT154JJ/in.txt&quot;, Modified))
+    → ReadFile(&quot;/tmp/.tmpT154JJ/in.txt&quot;, Modified)
     ← Ok(String(&quot;HeLLo, WorLd!&quot;))
    ◀ Ok(String(&quot;hello, world!&quot;))
   ← Ok(String(&quot;hello, world!&quot;))
@@ -433,14 +433,14 @@ Even if we are only <em>consistency checking</em> a task to see if it should be 
 We only manifested the bug in the last test due to having a chain of 2 task dependencies, and by carefully controlling what is being executed and what is being checked.</p>
 <p>Recall the second build in the <code>test_no_superfluous_task_dependencies</code> test.
 The build log for that build looks like:</p>
-<pre><code>→ ToUpper(ToLower(ReadFile(&quot;/tmp/.tmpOm3QNz/in.txt&quot;, Modified)))
- ▶ ToUpper(ToLower(ReadFile(&quot;/tmp/.tmpOm3QNz/in.txt&quot;, Modified)))
-  → ToLower(ReadFile(&quot;/tmp/.tmpOm3QNz/in.txt&quot;, Modified))
-   ? ReadFile(&quot;/tmp/.tmpOm3QNz/in.txt&quot;, Modified)
-    → ReadFile(&quot;/tmp/.tmpOm3QNz/in.txt&quot;, Modified)
-     ✓ /tmp/.tmpOm3QNz/in.txt
+<pre><code>→ ToUpper(ToLower(ReadFile(&quot;/tmp/.tmpT154JJ/in.txt&quot;, Modified)))
+ ▶ ToUpper(ToLower(ReadFile(&quot;/tmp/.tmpT154JJ/in.txt&quot;, Modified)))
+  → ToLower(ReadFile(&quot;/tmp/.tmpT154JJ/in.txt&quot;, Modified))
+   ? ReadFile(&quot;/tmp/.tmpT154JJ/in.txt&quot;, Modified)
+    → ReadFile(&quot;/tmp/.tmpT154JJ/in.txt&quot;, Modified)
+     ✓ /tmp/.tmpT154JJ/in.txt
     ← Ok(String(&quot;Hello, World!&quot;))
-   ✓ ReadFile(&quot;/tmp/.tmpOm3QNz/in.txt&quot;, Modified)
+   ✓ ReadFile(&quot;/tmp/.tmpT154JJ/in.txt&quot;, Modified)
   ← Ok(String(&quot;hello, world!&quot;))
  ◀ Ok(String(&quot;HELLO, WORLD!&quot;))
 ← Ok(String(&quot;HELLO, WORLD!&quot;))
@@ -719,24 +719,24 @@ However, <code>test_require_task</code> now fails 😅.</p>
 This is because our changes have correctly removed several superfluous task requires, which influences these assertions.</p>
 <p>Inspect the build log for this test with <code>cargo test --test top_down test_require_task</code>.
 The second build now looks like:</p>
-<pre><code>→ ToLower(ReadFile(&quot;/tmp/.tmpwG1KrV/in.txt&quot;, Modified))
- ? ReadFile(&quot;/tmp/.tmpwG1KrV/in.txt&quot;, Modified)
-  ✓ /tmp/.tmpwG1KrV/in.txt
- ✓ ReadFile(&quot;/tmp/.tmpwG1KrV/in.txt&quot;, Modified)
+<pre><code>→ ToLower(ReadFile(&quot;/tmp/.tmpJDwzGs/in.txt&quot;, Modified))
+ ? ReadFile(&quot;/tmp/.tmpJDwzGs/in.txt&quot;, Modified)
+  ✓ /tmp/.tmpJDwzGs/in.txt
+ ✓ ReadFile(&quot;/tmp/.tmpJDwzGs/in.txt&quot;, Modified)
 ← Ok(String(&quot;hello world!&quot;))
 </code></pre>
 <p>In this second build, <code>ReadFile</code> is now no longer required, and instead is only checked.
 This is correct, and does not make any assertions fail.</p>
 <p>The third build now looks like:</p>
-<pre><code>→ ToLower(ReadFile(&quot;/tmp/.tmpwG1KrV/in.txt&quot;, Modified))
- ? ReadFile(&quot;/tmp/.tmpwG1KrV/in.txt&quot;, Modified)
-  ✗ /tmp/.tmpwG1KrV/in.txt (old: Modified(Some(SystemTime { tv_sec: 1698243707, tv_nsec: 417987638 })) ≠ new: Modified(Some(SystemTime { tv_sec: 1698243707, tv_nsec: 421987825 })))
-  ▶ ReadFile(&quot;/tmp/.tmpwG1KrV/in.txt&quot;, Modified)
-   - /tmp/.tmpwG1KrV/in.txt
+<pre><code>→ ToLower(ReadFile(&quot;/tmp/.tmpJDwzGs/in.txt&quot;, Modified))
+ ? ReadFile(&quot;/tmp/.tmpJDwzGs/in.txt&quot;, Modified)
+  ✗ /tmp/.tmpJDwzGs/in.txt (old: Modified(Some(SystemTime { tv_sec: 1698244702, tv_nsec: 227976274 })) ≠ new: Modified(Some(SystemTime { tv_sec: 1698244702, tv_nsec: 231976301 })))
+  ▶ ReadFile(&quot;/tmp/.tmpJDwzGs/in.txt&quot;, Modified)
+   - /tmp/.tmpJDwzGs/in.txt
   ◀ Ok(String(&quot;!DLROW OLLEH&quot;))
- ✗ ReadFile(&quot;/tmp/.tmpwG1KrV/in.txt&quot;, Modified) (old: Equals(Ok(String(&quot;HELLO WORLD!&quot;))) ≠ new: Equals(Ok(String(&quot;!DLROW OLLEH&quot;))))
- ▶ ToLower(ReadFile(&quot;/tmp/.tmpwG1KrV/in.txt&quot;, Modified))
-  → ReadFile(&quot;/tmp/.tmpwG1KrV/in.txt&quot;, Modified)
+ ✗ ReadFile(&quot;/tmp/.tmpJDwzGs/in.txt&quot;, Modified) (old: Equals(Ok(String(&quot;HELLO WORLD!&quot;))) ≠ new: Equals(Ok(String(&quot;!DLROW OLLEH&quot;))))
+ ▶ ToLower(ReadFile(&quot;/tmp/.tmpJDwzGs/in.txt&quot;, Modified))
+  → ReadFile(&quot;/tmp/.tmpJDwzGs/in.txt&quot;, Modified)
   ← Ok(String(&quot;!DLROW OLLEH&quot;))
  ◀ Ok(String(&quot;!dlrow olleh&quot;))
 ← Ok(String(&quot;!dlrow olleh&quot;))

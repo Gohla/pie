@@ -196,16 +196,26 @@ Once RustRover comes out of preview, you will need to pay for it though (or appl
 <p>In this tutorial, we will create a subset of the <a href="https://github.com/Gohla/pie" title="" target="_blank">PIE in Rust</a> library, so we want to create a Rust library called <code>pie</code>.
 However, later on in the tutorial we will also create an additional library for unit testing utilities, so we need to set up a Rust project that supports multiple libraries.</p>
 <p>Therefore, first create a <code>programmatic-builds</code> directory, which will serve as the root directory of the project.
-This does not have to be called <code>programmatic-builds</code>, you can use a different name.
-The rest of the tutorial assumes that you are in your <code>programmatic-builds</code> root directory!</p>
-<p>Create the <code>pie</code> directory, and then create the <code>pie/Cargo.toml</code> file with the following contents:</p>
+This does not have to be called <code>programmatic-builds</code>, you can use a different name.</p>
+<div id="admonition-important" class="admonition admonish-warning">
+<div class="admonition-title">
+<p>Important</p>
+<p><a class="admonition-anchor-link" href="#admonition-important"></a></p>
+</div>
+<div>
+<p>In the rest of the tutorial, we assume that you are in your <code>programmatic-builds</code> root directory.
+So if you are instructed to create files or directories, they are always relative to your <code>programmatic-builds</code> root directory!</p>
+</div>
+</div>
+<p>Now let’s set up the <code>pie</code> library.
+Create the <code>pie</code> directory, and then create the <code>pie/Cargo.toml</code> file with the following contents:</p>
 <pre><code class="language-toml ">[package]
 name = &quot;pie&quot;
 version = &quot;0.1.0&quot;
 edition = &quot;2021&quot;
 </code></pre>
-<p>Then create the <code>pie/src</code> directory and create the <code>pie/src/lib.rs</code> file, which will be left empty for now.
-This marks <code>pie</code> as a Rust library, with version “0.1.0” and using Rust edition 2021.
+<p>Then create the <code>pie/src</code> directory and create the <code>pie/src/lib.rs</code> file, which will be left empty for now.</p>
+<p>This marks <code>pie</code> as a Rust library, with version “0.1.0” and using Rust edition 2021.
 The directory structure should look as follows (inside your <code>programmatic-builds</code> root directory):</p>
 <pre><code>pie
 ├── Cargo.toml
@@ -214,12 +224,23 @@ The directory structure should look as follows (inside your <code>programmatic-b
 │   └── lib.rs
 └── target
 </code></pre>
-<p>Run <code>cargo build</code> to test if the project was set up correctly.
-The output should look something like:</p>
+<p>Now we can build the project to see if it was set up correctly.
+Open up a terminal, go into the <code>pie</code> directory, and run <code>cargo build</code>.
+If all is well, the output should look something like:</p>
 <pre><code class="language-shell ">   Compiling pie v0.1.0 (/pie)
-    Finished dev [unoptimized + debuginfo] target(s) in 0.13s
+    Finished dev [unoptimized + debuginfo] target(s) in 0.11s
 </code></pre>
-<p>That means that Cargo has successfully built your project!</p>
+<div id="admonition-important-1" class="admonition admonish-warning">
+<div class="admonition-title">
+<p>Important</p>
+<p><a class="admonition-anchor-link" href="#admonition-important-1"></a></p>
+</div>
+<div>
+<p>In the rest of the tutorial, if you are instructed to run <code>cargo</code> commands, always run them inside the <code>pie</code> directory!</p>
+</div>
+</div>
+<p>If you’re using a Rust editor or IDE, it probably also has a mechanism for running cargo on your project.
+You can of course use that in place of running cargo from a terminal. </p>
 <details id="admonition-rust-editions" class="admonition admonish-tip">
 <summary class="admonition-title">
 <p>Rust Editions</p>
