@@ -176,15 +176,19 @@
                 <div id="content" class="content">
                     <main>
                         <h1 id="programmable-build-system-api"><a class="header" href="#programmable-build-system-api">Programmable Build System API</a></h1>
-<p>In this section, we will program the core API of the programmatic incremental build system.</p>
+<p>In this section, we will program the core API of the programmatic incremental build system.
+Although we are primarily concerned with programmability in this chapter, we must design the API to support incrementality!</p>
 <p>The unit of computation in a programmatic build system is a <em>task</em>.
-A task is kind of like a closure: a value that can be executed to produce their output.
-However, in an <em>incremental</em> programmatic build system, we also need to keep track of <em>dynamic dependencies</em> that are made while tasks are executing.
-Therefore, tasks are executed under a <em>build context</em> which enable them to create these dependencies.
-Tasks <em>require</em> other tasks through the context, creating a dynamic dependency and returning their up-to-date output.</p>
-<p>On the other hand, an incremental build context wants to <em>selectively execute tasks</em> — only those that are affected by a change.
-To that end, a build context will selectively execute tasks, tasks require other tasks through the build context, the build context selectively executes those, and so forth.
-Thus, tasks and build contexts are mutually recursive.</p>
+A task is kind of like a closure: a value that can be executed to produce their output, but <em>incremental</em>.
+To provide incrementality, we also need to keep track of the <em>dynamic dependencies</em> that tasks make while they are executing.
+Therefore, tasks are executed under an <em>incremental build context</em>, enabling them to create these dynamic dependencies.</p>
+<p>Tasks <em>require</em> files through the build context, creating a dynamic file dependency, ensuring the task gets re-executed when that file changes.
+Tasks also <em>require other tasks</em> through the build context, asking the build context to provide the consistent (most up-to-date) output of that task, and creating a dynamic task dependency to it.</p>
+<p>It is then up to the build context to <em>check</em> if it actually needs to execute that required task.
+If the required task is already consistent, the build context can just return the cached output of that task.
+Otherwise, the build context <em>executes</em> the required task, caches its output, and returns the output to the requiring task.
+A non-incremental context can naively execute tasks without checking.</p>
+<p>Because tasks require other tasks through the context, and the context selectively executes tasks, the definition of task and context is mutually recursive.</p>
 <div id="admonition-context" class="admonition admonish-abstract">
 <div class="admonition-title">
 <p>Context</p>
@@ -238,15 +242,25 @@ Because <code>Context</code> is a trait, we use generics (<code>&lt;C: Context&l
 The <code>execute</code> method takes self by reference such that a task can access its data, but not mutate it, as that could throw off incrementality by changing the hash/equality of the task.
 Finally, the type of output of a task is defined by the <code>Output</code> associated type, and this type must implement <code>Clone</code>, <code>Eq</code>, and <code>Debug</code> for the same reason as <code>Task</code>.</p>
 <p>The <code>Context</code> trait is generic over <code>Task</code>, allowing it to work with any task implementation.
-It has a single method <code>require_task</code> for creating a dependency to a task and returning its up-to-date result.
-It takes a mutable reference to itself, enabling dependency tracking and caching, which require mutation.
+It has a single method <code>require_task</code> for creating a dependency to a task and returning its consistent (up-to-date) result.
+It takes a mutable reference to itself, enabling dynamic dependency tracking and caching, which require mutation.
 Because of this, the context reference passed to <code>Task::execute</code> is also mutable.</p>
 <p>This <code>Task</code> and <code>Context</code> API mirrors the mutually recursive definition of task and context we discussed earlier, and forms the basis for the entire build system.</p>
+<div id="admonition-note" class="admonition admonish-note">
+<div class="admonition-title">
+<p>Note</p>
+<p><a class="admonition-anchor-link" href="#admonition-note"></a></p>
+</div>
+<div>
+<p>We will implement file dependencies in the next chapter, as file dependencies only become important with incrementality.</p>
+</div>
+</div>
 <p>Build the project by running <code>cargo build</code>.
 The output should look something like:</p>
 <pre><code class="language-shell ">   Compiling pie v0.1.0 (/pie)
-    Finished dev [unoptimized + debuginfo] target(s) in 0.04s
+    Finished dev [unoptimized + debuginfo] target(s) in 0.05s
 </code></pre>
+<p>In the next section, we will implement a non-incremental <code>Context</code> and test it against <code>Task</code> implementations.</p>
 <details id="admonition-rust-help-modules-imports-ownership-traits-methods-supertraits-associated-types-visibility" class="admonition admonish-tip">
 <summary class="admonition-title">
 <p>Rust Help: Modules, Imports, Ownership, Traits, Methods, Supertraits, Associated Types, Visibility</p>
