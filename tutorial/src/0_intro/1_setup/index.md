@@ -32,8 +32,13 @@ However, later on in the tutorial we will also create an additional library for 
 
 Therefore, first create a `programmatic-builds` directory, which will serve as the root directory of the project.
 This does not have to be called `programmatic-builds`, you can use a different name.
-The rest of the tutorial assumes that you are in your `programmatic-builds` root directory!
 
+```admonish warning title="Important"
+In the rest of the tutorial, we assume that you are in your `programmatic-builds` root directory.
+So if you are instructed to create files or directories, they are always relative to your `programmatic-builds` root directory!
+```
+
+Now let's set up the `pie` library.
 Create the `pie` directory, and then create the `pie/Cargo.toml` file with the following contents:
 
 ```toml,
@@ -41,6 +46,7 @@ Create the `pie` directory, and then create the `pie/Cargo.toml` file with the f
 ```
 
 Then create the `pie/src` directory and create the `pie/src/lib.rs` file, which will be left empty for now.
+
 This marks `pie` as a Rust library, with version "0.1.0" and using Rust edition 2021.
 The directory structure should look as follows (inside your `programmatic-builds` root directory):
 
@@ -48,14 +54,20 @@ The directory structure should look as follows (inside your `programmatic-builds
 {{#include ../../gen/0_intro/1_setup/dir.txt}}
 ```
 
-Run `cargo build` to test if the project was set up correctly.
-The output should look something like:
+Now we can build the project to see if it was set up correctly.
+Open up a terminal, go into the `pie` directory, and run `cargo build`.
+If all is well, the output should look something like:
 
 ```shell,
 {{#include ../../gen/0_intro/1_setup/cargo.txt}}
 ```
 
-That means that Cargo has successfully built your project!
+```admonish warning title="Important"
+In the rest of the tutorial, if you are instructed to run `cargo` commands, always run them inside the `pie` directory!
+```
+
+If you're using a Rust editor or IDE, it probably also has a mechanism for running cargo on your project.
+You can of course use that in place of running cargo from a terminal. 
 
 ```admonish tip title="Rust Editions" collapsible=true
 [Rust editions](https://doc.rust-lang.org/edition-guide/introduction.html) enable new features as an opt-in, without breaking existing code.
