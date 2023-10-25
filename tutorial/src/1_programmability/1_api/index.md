@@ -1,16 +1,22 @@
 # Programmable Build System API
 
 In this section, we will program the core API of the programmatic incremental build system.
+Although we are primarily concerned with programmability in this chapter, we must design the API to support incrementality!
 
-The unit of computation in a programmatic build system is a *task*.
-A task is kind of like a closure: a value that can be executed to produce their output.
-However, in an *incremental* programmatic build system, we also need to keep track of *dynamic dependencies* that are made while tasks are executing.
-Therefore, tasks are executed under a *build context* which enable them to create these dependencies.
-Tasks *require* other tasks through the context, creating a dynamic dependency and returning their up-to-date output.
+The unit of computation in a programmatic build system is a _task_.
+A task is kind of like a closure: a value that can be executed to produce their output, but _incremental_.
+To provide incrementality, we also need to keep track of the _dynamic dependencies_ that tasks make while they are executing.
+Therefore, tasks are executed under an _incremental build context_, enabling them to create these dynamic dependencies.
 
-On the other hand, an incremental build context wants to *selectively execute tasks* — only those that are affected by a change.
-To that end, a build context will selectively execute tasks, tasks require other tasks through the build context, the build context selectively executes those, and so forth.
-Thus, tasks and build contexts are mutually recursive.
+Tasks _require_ files through the build context, creating a dynamic file dependency, ensuring the task gets re-executed when that file changes.
+Tasks also _require other tasks_ through the build context, asking the build context to provide the consistent (most up-to-date) output of that task, and creating a dynamic task dependency to it.
+
+It is then up to the build context to _check_ if it actually needs to execute that required task.
+If the required task is already consistent, the build context can just return the cached output of that task.
+Otherwise, the build context _executes_ the required task, caches its output, and returns the output to the requiring task.
+A non-incremental context can naively execute tasks without checking.
+
+Because tasks require other tasks through the context, and the context selectively executes tasks, the definition of task and context is mutually recursive.
 
 ```admonish abstract title="Context"
 In this tutorial, we will be using the words *context*, *build context*, and *build system* interchangeably, typically using just *context* as it is concise.
@@ -46,11 +52,15 @@ The `execute` method takes self by reference such that a task can access its dat
 Finally, the type of output of a task is defined by the `Output` associated type, and this type must implement `Clone`, `Eq`, and `Debug` for the same reason as `Task`.
 
 The `Context` trait is generic over `Task`, allowing it to work with any task implementation.
-It has a single method `require_task` for creating a dependency to a task and returning its up-to-date result.
-It takes a mutable reference to itself, enabling dependency tracking and caching, which require mutation.
+It has a single method `require_task` for creating a dependency to a task and returning its consistent (up-to-date) result.
+It takes a mutable reference to itself, enabling dynamic dependency tracking and caching, which require mutation.
 Because of this, the context reference passed to `Task::execute` is also mutable.
 
 This `Task` and `Context` API mirrors the mutually recursive definition of task and context we discussed earlier, and forms the basis for the entire build system.
+
+```admonish note
+We will implement file dependencies in the next chapter, as file dependencies only become important with incrementality.
+```
 
 Build the project by running `cargo build`.
 The output should look something like:
@@ -58,6 +68,8 @@ The output should look something like:
 ```shell,
 {{#include ../../gen/1_programmability/1_api/a_cargo.txt}}
 ```
+
+In the next section, we will implement a non-incremental `Context` and test it against `Task` implementations.
 
 ```admonish tip title="Rust Help: Modules, Imports, Ownership, Traits, Methods, Supertraits, Associated Types, Visibility" collapsible=true
 [The Rust Programming Language](https://doc.rust-lang.org/book/ch00-00-introduction.html) is an introductory book about Rust. I will try to provide links to the book where possible.
