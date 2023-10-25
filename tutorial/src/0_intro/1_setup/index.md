@@ -78,5 +78,5 @@ This ignores the `target` directory that Rust/Cargo uses to store intermediate a
 Continue to the next chapter where we will start implementing the "programmatic" part of programmatic incremental build systems.
 
 ```admonish example title="Download source code" collapsible=true
-You can [download the source files up to this point](../../gen/1_programmability/0_setup/source.zip).
+You can [download the source files up to this point](../../gen/0_intro/1_setup/source.zip).
 ```
