@@ -194,22 +194,60 @@ Where possible I will try to explain design decisions, discuss tradeoffs, or pro
 <li><em>Automatic</em>: The build system takes care of incrementality and correctness. Build authors <em>do not</em> have to manually implement incrementality. Instead, they only have to explicitly <em>declare dependencies</em>.</li>
 <li><em>Multipurpose</em>: The same build script can be used for incremental batch builds in a terminal, but also for live feedback in an interactive environment such as an IDE. For example, a compiler implemented in this build system can provide incremental batch compilation but also incremental editor services such as syntax highlighting or code completion.</li>
 </ul>
-<p>As a small teaser, here is a simplified version of a build script that… in Rust.</p>
-<div id="admonition-under-construction" class="admonition admonish-warning">
-<div class="admonition-title">
-<p>Under construction</p>
-<p><a class="admonition-anchor-link" href="0_intro/index.html#admonition-under-construction"></a></p>
-</div>
-<div>
-<p>Example is under construction:</p>
-<ul>
-<li>TODO: example</li>
-<li>TODO: explain very broadly the concepts in the example: tasks, dependencies, etc.</li>
-</ul>
-</div>
-</div>
-<p>I prefer writing builds in a programming language like this, over having to <em>encode</em> a build into a YAML file with underspecified semantics, and over having to learn and use a build scripting language with limited tooling.
+<h4 id="teaser-toy-example"><a class="header" href="#teaser-toy-example">Teaser Toy Example</a></h4>
+<p>As a small teaser, here is a simplified version of a programmatic incremental toy build script that copies a text file by reading and writing:</p>
+<pre><code class="language-rust">struct ReadFile { file: PathBuf }
+impl Task for ReadFile {
+  fn execute&lt;C: Context&gt;(&amp;self, context: &amp;mut C) -&gt; Result&lt;String, io::Error&gt; {
+    context.require_file(&amp;self.file)?;
+    fs::read_to_string(&amp;self.file)
+  }
+}
+
+struct WriteFile&lt;T&gt; { task: T, file: PathBuf }
+impl&lt;T: Task&gt; Task for WriteFile&lt;T&gt; {
+  fn execute&lt;C: Context&gt;(&amp;self, context: &amp;mut C) -&gt; Result&lt;(), io::Error&gt; {
+    let string: String = context.require_task(&amp;self.task)?;
+    fs::write(&amp;self.file, string.as_bytes())?;
+    context.provide_file(&amp;self.file)
+  }
+}
+
+fn main() {
+  let read_task = ReadFile { file: PathBuf::from(&quot;in.txt&quot;) };
+  let write_task = WriteFile { task: read_task, file: PathBuf::from(&quot;out.txt&quot;) };
+  Pie::default().new_session().require(&amp;write_task);
+}</code></pre>
+<p>The unit of computation in a programmatic incremental build system is a <em>task</em>.
+A task is kind of like a closure, a function along with its inputs that can be executed, but incremental.
+For example, the <code>ReadFile</code> task carries the file path it reads from.
+When we <code>execute</code> the task, it reads from the file and returns its text as a string.
+However, due to incrementality, we declare the file as a <code>require_file</code> dependency through <code>context</code>, such that this task is only re-executed when the file changes!</p>
+<p>Note that this file read dependency is created <em>while the task is executing</em>.
+We call these <em>dynamic dependencies</em>.
+This is one of the main benefits of programmatic incremental build systems: you create dependencies <em>while the build is executing</em>, instead of having to declare them upfront!</p>
+<p>Dynamic dependencies are also created between tasks.
+For example, <code>WriteFile</code> carries a task as input, which it requires with <code>context.require_task</code> to retrieve the text for writing to a file.
+We’ll cover how this works later on in the tutorial.
+For now, let’s zoom back out to the motivation of programmatic incremental build systems.</p>
+<h4 id="back-to-motivation"><a class="header" href="#back-to-motivation">Back to Motivation</a></h4>
+<p>I prefer writing builds in a programming language like this, over having to <em>encode</em> a build into a YAML file with underspecified semantics, and over having to learn and use a new build scripting language with limited tooling.
 By <em>programming builds</em>, I can reuse my knowledge of the programming language, I get help from the compiler and IDE that I’d normally get while programming, I can modularize and reuse parts of my build as a library, and can use other programming language features such as unit testing, integration testing, benchmarking, etc.</p>
+<p>Programmatic builds <em>do not exclude declarativity</em>, however.
+You can layer declarative features on top of programmatic builds, such as declarative configuration files that determine <em>what</em> should be built without having to specify <em>how</em> things are built.
+For example, you could write a task like the one from the example, which reads and parses a config file, and then dispatch tasks that build required things.
+Therefore, programmatic builds are useful for both small one-off builds, and for creating larger incremental build systems that work with a lot of user inputs.</p>
+<p>Dynamic dependencies enable creating precise dependencies, <em>without requiring staging</em>, as is often found in build systems with static dependencies.
+For example, dynamic dependencies in <a href="https://www.gnu.org/software/make/" title="" target="_blank">Make</a> requires staging: generate new makefiles and recursively execute them, which is tedious and error-prone.
+<a href="https://gradle.org/" title="" target="_blank">Gradle</a> has a two-staged build process: first configure the task graph, then incrementally execute it.
+In the execution stage, you cannot modify dependencies or create new tasks.
+Therefore, more work needs to be done in the configuration stage, which is not (fully) incrementalized.
+Dynamic dependencies solve these problems by doing away with staging!</p>
+<p>Finally, precise dynamic dependencies enable incrementality but also correctness.
+A task is re-executed when one or more of its dependencies become inconsistent.
+For example, the <code>WriteFile</code> task from the example is re-executed when the task dependency returns different text, or when the file it writes to is modified or deleted.
+This is both incremental and correct.</p>
+<h4 id="disadvantages"><a class="header" href="#disadvantages">Disadvantages</a></h4>
 <p>Of course, programmatic incremental build systems also have some disadvantages.
 These disadvantages become more clear during the tutorial, but I want to list them here to be up-front about it:</p>
 <ul>
@@ -335,7 +373,7 @@ Because of this, the context reference passed to <code>Task::execute</code> is a
 <p>Build the project by running <code>cargo build</code>.
 The output should look something like:</p>
 <pre><code class="language-shell ">   Compiling pie v0.1.0 (/pie)
-    Finished dev [unoptimized + debuginfo] target(s) in 0.04s
+    Finished dev [unoptimized + debuginfo] target(s) in 0.05s
 </code></pre>
 <details id="admonition-rust-help-modules-imports-ownership-traits-methods-supertraits-associated-types-visibility" class="admonition admonish-tip">
 <summary class="admonition-title">
@@ -415,13 +453,13 @@ Create the <code>context</code> module by adding a module to <code>pie/src/lib.r
 <p>Create the <code>pie/src/context/non_incremental.rs</code> file, it will be empty for now.
 Your project structure should now look like:</p>
 <pre><code>pie
-├── Cargo.toml
-├── Cargo.lock
 ├── src
 │   ├── context
-│   │   ├── mod.rs
-│   │   └── non_incremental.rs
+│   │   ├── non_incremental.rs
+│   │   └── mod.rs
 │   └── lib.rs
+├── Cargo.toml
+├── Cargo.lock
 └── target
 </code></pre>
 <p>Confirm your module structure is correct by building with <code>cargo build</code>.</p>
@@ -500,7 +538,7 @@ It returns the output of the task, which we test with <code>assert_eq!</code>.</
 <p>Run the test by running <code>cargo test</code>.
 The output should look something like:</p>
 <pre><code class="language-shell ">   Compiling pie v0.1.0 (/pie)
-    Finished test [unoptimized + debuginfo] target(s) in 0.32s
+    Finished test [unoptimized + debuginfo] target(s) in 0.56s
      Running unittests src/lib.rs (/pie/target/debug/deps/pie-2022d1785b8ce336)
 
 running 1 test
@@ -1025,20 +1063,20 @@ pub fn create_temp_file() -&gt; Result&lt;NamedTempFile, io::Error&gt; { NamedTe
 /// Creates a new temporary directory that gets cleaned up when dropped.
 pub fn create_temp_dir() -&gt; Result&lt;TempDir, io::Error&gt; { TempDir::new() }</code></pre>
 <p>Your directory structure should now look like this:</p>
-<pre><code>├── pie
-│   ├── Cargo.toml
-│   ├── Cargo.lock
+<pre><code>├── dev_shared
 │   ├── src
-│   │   ├── fs.rs
-│   │   ├── context
-│   │   │   ├── mod.rs
-│   │   │   └── non_incremental.rs
 │   │   └── lib.rs
-│   └── target
-└── dev_shared
+│   └── Cargo.toml
+└── pie
+    ├── src
+    │   ├── fs.rs
+    │   ├── context
+    │   │   ├── non_incremental.rs
+    │   │   └── mod.rs
+    │   └── lib.rs
     ├── Cargo.toml
-    └── src
-        └── lib.rs
+    ├── Cargo.lock
+    └── target
 </code></pre>
 <p>To access these utility functions in the <code>pie</code> crate, add a dependency to <code>dev_shared</code> in <code>pie/Cargo.toml</code> along with another create that will help testing:</p>
 <div class="diff2html" id="diff2html_2"></div>
@@ -3334,7 +3372,7 @@ Run this example with <code>cargo run --example incremental</code>.
 You should see the <code>println!</code> in <code>ReadStringFromFile</code> appear in your console as the incremental context correctly determines that this task is new (i.e., has no output) and must be executed.
 It should look something like:</p>
 <pre><code>   Compiling pie v0.1.0 (/pie)
-    Finished dev [unoptimized + debuginfo] target(s) in 0.92s
+    Finished dev [unoptimized + debuginfo] target(s) in 1.16s
      Running `/pie/target/debug/examples/incremental`
 A) New task: expect `read_task` to execute
 Reading from input.txt with Modified stamper
@@ -3349,7 +3387,7 @@ Reading from input.txt with Modified stamper
   assert_eq!(&amp;output, &quot;Hi&quot;);</code></pre>
 <p>Running with <code>cargo run --example incremental</code> should produce output like:</p>
 <pre><code>   Compiling pie v0.1.0 (/pie)
-    Finished dev [unoptimized + debuginfo] target(s) in 0.44s
+    Finished dev [unoptimized + debuginfo] target(s) in 0.57s
      Running `/pie/target/debug/examples/incremental`
 A) New task: expect `read_task` to execute
 Reading from input.txt with Modified stamper
@@ -3411,7 +3449,7 @@ This shows that tasks can depend on the same file with different stampers, which
 <p>Of course, using an <code>Exists</code> stamper for <code>ReadStringFromFile</code> does not make a lot of sense, but this is for demonstration purposes only.</p>
 <p>Running <code>cargo run --example incremental</code> now should produce output like:</p>
 <pre><code>   Compiling pie v0.1.0 (/pie)
-    Finished dev [unoptimized + debuginfo] target(s) in 0.45s
+    Finished dev [unoptimized + debuginfo] target(s) in 0.58s
      Running `/pie/target/debug/examples/incremental`
 A) New task: expect `read_task` to execute
 Reading from input.txt with Modified stamper
@@ -4694,55 +4732,55 @@ You can add configuration booleans to control what should be written, but in thi
 <p>We remove the <code>println!</code> statements from tasks and create <code>Pie</code> with <code>WritingTracker</code>.
 Now run the example with <code>cargo run --example incremental</code>, and you should see the writing tracker print to standard output:</p>
 <pre><code>   Compiling pie v0.1.0 (/pie)
-    Finished dev [unoptimized + debuginfo] target(s) in 0.59s
+    Finished dev [unoptimized + debuginfo] target(s) in 0.79s
      Running `/pie/target/debug/examples/incremental`
 A) New task: expect `read_task` to execute
-→ ReadStringFromFile(&quot;/tmp/.tmpyqub8x/input.txt&quot;, Modified)
- ▶ ReadStringFromFile(&quot;/tmp/.tmpyqub8x/input.txt&quot;, Modified)
-  - /tmp/.tmpyqub8x/input.txt
+→ ReadStringFromFile(&quot;/tmp/.tmpMMoe0w/input.txt&quot;, Modified)
+ ▶ ReadStringFromFile(&quot;/tmp/.tmpMMoe0w/input.txt&quot;, Modified)
+  - /tmp/.tmpMMoe0w/input.txt
  ◀ Ok(&quot;Hi&quot;)
 ← Ok(&quot;Hi&quot;)
 🏁
 
 B) Reuse: expect no execution
-→ ReadStringFromFile(&quot;/tmp/.tmpyqub8x/input.txt&quot;, Modified)
- ✓ /tmp/.tmpyqub8x/input.txt
+→ ReadStringFromFile(&quot;/tmp/.tmpMMoe0w/input.txt&quot;, Modified)
+ ✓ /tmp/.tmpMMoe0w/input.txt
 ← Ok(&quot;Hi&quot;)
 🏁
 
 C) Inconsistent file dependency: expect `read_task` to execute
-→ ReadStringFromFile(&quot;/tmp/.tmpyqub8x/input.txt&quot;, Modified)
- ✗ /tmp/.tmpyqub8x/input.txt (old: Modified(Some(SystemTime { tv_sec: 1698069286, tv_nsec: 654319094 })) ≠ new: Modified(Some(SystemTime { tv_sec: 1698069286, tv_nsec: 658319042 })))
- ▶ ReadStringFromFile(&quot;/tmp/.tmpyqub8x/input.txt&quot;, Modified)
-  - /tmp/.tmpyqub8x/input.txt
+→ ReadStringFromFile(&quot;/tmp/.tmpMMoe0w/input.txt&quot;, Modified)
+ ✗ /tmp/.tmpMMoe0w/input.txt (old: Modified(Some(SystemTime { tv_sec: 1698229161, tv_nsec: 387727987 })) ≠ new: Modified(Some(SystemTime { tv_sec: 1698229161, tv_nsec: 391728180 })))
+ ▶ ReadStringFromFile(&quot;/tmp/.tmpMMoe0w/input.txt&quot;, Modified)
+  - /tmp/.tmpMMoe0w/input.txt
  ◀ Ok(&quot;Hello&quot;)
 ← Ok(&quot;Hello&quot;)
 🏁
 
 D) Different tasks: expect `read_task_b_modified` and `read_task_b_exists` to execute
-→ ReadStringFromFile(&quot;/tmp/.tmpyqub8x/input_b.txt&quot;, Modified)
- ▶ ReadStringFromFile(&quot;/tmp/.tmpyqub8x/input_b.txt&quot;, Modified)
-  - /tmp/.tmpyqub8x/input_b.txt
+→ ReadStringFromFile(&quot;/tmp/.tmpMMoe0w/input_b.txt&quot;, Modified)
+ ▶ ReadStringFromFile(&quot;/tmp/.tmpMMoe0w/input_b.txt&quot;, Modified)
+  - /tmp/.tmpMMoe0w/input_b.txt
  ◀ Ok(&quot;Test&quot;)
 ← Ok(&quot;Test&quot;)
 🏁
-→ ReadStringFromFile(&quot;/tmp/.tmpyqub8x/input_b.txt&quot;, Exists)
- ▶ ReadStringFromFile(&quot;/tmp/.tmpyqub8x/input_b.txt&quot;, Exists)
-  - /tmp/.tmpyqub8x/input_b.txt
+→ ReadStringFromFile(&quot;/tmp/.tmpMMoe0w/input_b.txt&quot;, Exists)
+ ▶ ReadStringFromFile(&quot;/tmp/.tmpMMoe0w/input_b.txt&quot;, Exists)
+  - /tmp/.tmpMMoe0w/input_b.txt
  ◀ Ok(&quot;Test&quot;)
 ← Ok(&quot;Test&quot;)
 🏁
 
 E) Different stampers: expect only `read_task_b_modified` to execute
-→ ReadStringFromFile(&quot;/tmp/.tmpyqub8x/input_b.txt&quot;, Modified)
- ✗ /tmp/.tmpyqub8x/input_b.txt (old: Modified(Some(SystemTime { tv_sec: 1698069286, tv_nsec: 658319042 })) ≠ new: Modified(Some(SystemTime { tv_sec: 1698069286, tv_nsec: 662318991 })))
- ▶ ReadStringFromFile(&quot;/tmp/.tmpyqub8x/input_b.txt&quot;, Modified)
-  - /tmp/.tmpyqub8x/input_b.txt
+→ ReadStringFromFile(&quot;/tmp/.tmpMMoe0w/input_b.txt&quot;, Modified)
+ ✗ /tmp/.tmpMMoe0w/input_b.txt (old: Modified(Some(SystemTime { tv_sec: 1698229161, tv_nsec: 391728180 })) ≠ new: Modified(Some(SystemTime { tv_sec: 1698229161, tv_nsec: 395728373 })))
+ ▶ ReadStringFromFile(&quot;/tmp/.tmpMMoe0w/input_b.txt&quot;, Modified)
+  - /tmp/.tmpMMoe0w/input_b.txt
  ◀ Ok(&quot;Test Test&quot;)
 ← Ok(&quot;Test Test&quot;)
 🏁
-→ ReadStringFromFile(&quot;/tmp/.tmpyqub8x/input_b.txt&quot;, Exists)
- ✓ /tmp/.tmpyqub8x/input_b.txt
+→ ReadStringFromFile(&quot;/tmp/.tmpMMoe0w/input_b.txt&quot;, Exists)
+ ✓ /tmp/.tmpMMoe0w/input_b.txt
 ← Ok(&quot;Test&quot;)
 🏁
 </code></pre>
@@ -5332,8 +5370,8 @@ If you want to see the standard output, either:</p>
 <li>Run a <a href="https://doc.rust-lang.org/book/ch11-02-running-tests.html#running-single-tests" title="" target="_blank">single test</a> in the <code>top_down</code> integration test file with: <code>cargo test --test top_down test_reuse</code></li>
 </ul>
 <p>The second command should result in something like:</p>
-<pre><code>    Finished test [unoptimized + debuginfo] target(s) in 0.02s
-     Running tests/top_down.rs (/pie/target/debug/deps/top_down-a155b2b87c508599)
+<pre><code>    Finished test [unoptimized + debuginfo] target(s) in 0.03s
+     Running tests/top_down.rs (/pie/target/debug/deps/top_down-b22e5c9edd2ff72f)
 
 running 1 test
 → Return(&quot;Hello, World!&quot;)
@@ -6107,23 +6145,23 @@ How can that be?</p>
 </div>
 <p>Inspect the build log with <code>cargo test --test top_down test_no_superfluous_task_dependencies</code>.
 The third (last) build log should look like this:</p>
-<pre><code>→ ToUpper(ToLower(ReadFile(&quot;/tmp/.tmpnpPX3u/in.txt&quot;, Modified)))
- ? ReadFile(&quot;/tmp/.tmpnpPX3u/in.txt&quot;, Modified)
-  → ReadFile(&quot;/tmp/.tmpnpPX3u/in.txt&quot;, Modified)
-   ✗ /tmp/.tmpnpPX3u/in.txt (old: Modified(Some(SystemTime { tv_sec: 1698069296, tv_nsec: 10216143 })) ≠ new: Modified(Some(SystemTime { tv_sec: 1698069296, tv_nsec: 14216102 })))
-   ▶ ReadFile(&quot;/tmp/.tmpnpPX3u/in.txt&quot;, Modified)
-    - /tmp/.tmpnpPX3u/in.txt
+<pre><code>→ ToUpper(ToLower(ReadFile(&quot;/tmp/.tmpRNzqft/in.txt&quot;, Modified)))
+ ? ReadFile(&quot;/tmp/.tmpRNzqft/in.txt&quot;, Modified)
+  → ReadFile(&quot;/tmp/.tmpRNzqft/in.txt&quot;, Modified)
+   ✗ /tmp/.tmpRNzqft/in.txt (old: Modified(Some(SystemTime { tv_sec: 1698229173, tv_nsec: 56290505 })) ≠ new: Modified(Some(SystemTime { tv_sec: 1698229173, tv_nsec: 60290698 })))
+   ▶ ReadFile(&quot;/tmp/.tmpRNzqft/in.txt&quot;, Modified)
+    - /tmp/.tmpRNzqft/in.txt
    ◀ Ok(String(&quot;HeLLo, WorLd!&quot;))
   ← Ok(String(&quot;HeLLo, WorLd!&quot;))
- ✗ ReadFile(&quot;/tmp/.tmpnpPX3u/in.txt&quot;, Modified) (old: Equals(Ok(String(&quot;Hello, World!&quot;))) ≠ new: Equals(Ok(String(&quot;HeLLo, WorLd!&quot;))))
- ▶ ToUpper(ToLower(ReadFile(&quot;/tmp/.tmpnpPX3u/in.txt&quot;, Modified)))
-  → ToLower(ReadFile(&quot;/tmp/.tmpnpPX3u/in.txt&quot;, Modified))
-   ? ReadFile(&quot;/tmp/.tmpnpPX3u/in.txt&quot;, Modified)
-    → ReadFile(&quot;/tmp/.tmpnpPX3u/in.txt&quot;, Modified)
+ ✗ ReadFile(&quot;/tmp/.tmpRNzqft/in.txt&quot;, Modified) (old: Equals(Ok(String(&quot;Hello, World!&quot;))) ≠ new: Equals(Ok(String(&quot;HeLLo, WorLd!&quot;))))
+ ▶ ToUpper(ToLower(ReadFile(&quot;/tmp/.tmpRNzqft/in.txt&quot;, Modified)))
+  → ToLower(ReadFile(&quot;/tmp/.tmpRNzqft/in.txt&quot;, Modified))
+   ? ReadFile(&quot;/tmp/.tmpRNzqft/in.txt&quot;, Modified)
+    → ReadFile(&quot;/tmp/.tmpRNzqft/in.txt&quot;, Modified)
     ← Ok(String(&quot;HeLLo, WorLd!&quot;))
-   ✗ ReadFile(&quot;/tmp/.tmpnpPX3u/in.txt&quot;, Modified) (old: Equals(Ok(String(&quot;Hello, World!&quot;))) ≠ new: Equals(Ok(String(&quot;HeLLo, WorLd!&quot;))))
-   ▶ ToLower(ReadFile(&quot;/tmp/.tmpnpPX3u/in.txt&quot;, Modified))
-    → ReadFile(&quot;/tmp/.tmpnpPX3u/in.txt&quot;, Modified)
+   ✗ ReadFile(&quot;/tmp/.tmpRNzqft/in.txt&quot;, Modified) (old: Equals(Ok(String(&quot;Hello, World!&quot;))) ≠ new: Equals(Ok(String(&quot;HeLLo, WorLd!&quot;))))
+   ▶ ToLower(ReadFile(&quot;/tmp/.tmpRNzqft/in.txt&quot;, Modified))
+    → ReadFile(&quot;/tmp/.tmpRNzqft/in.txt&quot;, Modified)
     ← Ok(String(&quot;HeLLo, WorLd!&quot;))
    ◀ Ok(String(&quot;hello, world!&quot;))
   ← Ok(String(&quot;hello, world!&quot;))
@@ -6190,14 +6228,14 @@ Even if we are only <em>consistency checking</em> a task to see if it should be 
 We only manifested the bug in the last test due to having a chain of 2 task dependencies, and by carefully controlling what is being executed and what is being checked.</p>
 <p>Recall the second build in the <code>test_no_superfluous_task_dependencies</code> test.
 The build log for that build looks like:</p>
-<pre><code>→ ToUpper(ToLower(ReadFile(&quot;/tmp/.tmpnpPX3u/in.txt&quot;, Modified)))
- ▶ ToUpper(ToLower(ReadFile(&quot;/tmp/.tmpnpPX3u/in.txt&quot;, Modified)))
-  → ToLower(ReadFile(&quot;/tmp/.tmpnpPX3u/in.txt&quot;, Modified))
-   ? ReadFile(&quot;/tmp/.tmpnpPX3u/in.txt&quot;, Modified)
-    → ReadFile(&quot;/tmp/.tmpnpPX3u/in.txt&quot;, Modified)
-     ✓ /tmp/.tmpnpPX3u/in.txt
+<pre><code>→ ToUpper(ToLower(ReadFile(&quot;/tmp/.tmpRNzqft/in.txt&quot;, Modified)))
+ ▶ ToUpper(ToLower(ReadFile(&quot;/tmp/.tmpRNzqft/in.txt&quot;, Modified)))
+  → ToLower(ReadFile(&quot;/tmp/.tmpRNzqft/in.txt&quot;, Modified))
+   ? ReadFile(&quot;/tmp/.tmpRNzqft/in.txt&quot;, Modified)
+    → ReadFile(&quot;/tmp/.tmpRNzqft/in.txt&quot;, Modified)
+     ✓ /tmp/.tmpRNzqft/in.txt
     ← Ok(String(&quot;Hello, World!&quot;))
-   ✓ ReadFile(&quot;/tmp/.tmpnpPX3u/in.txt&quot;, Modified)
+   ✓ ReadFile(&quot;/tmp/.tmpRNzqft/in.txt&quot;, Modified)
   ← Ok(String(&quot;hello, world!&quot;))
  ◀ Ok(String(&quot;HELLO, WORLD!&quot;))
 ← Ok(String(&quot;HELLO, WORLD!&quot;))
@@ -6476,24 +6514,24 @@ However, <code>test_require_task</code> now fails 😅.</p>
 This is because our changes have correctly removed several superfluous task requires, which influences these assertions.</p>
 <p>Inspect the build log for this test with <code>cargo test --test top_down test_require_task</code>.
 The second build now looks like:</p>
-<pre><code>→ ToLower(ReadFile(&quot;/tmp/.tmpmf8FSa/in.txt&quot;, Modified))
- ? ReadFile(&quot;/tmp/.tmpmf8FSa/in.txt&quot;, Modified)
-  ✓ /tmp/.tmpmf8FSa/in.txt
- ✓ ReadFile(&quot;/tmp/.tmpmf8FSa/in.txt&quot;, Modified)
+<pre><code>→ ToLower(ReadFile(&quot;/tmp/.tmpLFF85T/in.txt&quot;, Modified))
+ ? ReadFile(&quot;/tmp/.tmpLFF85T/in.txt&quot;, Modified)
+  ✓ /tmp/.tmpLFF85T/in.txt
+ ✓ ReadFile(&quot;/tmp/.tmpLFF85T/in.txt&quot;, Modified)
 ← Ok(String(&quot;hello world!&quot;))
 </code></pre>
 <p>In this second build, <code>ReadFile</code> is now no longer required, and instead is only checked.
 This is correct, and does not make any assertions fail.</p>
 <p>The third build now looks like:</p>
-<pre><code>→ ToLower(ReadFile(&quot;/tmp/.tmpmf8FSa/in.txt&quot;, Modified))
- ? ReadFile(&quot;/tmp/.tmpmf8FSa/in.txt&quot;, Modified)
-  ✗ /tmp/.tmpmf8FSa/in.txt (old: Modified(Some(SystemTime { tv_sec: 1698069297, tv_nsec: 470201367 })) ≠ new: Modified(Some(SystemTime { tv_sec: 1698069297, tv_nsec: 474201327 })))
-  ▶ ReadFile(&quot;/tmp/.tmpmf8FSa/in.txt&quot;, Modified)
-   - /tmp/.tmpmf8FSa/in.txt
+<pre><code>→ ToLower(ReadFile(&quot;/tmp/.tmpLFF85T/in.txt&quot;, Modified))
+ ? ReadFile(&quot;/tmp/.tmpLFF85T/in.txt&quot;, Modified)
+  ✗ /tmp/.tmpLFF85T/in.txt (old: Modified(Some(SystemTime { tv_sec: 1698229174, tv_nsec: 960382339 })) ≠ new: Modified(Some(SystemTime { tv_sec: 1698229174, tv_nsec: 964382532 })))
+  ▶ ReadFile(&quot;/tmp/.tmpLFF85T/in.txt&quot;, Modified)
+   - /tmp/.tmpLFF85T/in.txt
   ◀ Ok(String(&quot;!DLROW OLLEH&quot;))
- ✗ ReadFile(&quot;/tmp/.tmpmf8FSa/in.txt&quot;, Modified) (old: Equals(Ok(String(&quot;HELLO WORLD!&quot;))) ≠ new: Equals(Ok(String(&quot;!DLROW OLLEH&quot;))))
- ▶ ToLower(ReadFile(&quot;/tmp/.tmpmf8FSa/in.txt&quot;, Modified))
-  → ReadFile(&quot;/tmp/.tmpmf8FSa/in.txt&quot;, Modified)
+ ✗ ReadFile(&quot;/tmp/.tmpLFF85T/in.txt&quot;, Modified) (old: Equals(Ok(String(&quot;HELLO WORLD!&quot;))) ≠ new: Equals(Ok(String(&quot;!DLROW OLLEH&quot;))))
+ ▶ ToLower(ReadFile(&quot;/tmp/.tmpLFF85T/in.txt&quot;, Modified))
+  → ReadFile(&quot;/tmp/.tmpLFF85T/in.txt&quot;, Modified)
   ← Ok(String(&quot;!DLROW OLLEH&quot;))
  ◀ Ok(String(&quot;!dlrow olleh&quot;))
 ← Ok(String(&quot;!dlrow olleh&quot;))

@@ -835,55 +835,55 @@ You can add configuration booleans to control what should be written, but in thi
 <p>We remove the <code>println!</code> statements from tasks and create <code>Pie</code> with <code>WritingTracker</code>.
 Now run the example with <code>cargo run --example incremental</code>, and you should see the writing tracker print to standard output:</p>
 <pre><code>   Compiling pie v0.1.0 (/pie)
-    Finished dev [unoptimized + debuginfo] target(s) in 0.59s
+    Finished dev [unoptimized + debuginfo] target(s) in 0.79s
      Running `/pie/target/debug/examples/incremental`
 A) New task: expect `read_task` to execute
-→ ReadStringFromFile(&quot;/tmp/.tmpyqub8x/input.txt&quot;, Modified)
- ▶ ReadStringFromFile(&quot;/tmp/.tmpyqub8x/input.txt&quot;, Modified)
-  - /tmp/.tmpyqub8x/input.txt
+→ ReadStringFromFile(&quot;/tmp/.tmpMMoe0w/input.txt&quot;, Modified)
+ ▶ ReadStringFromFile(&quot;/tmp/.tmpMMoe0w/input.txt&quot;, Modified)
+  - /tmp/.tmpMMoe0w/input.txt
  ◀ Ok(&quot;Hi&quot;)
 ← Ok(&quot;Hi&quot;)
 🏁
 
 B) Reuse: expect no execution
-→ ReadStringFromFile(&quot;/tmp/.tmpyqub8x/input.txt&quot;, Modified)
- ✓ /tmp/.tmpyqub8x/input.txt
+→ ReadStringFromFile(&quot;/tmp/.tmpMMoe0w/input.txt&quot;, Modified)
+ ✓ /tmp/.tmpMMoe0w/input.txt
 ← Ok(&quot;Hi&quot;)
 🏁
 
 C) Inconsistent file dependency: expect `read_task` to execute
-→ ReadStringFromFile(&quot;/tmp/.tmpyqub8x/input.txt&quot;, Modified)
- ✗ /tmp/.tmpyqub8x/input.txt (old: Modified(Some(SystemTime { tv_sec: 1698069286, tv_nsec: 654319094 })) ≠ new: Modified(Some(SystemTime { tv_sec: 1698069286, tv_nsec: 658319042 })))
- ▶ ReadStringFromFile(&quot;/tmp/.tmpyqub8x/input.txt&quot;, Modified)
-  - /tmp/.tmpyqub8x/input.txt
+→ ReadStringFromFile(&quot;/tmp/.tmpMMoe0w/input.txt&quot;, Modified)
+ ✗ /tmp/.tmpMMoe0w/input.txt (old: Modified(Some(SystemTime { tv_sec: 1698229161, tv_nsec: 387727987 })) ≠ new: Modified(Some(SystemTime { tv_sec: 1698229161, tv_nsec: 391728180 })))
+ ▶ ReadStringFromFile(&quot;/tmp/.tmpMMoe0w/input.txt&quot;, Modified)
+  - /tmp/.tmpMMoe0w/input.txt
  ◀ Ok(&quot;Hello&quot;)
 ← Ok(&quot;Hello&quot;)
 🏁
 
 D) Different tasks: expect `read_task_b_modified` and `read_task_b_exists` to execute
-→ ReadStringFromFile(&quot;/tmp/.tmpyqub8x/input_b.txt&quot;, Modified)
- ▶ ReadStringFromFile(&quot;/tmp/.tmpyqub8x/input_b.txt&quot;, Modified)
-  - /tmp/.tmpyqub8x/input_b.txt
+→ ReadStringFromFile(&quot;/tmp/.tmpMMoe0w/input_b.txt&quot;, Modified)
+ ▶ ReadStringFromFile(&quot;/tmp/.tmpMMoe0w/input_b.txt&quot;, Modified)
+  - /tmp/.tmpMMoe0w/input_b.txt
  ◀ Ok(&quot;Test&quot;)
 ← Ok(&quot;Test&quot;)
 🏁
-→ ReadStringFromFile(&quot;/tmp/.tmpyqub8x/input_b.txt&quot;, Exists)
- ▶ ReadStringFromFile(&quot;/tmp/.tmpyqub8x/input_b.txt&quot;, Exists)
-  - /tmp/.tmpyqub8x/input_b.txt
+→ ReadStringFromFile(&quot;/tmp/.tmpMMoe0w/input_b.txt&quot;, Exists)
+ ▶ ReadStringFromFile(&quot;/tmp/.tmpMMoe0w/input_b.txt&quot;, Exists)
+  - /tmp/.tmpMMoe0w/input_b.txt
  ◀ Ok(&quot;Test&quot;)
 ← Ok(&quot;Test&quot;)
 🏁
 
 E) Different stampers: expect only `read_task_b_modified` to execute
-→ ReadStringFromFile(&quot;/tmp/.tmpyqub8x/input_b.txt&quot;, Modified)
- ✗ /tmp/.tmpyqub8x/input_b.txt (old: Modified(Some(SystemTime { tv_sec: 1698069286, tv_nsec: 658319042 })) ≠ new: Modified(Some(SystemTime { tv_sec: 1698069286, tv_nsec: 662318991 })))
- ▶ ReadStringFromFile(&quot;/tmp/.tmpyqub8x/input_b.txt&quot;, Modified)
-  - /tmp/.tmpyqub8x/input_b.txt
+→ ReadStringFromFile(&quot;/tmp/.tmpMMoe0w/input_b.txt&quot;, Modified)
+ ✗ /tmp/.tmpMMoe0w/input_b.txt (old: Modified(Some(SystemTime { tv_sec: 1698229161, tv_nsec: 391728180 })) ≠ new: Modified(Some(SystemTime { tv_sec: 1698229161, tv_nsec: 395728373 })))
+ ▶ ReadStringFromFile(&quot;/tmp/.tmpMMoe0w/input_b.txt&quot;, Modified)
+  - /tmp/.tmpMMoe0w/input_b.txt
  ◀ Ok(&quot;Test Test&quot;)
 ← Ok(&quot;Test Test&quot;)
 🏁
-→ ReadStringFromFile(&quot;/tmp/.tmpyqub8x/input_b.txt&quot;, Exists)
- ✓ /tmp/.tmpyqub8x/input_b.txt
+→ ReadStringFromFile(&quot;/tmp/.tmpMMoe0w/input_b.txt&quot;, Exists)
+ ✓ /tmp/.tmpMMoe0w/input_b.txt
 ← Ok(&quot;Test&quot;)
 🏁
 </code></pre>

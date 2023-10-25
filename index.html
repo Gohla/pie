@@ -196,22 +196,60 @@ Where possible I will try to explain design decisions, discuss tradeoffs, or pro
 <li><em>Automatic</em>: The build system takes care of incrementality and correctness. Build authors <em>do not</em> have to manually implement incrementality. Instead, they only have to explicitly <em>declare dependencies</em>.</li>
 <li><em>Multipurpose</em>: The same build script can be used for incremental batch builds in a terminal, but also for live feedback in an interactive environment such as an IDE. For example, a compiler implemented in this build system can provide incremental batch compilation but also incremental editor services such as syntax highlighting or code completion.</li>
 </ul>
-<p>As a small teaser, here is a simplified version of a build script that… in Rust.</p>
-<div id="admonition-under-construction" class="admonition admonish-warning">
-<div class="admonition-title">
-<p>Under construction</p>
-<p><a class="admonition-anchor-link" href="#admonition-under-construction"></a></p>
-</div>
-<div>
-<p>Example is under construction:</p>
-<ul>
-<li>TODO: example</li>
-<li>TODO: explain very broadly the concepts in the example: tasks, dependencies, etc.</li>
-</ul>
-</div>
-</div>
-<p>I prefer writing builds in a programming language like this, over having to <em>encode</em> a build into a YAML file with underspecified semantics, and over having to learn and use a build scripting language with limited tooling.
+<h4 id="teaser-toy-example"><a class="header" href="#teaser-toy-example">Teaser Toy Example</a></h4>
+<p>As a small teaser, here is a simplified version of a programmatic incremental toy build script that copies a text file by reading and writing:</p>
+<pre><code class="language-rust">struct ReadFile { file: PathBuf }
+impl Task for ReadFile {
+  fn execute&lt;C: Context&gt;(&amp;self, context: &amp;mut C) -&gt; Result&lt;String, io::Error&gt; {
+    context.require_file(&amp;self.file)?;
+    fs::read_to_string(&amp;self.file)
+  }
+}
+
+struct WriteFile&lt;T&gt; { task: T, file: PathBuf }
+impl&lt;T: Task&gt; Task for WriteFile&lt;T&gt; {
+  fn execute&lt;C: Context&gt;(&amp;self, context: &amp;mut C) -&gt; Result&lt;(), io::Error&gt; {
+    let string: String = context.require_task(&amp;self.task)?;
+    fs::write(&amp;self.file, string.as_bytes())?;
+    context.provide_file(&amp;self.file)
+  }
+}
+
+fn main() {
+  let read_task = ReadFile { file: PathBuf::from(&quot;in.txt&quot;) };
+  let write_task = WriteFile { task: read_task, file: PathBuf::from(&quot;out.txt&quot;) };
+  Pie::default().new_session().require(&amp;write_task);
+}</code></pre>
+<p>The unit of computation in a programmatic incremental build system is a <em>task</em>.
+A task is kind of like a closure, a function along with its inputs that can be executed, but incremental.
+For example, the <code>ReadFile</code> task carries the file path it reads from.
+When we <code>execute</code> the task, it reads from the file and returns its text as a string.
+However, due to incrementality, we declare the file as a <code>require_file</code> dependency through <code>context</code>, such that this task is only re-executed when the file changes!</p>
+<p>Note that this file read dependency is created <em>while the task is executing</em>.
+We call these <em>dynamic dependencies</em>.
+This is one of the main benefits of programmatic incremental build systems: you create dependencies <em>while the build is executing</em>, instead of having to declare them upfront!</p>
+<p>Dynamic dependencies are also created between tasks.
+For example, <code>WriteFile</code> carries a task as input, which it requires with <code>context.require_task</code> to retrieve the text for writing to a file.
+We’ll cover how this works later on in the tutorial.
+For now, let’s zoom back out to the motivation of programmatic incremental build systems.</p>
+<h4 id="back-to-motivation"><a class="header" href="#back-to-motivation">Back to Motivation</a></h4>
+<p>I prefer writing builds in a programming language like this, over having to <em>encode</em> a build into a YAML file with underspecified semantics, and over having to learn and use a new build scripting language with limited tooling.
 By <em>programming builds</em>, I can reuse my knowledge of the programming language, I get help from the compiler and IDE that I’d normally get while programming, I can modularize and reuse parts of my build as a library, and can use other programming language features such as unit testing, integration testing, benchmarking, etc.</p>
+<p>Programmatic builds <em>do not exclude declarativity</em>, however.
+You can layer declarative features on top of programmatic builds, such as declarative configuration files that determine <em>what</em> should be built without having to specify <em>how</em> things are built.
+For example, you could write a task like the one from the example, which reads and parses a config file, and then dispatch tasks that build required things.
+Therefore, programmatic builds are useful for both small one-off builds, and for creating larger incremental build systems that work with a lot of user inputs.</p>
+<p>Dynamic dependencies enable creating precise dependencies, <em>without requiring staging</em>, as is often found in build systems with static dependencies.
+For example, dynamic dependencies in <a href="https://www.gnu.org/software/make/" title="" target="_blank">Make</a> requires staging: generate new makefiles and recursively execute them, which is tedious and error-prone.
+<a href="https://gradle.org/" title="" target="_blank">Gradle</a> has a two-staged build process: first configure the task graph, then incrementally execute it.
+In the execution stage, you cannot modify dependencies or create new tasks.
+Therefore, more work needs to be done in the configuration stage, which is not (fully) incrementalized.
+Dynamic dependencies solve these problems by doing away with staging!</p>
+<p>Finally, precise dynamic dependencies enable incrementality but also correctness.
+A task is re-executed when one or more of its dependencies become inconsistent.
+For example, the <code>WriteFile</code> task from the example is re-executed when the task dependency returns different text, or when the file it writes to is modified or deleted.
+This is both incremental and correct.</p>
+<h4 id="disadvantages"><a class="header" href="#disadvantages">Disadvantages</a></h4>
 <p>Of course, programmatic incremental build systems also have some disadvantages.
 These disadvantages become more clear during the tutorial, but I want to list them here to be up-front about it:</p>
 <ul>

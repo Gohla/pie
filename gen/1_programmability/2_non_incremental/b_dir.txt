@@ -1,9 +1,9 @@
 pie
-├── Cargo.toml
-├── Cargo.lock
 ├── src
 │   ├── context
-│   │   ├── mod.rs
-│   │   └── non_incremental.rs
+│   │   ├── non_incremental.rs
+│   │   └── mod.rs
 │   └── lib.rs
+├── Cargo.toml
+├── Cargo.lock
 └── target

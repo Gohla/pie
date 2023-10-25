@@ -362,20 +362,20 @@ pub fn create_temp_file() -&gt; Result&lt;NamedTempFile, io::Error&gt; { NamedTe
 /// Creates a new temporary directory that gets cleaned up when dropped.
 pub fn create_temp_dir() -&gt; Result&lt;TempDir, io::Error&gt; { TempDir::new() }</code></pre>
 <p>Your directory structure should now look like this:</p>
-<pre><code>├── pie
-│   ├── Cargo.toml
-│   ├── Cargo.lock
+<pre><code>├── dev_shared
 │   ├── src
-│   │   ├── fs.rs
-│   │   ├── context
-│   │   │   ├── mod.rs
-│   │   │   └── non_incremental.rs
 │   │   └── lib.rs
-│   └── target
-└── dev_shared
+│   └── Cargo.toml
+└── pie
+    ├── src
+    │   ├── fs.rs
+    │   ├── context
+    │   │   ├── non_incremental.rs
+    │   │   └── mod.rs
+    │   └── lib.rs
     ├── Cargo.toml
-    └── src
-        └── lib.rs
+    ├── Cargo.lock
+    └── target
 </code></pre>
 <p>To access these utility functions in the <code>pie</code> crate, add a dependency to <code>dev_shared</code> in <code>pie/Cargo.toml</code> along with another create that will help testing:</p>
 <div class="diff2html" id="diff2html_2"></div>
