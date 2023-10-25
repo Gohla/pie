@@ -40,6 +40,7 @@ pub fn step_all(
           create("lib.rs"),
         ])
         .output([
+          DirectoryStructure::new("../", "dir.txt"),
           CargoOutput::new("cargo.txt"),
           SourceArchive::new("source.zip"),
         ]);

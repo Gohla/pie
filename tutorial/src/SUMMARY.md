@@ -1,6 +1,6 @@
 - [Introduction](./0_intro/index.md)
   - [Setup](./0_intro/1_setup/index.md) 
-- [Programmability]()
+- [Programmability](./1_programmability/index.md)
   - [Programmable Build System API](./1_programmability/1_api/index.md)
   - [Non-Incremental Context](./1_programmability/2_non_incremental/index.md)
 - [Incrementality](./2_incrementality/index.md)

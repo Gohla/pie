@@ -1,18 +1,9 @@
 # Programmability
 
-[//]: # (## Dynamic Dependencies)
+In the introduction, we saw an example with _tasks_ being the unit of incremental computation, and the _context_ providing a way to create dynamic dependencies that enable incrementality.
+Those two concepts, `Task` and `Context`, are the core of a programmatic incremental build system which we will implement in this chapter.
 
-[//]: # ()
-[//]: # (To achieve these properties, our build system will need to work with _dynamic dependencies_.)
+We will continue with the following steps in the next two sections:
 
-[//]: # (But let's first understand _static dependencies_, which is what most build system)
-
-[//]: # (Most build systems work with _static dependencies_.)
-
-[//]: # (That is, dependencies have to be defined up front, in the build script.)
-
-[//]: # (For example, consider the [Make]&#40;https://www.gnu.org/software/make/&#41; target `foo.o: foo.c bar.h ; gcc foo.c`.)
-
-[//]: # (It states that in order to make `foo.o`, we call `gcc foo.c` which requires the `foo.c` and `bar.h` files.)
-
-[//]: # (Here, the dependencies are stated statically in the build script.)
+1) Create the `Task` and `Context` API, forming the core of the build system.
+2) Create a non-incremental `Context` implementation and test it against `Task` implementations, to get a feeling for the API without the complexities of incrementality.

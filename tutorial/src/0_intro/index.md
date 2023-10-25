@@ -12,8 +12,10 @@ This is of course not a full tutorial or book on Rust.
 For that, I can recommend the excellent [The Rust Programming Language](https://doc.rust-lang.org/book/) book.
 However, if you like to learn through examples and experimentation, or already know Rust basics and want to practice, this might be a fun programming tutorial for you!
 
-Another secondary goal is to show what I think are several good software writing practices, such as dividing code into modules, thinking about what to expose as API, writing unit and integration tests, etc.
-Where possible I will try to explain design decisions, discuss tradeoffs, or provide more info about optimizations.
+[//]: # ()
+[//]: # (Another secondary goal is to show what I think are several good software writing practices, such as dividing code into modules, thinking about what to expose as API, writing unit and integration tests, etc.)
+
+[//]: # (Where possible I will try to explain design decisions, discuss tradeoffs, or provide more info about optimizations.)
 
 We will first motivate programmatic incremental build systems.
 
@@ -60,7 +62,7 @@ The unit of computation in a programmatic incremental build system is a _task_.
 A task is kind of like a closure, a function along with its inputs that can be executed, but incremental.
 For example, the `ReadFile` task carries the file path it reads from.
 When we `execute` the task, it reads from the file and returns its text as a string.
-However, due to incrementality, we declare the file as a `require_file` dependency through `context`, such that this task is only re-executed when the file changes!
+However, due to incrementality, we mark the file as a `require_file` dependency through `context`, such that this task is only re-executed when the file changes!
 
 Note that this file read dependency is created _while the task is executing_.
 We call these _dynamic dependencies_.
