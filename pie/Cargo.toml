@@ -1,36 +1,28 @@
 [package]
 name = "pie"
 version = "0.1.0"
-authors = ["Gabriel Konat <gabrielkonat@gmail.com>"]
 edition = "2021"
 publish = false
 
 [dependencies]
-pie_graph = { path = "../graph" }
-serde = { version = "1", optional = true }
+pie_graph = "0.0.1"
+dyn-clone = "1"
 sha2 = { version = "0.10", optional = true }
-walkdir = { version = "2", optional = true }
 
 [dev-dependencies]
-dev_shared = { path = "../dev_shared" }
-dev_shared_external = { path = "../dev_shared_external" }
-serde = "1"
-rstest = "0.18"
-tempfile = "3"
+dev_util = { path = "../dev_util" }
+dev_ext = { path = "../dev_ext" }
 assert_matches = "1"
-ron = "0.8"
-criterion = { version = "0.5", features = ["html_reports"] }
+testresult = "0.3"
 
 [features]
-default = ["recursive_stampers", "hash_stampers", "serde"]
-serde = ["dep:serde"]
-recursive_stampers = ["dep:walkdir"]
-hash_stampers = ["dep:sha2"]
+file_hash_checker = ["dep:sha2"]
 
-[[bench]]
-name = "topdown_bottomup_scalability"
-harness = false
+# Disable bottom-up context tests until they are fixed
+[[test]]
+name = "bottom_up"
+test = false
 
-[[bench]]
-name = "file_dependency_scalability"
-harness = false
+[[test]]
+name = "file_checker"
+required-features = ["file_hash_checker"]

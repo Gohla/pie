@@ -1,123 +1,163 @@
-use std::fs::File;
-use std::hash::BuildHasher;
-use std::path::Path;
+use std::any::Any;
+use std::fmt::Debug;
 
-use crate::{Context, Session, Task};
+use crate::{Context, OutputChecker, Resource, ResourceChecker, Task};
 use crate::context::SessionExt;
-use crate::dependency::{Dependency, MakeConsistent};
-use crate::stamp::{FileStamper, OutputStamper};
+use crate::dependency::{Dependency, TaskDependency};
+use crate::pie::SessionData;
 use crate::store::TaskNode;
-use crate::tracker::Tracker;
 
-/// Context that incrementally executes tasks and checks dependencies recursively in a top-down manner.
-pub struct TopDownContext<'p, 's, T, O, A, H> {
-  session: &'s mut Session<'p, T, O, A, H>,
+/// Top-down incremental context implementation.
+///
+/// # Implementation Notes
+///
+/// This cannot have any generic type parameters, as they will propagate into several types and traits, and will end up
+/// as generic type parameters of object-safe traits (because object-safe traits cannot have methods with generic type
+/// parameters). That will still technically compile, but propagating a generic to [`Dependency`] will mean those
+/// dependencies can only be used with a specific instantiation of that generic, which complicates everything.
+#[repr(transparent)]
+pub struct TopDownContext<'p, 's> {
+  session: &'s mut SessionData<'p>,
 }
 
-impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> TopDownContext<'p, 's, T, T::Output, A, H> {
+impl<'p, 's> TopDownContext<'p, 's> {
   #[inline]
-  pub fn new(session: &'s mut Session<'p, T, T::Output, A, H>) -> Self {
-    Self { session }
-  }
+  pub fn new(session: &'s mut SessionData<'p>) -> Self { Self { session } }
+}
 
-  /// Requires `task`, returning its consistent output.
-  #[inline]
-  pub fn require_initial(&mut self, task: &T) -> T::Output {
-    self.session.tracker.require_top_down_initial_start(task);
-    let output = self.require_task(task);
-    self.session.tracker.require_top_down_initial_end(task, &output);
+impl Context for TopDownContext<'_, '_> {
+  fn require<T, H>(&mut self, task: &T, checker: H) -> T::Output where
+    T: Task,
+    H: OutputChecker<T::Output>,
+  {
+    let track_end = self.session.tracker.require(task, &checker);
+
+    let dst = self.session.store.get_or_create_task_node(task);
+    self.session.reserve_require_dependency(&dst, task);
+
+    let output = self.make_task_consistent(task);
+    let stamp = checker.stamp(&output);
+    track_end(&mut self.session.tracker, &stamp, &output);
+
+    self.session.update_require_dependency(&dst, task, checker, stamp);
+
     output
   }
+
+  #[inline]
+  fn read<T, R, H>(&mut self, resource: &T, checker: H) -> Result<R::Reader<'_>, H::Error> where
+    T: ToOwned<Owned=R>,
+    R: Resource,
+    H: ResourceChecker<R>,
+  {
+    self.session.read(resource, checker)
+  }
+  #[inline]
+  fn write<T, R, H, F>(&mut self, resource: &T, checker: H, write_fn: F) -> Result<(), H::Error> where
+    T: ToOwned<Owned=R>,
+    R: Resource,
+    H: ResourceChecker<R>,
+    F: FnOnce(&mut R::Writer<'_>) -> Result<(), R::Error>
+  {
+    self.session.write(resource, checker, write_fn)
+  }
+
+  #[inline]
+  fn create_writer<'r, R: Resource>(&'r mut self, resource: &'r R) -> Result<R::Writer<'r>, R::Error> {
+    self.session.create_writer(resource)
+  }
+  #[inline]
+  fn written_to<T, R, H>(&mut self, resource: &T, checker: H) -> Result<(), H::Error> where
+    T: ToOwned<Owned=R>,
+    R: Resource,
+    H: ResourceChecker<R>
+  {
+    self.session.written_to(resource, checker)
+  }
 }
 
-impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> Context<T> for TopDownContext<'p, 's, T, T::Output, A, H> {
+impl TopDownContext<'_, '_> {
+  /// Makes `task` consistent, returning its consistent output.
   #[inline]
-  fn require_file_with_stamper<P: AsRef<Path>>(&mut self, path: P, stamper: FileStamper) -> Result<Option<File>, std::io::Error> {
-    self.session.require_file_with_stamper(path, stamper)
-  }
-  #[inline]
-  fn provide_file_with_stamper<P: AsRef<Path>>(&mut self, path: P, stamper: FileStamper) -> Result<(), std::io::Error> {
-    self.session.provide_file_with_stamper(path, stamper)
-  }
-  #[inline]
-  fn require_task_with_stamper(&mut self, task: &T, stamper: OutputStamper) -> T::Output {
-    self.session.tracker.require_task_start(task);
-
+  fn make_task_consistent<T: Task>(&mut self, task: &T) -> T::Output {
     let node = self.session.store.get_or_create_task_node(task);
-    self.session.reserve_task_require_dependency(task, &node, stamper);
-    let (output, was_executed) = self.make_task_consistent(task, node);
-    self.session.update_reserved_task_require_dependency(&node, output.clone());
 
-    self.session.tracker.require_task_end(task, &output, was_executed);
-    output
-  }
-}
+    if self.session.consistent.contains(&node) { // Task is already consistent: return its output.
+      return self.session.store.get_task_output(&node)
+        .expect("BUG: no task output for already consistent task")
+        .as_any().downcast_ref::<T::Output>()
+        .expect("BUG: non-matching task output type")
+        .clone();
+    }
 
-impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> MakeConsistent<T> for TopDownContext<'p, 's, T, T::Output, A, H> {
-  #[inline]
-  fn make_task_consistent(&mut self, task: &T) -> T::Output {
-    let node = self.session.store.get_or_create_task_node(task);
-    let (output, _) = self.make_task_consistent(task, node);
-    output
-  }
-}
-
-impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> TopDownContext<'p, 's, T, T::Output, A, H> {
-  /// Make `task` (with corresponding `node`) consistent, returning its output and whether it was executed.
-  #[inline]
-  fn make_task_consistent(&mut self, task: &T, node: TaskNode) -> (T::Output, bool) {
-    let already_consistent = self.session.consistent.contains(&node);
-    let should_execute = !already_consistent && self.should_execute_task(task, &node);
-    let output = if should_execute { // Execute the task, cache and return output.
-      let previous_executing_task = self.session.pre_execute(task, node);
+    let output = if let Some(output) = self.check_task::<T::Output>(&node) {
+      output.clone()
+    } else {
+      self.session.store.reset_task(&node);
+      let previous_executing_task = self.session.current_executing_task.replace(node);
+      let track_end = self.session.tracker.execute(task);
       let output = task.execute(self);
-      self.session.post_execute(task, &node, previous_executing_task, output.clone());
+      track_end(&mut self.session.tracker, &output);
+      self.session.current_executing_task = previous_executing_task;
+      self.session.store.set_task_output(&node, Box::new(output.clone()));
       output
-    } else { // Return consistent output.
-      // If we should not execute the task, the store has an output for it. There are two possible cases:
-      // - Not already consistent: `should_execute_task` returned `false` => store has an output for the task.
-      // - Already consistent: previous `make_task_consistent` either executed the task and stored its output, or
-      //   deemed it consistent => store has an output for the task.
-      // In both cases the store has an output for the task, so `get_task_output` will not panic.
-      self.session.store.get_task_output(&node).clone()
     };
+
     self.session.consistent.insert(node);
-    (output, should_execute)
+    output
   }
 
-  /// Checks whether `task` (with corresponding `node`) should be executed, returning `true` if it should be executed.
+  /// Check whether task `src` is consistent. Returns `Some(output)` when the task is consistent, `None` when
+  /// inconsistent. An inconsistent task must be executed.
+  ///
+  /// A task is consistent if and only if the task adheres to all properties:
+  ///
+  /// - It is not new. A task is new if it has not been executed before (and thus has no cached output).
+  /// - Its output type has not changed.
+  /// - All its dependencies are consistent.
   #[inline]
-  fn should_execute_task(&mut self, task: &T, node: &TaskNode) -> bool {
-    self.session.tracker.check_top_down_start(task);
-
-    let mut is_dependency_inconsistent = false;
-    // Borrow: because we pass `&mut self` to `is_dependency_inconsistent` for recursive consistency checking, we need
-    //         to clone and collect dependencies into a `Vec` here.
-    let dependencies: Vec<_> = self.session.store.get_dependencies_of_task(node).cloned().collect();
-    for dependency in dependencies {
-      is_dependency_inconsistent |= self.is_dependency_inconsistent(dependency);
-    }
-    // Execute if a dependency is inconsistent or if the task has no output (meaning that it has never been executed)
-    let should_execute = is_dependency_inconsistent || !self.session.store.task_has_output(node);
-
-    self.session.tracker.check_top_down_end(task);
-    should_execute
-  }
-
-  /// Checks whether `dependency` is inconsistent, returning `true` if it is inconsistent.
-  #[allow(clippy::wrong_self_convention)]
-  #[inline]
-  fn is_dependency_inconsistent(&mut self, dependency: Dependency<T, T::Output>) -> bool {
-    self.session.tracker.check_dependency_start(&dependency);
-    let inconsistent = dependency.is_inconsistent(self);
-    self.session.tracker.check_dependency_end(&dependency, inconsistent.as_ref().map(|o| o.as_ref()));
-    match inconsistent {
-      Ok(Some(_)) => true,
-      Err(e) => { // Error while checking: store error and assume inconsistent
-        self.session.dependency_check_errors.push(e);
-        true
+  fn check_task<O: Any>(&mut self, src: &TaskNode) -> Option<&O> {
+    let dependencies: Box<[Dependency]> = self.session.store
+      .get_dependencies_from_task(src)
+      .map(|d| d.clone())
+      .collect();
+    for dependency in dependencies.into_iter() {
+      let consistent = match dependency {
+        Dependency::ReservedRequire => panic!("BUG: attempt to consistency check reserved require task dependency"),
+        Dependency::Require(d) => Ok(d.as_check_task_dependency().is_consistent(self)),
+        Dependency::Read(d) | Dependency::Write(d) => d.is_consistent(
+          &mut self.session.tracker,
+          &mut self.session.resource_state,
+        ),
+      };
+      match consistent {
+        Ok(false) => return None,
+        Err(e) => {
+          self.session.dependency_check_errors.push(e);
+          return None;
+        }
+        _ => {}
       }
-      _ => false,
     }
+    self.session.store.get_task_output(src)
+      .map(|o| o.as_any().downcast_ref::<O>().expect("BUG: non-matching task output type"))
+  }
+}
+
+/// Internal trait for top-down recursive checking of task dependencies.
+///
+/// Object-safe trait.
+pub trait CheckTaskDependency {
+  fn is_consistent(&self, context: &mut TopDownContext) -> bool;
+}
+impl<T: Task, C: OutputChecker<T::Output>> CheckTaskDependency for TaskDependency<T, C, C::Stamp> {
+  #[inline]
+  fn is_consistent(&self, context: &mut TopDownContext) -> bool {
+    let check_task_end = context.session.tracker.check_task(self.task(), self.checker(), self.stamp());
+    let output = context.make_task_consistent(self.task());
+    let result = self.is_inconsistent_with(&output);
+    let inconsistency = result.as_ref().map(|o| o as &dyn Debug);
+    check_task_end(&mut context.session.tracker, inconsistency);
+    result.is_none()
   }
 }

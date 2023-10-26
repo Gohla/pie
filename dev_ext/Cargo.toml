@@ -1,0 +1,11 @@
+[package]
+name = "dev_ext"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+pie = { path = "../pie" }
+
+[dev-dependencies]
+dev_util = { path = "../dev_util" }
+assert_matches = "1"

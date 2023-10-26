@@ -1,300 +1,183 @@
-use std::io;
-use std::path::PathBuf;
+use std::error::Error;
+use std::fmt::Debug;
 
-use crate::dependency::{Dependency, FileDependency, InconsistentDependency, TaskDependency};
-use crate::stamp::{FileStamp, OutputStamp};
-use crate::Task;
+use crate::trait_object::{KeyObj, ValueObj};
 
 pub mod writing;
-pub mod metrics;
 pub mod event;
 
-/// Trait for tracking build events. Can be used to implement logging, event tracing, progress tracking, metrics, etc.
-pub trait Tracker<T: Task> {
-  // Dependencies
-  fn require_file(&mut self, dependency: &FileDependency);
-  fn provide_file(&mut self, dependency: &FileDependency);
-  fn require_task_start(&mut self, task: &T);
-  fn require_task_end(&mut self, task: &T, output: &T::Output, was_executed: bool);
+/// Build event tracker. Can be used to implement logging, event tracing, progress tracking, metrics, etc.
+///
+/// Object-safe trait.
+#[allow(unused_variables)]
+pub trait Tracker {
+  /// Start: a new build.
+  #[inline]
+  fn build_start(&mut self) {}
+  /// End: completed build.
+  #[inline]
+  fn build_end(&mut self) {}
 
+  /// Start: require `task` using `checker`.
+  #[inline]
+  fn require_start(&mut self, task: &dyn KeyObj, checker: &dyn ValueObj) {}
+  /// End: required `task`, using `checker` to create `stamp`, resulting in `output`.
+  #[inline]
+  fn require_end(
+    &mut self,
+    task: &dyn KeyObj,
+    checker: &dyn ValueObj,
+    stamp: &dyn ValueObj,
+    output: &dyn ValueObj,
+  ) {}
 
-  // Task execution
-  fn execute_task_start(&mut self, task: &T);
-  fn execute_task_end(&mut self, task: &T, output: &T::Output);
+  /// Start: read `resource` using `checker`.
+  #[inline]
+  fn read_start(&mut self, resource: &dyn KeyObj, checker: &dyn ValueObj) {}
+  /// End: read `resource` using `checker` to create `stamp`.
+  #[inline]
+  fn read_end(&mut self, resource: &dyn KeyObj, checker: &dyn ValueObj, stamp: &dyn ValueObj) {}
+  /// Start: Write `resource` using `checker`.
+  #[inline]
+  fn write_start(&mut self, resource: &dyn KeyObj, checker: &dyn ValueObj) {}
+  /// End: wrote `resource` using `checker` to create `stamp`.
+  #[inline]
+  fn write_end(&mut self, resource: &dyn KeyObj, checker: &dyn ValueObj, stamp: &dyn ValueObj) {}
 
+  /// Start: check consistency of `task` which used `checker` to create `stamp`.
+  #[inline]
+  fn check_task_start(&mut self, task: &dyn KeyObj, checker: &dyn ValueObj, stamp: &dyn ValueObj) {}
+  /// End: checked consistency of `task` which used `checker` to create `stamp`, possibly found an `inconsistency`
+  #[inline]
+  fn check_task_end(
+    &mut self,
+    task: &dyn KeyObj,
+    checker: &dyn ValueObj,
+    stamp: &dyn ValueObj,
+    inconsistency: Option<&dyn Debug>,
+  ) {}
 
-  // Top-down builds
-  fn require_top_down_initial_start(&mut self, task: &T);
+  /// Start: check consistency of `resource` which used `checker` to create `stamp`.
+  #[inline]
+  fn check_resource_start(&mut self, resource: &dyn KeyObj, checker: &dyn ValueObj, stamp: &dyn ValueObj) {}
+  /// End: checked consistency of `resource` which used `checker` to create `stamp`, possibly found an `inconsistency`.
+  #[inline]
+  fn check_resource_end(
+    &mut self,
+    resource: &dyn KeyObj,
+    checker: &dyn ValueObj,
+    stamp: &dyn ValueObj,
+    inconsistency: Result<Option<&dyn Debug>, &dyn Error>,
+  ) {}
 
-  fn check_top_down_start(&mut self, task: &T);
-
-  fn check_dependency_start(&mut self, dependency: &Dependency<T, T::Output>) {
-    match dependency {
-      Dependency::RequireFile(d) => self.check_require_file_start(d),
-      Dependency::ProvideFile(d) => self.check_provide_file_start(d),
-      Dependency::RequireTask(d) => self.check_require_task_start(d),
-    }
-  }
-  fn check_dependency_end(&mut self, dependency: &Dependency<T, T::Output>, inconsistent: Result<Option<&InconsistentDependency<T::Output>>, &io::Error>) {
-    use Dependency::*;
-    match dependency {
-      RequireFile(d) => {
-        let inconsistent = inconsistent.map(|r| r.map(|i| i.unwrap_as_file_stamp()));
-        self.check_require_file_end(d, inconsistent);
-      }
-      ProvideFile(d) => {
-        let inconsistent = inconsistent.map(|r| r.map(|i| i.unwrap_as_file_stamp()));
-        self.check_provide_file_end(d, inconsistent);
-      }
-      RequireTask(d) => {
-        let inconsistent = inconsistent.unwrap().map(|i| i.unwrap_as_output_stamp());
-        self.check_require_task_end(d, inconsistent);
-      }
-    }
-  }
-  fn check_require_file_start(&mut self, dependency: &FileDependency);
-  fn check_require_file_end(&mut self, dependency: &FileDependency, inconsistent: Result<Option<&FileStamp>, &io::Error>);
-  fn check_provide_file_start(&mut self, dependency: &FileDependency);
-  fn check_provide_file_end(&mut self, dependency: &FileDependency, inconsistent: Result<Option<&FileStamp>, &io::Error>);
-  fn check_require_task_start(&mut self, dependency: &TaskDependency<T, T::Output>);
-  fn check_require_task_end(&mut self, dependency: &TaskDependency<T, T::Output>, inconsistent: Option<&OutputStamp<T::Output>>);
-
-  fn check_top_down_end(&mut self, task: &T);
-
-  fn require_top_down_initial_end(&mut self, task: &T, output: &T::Output);
-
-
-  // Bottom-up builds
-  fn update_affected_by_start<'a, I: IntoIterator<Item=&'a PathBuf> + Clone>(&mut self, changed_files: I);
-
-  fn schedule_affected_by_file_start(&mut self, path: &PathBuf);
-  fn check_affected_by_file_start(&mut self, requiring_task: &T, dependency: &FileDependency);
-  fn check_affected_by_file_end(&mut self, requiring_task: &T, dependency: &FileDependency, inconsistent: Result<Option<&FileStamp>, &io::Error>);
-  fn schedule_affected_by_file_end(&mut self, path: &PathBuf);
-
-  fn schedule_affected_by_task_start(&mut self, task: &T);
-  fn check_affected_by_required_task_start(&mut self, requiring_task: &T, dependency: &TaskDependency<T, T::Output>);
-  fn check_affected_by_required_task_end(&mut self, requiring_task: &T, dependency: &TaskDependency<T, T::Output>, inconsistent: Option<OutputStamp<&T::Output>>);
-  fn schedule_affected_by_task_end(&mut self, task: &T);
-
-  fn schedule_task(&mut self, task: &T);
-
-  fn update_affected_by_end(&mut self);
+  /// Start: execute `task`.
+  #[inline]
+  fn execute_start(&mut self, task: &dyn KeyObj) {}
+  /// End: executed `task` resulting in `output`.
+  #[inline]
+  fn execute_end(&mut self, task: &dyn KeyObj, output: &dyn ValueObj) {}
 }
 
+/// Implement [`Tracker`] for `()` that does nothing.
+impl Tracker for () {}
 
-/// A [`Tracker`] that does nothing.
-#[derive(Clone, Debug)]
-pub struct NoopTracker;
-
-impl<T: Task> Tracker<T> for NoopTracker {
-  #[inline]
-  fn require_file(&mut self, _dependency: &FileDependency) {}
-  #[inline]
-  fn provide_file(&mut self, _dependency: &FileDependency) {}
-  #[inline]
-  fn require_task_start(&mut self, _task: &T) {}
-  #[inline]
-  fn require_task_end(&mut self, _task: &T, _output: &T::Output, _was_executed: bool) {}
-
-
-  #[inline]
-  fn execute_task_start(&mut self, _task: &T) {}
-  #[inline]
-  fn execute_task_end(&mut self, _task: &T, _output: &T::Output) {}
-
-
-  #[inline]
-  fn require_top_down_initial_start(&mut self, _task: &T) {}
-  #[inline]
-  fn check_top_down_start(&mut self, _task: &T) {}
-  #[inline]
-  fn check_require_file_start(&mut self, _dependency: &FileDependency) {}
-  #[inline]
-  fn check_require_file_end(&mut self, _dependency: &FileDependency, _inconsistent: Result<Option<&FileStamp>, &io::Error>) {}
-  #[inline]
-  fn check_provide_file_start(&mut self, _dependency: &FileDependency) {}
-  #[inline]
-  fn check_provide_file_end(&mut self, _dependency: &FileDependency, _inconsistent: Result<Option<&FileStamp>, &io::Error>) {}
-  #[inline]
-  fn check_require_task_start(&mut self, _dependency: &TaskDependency<T, T::Output>) {}
-  #[inline]
-  fn check_require_task_end(&mut self, _dependency: &TaskDependency<T, T::Output>, _inconsistent: Option<&OutputStamp<T::Output>>) {}
-  #[inline]
-  fn check_top_down_end(&mut self, _task: &T) {}
-  #[inline]
-  fn require_top_down_initial_end(&mut self, _task: &T, _output: &T::Output) {}
-
-
-  #[inline]
-  fn update_affected_by_start<'a, I: IntoIterator<Item=&'a PathBuf>>(&mut self, _changed_files: I) {}
-  #[inline]
-  fn schedule_affected_by_file_start(&mut self, _file: &PathBuf) {}
-  #[inline]
-  fn check_affected_by_file_start(&mut self, _requiring_task: &T, _dependency: &FileDependency) {}
-  #[inline]
-  fn check_affected_by_file_end(&mut self, _requiring_task: &T, _dependency: &FileDependency, _inconsistent: Result<Option<&FileStamp>, &io::Error>) {}
-  #[inline]
-  fn schedule_affected_by_file_end(&mut self, _file: &PathBuf) {}
-  #[inline]
-  fn schedule_affected_by_task_start(&mut self, _task: &T) {}
-  #[inline]
-  fn check_affected_by_required_task_start(&mut self, _requiring_task: &T, _dependency: &TaskDependency<T, T::Output>) {}
-  #[inline]
-  fn check_affected_by_required_task_end(&mut self, _requiring_task: &T, _dependency: &TaskDependency<T, T::Output>, _inconsistent: Option<OutputStamp<&T::Output>>) {}
-  #[inline]
-  fn schedule_affected_by_task_end(&mut self, _task: &T) {}
-  #[inline]
-  fn schedule_task(&mut self, _task: &T) {}
-  #[inline]
-  fn update_affected_by_end(&mut self) {}
-}
-
-
-/// A [`Tracker`] that forwards events to two other [`Tracker`]s.
-#[derive(Default, Clone, Debug)]
+/// A [`Tracker`] that forwards events to two [`Tracker`]s.
+#[derive(Default, Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Debug)]
 pub struct CompositeTracker<A1, A2>(pub A1, pub A2);
-
-impl<T: Task, T1: Tracker<T>, T2: Tracker<T>> Tracker<T> for CompositeTracker<T1, T2> {
+impl<A1, A2> CompositeTracker<A1, A2> {
+  pub fn new(tracker_1: A1, tracker_2: A2) -> Self { Self(tracker_1, tracker_2) }
+}
+impl<A1: Tracker, A2: Tracker> Tracker for CompositeTracker<A1, A2> {
   #[inline]
-  fn require_file(&mut self, dependency: &FileDependency) {
-    self.0.require_file(dependency);
-    self.1.require_file(dependency);
+  fn build_start(&mut self) {
+    self.0.build_start();
+    self.1.build_start();
   }
   #[inline]
-  fn provide_file(&mut self, dependency: &FileDependency) {
-    self.0.provide_file(dependency);
-    self.1.provide_file(dependency);
-  }
-  #[inline]
-  fn require_task_start(&mut self, task: &T) {
-    self.0.require_task_start(task);
-    self.1.require_task_start(task);
+  fn build_end(&mut self) {
+    self.0.build_end();
+    self.1.build_end();
   }
 
-
   #[inline]
-  fn execute_task_start(&mut self, task: &T) {
-    self.0.execute_task_start(task);
-    self.1.execute_task_start(task);
+  fn require_start(&mut self, task: &dyn KeyObj, checker: &dyn ValueObj) {
+    self.0.require_start(task, checker);
+    self.1.require_start(task, checker);
   }
   #[inline]
-  fn execute_task_end(&mut self, task: &T, output: &T::Output) {
-    self.0.execute_task_end(task, output);
-    self.1.execute_task_end(task, output);
+  fn require_end(
+    &mut self,
+    task: &dyn KeyObj,
+    checker: &dyn ValueObj,
+    stamp: &dyn ValueObj,
+    output: &dyn ValueObj,
+  ) {
+    self.0.require_end(task, checker, stamp, output);
+    self.1.require_end(task, checker, stamp, output);
   }
   #[inline]
-  fn require_task_end(&mut self, task: &T, output: &T::Output, was_executed: bool) {
-    self.0.require_task_end(task, output, was_executed);
-    self.1.require_task_end(task, output, was_executed);
-  }
-
-
-  #[inline]
-  fn require_top_down_initial_start(&mut self, task: &T) {
-    self.0.require_top_down_initial_start(task);
-    self.1.require_top_down_initial_start(task);
+  fn read_start(&mut self, resource: &dyn KeyObj, checker: &dyn ValueObj) {
+    self.0.read_start(resource, checker);
+    self.1.read_start(resource, checker);
   }
   #[inline]
-  fn check_top_down_start(&mut self, task: &T) {
-    self.0.check_top_down_start(task);
-    self.1.check_top_down_start(task);
+  fn read_end(&mut self, resource: &dyn KeyObj, checker: &dyn ValueObj, stamp: &dyn ValueObj) {
+    self.0.read_end(resource, checker, stamp);
+    self.1.read_end(resource, checker, stamp);
   }
   #[inline]
-  fn check_require_file_start(&mut self, dependency: &FileDependency) {
-    self.0.check_require_file_start(dependency);
-    self.1.check_require_file_start(dependency);
+  fn write_start(&mut self, resource: &dyn KeyObj, checker: &dyn ValueObj) {
+    self.0.write_start(resource, checker);
+    self.1.write_start(resource, checker);
   }
   #[inline]
-  fn check_require_file_end(&mut self, dependency: &FileDependency, inconsistent: Result<Option<&FileStamp>, &io::Error>) {
-    self.0.check_require_file_end(dependency, inconsistent);
-    self.1.check_require_file_end(dependency, inconsistent);
-  }
-  #[inline]
-  fn check_provide_file_start(&mut self, dependency: &FileDependency) {
-    self.0.check_provide_file_start(dependency);
-    self.1.check_provide_file_start(dependency);
-  }
-  #[inline]
-  fn check_provide_file_end(&mut self, dependency: &FileDependency, inconsistent: Result<Option<&FileStamp>, &io::Error>) {
-    self.0.check_provide_file_end(dependency, inconsistent);
-    self.1.check_provide_file_end(dependency, inconsistent);
-  }
-  #[inline]
-  fn check_require_task_start(&mut self, dependency: &TaskDependency<T, T::Output>) {
-    self.0.check_require_task_start(dependency);
-    self.1.check_require_task_start(dependency);
-  }
-  #[inline]
-  fn check_require_task_end(&mut self, dependency: &TaskDependency<T, T::Output>, inconsistent: Option<&OutputStamp<T::Output>>) {
-    self.0.check_require_task_end(dependency, inconsistent);
-    self.1.check_require_task_end(dependency, inconsistent);
-  }
-  #[inline]
-  fn check_top_down_end(&mut self, task: &T) {
-    self.0.check_top_down_end(task);
-    self.1.check_top_down_end(task);
-  }
-  #[inline]
-  fn require_top_down_initial_end(&mut self, task: &T, output: &T::Output) {
-    self.0.require_top_down_initial_end(task, output);
-    self.1.require_top_down_initial_end(task, output);
+  fn write_end(&mut self, resource: &dyn KeyObj, checker: &dyn ValueObj, stamp: &dyn ValueObj) {
+    self.0.write_end(resource, checker, stamp);
+    self.1.write_end(resource, checker, stamp);
   }
 
-  
   #[inline]
-  fn update_affected_by_start<'a, I: IntoIterator<Item=&'a PathBuf> + Clone>(&mut self, changed_files: I) {
-    self.0.update_affected_by_start(changed_files.clone());
-    self.1.update_affected_by_start(changed_files);
+  fn check_task_start(&mut self, task: &dyn KeyObj, checker: &dyn ValueObj, stamp: &dyn ValueObj) {
+    self.0.check_task_start(task, checker, stamp);
+    self.1.check_task_start(task, checker, stamp);
   }
   #[inline]
-  fn schedule_affected_by_file_start(&mut self, file: &PathBuf) {
-    self.0.schedule_affected_by_file_start(file);
-    self.1.schedule_affected_by_file_start(file);
+  fn check_task_end(
+    &mut self,
+    task: &dyn KeyObj,
+    checker: &dyn ValueObj,
+    stamp: &dyn ValueObj,
+    inconsistency: Option<&dyn Debug>,
+  ) {
+    self.0.check_task_end(task, checker, stamp, inconsistency);
+    self.1.check_task_end(task, checker, stamp, inconsistency);
+  }
+
+  #[inline]
+  fn check_resource_start(&mut self, resource: &dyn KeyObj, checker: &dyn ValueObj, stamp: &dyn ValueObj) {
+    self.0.check_resource_start(resource, checker, stamp);
+    self.1.check_resource_start(resource, checker, stamp);
   }
   #[inline]
-  fn check_affected_by_file_start(&mut self, requiring_task: &T, dependency: &FileDependency) {
-    self.0.check_affected_by_file_start(requiring_task, dependency);
-    self.1.check_affected_by_file_start(requiring_task, dependency);
+  fn check_resource_end(
+    &mut self,
+    resource: &dyn KeyObj,
+    checker: &dyn ValueObj,
+    stamp: &dyn ValueObj,
+    inconsistency: Result<Option<&dyn Debug>, &dyn Error>,
+  ) {
+    self.0.check_resource_end(resource, checker, stamp, inconsistency);
+    self.1.check_resource_end(resource, checker, stamp, inconsistency);
+  }
+
+  #[inline]
+  fn execute_start(&mut self, task: &dyn KeyObj) {
+    self.0.execute_start(task);
+    self.1.execute_start(task);
   }
   #[inline]
-  fn check_affected_by_file_end(&mut self, requiring_task: &T, dependency: &FileDependency, inconsistent: Result<Option<&FileStamp>, &io::Error>) {
-    self.0.check_affected_by_file_end(requiring_task, dependency, inconsistent);
-    self.1.check_affected_by_file_end(requiring_task, dependency, inconsistent);
-  }
-  #[inline]
-  fn schedule_affected_by_file_end(&mut self, file: &PathBuf) {
-    self.0.schedule_affected_by_file_end(file);
-    self.1.schedule_affected_by_file_end(file);
-  }
-  #[inline]
-  fn schedule_affected_by_task_start(&mut self, task: &T) {
-    self.0.schedule_affected_by_task_start(task);
-    self.1.schedule_affected_by_task_start(task);
-  }
-  #[inline]
-  fn check_affected_by_required_task_start(&mut self, requiring_task: &T, dependency: &TaskDependency<T, T::Output>) {
-    self.0.check_affected_by_required_task_start(requiring_task, dependency);
-    self.1.check_affected_by_required_task_start(requiring_task, dependency);
-  }
-  #[inline]
-  fn check_affected_by_required_task_end(&mut self, requiring_task: &T, dependency: &TaskDependency<T, T::Output>, inconsistent: Option<OutputStamp<&T::Output>>) {
-    self.0.check_affected_by_required_task_end(requiring_task, dependency, inconsistent.clone());
-    self.1.check_affected_by_required_task_end(requiring_task, dependency, inconsistent);
-  }
-  #[inline]
-  fn schedule_affected_by_task_end(&mut self, task: &T) {
-    self.0.schedule_affected_by_task_end(task);
-    self.1.schedule_affected_by_task_end(task);
-  }
-  #[inline]
-  fn schedule_task(&mut self, task: &T) {
-    self.0.schedule_task(task);
-    self.1.schedule_task(task);
-  }
-  #[inline]
-  fn update_affected_by_end(&mut self) {
-    self.0.update_affected_by_end();
-    self.1.update_affected_by_end();
+  fn execute_end(&mut self, task: &dyn KeyObj, output: &dyn ValueObj) {
+    self.0.execute_end(task, output);
+    self.1.execute_end(task, output);
   }
 }

@@ -1,18 +1,15 @@
+use std::error::Error;
+use std::fmt::Debug;
 use std::io::{self, BufWriter, Stderr, Stdout, Write};
-use std::path::PathBuf;
 
-use crate::dependency::{FileDependency, TaskDependency};
-use crate::stamp::{FileStamp, OutputStamp};
-use crate::Task;
-use crate::tracker::metrics::MetricsTracker;
 use crate::tracker::Tracker;
+use crate::trait_object::{KeyObj, ValueObj};
 
 /// A [`Tracker`] that writes events to a [`Write`] instance, for example [`Stdout`].
 #[derive(Clone, Debug)]
 pub struct WritingTracker<W> {
   writer: W,
   indentation: u32,
-  metrics_tracker: Option<MetricsTracker>,
 }
 
 impl WritingTracker<BufWriter<Stdout>> {
@@ -26,202 +23,30 @@ impl WritingTracker<BufWriter<Stderr>> {
   pub fn with_stderr() -> Self { Self::new(BufWriter::new(io::stderr())) }
 }
 impl<W: Write> WritingTracker<W> {
-  /// Creates a [`WritingTracker`] that writes to `writer`.
+  /// Creates a new [`WritingTracker`] that writes to `writer`.
   #[inline]
   pub fn new(writer: W) -> Self {
     Self {
       writer,
       indentation: 0,
-      metrics_tracker: Some(MetricsTracker::default()),
     }
   }
 }
 
-impl<W: Write, T: Task> Tracker<T> for WritingTracker<W> {
-  #[inline]
-  fn require_file(&mut self, dependency: &FileDependency) {
-    if let Some(metrics) = &mut self.metrics_tracker {
-      <MetricsTracker as Tracker<T>>::require_file(metrics, dependency);
-    }
-  }
-  #[inline]
-  fn provide_file(&mut self, dependency: &FileDependency) {
-    if let Some(metrics) = &mut self.metrics_tracker {
-      <MetricsTracker as Tracker<T>>::provide_file(metrics, dependency);
-    }
-  }
-  #[inline]
-  fn require_task_start(&mut self, task: &T) {
-    if let Some(metrics) = &mut self.metrics_tracker {
-      metrics.require_task_start(task);
-    }
-  }
-  #[inline]
-  fn require_task_end(&mut self, task: &T, output: &T::Output, was_executed: bool) {
-    if let Some(metrics) = &mut self.metrics_tracker {
-      metrics.require_task_end(task, output, was_executed);
-    }
-    if !was_executed {
-      self.writeln(format_args!("✓ {:?}", task));
-      self.flush();
-    }
-  }
-
-
-  #[inline]
-  fn execute_task_start(&mut self, task: &T) {
-    if let Some(metrics) = &mut self.metrics_tracker {
-      metrics.execute_task_start(task);
-    }
-    self.writeln(format_args!("→ {:?}", task));
-    self.indent();
-    self.flush();
-  }
-  #[inline]
-  fn execute_task_end(&mut self, _task: &T, output: &T::Output) {
-    self.unindent();
-    self.writeln(format_args!("← {:?}", output));
-    self.flush();
-  }
-
-
-  #[inline]
-  fn require_top_down_initial_start(&mut self, task: &T) {
-    if let Some(metrics) = &mut self.metrics_tracker {
-      metrics.require_top_down_initial_start(task);
-    }
-    self.writeln(format_args!("Top-down build start: {:?}", task));
-    self.indent();
-    self.flush();
-  }
-  #[inline]
-  fn check_top_down_start(&mut self, task: &T) {
-    self.writeln(format_args!("? {:?}", task));
-    self.indent();
-    self.flush();
-  }
-  #[inline]
-  fn check_require_file_start(&mut self, _dependency: &FileDependency) {}
-  #[inline]
-  fn check_require_file_end(&mut self, dependency: &FileDependency, inconsistent: Result<Option<&FileStamp>, &io::Error>) {
-    self.write_top_down_file_dependency(dependency, inconsistent);
-  }
-  #[inline]
-  fn check_provide_file_start(&mut self, _dependency: &FileDependency) {}
-  #[inline]
-  fn check_provide_file_end(&mut self, dependency: &FileDependency, inconsistent: Result<Option<&FileStamp>, &io::Error>) {
-    self.write_top_down_file_dependency(dependency, inconsistent);
-  }
-  #[inline]
-  fn check_require_task_start(&mut self, _dependency: &TaskDependency<T, T::Output>) {}
-  #[inline]
-  fn check_require_task_end(&mut self, dependency: &TaskDependency<T, T::Output>, inconsistent: Option<&OutputStamp<T::Output>>) {
-    self.write_top_down_task_dependency(dependency, inconsistent);
-  }
-  #[inline]
-  fn check_top_down_end(&mut self, _task: &T) {
-    self.unindent();
-  }
-  #[inline]
-  fn require_top_down_initial_end(&mut self, task: &T, output: &T::Output) {
-    let duration = self.metrics_tracker.as_mut().map(|metrics| {
-      metrics.require_top_down_initial_end(task, output);
-      metrics.report().build_duration
-    });
-    self.unindent();
-    self.write(format_args!("Top-down build end: {:?}", output));
-    if let Some(duration) = duration {
-      self.write(format_args!(" [{:.3}ms]", duration.as_secs_f64() * 1000.0));
-    }
-    self.write_nl();
-    self.flush();
-  }
-
-
-  #[inline]
-  fn update_affected_by_start<'a, I: IntoIterator<Item=&'a PathBuf> + Clone>(&mut self, changed_files: I) {
-    if let Some(metrics) = &mut self.metrics_tracker {
-      <MetricsTracker as Tracker<T>>::update_affected_by_start::<I>(metrics, changed_files.clone());
-    }
-    self.write_indentation();
-    self.write(format_args!("Bottom-up build start: "));
-    let mut iter = changed_files.into_iter();
-    if let Some(changed_file) = iter.next() {
-      self.write(format_args!("{}", changed_file.display()));
-      for changed_file in iter {
-        self.write(format_args!(", {}", changed_file.display()));
-      }
-    }
-    self.write_nl();
-    self.indent();
-    self.flush();
-  }
-  #[inline]
-  fn schedule_affected_by_file_start(&mut self, file: &PathBuf) {
-    self.writeln(format_args!("¿ {}", file.display()));
-    self.indent();
-    self.flush();
-  }
-  #[inline]
-  fn check_affected_by_file_start(&mut self, _requiring_task: &T, _dependency: &FileDependency) {}
-  #[inline]
-  fn check_affected_by_file_end(&mut self, requiring_task: &T, dependency: &FileDependency, inconsistent: Result<Option<&FileStamp>, &io::Error>) {
-    self.write_bottom_up_file_dependency(requiring_task, dependency, inconsistent);
-  }
-  #[inline]
-  fn schedule_affected_by_file_end(&mut self, _file: &PathBuf) {
-    self.unindent();
-  }
-  #[inline]
-  fn schedule_affected_by_task_start(&mut self, task: &T) {
-    self.writeln(format_args!("¿ {:?}", task));
-    self.indent();
-    self.flush();
-  }
-  #[inline]
-  fn check_affected_by_required_task_start(&mut self, _requiring_task: &T, _dependency: &TaskDependency<T, T::Output>) {}
-  #[inline]
-  fn check_affected_by_required_task_end(&mut self, requiring_task: &T, dependency: &TaskDependency<T, T::Output>, inconsistent: Option<OutputStamp<&T::Output>>) {
-    self.write_bottom_up_task_dependency(requiring_task, dependency, inconsistent);
-  }
-  #[inline]
-  fn schedule_affected_by_task_end(&mut self, _task: &T) {
-    self.unindent();
-  }
-  #[inline]
-  fn schedule_task(&mut self, task: &T) {
-    self.writeln(format_args!("↑ {:?}", task));
-    self.flush();
-  }
-  #[inline]
-  fn update_affected_by_end(&mut self) {
-    let duration = self.metrics_tracker.as_mut().map(|metrics| {
-      <MetricsTracker as Tracker<T>>::update_affected_by_end(metrics);
-      metrics.report().build_duration
-    });
-    self.unindent();
-    self.write(format_args!("Bottom-up build end"));
-    if let Some(duration) = duration {
-      self.write(format_args!(" [{:.3}ms]", duration.as_secs_f64() * 1000.0));
-    }
-    self.write_nl();
-    self.flush();
-  }
-}
-
+#[allow(dead_code)]
 impl<W: Write> WritingTracker<W> {
   #[inline]
   fn writeln(&mut self, args: std::fmt::Arguments) {
     self.write_indentation();
-    writeln!(&mut self.writer, "{}", args).ok();
+    let _ = writeln!(&mut self.writer, "{}", args);
   }
   #[inline]
   fn write(&mut self, args: std::fmt::Arguments) {
-    write!(&mut self.writer, "{}", args).ok();
+    let _ = write!(&mut self.writer, "{}", args);
   }
   #[inline]
   fn write_nl(&mut self) {
-    write!(&mut self.writer, "\n").ok();
+    let _ = write!(&mut self.writer, "\n");
   }
 
   #[inline]
@@ -235,7 +60,7 @@ impl<W: Write> WritingTracker<W> {
   #[inline]
   fn write_indentation(&mut self) {
     for _ in 0..self.indentation {
-      write!(&mut self.writer, " ").ok();
+      let _ = write!(&mut self.writer, " ");
     }
   }
 
@@ -243,42 +68,95 @@ impl<W: Write> WritingTracker<W> {
   fn flush(&mut self) {
     let _ = self.writer.flush();
   }
+}
 
+impl<W: Write + 'static> Tracker for WritingTracker<W> {
   #[inline]
-  fn write_top_down_file_dependency(&mut self, dependency: &FileDependency, inconsistent: Result<Option<&FileStamp>, &io::Error>) {
-    // Top-down: the requiring task has already been written.
-    match inconsistent {
-      Ok(Some(new_stamp)) => self.writeln(format_args!("☒ {} [{:?} ≠ {:?}]", dependency.path().display(), dependency.stamp(), new_stamp)),
-      Ok(None) => self.writeln(format_args!("☑ {} [{:?}]", dependency.path().display(), dependency.stamp())),
-      Err(e) => self.writeln(format_args!("☒ {:?} [error: {}]", dependency.path().display(), e))
-    }
+  fn build_start(&mut self) {
+    self.indentation = 0;
   }
   #[inline]
-  fn write_bottom_up_file_dependency<T: Task>(&mut self, requiring_task: &T, dependency: &FileDependency, inconsistent: Result<Option<&FileStamp>, &io::Error>) {
-    // Bottom-up: the affecting (required) file has already been written.
-    match inconsistent {
-      Ok(Some(new_stamp)) => self.writeln(format_args!("☒ {:?} [{:?} ≠ {:?}]", requiring_task, dependency.stamp(), new_stamp)),
-      Ok(None) => self.writeln(format_args!("☑ {:?} [{:?}]", requiring_task, dependency.stamp())),
-      Err(e) => self.writeln(format_args!("☒ {:?} [error: {:?}]", requiring_task, e))
-    }
+  fn build_end(&mut self) {
+    self.writeln(format_args!("🏁"));
+    self.flush();
   }
 
   #[inline]
-  fn write_top_down_task_dependency<T: Task>(&mut self, dependency: &TaskDependency<T, T::Output>, inconsistent: Option<&OutputStamp<T::Output>>) {
-    // Top-down: the requiring task has already been written.
-    if let Some(new_stamp) = inconsistent {
-      self.writeln(format_args!("☒ {:?} [{:?} ≠ {:?}]", dependency.task(), dependency.stamp(), new_stamp));
-    } else {
-      self.writeln(format_args!("☑ {:?} [{:?}]", dependency.task(), dependency.stamp()));
-    }
+  fn require_start(&mut self, task: &dyn KeyObj, _checker: &dyn ValueObj) {
+    self.writeln(format_args!("→ {:?}", task));
+    self.indent();
+    self.flush();
   }
   #[inline]
-  fn write_bottom_up_task_dependency<T: Task>(&mut self, requiring_task: &T, dependency: &TaskDependency<T, T::Output>, inconsistent: Option<OutputStamp<&T::Output>>) {
-    // Bottom-up: the affecting (required) task has already been written.
-    if let Some(new_stamp) = inconsistent {
-      self.writeln(format_args!("☒ {:?} [{:?} ≠ {:?}]", requiring_task, dependency.stamp(), new_stamp));
+  fn require_end(
+    &mut self,
+    _task: &dyn KeyObj,
+    _checker: &dyn ValueObj,
+    _stamp: &dyn ValueObj,
+    output: &dyn ValueObj,
+  ) {
+    self.unindent();
+    self.writeln(format_args!("← {:?}", output));
+    self.flush();
+  }
+
+  #[inline]
+  fn read_end(&mut self, resource: &dyn KeyObj, _checker: &dyn ValueObj, _stamp: &dyn ValueObj) {
+    self.writeln(format_args!("r {:?}", resource)); // TODO: expose and use display?
+  }
+  #[inline]
+  fn write_end(&mut self, resource: &dyn KeyObj, _checker: &dyn ValueObj, _stamp: &dyn ValueObj) {
+    self.writeln(format_args!("w {:?}", resource)); // TODO: expose and use display?
+  }
+
+  #[inline]
+  fn check_task_start(&mut self, task: &dyn KeyObj, _checker: &dyn ValueObj, _stamp: &dyn ValueObj) {
+    self.writeln(format_args!("? {:?}", task));
+    self.indent();
+    self.flush();
+  }
+  #[inline]
+  fn check_task_end(
+    &mut self,
+    task: &dyn KeyObj,
+    _checker: &dyn ValueObj,
+    stamp: &dyn ValueObj,
+    inconsistency: Option<&dyn Debug>,
+  ) {
+    self.unindent();
+    if let Some(new_stamp) = inconsistency {
+      self.writeln(format_args!("✗ {:?} (new: {:?} ≉ old: {:?})", task, new_stamp, stamp))
     } else {
-      self.writeln(format_args!("☑ {:?} [{:?}]", requiring_task, dependency.stamp()));
+      self.writeln(format_args!("✓ {:?}", task))
     }
+    self.flush();
+  }
+  #[inline]
+  fn check_resource_end(
+    &mut self,
+    resource: &dyn KeyObj,
+    _checker: &dyn ValueObj,
+    stamp: &dyn ValueObj,
+    inconsistency: Result<Option<&dyn Debug>, &dyn Error>,
+  ) {
+    match inconsistency { // TODO: expose and use display?
+      Err(e) => self.writeln(format_args!("✗ {:?} (err: {:?})", resource, e)),
+      Ok(Some(new_stamp)) =>
+        self.writeln(format_args!("✗ {:?} (new: {:?} ≉ old: {:?})", resource, new_stamp, stamp)),
+      Ok(None) => self.writeln(format_args!("✓ {:?}", resource)),
+    }
+  }
+
+  #[inline]
+  fn execute_start(&mut self, task: &dyn KeyObj) {
+    self.writeln(format_args!("▶ {:?}", task));
+    self.indent();
+    self.flush();
+  }
+  #[inline]
+  fn execute_end(&mut self, _task: &dyn KeyObj, output: &dyn ValueObj) {
+    self.unindent();
+    self.writeln(format_args!("◀ {:?}", output));
+    self.flush();
   }
 }

@@ -1,265 +1,292 @@
-//! PIE is a *sound* and *incremental* *programmatic build system*, a mix between an *incremental build system* and 
-//! *incremental computation* system that can be implemented and used *programmatically*.
+//! # Trait bounds
 //!
-//! # Tasks
+//! [`Task`] and [`Resource`] are bounded by [`KeyBounds`] so that we can store types of those traits as a key in a
+//! hashmap in trait object form. We need to store these types under a trait object to support arbitrary task and
+//! resource types. We also need to store an additional clone for a reverse hashmap.
 //!
-//! [Tasks](Task) are the unit of computation in a programmatic incremental build system. They have an 
-//! [execute](Task::execute) function that executes the task and returns its result. Therefore, tasks can be seen as a 
-//! sort of closure, an executable function along with its input, but one that can be executed incrementally by PIE.
+//! [`OutputChecker`] and [`ResourceChecker`] are also bounded by [`KeyBounds`], because types of these traits may be
+//! used as values in tasks, which would require them to be bounded by [`KeyBounds`] anyway. This reduces boilerplate in
+//! tasks that are generic over [`OutputChecker`] and [`ResourceChecker`], as the [`KeyBounds`] bound can be omitted.
 //!
-//! Tasks *dynamically create dependencies while the build is running* through methods on [`Context`], enabling precise
-//! and expressive dependency tracking.
+//! [`Task::Output`], [`OutputChecker::Stamp`], and [`ResourceChecker::Stamp`] are bounded by [`ValueBounds`] because
+//! we need to store (cache) these values. We need to store these values for an indeterminate time, so non-`'static`
+//! references are ruled out. We need to clone outputs to store them. When checking dependencies, we need to clone the
+//! dependencies (due to lifetime/borrow complications). Since these types are used in dependencies, that is another
+//! reason they need to be [`Clone`].
 //!
-//! The identity of a task is determined by its [`Eq`] and [`Hash`] implementations. Therefore, tasks that are 
-//! structurally different are considered different.
-//!
-//! # Soundness and Incrementality through Consistency Checking of Dynamic Dependencies
-//!
-//! PIE is sound and incremental, because it executes a task if and only if it is *inconsistent*.
-//!
-//! A task is *new* if it has *not been executed before*. New tasks are *always inconsistent*. If it is not new, it is 
-//! an already *existing task*. An existing task is *checked* for consistency. An existing task is inconsistent if 
-//! and only if any of its dependencies are inconsistent:
-//!
-//! - A file dependency is inconsistent if its [file stamp](stamp::FileStamp) changes. 
-//! - A task dependency is inconsistent if, after *recursively checking* the task, its 
-//!   [output stamp](stamp::OutputStamp) changes.
-//!
-//! Dependencies store the stamp that was created when the dependency was created. The stamp of a dependency changes when
-//! the new stamp differs from the stored stamp, using the [`Eq`] implementation of the corresponding stamp.
-//!
-//! If all dependencies of an existing task are consistent after checking, or if the existing task has no dependencies, 
-//! it is *consistent* and is not executed (at that time). The recursive nature of checking task dependencies ensures 
-//! that indirect changes can cause tasks to become inconsistent, and cause them to be correctly executed, even in the
-//! presence of dynamic dependencies.
-//!
-//! # Creating Correct Dependencies
-//!
-//! It is up to the task author to correctly create all dependencies required for a task to be considered inconsistent.
-//! Creating the wrong dependency, or forgetting to create a dependency, can cause incrementality bugs or decreased 
-//! incrementality, even if PIE is sound and incremental.
-//!
-//! # Build Sessions
-//!
-//! [Build sessions](Session) place restrictions on whether a task is checked or executed, to make builds incremental 
-//! and sound in the face of filesystem changes. The following two restrictions are in place:
-//!
-//! - A task is *checked at most once each session*.
-//! - A task is *executed at most once each session*.
-//!
-//! Therefore, once a task is checked (and deemed consistent), or once a task is executed, it will not be checked or 
-//! executed again this session, even though one of its (file) dependencies may become inconsistent later.
-//!
-//! The result of this is that *changes made to source files during a session* are *not guaranteed to be detected*. For 
-//! example, if a file dependency is consistent when the task is checked, but later becomes inconsistent, we do not 
-//! guarantee that the task will be executed.
-//!
-//! Therefore, a new session must be created in order to re-check or re-execute tasks that are consistent.
+//! All user-implementable traits and corresponding associated types are bounded by [`Debug`] for debugging/logging.
 
-use std::collections::hash_map::RandomState;
-use std::collections::HashSet;
+use std::any::Any;
+use std::error::Error;
 use std::fmt::Debug;
-use std::fs::File;
-use std::hash::{BuildHasher, Hash};
-use std::io;
-use std::path::{Path, PathBuf};
+use std::hash::Hash;
 
-use stamp::{FileStamper, OutputStamper};
+use crate::tracker::Tracker;
+use crate::trait_object::KeyObj;
 
-use crate::context::bottom_up::BottomUpContext;
-use crate::context::top_down::TopDownContext;
-use crate::store::{Store, TaskNode};
-use crate::tracker::{NoopTracker, Tracker};
-
-pub mod stamp;
+pub mod task;
+pub mod resource;
 pub mod tracker;
-mod dependency;
-mod store;
+pub mod trait_object;
+
+mod pie;
 mod context;
-mod fs;
+mod store;
+mod dependency;
 
-/// The unit of computation in a programmatic incremental build system. See the [module-level documentation](index.html)
-/// for more information.
-pub trait Task: Clone + Eq + Hash + Debug {
-  /// Type of output this task returns when executed.
-  type Output: Clone + Eq + Debug;
-  /// Execute the task, using `context` to specify dynamic dependencies, returning `Self::Output`.
-  fn execute<C: Context<Self>>(&self, context: &mut C) -> Self::Output;
+/// Trait alias for types that are used as values: types that can be cloned, debug formatted, and contain no
+/// non-`'static` references. We use this as an alias for trait bounds and super-traits.
+pub trait ValueBounds: Clone + Debug + 'static {}
+impl<T: Clone + Debug + 'static> ValueBounds for T {}
+
+/// Trait alias for types that are used as keys: types that can be cloned, equality compared, hashed, debug formatted,
+/// and contain no non-`'static` references. We use this as an alias for trait bounds and super-traits.
+pub trait KeyBounds: ValueBounds + Eq + Hash {}
+impl<T: ValueBounds + Eq + Hash> KeyBounds for T {}
+
+/// A unit of computation in a programmatic incremental build system.
+pub trait Task: KeyBounds {
+  /// Type of task outputs.
+  type Output: ValueBounds;
+
+  /// Execute the task under `context`, returning an output.
+  fn execute<C: Context>(&self, context: &mut C) -> Self::Output;
+}
+
+/// Programmatic incremental build context, enabling tasks to require other tasks and read/write from/to resources,
+/// programmatically creating precise dependencies that are used to incrementally execute tasks.
+///
+/// Tasks can [require](Self::require) other tasks, creating a task dependency and getting their consistent (i.e.,
+/// most up-to-date) output value.
+///
+/// Tasks can [read](Self::read) from a [resource](Resource), creating a resource read dependency and getting a reader
+/// for reading from the resource. Subsequently, tasks can [write](Self::write) to a [resource](Resource), first writing
+/// to the resource through a writer, then creating a resource write dependency.
+///
+/// When a dependency of the task is inconsistent, that task is inconsistent and will be re-executed when required.
+///
+/// This trait is *not* intended to be user-implementable.
+pub trait Context {
+  /// Requires `task` using `checker` for consistency checking, creating a task dependency and returning its consistent
+  /// (i.e., most up-to-date) output value.
+  fn require<T: Task, H: OutputChecker<T::Output>>(&mut self, task: &T, checker: H) -> T::Output;
+
+  /// Creates a read dependency to `resource` using `checker` for consistency checking, then returns a
+  /// [reader](Resource::Reader) for reading the resource.
+  fn read<T, R, H>(&mut self, resource: &T, checker: H) -> Result<R::Reader<'_>, H::Error> where
+    T: ToOwned<Owned=R>,
+    R: Resource,
+    H: ResourceChecker<R>;
+  /// Creates a [writer](Resource::Writer) for `resource`, runs `write_fn` with that writer, then creates a write
+  /// dependency to `resource` using `checker` for consistency checking.
+  fn write<T, R, H, F>(&mut self, resource: &T, checker: H, write_fn: F) -> Result<(), H::Error> where
+    T: ToOwned<Owned=R>,
+    R: Resource,
+    H: ResourceChecker<R>,
+    F: FnOnce(&mut R::Writer<'_>) -> Result<(), R::Error>;
+
+  /// Creates a [writer](Resource::Writer) for `resource`. This does *not* create a dependency. After writing to the
+  /// resource, call [written_to](Self::written_to) to create the dependency.
+  ///
+  /// Prefer [write](Self::write) if possible, as it handles writing and creating the dependency in one call.
+  fn create_writer<'r, R: Resource>(&'r mut self, resource: &'r R) -> Result<R::Writer<'r>, R::Error>;
+  /// Creates a write dependency to `resource` using `checker` for consistency checking.
+  fn written_to<T, R, H>(&mut self, resource: &T, checker: H) -> Result<(), H::Error> where
+    T: ToOwned<Owned=R>,
+    R: Resource,
+    H: ResourceChecker<R>;
+}
+
+/// Consistency checker for task outputs, producing and checking output stamps. For example, the equals checker uses the
+/// output of a task as stamp, and checks whether they are equal.
+pub trait OutputChecker<O>: KeyBounds {
+  /// Type of stamps.
+  type Stamp: ValueBounds;
+  /// Stamps `output`.
+  fn stamp(&self, output: &O) -> Self::Stamp;
+
+  /// Type of inconsistency used for debugging/logging purposes. The `'i` lifetime represents this checker, or the
+  /// output/stamp passed to [Self::is_inconsistent].
+  type Inconsistency<'i>: Debug where O: 'i;
+  /// Checks whether `output` is inconsistent w.r.t. `stamp`, returning `Some(inconsistency)` if inconsistent, `None` if
+  /// consistent.
+  fn is_inconsistent<'i>(&'i self, output: &'i O, stamp: &'i Self::Stamp) -> Option<Self::Inconsistency<'i>>;
 }
 
 
-/// Programmatic incremental build context, enabling tasks to create dynamic dependencies that context implementations 
-/// use for incremental execution. See the [module-level documentation](index.html) for more information.
-pub trait Context<T: Task> {
-  /// Requires file at given `path`, recording a read-dependency to it (using the default require file stamper). Call 
-  /// this method *just before reading from the file*, so that the dependency corresponds to the data that you are 
-  /// reading. Returns:
-  /// - `Ok(Some(file))` if a file exists at given `path` with `file` in read-only mode, 
-  /// - `Ok(None)` if no file exists at given `path` (but a directory could exist at given `path`),
-  /// - `Err(e)` if there was an error getting the metadata for given `path`, if there was an error opening the file, or 
-  ///   if there was an error stamping the file.
-  #[inline]
-  fn require_file(&mut self, path: impl AsRef<Path>) -> Result<Option<File>, io::Error> {
-    self.require_file_with_stamper(path, self.default_require_file_stamper())
+/// A resource representing global (mutable) state, such as a path identifying a file on a filesystem.
+pub trait Resource: KeyBounds {
+  /// Type of readers returned from [read](Self::read), with `'rs` representing the lifetime of the resource state.
+  type Reader<'rs>;
+  /// Type of writers returned from [write](Self::write), with `'r` representing the lifetime of this resource.
+  type Writer<'r>;
+  /// Type of errors returned from all methods.
+  type Error: Error;
+
+  /// Creates a reader for this resource, with access to global mutable [resource `state`](ResourceState).
+  fn read<'rs, RS: ResourceState<Self>>(&self, state: &'rs mut RS) -> Result<Self::Reader<'rs>, Self::Error>;
+  /// Creates a writer for this resource, with access to global mutable [resource `state`](ResourceState).
+  fn write<'r, RS: ResourceState<Self>>(&'r self, state: &'r mut RS) -> Result<Self::Writer<'r>, Self::Error>;
+}
+
+/// Provides access to global mutable state for [resources](Resource) of type `R`. Each unique resource type `R` has
+/// access to one value that can be of any type that implements [`Any`] (i.e., all types without non-`'static`
+/// references).
+///
+/// This trait is *not* intended to be user-implementable.
+pub trait ResourceState<R> {
+  /// Gets the state as `S`. Returns `Some(&state)` if the state of type `S` exists, `None` otherwise.
+  fn get<S: Any>(&self) -> Option<&S>;
+  /// Gets the mutable state as `S`. Returns `Some(&mut state)` if the state of type `S` exists, `None` otherwise.
+  fn get_mut<S: Any>(&mut self) -> Option<&mut S>;
+  /// Sets the `state`.
+  fn set<S: Any>(&mut self, state: S);
+
+  /// Gets the boxed state. Returns `Some(&state)` if the state exists, `None` otherwise.
+  fn get_boxed(&self) -> Option<&Box<dyn Any>>;
+  /// Gets the mutable boxed state. Returns `Some(&mut state)` if the state exists, `None` otherwise.
+  fn get_boxed_mut(&mut self) -> Option<&mut Box<dyn Any>>;
+  /// Sets the boxed `state`.
+  fn set_boxed(&mut self, state: Box<dyn Any>);
+
+  /// Gets the state as `S` or sets a default. If no state was set, or if it is not of type `S`, first sets the state to
+  /// `S::default()`. Then returns the state as `&state`.
+  fn get_or_set_default<S: Default + Any>(&mut self) -> &S;
+  /// Gets the mutable state as `S` or sets a default. If no state was set, or if it is not of type `S`, first sets the
+  /// state to `S::default()`. Then returns the state as `&mut state`.
+  fn get_or_set_default_mut<S: Default + Any>(&mut self) -> &mut S;
+}
+
+/// Consistency checker for resources, producing and checking resource stamps. For example, for filesystem resources, a
+/// last modified checker creates last modified stamps and checks whether they have changed, and a hash checker creates
+/// file content hash stamps and checks whether they have changed.
+pub trait ResourceChecker<R: Resource>: KeyBounds {
+  /// Type of stamps returned from stamp methods.
+  type Stamp: ValueBounds;
+  /// Type of errors returned from all methods.
+  type Error: Error;
+
+  /// Stamp `resource` with access to `state`.
+  fn stamp<RS: ResourceState<R>>(&self, resource: &R, state: &mut RS) -> Result<Self::Stamp, Self::Error>;
+  /// Stamps `resource` with a `reader` for that resource.
+  ///
+  /// The `reader` is fresh: it is first passed to this checker before being passed to a task. However, because it is
+  /// later passed to a task, `reader` must be _left in a fresh state after stamping_. For example, a buffered reader
+  /// must be rewound after using it.
+  fn stamp_reader(&self, resource: &R, reader: &mut R::Reader<'_>) -> Result<Self::Stamp, Self::Error>;
+  /// Stamps `resource` with a `writer` for that resource.
+  ///
+  /// The `writer` is dirty: it was first used by a task to write data. Therefore, be sure to restore the `writer` to a
+  /// fresh state before reading from it. For example, a file must be rewound after using it.
+  ///
+  /// There is no guarantee that `resource` still exists, as it may have been removed by a task. Therefore, `writer` may
+  /// contain stale data for certain resources. If that can be the case, be sure to check whether `writer` is still
+  /// consistent w.r.t. `resource.
+  fn stamp_writer(&self, resource: &R, writer: R::Writer<'_>) -> Result<Self::Stamp, Self::Error>;
+
+  /// Type of inconsistency used for debugging/logging purposes. The `'i` lifetime represents this checker, or the
+  /// resource/state/stamp passed to [Self::is_inconsistent].
+  type Inconsistency<'i>: Debug;
+  /// Checks whether `resource` is inconsistent w.r.t. `stamp`, with access to `state`. Returns `Some(inconsistency)`
+  /// when inconsistent, `None` when consistent.
+  fn is_inconsistent<'i, RS: ResourceState<R>>(
+    &'i self,
+    resource: &'i R,
+    state: &'i mut RS,
+    stamp: &'i Self::Stamp,
+  ) -> Result<Option<Self::Inconsistency<'i>>, Self::Error>;
+
+  /// Wraps a [resource `error`](Resource::Error) into [`Self::Error`].
+  fn wrap_error(&self, error: R::Error) -> Self::Error;
+}
+
+
+/// Main entry point into PIE, a sound and incremental programmatic build system.
+#[repr(transparent)]
+pub struct Pie<A>(pie::PieData<A>);
+
+impl Default for Pie<()> {
+  fn default() -> Self {
+    Self(pie::PieData::default())
   }
-  /// Requires file at given `path`, recording a read-dependency to it (using given `stamper`). Call this method 
-  /// *just before reading from the file*, so that the dependency corresponds to the data that you are reading. Returns:
-  /// - `Ok(Some(file))` if a file exists at given `path` with `file` in read-only mode, 
-  /// - `Ok(None)` if no file exists at given `path` (but a directory could exist at given `path`),
-  /// - `Err(e)` if there was an error getting the metadata for given `path`, if there was an error opening the file, or 
-  ///   if there was an error stamping the file.
-  fn require_file_with_stamper<P: AsRef<Path>>(&mut self, path: P, stamper: FileStamper) -> Result<Option<File>, io::Error>;
-  /// Returns the default require file stamper.
-  #[inline]
-  fn default_require_file_stamper(&self) -> FileStamper { FileStamper::Modified }
-
-  /// Provides file at given `path`, recording a write-dependency to it (using the default provide file stamper) . Call 
-  /// this method *just after writing to the file*, so that the dependency corresponds to the data that you wrote. 
-  /// This method does not return the opened file, as it must be called *after writing to the file*.
-  ///
-  /// # Errors
-  ///
-  /// If stamping the file fails, returns that error.
-  #[inline]
-  fn provide_file(&mut self, path: impl AsRef<Path>) -> Result<(), io::Error> {
-    self.provide_file_with_stamper(path, self.default_provide_file_stamper())
-  }
-  /// Provides file at given `path`, recording a write-dependency to it (using given `stamper`). Call this method 
-  /// *just after writing to the file*, so that the dependency corresponds to the data that you wrote. 
-  /// This method does not return the opened file, as it must be called *after writing to the file*.
-  ///
-  /// # Errors
-  ///
-  /// If stamping the file fails, returns that error.
-  fn provide_file_with_stamper<P: AsRef<Path>>(&mut self, path: P, stamper: FileStamper) -> Result<(), io::Error>;
-  /// Returns the default provide file stamper.
-  #[inline]
-  fn default_provide_file_stamper(&self) -> FileStamper { FileStamper::Modified }
-
-  /// Requires given `task`, recording a dependency (using the default output stamper) and selectively executing it. 
-  /// Returns its up-to-date output.
-  #[inline]
-  fn require_task(&mut self, task: &T) -> T::Output {
-    self.require_task_with_stamper(task, self.default_output_stamper())
-  }
-  /// Requires given `task`, recording a dependency (using given `stamper`) and selectively executing it. Returns its
-  /// up-to-date output.
-  fn require_task_with_stamper(&mut self, task: &T, stamper: OutputStamper) -> T::Output;
-  /// Returns the default output stamper.
-  #[inline]
-  fn default_output_stamper(&self) -> OutputStamper { OutputStamper::Equals }
 }
 
-
-/// Main entry point into PIE, a sound and incremental programmatic build system. See the 
-/// [module-level documentation](index.html) for more information.
-pub struct Pie<T, O, A = NoopTracker, H = RandomState> {
-  store: Store<T, O, H>,
-  tracker: A,
-}
-
-impl<T: Task> Default for Pie<T, T::Output> {
-  #[inline]
-  fn default() -> Self { Self::with_tracker(NoopTracker) }
-}
-
-impl<T: Task, A: Tracker<T>> Pie<T, T::Output, A> {
+impl<A: Tracker> Pie<A> {
   /// Creates a new [`Pie`] instance with given `tracker`.
   #[inline]
-  pub fn with_tracker(tracker: A) -> Self { Self { store: Store::default(), tracker } }
-}
-
-impl<T: Task, A: Tracker<T>, H: BuildHasher + Default> Pie<T, T::Output, A, H> {
-  /// Creates a new [`Pie`] instance with given `tracker`.
-  #[inline]
-  pub fn new(tracker: A) -> Self { Self { store: Store::new(), tracker } }
+  pub fn with_tracker(tracker: A) -> Self {
+    Self(pie::PieData::with_tracker(tracker))
+  }
 
   /// Creates a new build session. Only one session may be active at once, enforced via mutable (exclusive) borrow.
   #[inline]
-  pub fn new_session(&mut self) -> Session<T, T::Output, A, H> { Session::new(self) }
-  /// Runs `f` inside a new session.
+  pub fn new_session(&mut self) -> Session {
+    self.0.new_session()
+  }
+  /// Runs `f` inside a new build session.
   #[inline]
-  pub fn run_in_session<R>(&mut self, f: impl FnOnce(Session<T, T::Output, A, H>) -> R) -> R {
-    let session = self.new_session();
-    f(session)
+  pub fn run_in_session<R>(&mut self, f: impl FnOnce(Session) -> R) -> R {
+    self.0.run_in_session(f)
   }
 
-  /// Gets the [`Tracker`] instance.
+  /// Gets the [tracker](Tracker).
   #[inline]
-  pub fn tracker(&self) -> &A { &self.tracker }
-  /// Gets the mutable [`Tracker`] instance.
+  pub fn tracker(&self) -> &A {
+    self.0.tracker()
+  }
+  /// Gets the mutable [tracker](Tracker).
   #[inline]
-  pub fn tracker_mut(&mut self) -> &mut A { &mut self.tracker }
-  /// Creates a new [`Pie`] instance with its tracker replaced with `tracker`.
-  #[inline]
-  pub fn replace_tracker<AA: Tracker<T>>(self, tracker: AA) -> Pie<T, T::Output, AA, H> {
-    let store = self.store;
-    Pie { store, tracker }
+  pub fn tracker_mut(&mut self) -> &mut A {
+    self.0.tracker_mut()
   }
 
-  /// Serializes the state with the given `serializer`.
-  #[cfg(feature = "serde")]
-  pub fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> where
-    T: serde::Serialize,
-    T::Output: serde::Serialize,
-  {
-    use serde::Serialize;
-    self.store.serialize(serializer)
+  /// Gets the [resource state](ResourceState) for [resource](Resource) type [`R`].
+  #[inline]
+  pub fn resource_state<R: Resource>(&self) -> &impl ResourceState<R> {
+    self.0.resource_state()
   }
-  /// Deserializes the state from the given `deserializer`, and returns a new PIE instance with the deserialized state.
-  #[cfg(feature = "serde")]
-  pub fn deserialize<'de, D: serde::Deserializer<'de>>(self, deserializer: D) -> Result<Self, D::Error> where
-    T: serde::Deserialize<'de>,
-    T::Output: serde::Deserialize<'de>,
-  {
-    use serde::Deserialize;
-    let store = Store::deserialize(deserializer)?;
-    Ok(Self { store, tracker: self.tracker })
+  /// Gets the mutable [resource state](ResourceState) for [resource](Resource) type [`R`].
+  #[inline]
+  pub fn resource_state_mut<R: Resource>(&mut self) -> &mut impl ResourceState<R> {
+    self.0.resource_state_mut()
   }
 }
 
-/// A session in which builds are executed. See the [module-level documentation](index.html) for more information.
-pub struct Session<'p, T, O, A, H> {
-  store: &'p mut Store<T, O, H>,
-  tracker: &'p mut A,
-  current_executing_task: Option<TaskNode>,
-  consistent: HashSet<TaskNode, H>,
-  dependency_check_errors: Vec<io::Error>,
+/// A session in which builds are executed.
+#[repr(transparent)]
+pub struct Session<'p>(pie::SessionData<'p>);
+impl<'p> Session<'p> {
+  /// Requires `task`, returning its consistent output.
+  #[inline]
+  pub fn require<T: Task>(&mut self, task: &T) -> T::Output {
+    self.0.require(task)
+  }
+
+  /// Creates a bottom-up build. Call [BottomUp::changed_resource] to schedule tasks affected by changed resources. Then
+  /// call [BottomUp::update_affected_tasks] to update all affected tasks in a bottom-up build.
+  #[inline]
+  pub fn bottom_up_build<'s>(&'s mut self) -> BottomUp<'p, 's> {
+    BottomUp(self.0.bottom_up_build())
+  }
+
+  /// Gets all errors produced during dependency checks.
+  #[inline]
+  pub fn dependency_check_errors(&self) -> impl Iterator<Item=&dyn Error> + ExactSizeIterator {
+    self.0.dependency_check_errors()
+  }
 }
 
-impl<'p, T: Task, A: Tracker<T>, H: BuildHasher + Default> Session<'p, T, T::Output, A, H> {
+#[repr(transparent)]
+pub struct BottomUp<'p, 's>(pie::BottomUp<'p, 's>);
+impl<'p, 's> BottomUp<'p, 's> {
+  /// Schedule tasks affected by `resource`.
   #[inline]
-  fn new(pie: &'p mut Pie<T, T::Output, A, H>) -> Self {
-    Self {
-      store: &mut pie.store,
-      tracker: &mut pie.tracker,
-      current_executing_task: None,
-      consistent: HashSet::default(),
-      dependency_check_errors: Vec::default(),
-    }
+  pub fn changed_resource(&mut self, resource: &dyn KeyObj) {
+    self.0.changed_resource(resource);
   }
-
-  /// Requires given `task`, returning its up-to-date output.
+  /// Update all tasks affected by resource changes.
   #[inline]
-  pub fn require(&mut self, task: &T) -> T::Output {
-    self.current_executing_task = None;
-    TopDownContext::new(self).require_initial(task)
+  pub fn update_affected_tasks(self) {
+    self.0.update_affected_tasks();
   }
-
-  /// Make up-to-date all tasks (transitively) affected by `changed_files`.
-  #[inline]
-  pub fn update_affected_by<'a, I: IntoIterator<Item=&'a PathBuf> + Clone>(&mut self, changed_files: I) {
-    self.current_executing_task = None;
-    BottomUpContext::new(self).update_affected_by(changed_files);
-  }
-
-  /// Gets the [`Tracker`] instance.
-  #[inline]
-  pub fn tracker(&self) -> &A { &self.tracker }
-  /// Gets the mutable [`Tracker`] instance.
-  #[inline]
-  pub fn tracker_mut(&mut self) -> &mut A { &mut self.tracker }
-  /// Gets a slice over all errors produced during dependency checks.
-  #[inline]
-  pub fn dependency_check_errors(&self) -> &[io::Error] { &self.dependency_check_errors }
 }

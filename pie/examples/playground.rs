@@ -1,163 +1,81 @@
-#![allow(clippy::wrong_self_convention, dead_code)]
-
-use std::fs;
-use std::fs::File;
+use std::fs::{read_to_string, write};
+use std::hash::Hash;
 use std::io::{Read, Write};
 use std::path::PathBuf;
+use std::rc::Rc;
 
-use ron::{Deserializer, Serializer};
-use ron::ser::PrettyConfig;
-use serde::{Deserialize, Serialize};
-
+use dev_util::create_temp_dir;
 use pie::{Context, Pie, Task};
-use pie::stamp::FileStamper;
-use pie::tracker::Tracker;
+use pie::resource::file::{FsError, ModifiedChecker};
+use pie::task::EqualsChecker;
 use pie::tracker::writing::WritingTracker;
 
-fn main() {
-  let mut pie = create_pie(WritingTracker::with_stdout());
-
-  pie.run_in_session(|mut session| {
-    let read_task = PlaygroundTask::read_string_from_file("target/data/in.txt", FileStamper::Modified);
-    let to_lower_task = PlaygroundTask::to_lower_case(read_task);
-    let write_task = PlaygroundTask::write_string_to_file(to_lower_task, "target/data/out.txt", FileStamper::Modified);
-    session.require(&write_task);
-  });
-
-  serialize(pie);
+/// Task that reads file at `path` and returns its string.
+#[derive(Clone, Eq, PartialEq, Hash, Debug)]
+struct ReadFile {
+  path: PathBuf,
 }
-
-
-// Task implementation
-
-#[derive(Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Serialize, Deserialize, Debug)]
-pub enum PlaygroundTask {
-  ToLowerCase(ToLowerCase),
-  ReadStringFromFile(ReadStringFromFile),
-  WriteStringToFile(WriteStringToFile),
-}
-
-#[derive(Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Serialize, Deserialize, Debug)]
-pub enum PlaygroundOutput {
-  ToLowerCase(Result<String, ()>),
-  ReadStringFromFile(Result<String, ()>),
-  WriteStringToFile(Result<(), ()>),
-}
-
-#[derive(Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Serialize, Deserialize, Debug)]
-pub struct ToLowerCase(pub Box<PlaygroundTask>);
-
-impl ToLowerCase {
-  fn execute<C: Context<PlaygroundTask>>(&self, context: &mut C) -> Result<String, ()> {
-    let output = context.require_task(self.0.as_ref());
-    let string = output.into_string()?;
-    Ok(string.to_lowercase())
+impl ReadFile {
+  pub fn new(path: impl Into<PathBuf>) -> Self {
+    Self {
+      path: path.into()
+    }
   }
 }
-
-#[derive(Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Serialize, Deserialize, Debug)]
-pub struct ReadStringFromFile(pub PathBuf, pub FileStamper);
-
-impl ReadStringFromFile {
-  fn execute<T: Task, C: Context<T>>(&self, context: &mut C) -> Result<String, ()> {
+impl Task for ReadFile {
+  type Output = Result<String, FsError>;
+  fn execute<C: Context>(&self, context: &mut C) -> Self::Output {
     let mut string = String::new();
-    if let Some(mut file) = context.require_file_with_stamper(&self.0, self.1).map_err(|_| ())? {
-      file.read_to_string(&mut string).map_err(|_| ())?;
+    if let Some(file) = context.read(&self.path, ModifiedChecker)?.as_file() {
+      file.read_to_string(&mut string)?;
     }
     Ok(string)
   }
 }
 
-#[derive(Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Serialize, Deserialize, Debug)]
-pub struct WriteStringToFile(pub Box<PlaygroundTask>, pub PathBuf, pub FileStamper);
-
-impl WriteStringToFile {
-  fn execute<C: Context<PlaygroundTask>>(&self, context: &mut C) -> Result<(), ()> {
-    let output = context.require_task(self.0.as_ref());
-    let string = output.into_string()?;
-    let mut file = File::create(&self.1).map_err(|_| ())?;
-    file.write_all(string.as_bytes()).map_err(|_| ())?;
-    context.provide_file_with_stamper(&self.1, self.2).map_err(|_| ())?;
+/// Task that gets the string to write by first requiring `string_provider`, then writes that to file at `path`.
+#[derive(Clone, Eq, PartialEq, Hash, Debug)]
+struct WriteFile<T> {
+  string_provider: T,
+  path: PathBuf,
+}
+impl<T> WriteFile<T> {
+  pub fn new(string_provider: T, path: impl Into<PathBuf>) -> Self {
+    Self {
+      string_provider,
+      path: path.into(),
+    }
+  }
+}
+impl<T: Task<Output=Result<String, FsError>>> Task for WriteFile<T> {
+  type Output = Result<(), FsError>;
+  fn execute<C: Context>(&self, context: &mut C) -> Self::Output {
+    let string = context.require(&self.string_provider, EqualsChecker)?;
+    context.write(&self.path, ModifiedChecker, |file|
+      Ok(file.write_all(string.as_bytes())?),
+    )?;
     Ok(())
   }
 }
 
-#[derive(Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Serialize, Deserialize, Debug)]
-pub struct ListDirectory(pub PathBuf, pub FileStamper);
+fn main() -> Result<(), FsError> {
+  let temp_dir = create_temp_dir()?;
+  let input_file_path = temp_dir.path().join("input.txt");
+  write(&input_file_path, "Hello, World!")?;
+  let output_file_path = temp_dir.path().join("output.txt");
 
-impl ListDirectory {
-  fn execute<T: Task, C: Context<T>>(&self, context: &mut C) -> Result<Vec<PathBuf>, ()> {
-    context.require_file_with_stamper(&self.0, self.1).map_err(|_| ())?;
-    let paths = std::fs::read_dir(&self.0).map_err(|_| ())?;
-    let paths: Vec<PathBuf> = paths
-      .into_iter()
-      .map(|p| p.unwrap().path())
-      .collect();
-    Ok(paths)
-  }
-}
+  // For demonstration purposes, wrap task in an `Rc`.
+  let read = Rc::new(ReadFile::new(&input_file_path));
+  let write = WriteFile::new(read.clone(), &output_file_path);
 
-impl Task for PlaygroundTask {
-  type Output = PlaygroundOutput;
+  // Execute the tasks because they are new, resulting in the output file being written to.
+  let mut pie = Pie::with_tracker(WritingTracker::with_stdout());
+  pie.new_session().require(&write)?;
+  assert_eq!(&read_to_string(&output_file_path)?, "Hello, World!");
 
-  fn execute<C: Context<Self>>(&self, context: &mut C) -> Self::Output {
-    use PlaygroundTask::*;
-    match self {
-      ToLowerCase(t) => PlaygroundOutput::ToLowerCase(t.execute(context)),
-      ReadStringFromFile(t) => PlaygroundOutput::ReadStringFromFile(t.execute(context)),
-      WriteStringToFile(t) => PlaygroundOutput::WriteStringToFile(t.execute(context)),
-    }
-  }
-}
+  // Shouldn't execute anything because nothing has changed.
+  pie.new_session().require(&write)?;
+  pie.new_session().require(&read)?;
 
-
-// Task helpers
-
-impl PlaygroundTask {
-  pub fn read_string_from_file(path: impl Into<PathBuf>, stamper: FileStamper) -> Self {
-    Self::ReadStringFromFile(ReadStringFromFile(path.into(), stamper))
-  }
-  pub fn write_string_to_file(string_provider: impl Into<Box<Self>>, path: impl Into<PathBuf>, stamper: FileStamper) -> Self {
-    Self::WriteStringToFile(WriteStringToFile(string_provider.into(), path.into(), stamper))
-  }
-  pub fn to_lower_case(string_provider: impl Into<Box<Self>>) -> Self {
-    Self::ToLowerCase(ToLowerCase(string_provider.into()))
-  }
-}
-
-impl PlaygroundOutput {
-  pub fn into_string(self) -> Result<String, ()> {
-    use PlaygroundOutput::*;
-    let string = match self {
-      ToLowerCase(r) => r?,
-      ReadStringFromFile(r) => r?,
-      o => panic!("Output {:?} does not contain a string", o),
-    };
-    Ok(string)
-  }
-}
-
-
-// Pie helpers
-
-fn create_pie<A: Tracker<PlaygroundTask>>(tracker: A) -> Pie<PlaygroundTask, PlaygroundOutput, A> {
-  let pie = Pie::<PlaygroundTask, PlaygroundOutput, A>::with_tracker(tracker);
-  if let Ok(mut file) = File::open("target/data/pie.store") {
-    let mut buffer = Vec::new();
-    file.read_to_end(&mut buffer).expect("Reading store file failed");
-    let mut deserializer = Deserializer::from_bytes(&buffer)
-      .unwrap_or_else(|e| panic!("Creating deserializer failed: {:?}", e));
-    pie.deserialize(&mut deserializer).expect("Deserialization failed")
-  } else {
-    pie
-  }
-}
-
-fn serialize<A: Tracker<PlaygroundTask>>(pie: Pie<PlaygroundTask, PlaygroundOutput, A>) {
-  let mut buffer = Vec::new();
-  let mut serializer = Serializer::new(&mut buffer, Some(PrettyConfig::default()))
-    .unwrap_or_else(|e| panic!("Creating serializer failed: {:?}", e));
-  pie.serialize(&mut serializer).expect("Serialization failed");
-  fs::create_dir_all("target/data/").expect("Creating directories for store failed");
-  fs::write("target/data/pie.store", buffer).expect("Writing store failed");
+  Ok(())
 }

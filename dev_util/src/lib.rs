@@ -6,15 +6,13 @@ use std::time::SystemTime;
 use tempfile::{NamedTempFile, TempDir};
 
 /// Creates a new temporary file that gets cleaned up when dropped.
-#[inline]
 pub fn create_temp_file() -> Result<NamedTempFile, io::Error> { NamedTempFile::new() }
 
 /// Creates a new temporary directory that gets cleaned up when dropped.
-#[inline]
 pub fn create_temp_dir() -> Result<TempDir, io::Error> { TempDir::new() }
 
 /// Keeps writing `contents` to file at `path` until its last modified time changes, then returns the modified time.
-/// This is required because some OSs have imprecise modified timers, where the file modified time does not change when 
+/// This is required because some OSs have imprecise modified timers, where the file modified time does not change when
 /// writing in quick succession.
 ///
 /// # Errors

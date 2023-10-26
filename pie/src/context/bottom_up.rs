@@ -1,25 +1,28 @@
+use std::collections::hash_map::RandomState;
 use std::collections::HashSet;
-use std::fs::File;
+use std::error::Error;
 use std::hash::BuildHasher;
-use std::io;
-use std::path::{Path, PathBuf};
 
-use crate::{Context, Session, Task, TaskNode};
+use crate::{Context, OutputChecker, Resource, ResourceChecker, Task};
 use crate::context::SessionExt;
-use crate::stamp::{FileStamper, OutputStamper};
-use crate::store::{FileNode, Store};
-use crate::tracker::Tracker;
+use crate::dependency::ResourceDependencyObj;
+use crate::pie::{SessionData, Tracking};
+use crate::store::{Store, TaskNode};
+use crate::trait_object::{KeyObj, ValueObj};
+use crate::trait_object::base::CloneBox;
+use crate::trait_object::collection::TypeToAnyMap;
+use crate::trait_object::task::TaskObj;
 
 /// Context that incrementally executes tasks and checks dependencies in a bottom-up manner.
-pub struct BottomUpContext<'p, 's, T, O, A, H> {
-  session: &'s mut Session<'p, T, O, A, H>,
-  scheduled: Queue<H>,
-  executing: HashSet<TaskNode, H>,
+pub struct BottomUpContext<'p, 's> {
+  pub(crate) session: &'s mut SessionData<'p>,
+  scheduled: Queue,
+  executing: HashSet<TaskNode>,
 }
 
-impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> BottomUpContext<'p, 's, T, T::Output, A, H> {
+impl<'p, 's> BottomUpContext<'p, 's> {
   #[inline]
-  pub fn new(session: &'s mut Session<'p, T, T::Output, A, H>) -> Self {
+  pub fn new(session: &'s mut SessionData<'p>) -> Self {
     Self {
       session,
       scheduled: Queue::new(),
@@ -27,132 +30,147 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> BottomUpContext<'
     }
   }
 
-  /// Update (make consistent) all tasks affected by `changed_files`.
+  /// Schedule tasks affected by `resource`.
   #[inline]
-  pub fn update_affected_by<'a, I: IntoIterator<Item=&'a PathBuf> + Clone>(&mut self, changed_files: I) {
-    self.session.tracker.update_affected_by_start(changed_files.clone());
-
-    // Create a new queue of scheduled tasks.
-    self.scheduled = Queue::new();
-    // Schedule affected tasks that require or provide a changed file.
-    for path in changed_files {
-      let file_node_id = self.session.store.get_or_create_file_node(&path);
-      Self::schedule_affected_by_file(
-        &file_node_id,
-        path,
-        true,
-        &self.session.store,
+  pub fn schedule_affected_by(&mut self, resource: &dyn KeyObj) {
+    let node = self.session.store.get_or_create_resource_node(resource);
+    for (task_node, dependency) in self.session.store.get_read_and_write_dependencies_to_resource(&node) {
+      Self::try_schedule_task_by_resource_dependency(
+        task_node,
+        dependency,
+        &mut self.session.resource_state,
         &mut self.session.tracker,
         &mut self.session.dependency_check_errors,
         &mut self.scheduled,
         &self.executing,
       );
     }
-    // Execute the top scheduled task in the queue until it is empty.
+  }
+
+  /// Execute scheduled tasks until queue is empty.
+  #[inline]
+  pub fn execute_scheduled(&mut self) {
     while let Some(node) = self.scheduled.pop(&mut self.session.store) {
       self.execute_and_schedule(node);
     }
-
-    self.session.tracker.update_affected_by_end();
-  }
-
-  /// Schedule tasks affected by a change in file `path`.
-  fn schedule_affected_by_file(
-    node: &FileNode,
-    path: &PathBuf,
-    providing: bool,
-    store: &Store<T, T::Output, H>, // Passing in borrows explicitly instead of mutibly borrowing `self` to make borrows work.
-    tracker: &mut A,
-    dependency_check_errors: &mut Vec<io::Error>,
-    scheduled: &mut Queue<H>,
-    executing: &HashSet<TaskNode, H>,
-  ) {
-    tracker.schedule_affected_by_file_start(path);
-    for (requiring_task_node, dependency) in store.get_tasks_requiring_or_providing_file(node, providing) {
-      if executing.contains(&requiring_task_node) {
-        continue; // Don't schedule tasks that are already executing.
-      }
-      let requiring_task = store.get_task(&requiring_task_node);
-      tracker.check_affected_by_file_start(requiring_task, dependency);
-      let inconsistent = dependency.is_inconsistent();
-      tracker.check_affected_by_file_end(requiring_task, dependency, inconsistent.as_ref().map(|o| o.as_ref()));
-      match inconsistent {
-        Err(e) => {
-          dependency_check_errors.push(e);
-          scheduled.add(requiring_task_node);
-        }
-        Ok(Some(_)) => { // Schedule task; can't extract method due to self borrow above.
-          tracker.schedule_task(requiring_task);
-          scheduled.add(requiring_task_node);
-        }
-        _ => {}
-      }
-    }
-    tracker.schedule_affected_by_file_end(path);
   }
 
   /// Execute the task identified by `node`, and then schedule new tasks based on the dependencies of the task.
-  fn execute_and_schedule(&mut self, node: TaskNode) -> T::Output {
-    let task = self.session.store.get_task(&node).clone(); // TODO: get rid of clone?
-    let output = self.execute(&task, node);
+  fn execute_and_schedule(&mut self, node: TaskNode) -> Box<dyn ValueObj> {
+    let task = self.session.store.get_task(&node).clone_box();
+    let output = self.execute_obj(task.as_ref(), node);
 
-    // Schedule affected tasks that require files provided by `task`.
-    for provided_file in self.session.store.get_provided_files(&node) {
-      let path = self.session.store.get_file_path(&provided_file);
-      Self::schedule_affected_by_file(
-        &provided_file,
-        path,
-        false,
-        &self.session.store,
-        &mut self.session.tracker,
-        &mut self.session.dependency_check_errors,
-        &mut self.scheduled,
-        &self.executing,
-      );
+    // Schedule affected tasks that read resources written by `task`.
+    for written_resource_node in self.session.store.get_resources_written_by(&node) {
+      //let path = self.session.store.get_resource_path(&written_resource);
+      for (task_node, dependency) in self.session.store.get_read_dependencies_to_resource(&written_resource_node) {
+        Self::try_schedule_task_by_resource_dependency(
+          task_node,
+          dependency,
+          &mut self.session.resource_state,
+          &mut self.session.tracker,
+          &mut self.session.dependency_check_errors,
+          &mut self.scheduled,
+          &self.executing,
+        );
+      }
     }
 
     // Schedule affected tasks that require `task`'s output.
-    self.session.tracker.schedule_affected_by_task_start(&task);
-    for (requiring_task_node, dependency) in self.session.store.get_tasks_requiring_task(&node) {
+    //self.session.tracker.schedule_affected_by_task_start(&task);
+    for (requiring_task_node, dependency) in self.session.store.get_require_dependencies_to_task(&node) {
+      // TODO: skip when task is already consistent?
+      // TODO: skip when task is already scheduled?
       if self.executing.contains(&requiring_task_node) {
         continue; // Don't schedule tasks that are already executing.
       }
-      let requiring_task = self.session.store.get_task(&requiring_task_node);
-      self.session.tracker.check_affected_by_required_task_start(requiring_task, dependency);
-      let inconsistent = dependency.is_inconsistent_with(&output);
-      self.session.tracker.check_affected_by_required_task_end(requiring_task, dependency, inconsistent.clone());
-      if let Some(_) = inconsistent {
+      //let requiring_task = self.session.store.get_task(&requiring_task_node);
+      //self.session.tracker.check_affected_by_required_task_start(requiring_task, dependency);
+      //self.session.tracker.check_affected_by_required_task_end(requiring_task, dependency, inconsistent.clone());
+      if !dependency.is_consistent_with(&output) {
         // Schedule task; can't extract method due to self borrow above.
-        self.session.tracker.schedule_task(requiring_task);
+        //self.session.tracker.schedule_task(requiring_task);
         self.scheduled.add(requiring_task_node);
       }
     }
-    self.session.tracker.schedule_affected_by_task_end(&task);
+    //self.session.tracker.schedule_affected_by_task_end(&task);
 
+    self.session.consistent.insert(node);
     output
+  }
+
+  /// Schedule tasks affected by a change in resource `path`.
+  fn try_schedule_task_by_resource_dependency(
+    task_node: TaskNode,
+    dependency: &dyn ResourceDependencyObj,
+    // Passing in borrows explicitly instead of a mutable borrow of `self` to make borrows work.
+    //store: &Store,
+    resource_state: &mut TypeToAnyMap,
+    tracker: &mut Tracking,
+    dependency_check_errors: &mut Vec<Box<dyn Error>>,
+    scheduled: &mut Queue,
+    executing: &HashSet<TaskNode>,
+  ) {
+    // TODO: skip when task is already consistent?
+    // TODO: skip when task is already scheduled?
+    //tracker.schedule_affected_by_resource_start(resource);
+    if executing.contains(&task_node) {
+      return; // Don't schedule tasks that are already executing.
+    }
+    //let task = store.get_task(&task_node);
+    let consistent = dependency.is_consistent(tracker, resource_state);
+    match consistent {
+      Err(e) => {
+        dependency_check_errors.push(e);
+        scheduled.add(task_node);
+      }
+      Ok(false) => { // Schedule task; can't extract method due to self borrow above.
+        //tracker.schedule_task(task);
+        scheduled.add(task_node);
+      }
+      _ => {}
+    }
+    //tracker.schedule_affected_by_resource_end(resource);
   }
 
   /// Execute `task` (with corresponding `node`), returning its result.
   #[inline]
-  fn execute(&mut self, task: &T, node: TaskNode) -> T::Output {
-    let previous_executing_task = self.session.pre_execute(task, node);
-    self.executing.insert(node);
+  fn execute<T: Task>(&mut self, task: &T, node: TaskNode) -> T::Output {
+    self.session.store.reset_task(&node);
+    let previous_executing_task = self.session.current_executing_task.replace(node);
+    let track_end = self.session.tracker.execute(task);
     let output = task.execute(self);
-    self.executing.remove(&node);
-    self.session.post_execute(task, &node, previous_executing_task, output.clone());
+    track_end(&mut self.session.tracker, &output);
+    self.session.current_executing_task = previous_executing_task;
+    self.session.store.set_task_output(&node, Box::new(output.clone()));
     output
   }
 
-  /// Execute scheduled tasks (and schedule new tasks) that depend (indirectly) on the task identified by `node`, 
-  /// and then execute that scheduled task. Returns `Some` output if the task was (eventually) scheduled and thus 
+  /// Execute trait-object `task` (with corresponding `node`), returning its result.
+  #[inline]
+  fn execute_obj(&mut self, task: &dyn TaskObj, node: TaskNode) -> Box<dyn ValueObj> {
+    self.session.store.reset_task(&node);
+    let previous_executing_task = self.session.current_executing_task.replace(node);
+    let track_end = self.session.tracker.execute(task.as_key_obj());
+    let output = task.execute_bottom_up(self);
+    track_end(&mut self.session.tracker, &output);
+    self.session.current_executing_task = previous_executing_task;
+    self.session.store.set_task_output(&node, output.clone());
+    output
+  }
+
+  /// Execute scheduled tasks (and schedule new tasks) that depend (indirectly) on the task identified by `node`,
+  /// and then execute that scheduled task. Returns `Some` output if the task was (eventually) scheduled and thus
   /// executed, or `None` if it was not executed and thus not (eventually) scheduled.
   #[inline]
-  fn require_scheduled_now(&mut self, node: &TaskNode) -> Option<T::Output> {
+  fn require_scheduled_now<T: Task>(&mut self, node: &TaskNode) -> Option<T::Output> {
     while self.scheduled.is_not_empty() {
       if let Some(min_task_node) = self.scheduled.pop_least_task_with_dependency_from(node, &self.session.store) {
         let output = self.execute_and_schedule(min_task_node);
         if min_task_node == *node {
-          return Some(output);
+          let output = output.as_box_any().downcast::<T::Output>()
+            .expect("BUG: non-matching task output type");
+          return Some(*output);
         }
       } else {
         break;
@@ -163,68 +181,100 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> BottomUpContext<'
 
   /// Make `task` (with corresponding `node`) consistent, returning its output and whether it was executed.
   #[inline]
-  fn make_consistent(&mut self, task: &T, node: TaskNode) -> (T::Output, bool) {
+  fn make_task_consistent<T: Task>(&mut self, task: &T, node: TaskNode) -> T::Output {
     if self.session.consistent.contains(&node) { // Task is already consistent: return its output.
-      let output = self.session.store.get_task_output(&node).clone();
-      return (output, false);
+      return self.session.store.get_task_output(&node)
+        .expect("BUG: no task output for already consistent task")
+        .as_any().downcast_ref::<T::Output>()
+        .expect("BUG: non-matching task output type")
+        .clone();
     }
 
-    if !self.session.store.task_has_output(&node) { // Task is new: execute it.
-      let output = self.execute(task, node);
-      return (output, true);
+    if self.session.store.get_task_output(&node).is_none() { // Task is new: execute it.
+      return self.execute(task, node);
     }
 
     // Task is an existing task. Either it has been scheduled if affected, or not scheduled if not affected.
-    if let Some(output) = self.require_scheduled_now(&node) {
+    if let Some(output) = self.require_scheduled_now::<T>(&node) {
       // Task was scheduled. That is, it was either directly or indirectly affected. Therefore, it has been
       // executed, and we return the result of that execution.
-      (output, true)
+      output
     } else {
       // Task was not scheduled. That is, it was not directly affected by resource changes, and not indirectly
-      // affected by other tasks. 
+      // affected by other tasks.
       //
-      // The task cannot be affected during this build. Consider if the task would be affected, this can only occur in 
+      // The task cannot be affected during this build. Consider if the task would be affected, this can only occur in
       // 3 different ways:
-      // 
-      // 1. the task is affected by a change in one of its require file dependencies. But this cannot occur because the
+      //
+      // 1. the task is affected by a change in one of its require resource dependencies. But this cannot occur because the
       //    dependency is consistent right now, and cannot become inconsistent due to the absence of hidden dependencies.
-      // 2. the task is affected by a change in one of its provided file dependencies. But this cannot occur because the
+      // 2. the task is affected by a change in one of its provided resource dependencies. But this cannot occur because the
       //    dependency is consistent right now, and cannot become inconsistent due to the absence of hidden dependencies
-      //    and overlapping provided files.
+      //    and overlapping provided resources.
       // 3. the task is affected by a change in one of its require task dependencies. But this cannot occur because the
       //    dependency is consistent right now, and cannot become inconsistent because `require_scheduled_now` has made
       //    the task and all its (indirect) dependencies consistent.
-      // 
+      //
       // All case cannot occur, thus the task cannot be affected. Therefore, we don't have to execute the task.
-      // No panic: we don't have to execute the task and an output exists.
-      let output = self.session.store.get_task_output(&node).clone();
-      (output, false)
+      let output = self.session.store.get_task_output(&node);
+
+      output.expect("BUG: no task output for unaffected task")
+        .as_any().downcast_ref::<T::Output>()
+        .expect("BUG: non-matching task output type")
+        .clone()
     }
   }
 }
 
 
-impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> Context<T> for BottomUpContext<'p, 's, T, T::Output, A, H> {
+impl<'p, 's> Context for BottomUpContext<'p, 's> {
   #[inline]
-  fn require_file_with_stamper<P: AsRef<Path>>(&mut self, path: P, stamper: FileStamper) -> Result<Option<File>, io::Error> {
-    self.session.require_file_with_stamper(path, stamper)
-  }
-  #[inline]
-  fn provide_file_with_stamper<P: AsRef<Path>>(&mut self, path: P, stamper: FileStamper) -> Result<(), io::Error> {
-    self.session.provide_file_with_stamper(path, stamper)
-  }
-  #[inline]
-  fn require_task_with_stamper(&mut self, task: &T, stamper: OutputStamper) -> T::Output {
-    self.session.tracker.require_task_start(task);
+  fn require<T: Task, H: OutputChecker<T::Output>>(&mut self, task: &T, checker: H) -> T::Output {
+    let track_end = self.session.tracker.require(task, &checker);
 
-    let node = self.session.store.get_or_create_task_node(task);
-    self.session.reserve_task_require_dependency(task, &node, stamper);
-    let (output, was_executed) = self.make_consistent(task, node);
-    self.session.update_reserved_task_require_dependency(&node, output.clone());
-    self.session.consistent.insert(node);
+    let dst = self.session.store.get_or_create_task_node(task);
+    self.session.reserve_require_dependency(&dst, task);
 
-    self.session.tracker.require_task_end(task, &output, was_executed);
+    let output = self.make_task_consistent(task, dst);
+    let stamp = checker.stamp(&output);
+    track_end(&mut self.session.tracker, &stamp, &output);
+
+    self.session.update_require_dependency(&dst, task, checker, stamp);
+
+    // Note: make_task_consistent does not insert into self.session.consistent, so do that here.
+    self.session.consistent.insert(dst);
     output
+  }
+
+  #[inline]
+  fn read<T, R, H>(&mut self, resource: &T, checker: H) -> Result<R::Reader<'_>, H::Error> where
+    T: ToOwned<Owned=R>,
+    R: Resource,
+    H: ResourceChecker<R>,
+  {
+    self.session.read(resource, checker)
+  }
+  #[inline]
+  fn write<T, R, H, F>(&mut self, resource: &T, checker: H, write_fn: F) -> Result<(), H::Error> where
+    T: ToOwned<Owned=R>,
+    R: Resource,
+    H: ResourceChecker<R>,
+    F: FnOnce(&mut R::Writer<'_>) -> Result<(), R::Error>
+  {
+    self.session.write(resource, checker, write_fn)
+  }
+
+  #[inline]
+  fn create_writer<'r, R: Resource>(&'r mut self, resource: &'r R) -> Result<R::Writer<'r>, R::Error> {
+    self.session.create_writer(resource)
+  }
+  #[inline]
+  fn written_to<T, R, H>(&mut self, resource: &T, checker: H) -> Result<(), H::Error> where
+    T: ToOwned<Owned=R>,
+    R: Resource,
+    H: ResourceChecker<R>
+  {
+    self.session.written_to(resource, checker)
   }
 }
 
@@ -232,7 +282,7 @@ impl<'p, 's, T: Task, A: Tracker<T>, H: BuildHasher + Default> Context<T> for Bo
 // Dependency ordered priority queue implementation
 
 #[derive(Default, Debug)]
-struct Queue<H> {
+struct Queue<H = RandomState> {
   set: HashSet<TaskNode, H>,
   vec: Vec<TaskNode>,
 }
@@ -256,7 +306,7 @@ impl<H: BuildHasher + Default> Queue<H> {
   /// Remove the last task (task with the least amount of dependencies to other tasks in the queue) from the queue and
   /// return it.
   #[inline]
-  fn pop<T: Task>(&mut self, store: &Store<T, T::Output, H>) -> Option<TaskNode> {
+  fn pop(&mut self, store: &Store) -> Option<TaskNode> {
     self.sort_by_dependencies(store);
     if let r @ Some(node) = self.vec.pop() {
       self.set.remove(&node);
@@ -266,10 +316,10 @@ impl<H: BuildHasher + Default> Queue<H> {
     }
   }
 
-  /// Return the least task (task with the least amount of dependencies to other tasks in the queue) that has a 
+  /// Return the least task (task with the least amount of dependencies to other tasks in the queue) that has a
   /// (transitive) dependency from task `depender`.
   #[inline]
-  fn pop_least_task_with_dependency_from<T: Task>(&mut self, depender: &TaskNode, store: &Store<T, T::Output, H>) -> Option<TaskNode> {
+  fn pop_least_task_with_dependency_from(&mut self, depender: &TaskNode, store: &Store) -> Option<TaskNode> {
     self.sort_by_dependencies(store);
     let mut found = None;
     for (idx, dependee) in self.vec.iter().enumerate().rev() {
@@ -287,9 +337,9 @@ impl<H: BuildHasher + Default> Queue<H> {
   }
 
   #[inline]
-  fn sort_by_dependencies<T: Task>(&mut self, store: &Store<T, T::Output, H>) {
+  fn sort_by_dependencies(&mut self, store: &Store) {
     // TODO: only sort if needed? Removing elements should not require a resort?
     // TODO: use select_nth_unstable_by(0) to get the sorted top element for pop?
     self.vec.sort_unstable_by(|node_a, node_b| store.topologically_compare(node_a, node_b));
   }
-} 
+}
