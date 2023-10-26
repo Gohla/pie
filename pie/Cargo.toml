@@ -18,11 +18,17 @@ testresult = "0.3"
 [features]
 file_hash_checker = ["dep:sha2"]
 
-# Disable bottom-up context tests until they are fixed
+
 [[test]]
-name = "bottom_up"
-test = false
+name = "top_down"
+required-features = ["file_hash_checker"]
 
 [[test]]
 name = "file_checker"
 required-features = ["file_hash_checker"]
+
+
+# Disable bottom-up context tests until they are fixed
+[[test]]
+name = "bottom_up"
+test = false

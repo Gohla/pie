@@ -7,7 +7,7 @@ use testresult::TestResult;
 use dev_ext::task::*;
 use dev_util::{create_temp_dir, write_until_modified};
 use pie::{Context, Task};
-use pie::resource::file::{ExistsChecker, FsError, ModifiedChecker};
+use pie::resource::file::{ExistsChecker, FsError, HashChecker, ModifiedChecker};
 use pie::task::AlwaysConsistent;
 use pie::tracker::event::*;
 
@@ -334,7 +334,7 @@ fn non_hidden_dependency() -> TestResult {
   write(&input_file, "Hi There!")?;
   let read_input = ReadFile::new(&input_file);
   let write = WriteFile::new(read_input.clone(), &file);
-  let read = ReadFile::new(&file).with_origin(write.clone());
+  let read = ReadFile::new(&file).with_checker(HashChecker).with_origin(write.clone());
 
   // Require `read`, which requires `write` to update the provided file. All tasks are executed because they are new.
   let output = pie.require_then_assert(&read, |tracker| {
@@ -346,7 +346,7 @@ fn non_hidden_dependency() -> TestResult {
   assert_eq!(output.as_str(), "Hi There!");
 
   // First ensure the modified date of `file` has changed, then remove `file`.
-  write_until_modified(&file, "Hi There!")?;
+  write_until_modified(&file, "Hi, There!!!")?;
   remove_file(&file)?;
   assert!(!file.exists());
 
@@ -356,9 +356,9 @@ fn non_hidden_dependency() -> TestResult {
     assert!(tracker.one_execute_of(&write));
     // `read_input` is not executed because its file dependency to `input_file` is consistent.
     assert!(!tracker.any_execute_of(&read_input));
-    // `read` is executed because its `file` dependency is inconsistent, due to it having a new modified date. If we use
-    // a file hash stamper, we can prevent this re-execution.
-    assert!(tracker.one_execute_of(&read));
+    // `read` is not executed because its `file` dependency is consistent, due to the contents being the same, which
+    // makes the hash stamp the same.
+    assert!(!tracker.any_execute_of(&read));
   })?;
   assert!(file.exists());
   assert_eq!(output.as_str(), "Hi There!");
