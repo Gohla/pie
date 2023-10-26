@@ -406,7 +406,7 @@ mod hash_checker {
     fn hash_directory(&self, path: &PathBuf) -> Result<[u8; 32], FsError> {
       let mut hasher = Sha256::new();
       for entry in fs::read_dir(path)?.into_iter() {
-        hasher.update(entry?.file_name().as_encoded_bytes());
+        hasher.update(entry?.file_name().to_string_lossy().as_bytes());
       }
       Ok(hasher.finalize().into())
     }

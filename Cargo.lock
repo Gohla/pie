@@ -176,7 +176,7 @@ dependencies = [
  "dev_ext",
  "dev_util",
  "dyn-clone",
- "pie_graph 0.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "pie_graph",
  "sha2",
  "testresult",
 ]
@@ -184,17 +184,6 @@ dependencies = [
 [[package]]
 name = "pie_graph"
 version = "0.0.1"
-dependencies = [
- "hashlink",
- "serde",
- "slotmap",
-]
-
-[[package]]
-name = "pie_graph"
-version = "0.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3ae3e1f0d679a1ebb35d8eb32225c6e75654ddae473fb2b5f4bdc03a682c4b03"
 dependencies = [
  "hashlink",
  "serde",
