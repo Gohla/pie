@@ -1,4 +1,4 @@
-name: Build
+name: Test
 on:
   push:
     branches:
@@ -7,7 +7,7 @@ on:
     branches:
       - master
 jobs:
-  build:
+  test:
     strategy:
       fail-fast: false
       matrix:
@@ -26,19 +26,9 @@ jobs:
         name: Cache Cargo
         uses: actions/cache@v3
         with:
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            target/
-            tutorial/stepper/target/
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-      - id: build-pie
-        name: Build PIE
+          path: target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-
+      - id: test
+        name: Test
         run: cargo test
-      - id: run-tutorial-stepper
-        name: Run tutorial stepper
-        run: |
-          cd tutorial/stepper
-          cargo run -- --debug

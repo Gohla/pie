@@ -29,14 +29,3 @@ ij_wrap_on_typing = false
 ij_any_wrap_long_lines = false
 ij_markdown_wrap_text_if_long = false
 ij_markdown_wrap_text_inside_blockquotes = false
-
-[*.js]
-ij_any_space_before_for_left_brace = true
-ij_any_space_before_for_parentheses = false
-ij_any_space_before_if_left_brace = true
-ij_any_space_before_if_parentheses = false
-ij_any_spaces_within_braces = true
-ij_typescript_spaces_within_imports = true
-ij_javascript_spaces_within_imports = true
-ij_typescript_spaces_within_object_literal_braces = true
-ij_javascript_spaces_within_object_literal_braces = true
