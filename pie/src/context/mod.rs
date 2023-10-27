@@ -142,14 +142,14 @@ fn validate_write<R: Resource>(session: &SessionData<'_>, resource: &R, src: &Ta
     let src_task = session.store.get_task(src);
     let previous_writing_task = session.store.get_task(&previous_writing_task_node);
     panic!("Overlapping write; resource '{:?}' is written to by the current executing task '{:?}' that was \
-              previously written to by task: {:?}", resource, src_task, previous_writing_task);
+            previously written to by task: {:?}", resource, src_task, previous_writing_task);
   }
   for reading_task_node in session.store.get_tasks_reading_from_resource(dst) {
     if !session.store.contains_transitive_task_dependency(&reading_task_node, src) {
       let src_task = session.store.get_task(src);
       let reading_task = session.store.get_task(&reading_task_node);
       panic!("Hidden dependency; resource '{:?}' is written to by the current executing task '{:?}' without a \
-                dependency from reading task '{:?}' to the current executing task", resource, src_task, reading_task);
+              dependency from reading task '{:?}' to the current executing task", resource, src_task, reading_task);
     }
   }
 }

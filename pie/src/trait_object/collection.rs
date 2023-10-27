@@ -3,7 +3,7 @@ use std::collections::HashMap;
 
 use crate::{Resource, ResourceState};
 
-/// Hash map from types (through [`TypeId`]) to any value (through [`Box<dyn Any>`]).
+/// Hash map from types (through [`TypeId`]) to any value (through [`Box<dyn Any>`](Any)).
 #[derive(Default)]
 #[repr(transparent)]
 pub struct TypeToAnyMap(HashMap<TypeId, Box<dyn Any>>);

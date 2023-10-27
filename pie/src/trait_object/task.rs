@@ -6,6 +6,8 @@ use crate::Task;
 use crate::trait_object::{KeyObj, ValueObj};
 use crate::trait_object::base::CloneBox;
 
+/// Internal object safe [`Task`] proxy. Has execute methods for concrete [`Context`] implementations, instead of a
+/// generic method, due to object safety.
 pub trait TaskObj: KeyObj {
   fn as_key_obj(&self) -> &dyn KeyObj;
   fn execute_top_down(&self, context: &mut TopDownContext) -> Box<dyn ValueObj>;

@@ -1,9 +1,11 @@
 use std::any::Any;
 use std::hash::{Hash, Hasher};
 
-/// Conversion into [`&dyn Any`](Any). Implies `'static` because [`Any`] requires `'static`.
+/// Conversion into [`dyn Any`](Any). Implies `'static` because [`Any`] requires `'static`.
 pub trait AsAny: 'static {
+  /// Convert `&self` into [`&dyn Any`](Any).
   fn as_any(&self) -> &dyn Any;
+  /// Convert `Box<Self>`  into [`Box<dyn Any>`](Any).
   fn into_box_any(self: Box<Self>) -> Box<dyn Any>;
 }
 impl<T: Any> AsAny for T {
@@ -13,7 +15,7 @@ impl<T: Any> AsAny for T {
   fn into_box_any(self: Box<Self>) -> Box<dyn Any> { self as Box<dyn Any> }
 }
 
-/// Object safe proxy of [`Eq`], comparing against [`&dyn Any`](Any).
+/// Object safe [`Eq`] proxy, comparing against [`&dyn Any`](Any).
 pub trait EqObj {
   fn eq_any(&self, other: &dyn Any) -> bool;
 }
@@ -28,7 +30,7 @@ impl<T: Eq + Any> EqObj for T {
   }
 }
 
-/// Object safe proxy of [`Hash`].
+/// Object safe [`Hash`] proxy.
 pub trait HashObj {
   fn hash_obj(&self, state: &mut dyn Hasher);
 }
