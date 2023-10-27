@@ -87,7 +87,9 @@ impl<'p, 's> BottomUpContext<'p, 's> {
       //let requiring_task = self.session.store.get_task(&requiring_task_node);
       //self.session.tracker.check_affected_by_required_task_start(requiring_task, dependency);
       //self.session.tracker.check_affected_by_required_task_end(requiring_task, dependency, inconsistent.clone());
-      if !dependency.is_consistent_with(&output) {
+      // Note: use `output.as_ref()` instead of `&output`, because `&output` results in a `&Box<dyn ValueObj>` which also
+      // implements `dyn ValueObj`, but cannot be downcasted to the concrete unboxed type!
+      if !dependency.is_consistent_with(output.as_ref()) {
         // Schedule task; can't extract method due to self borrow above.
         //self.session.tracker.schedule_task(requiring_task);
         self.scheduled.add(requiring_task_node);
@@ -153,7 +155,9 @@ impl<'p, 's> BottomUpContext<'p, 's> {
     let previous_executing_task = self.session.current_executing_task.replace(node);
     let track_end = self.session.tracker.execute(task.as_key_obj());
     let output = task.execute_bottom_up(self);
-    track_end(&mut self.session.tracker, &output);
+    // Note: use `output.as_ref()` instead of `&output`, because `&output` results in a `&Box<dyn ValueObj>` which also
+    // implements `dyn ValueObj`, but cannot be downcasted to the concrete unboxed type!
+    track_end(&mut self.session.tracker, output.as_ref());
     self.session.current_executing_task = previous_executing_task;
     self.session.store.set_task_output(&node, output.clone());
     output
@@ -168,7 +172,7 @@ impl<'p, 's> BottomUpContext<'p, 's> {
       if let Some(min_task_node) = self.scheduled.pop_least_task_with_dependency_from(node, &self.session.store) {
         let output = self.execute_and_schedule(min_task_node);
         if min_task_node == *node {
-          let output = output.as_box_any().downcast::<T::Output>()
+          let output = output.into_box_any().downcast::<T::Output>()
             .expect("BUG: non-matching task output type");
           return Some(*output);
         }

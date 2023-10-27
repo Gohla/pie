@@ -26,9 +26,3 @@ required-features = ["file_hash_checker"]
 [[test]]
 name = "file_checker"
 required-features = ["file_hash_checker"]
-
-
-# Disable bottom-up context tests until they are fixed
-[[test]]
-name = "bottom_up"
-test = false

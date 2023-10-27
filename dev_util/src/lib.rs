@@ -1,3 +1,4 @@
+use std::any::Any;
 use std::fs::{metadata, write};
 use std::io;
 use std::path::Path;
@@ -48,4 +49,11 @@ pub fn wait_until_modified_time_changes() -> Result<SystemTime, io::Error> {
   let file = create_temp_file()?;
   write(&file, "123")?;
   write_until_modified(&file, "123")
+}
+
+/// Downcast `&any` to `&T`, or panic if downcasting fails.
+#[inline]
+pub fn downcast_ref_or_panic<T: Any>(any: &dyn Any) -> &T {
+  any.downcast_ref::<T>()
+    .unwrap_or_else(|| panic!("can't downcast `{:?}` to `{}`", any, std::any::type_name::<T>()))
 }

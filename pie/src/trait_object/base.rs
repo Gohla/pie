@@ -4,13 +4,13 @@ use std::hash::{Hash, Hasher};
 /// Conversion into [`&dyn Any`](Any). Implies `'static` because [`Any`] requires `'static`.
 pub trait AsAny: 'static {
   fn as_any(&self) -> &dyn Any;
-  fn as_box_any(self: Box<Self>) -> Box<dyn Any>;
+  fn into_box_any(self: Box<Self>) -> Box<dyn Any>;
 }
 impl<T: Any> AsAny for T {
   #[inline]
   fn as_any(&self) -> &dyn Any { self as &dyn Any }
   #[inline]
-  fn as_box_any(self: Box<Self>) -> Box<dyn Any> { self as Box<dyn Any> }
+  fn into_box_any(self: Box<Self>) -> Box<dyn Any> { self as Box<dyn Any> }
 }
 
 /// Object safe proxy of [`Eq`], comparing against [`&dyn Any`](Any).

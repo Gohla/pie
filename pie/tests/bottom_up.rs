@@ -4,6 +4,7 @@ use std::path::PathBuf;
 use assert_matches::assert_matches;
 use testresult::TestResult;
 
+use dev_ext::downcast::Downcast;
 use dev_ext::task::*;
 use dev_util::{create_temp_dir, write_until_modified};
 use pie::{Context, Task};
@@ -15,16 +16,15 @@ use crate::util::{new_test_pie, TestPieExt};
 
 mod util;
 
-/// Downcast trait objects to references.
-trait ObjExt {
-  fn as_str(&self) -> &'static str;
+/// Cast trait objects to types used in tests.
+trait Cast {
+  fn cast(&self) -> Result<&str, &FsError>;
 }
-impl ObjExt for Box<dyn ValueObj> {
-  fn as_str(&self) -> &'static str {
-    self.as_ref().as_any().downcast_ref::<&'static str>().expect("expected `&'static str`")
+impl Cast for Box<dyn ValueObj> {
+  fn cast(&self) -> Result<&str, &FsError> {
+    self.as_result_string::<FsError>().as_deref()
   }
 }
-
 
 #[test]
 fn test_nothing_affected() {
@@ -52,7 +52,7 @@ fn test_directly_affected_task() -> TestResult {
   write_until_modified(&path, "hello world!")?;
   pie.bottom_up_build_then_assert(|b| b.changed_resource(&path), |tracker| {
     assert_matches!(tracker.first_execute_end(&task), Some(d) => {
-      assert_eq!(d.output.as_str(), "hello world!");
+      assert_eq!(d.output.cast(), Ok("hello world!"));
     });
   });
 
@@ -73,18 +73,17 @@ fn test_indirectly_affected_tasks() -> TestResult {
   let output = pie.require(&to_lowercase_task)?;
   assert_eq!(output.as_str(), "hello world!");
 
-  // Change the file that ReadFile requires, directly affecting it, indirectly affecting ToLower,
-  // indirectly affecting CombineA.
+  // Change the file that ReadFile requires, directly affecting it, indirectly affecting ToLower.
   write_until_modified(&path, "HELLO WORLD!!")?;
   pie.bottom_up_build_then_assert(|b| b.changed_resource(&path), |tracker| {
     // ReadFile
     let read_task_end = assert_matches!(tracker.first_execute_end(&read_task), Some(d) => {
-      assert_eq!(d.output.as_str(), "HELLO WORLD!!");
+      assert_eq!(d.output.cast(), Ok("HELLO WORLD!!"));
       d.index
     });
     // ToLower
     let to_lowercase_task_end = assert_matches!(tracker.first_execute_end(&to_lowercase_task), Some(d) => {
-      assert_eq!(d.output.as_str(), "hello world!!");
+      assert_eq!(d.output.cast(), Ok("hello world!!"));
       d.index
     });
     assert!(to_lowercase_task_end > read_task_end);
@@ -108,18 +107,18 @@ fn test_indirectly_affected_tasks_early_cutoff() -> TestResult {
   // Initially require the tasks.
   pie.require(&write_task)?;
 
-  // Change the file that ReadFile requires, directly affecting it, indirectly affecting ToLower, but not
-  // affecting WriteFile because the output from ToLower does not change.
+  // Change the file that ReadFile requires, directly affecting it, indirectly affecting ToLower, but not affecting
+  // WriteFile because the output from ToLower does not change.
   write_until_modified(&read_path, "hello world!")?;
   pie.bottom_up_build_then_assert(|b| b.changed_resource(&read_path), |tracker| {
     // ReadFile
     let read_task_end = assert_matches!(tracker.first_execute_end(&read_task), Some(d) => {
-      assert_eq!(d.output.as_str(), "hello world!");
+      assert_eq!(d.output.cast(), Ok("hello world!"));
       d.index
     });
     // ToLower
     let to_lowercase_task_end = assert_matches!(tracker.first_execute_end(&to_lowercase_task), Some(d) => {
-      assert_eq!(d.output.as_str(), "hello world!");
+      assert_eq!(d.output.cast(), Ok("hello world!"));
       d.index
     });
     assert!(to_lowercase_task_end > read_task_end);
@@ -157,12 +156,12 @@ fn test_indirectly_affected_multiple_tasks() -> TestResult {
   pie.bottom_up_build_then_assert(|b| b.changed_resource(&read_path), |tracker| {
     // ReadFile
     let read_task_end = assert_matches!(tracker.first_execute_end(&read_task), Some(d) => {
-      assert_eq!(d.output.as_str(), "hello world!");
+      assert_eq!(d.output.cast(), Ok("hello world!"));
       d.index
     });
     // ToLower
     let to_lowercase_task_end = assert_matches!(tracker.first_execute_end(&to_lowercase_task), Some(d) => {
-      assert_eq!(d.output.as_str(), "hello world!");
+      assert_eq!(d.output.cast(), Ok("hello world!"));
       d.index
     });
     assert!(to_lowercase_task_end > read_task_end);
@@ -170,7 +169,7 @@ fn test_indirectly_affected_multiple_tasks() -> TestResult {
     assert!(!tracker.any_execute_of(&write_lowercase_task));
     // ToUpper
     let to_uppercase_task_end = assert_matches!(tracker.first_execute_end(&to_uppercase_task), Some(d) => {
-      assert_eq!(d.output.as_str(), "HELLO WORLD!");
+      assert_eq!(d.output.cast(), Ok("HELLO WORLD!"));
       d.index
     });
     assert!(to_uppercase_task_end > read_task_end);
@@ -183,12 +182,12 @@ fn test_indirectly_affected_multiple_tasks() -> TestResult {
   pie.bottom_up_build_then_assert(|b| b.changed_resource(&read_path), |tracker| {
     // ReadFile
     let read_task_end = assert_matches!(tracker.first_execute_end(&read_task), Some(d) => {
-      assert_eq!(d.output.as_str(), "hello world!!");
+      assert_eq!(d.output.cast(), Ok("hello world!!"));
       d.index
     });
     // ToLower
     let to_lowercase_task_end = assert_matches!(tracker.first_execute_end(&to_lowercase_task), Some(d) => {
-      assert_eq!(d.output.as_str(), "hello world!!");
+      assert_eq!(d.output.cast(), Ok("hello world!!"));
       d.index
     });
     assert!(to_lowercase_task_end > read_task_end);
@@ -197,7 +196,7 @@ fn test_indirectly_affected_multiple_tasks() -> TestResult {
     assert!(*write_lowercase_task_end > to_lowercase_task_end);
     // ToUpper
     let to_uppercase_task_end = assert_matches!(tracker.first_execute_end(&to_uppercase_task), Some(d) => {
-      assert_eq!(d.output.as_str(), "HELLO WORLD!!");
+      assert_eq!(d.output.cast(), Ok("HELLO WORLD!!"));
       d.index
     });
     assert!(to_uppercase_task_end > read_task_end);

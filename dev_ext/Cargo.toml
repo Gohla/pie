@@ -5,7 +5,7 @@ edition = "2021"
 
 [dependencies]
 pie = { path = "../pie" }
+dev_util = { path = "../dev_util" }
 
 [dev-dependencies]
-dev_util = { path = "../dev_util" }
 assert_matches = "1"

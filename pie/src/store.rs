@@ -298,6 +298,8 @@ mod test {
 
   use assert_matches::assert_matches;
 
+  use dev_util::downcast_ref_or_panic;
+
   use crate::Context;
   use crate::dependency::{ResourceDependency, TaskDependency};
   use crate::resource::file::{ExistsChecker, ModifiedChecker};
@@ -314,33 +316,33 @@ mod test {
     }
   }
 
-  /// Downcast trait objects to references used in these tests.
-  trait ObjExt {
+  /// Cast trait objects to types used in tests.
+  trait Cast {
     fn as_path(&self) -> &PathBuf;
     fn as_str(&self) -> &'static str;
   }
-  impl ObjExt for dyn KeyObj {
+  impl Cast for dyn KeyObj {
     fn as_path(&self) -> &PathBuf {
-      self.as_any().downcast_ref().expect("expected `&PathBuf`")
+      downcast_ref_or_panic(self.as_any())
     }
     fn as_str(&self) -> &'static str {
-      self.as_any().downcast_ref::<&'static str>().expect("expected `&'static str`")
+      downcast_ref_or_panic::<&'static str>(self.as_any())
     }
   }
-  impl ObjExt for dyn ValueObj {
+  impl Cast for dyn ValueObj {
     fn as_path(&self) -> &PathBuf {
-      self.as_any().downcast_ref().expect("expected `&PathBuf`")
+      downcast_ref_or_panic(self.as_any())
     }
     fn as_str(&self) -> &'static str {
-      self.as_any().downcast_ref::<&'static str>().expect("expected `&'static str`")
+      downcast_ref_or_panic::<&'static str>(self.as_any())
     }
   }
-  impl ObjExt for dyn TaskObj {
+  impl Cast for dyn TaskObj {
     fn as_path(&self) -> &PathBuf {
-      self.as_any().downcast_ref().expect("expected `&PathBuf`")
+      downcast_ref_or_panic(self.as_any())
     }
     fn as_str(&self) -> &'static str {
-      self.as_any().downcast_ref::<&'static str>().expect("expected `&'static str`")
+      downcast_ref_or_panic::<&'static str>(self.as_any())
     }
   }
 
