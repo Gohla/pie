@@ -106,11 +106,11 @@ pub trait OutputChecker<O>: KeyBounds {
   fn stamp(&self, output: &O) -> Self::Stamp;
 
   /// Type of inconsistency used for debugging/logging purposes. The `'i` lifetime represents this checker, or the
-  /// output/stamp passed to [Self::is_inconsistent].
+  /// output/stamp passed to [Self::get_inconsistency].
   type Inconsistency<'i>: Debug where O: 'i;
   /// Checks whether `output` is inconsistent w.r.t. `stamp`, returning `Some(inconsistency)` if inconsistent, `None` if
   /// consistent.
-  fn is_inconsistent<'i>(&'i self, output: &'i O, stamp: &'i Self::Stamp) -> Option<Self::Inconsistency<'i>>;
+  fn get_inconsistency<'i>(&'i self, output: &'i O, stamp: &'i Self::Stamp) -> Option<Self::Inconsistency<'i>>;
 }
 
 
@@ -185,11 +185,11 @@ pub trait ResourceChecker<R: Resource>: KeyBounds {
   fn stamp_writer(&self, resource: &R, writer: R::Writer<'_>) -> Result<Self::Stamp, Self::Error>;
 
   /// Type of inconsistency used for debugging/logging purposes. The `'i` lifetime represents this checker, or the
-  /// resource/state/stamp passed to [Self::is_inconsistent].
+  /// resource/state/stamp passed to [Self::get_inconsistency].
   type Inconsistency<'i>: Debug;
   /// Checks whether `resource` is inconsistent w.r.t. `stamp`, with access to `state`. Returns `Some(inconsistency)`
   /// when inconsistent, `None` when consistent.
-  fn is_inconsistent<'i, RS: ResourceState<R>>(
+  fn get_inconsistency<'i, RS: ResourceState<R>>(
     &'i self,
     resource: &'i R,
     state: &'i mut RS,
@@ -203,11 +203,11 @@ pub trait ResourceChecker<R: Resource>: KeyBounds {
 
 /// Main entry point into PIE, a sound and incremental programmatic build system.
 #[repr(transparent)]
-pub struct Pie<A>(pie::PieData<A>);
+pub struct Pie<A>(pie::PieInternal<A>);
 
 impl Default for Pie<()> {
   fn default() -> Self {
-    Self(pie::PieData::default())
+    Self(pie::PieInternal::default())
   }
 }
 
@@ -215,7 +215,7 @@ impl<A: Tracker> Pie<A> {
   /// Creates a new [`Pie`] instance with given `tracker`.
   #[inline]
   pub fn with_tracker(tracker: A) -> Self {
-    Self(pie::PieData::with_tracker(tracker))
+    Self(pie::PieInternal::with_tracker(tracker))
   }
 
   /// Creates a new build session. Only one session may be active at once, enforced via mutable (exclusive) borrow.
@@ -254,7 +254,7 @@ impl<A: Tracker> Pie<A> {
 
 /// A session in which builds are executed.
 #[repr(transparent)]
-pub struct Session<'p>(pie::SessionData<'p>);
+pub struct Session<'p>(pie::SessionInternal<'p>);
 impl<'p> Session<'p> {
   /// Requires `task`, returning its consistent output.
   #[inline]
@@ -265,6 +265,7 @@ impl<'p> Session<'p> {
   /// Creates a bottom-up build. Call [BottomUp::changed_resource] to schedule tasks affected by changed resources. Then
   /// call [BottomUp::update_affected_tasks] to update all affected tasks in a bottom-up build.
   #[inline]
+  #[must_use]
   pub fn bottom_up_build<'s>(&'s mut self) -> BottomUp<'p, 's> {
     BottomUp(self.0.bottom_up_build())
   }
@@ -277,7 +278,7 @@ impl<'p> Session<'p> {
 }
 
 #[repr(transparent)]
-pub struct BottomUp<'p, 's>(pie::BottomUp<'p, 's>);
+pub struct BottomUp<'p, 's>(pie::BottomUpInternal<'p, 's>);
 impl<'p, 's> BottomUp<'p, 's> {
   /// Schedule tasks affected by `resource`.
   #[inline]

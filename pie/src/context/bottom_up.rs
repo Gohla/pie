@@ -6,7 +6,7 @@ use std::hash::BuildHasher;
 use crate::{Context, OutputChecker, Resource, ResourceChecker, Task};
 use crate::context::SessionExt;
 use crate::dependency::ResourceDependencyObj;
-use crate::pie::{SessionData, Tracking};
+use crate::pie::{SessionInternal, Tracking};
 use crate::store::{Store, TaskNode};
 use crate::trait_object::{KeyObj, ValueObj};
 use crate::trait_object::base::CloneBox;
@@ -15,14 +15,14 @@ use crate::trait_object::task::TaskObj;
 
 /// Context that incrementally executes tasks and checks dependencies in a bottom-up manner.
 pub struct BottomUpContext<'p, 's> {
-  pub(crate) session: &'s mut SessionData<'p>,
+  pub(crate) session: &'s mut SessionInternal<'p>,
   scheduled: Queue,
   executing: HashSet<TaskNode>,
 }
 
 impl<'p, 's> BottomUpContext<'p, 's> {
   #[inline]
-  pub fn new(session: &'s mut SessionData<'p>) -> Self {
+  pub fn new(session: &'s mut SessionInternal<'p>) -> Self {
     Self {
       session,
       scheduled: Queue::new(),
@@ -33,9 +33,12 @@ impl<'p, 's> BottomUpContext<'p, 's> {
   /// Schedule tasks affected by `resource`.
   #[inline]
   pub fn schedule_affected_by(&mut self, resource: &dyn KeyObj) {
+    let track_end = self.session.tracker.schedule_affected_by_resource(resource);
     let node = self.session.store.get_or_create_resource_node(resource);
     for (task_node, dependency) in self.session.store.get_read_and_write_dependencies_to_resource(&node) {
+      let task = self.session.store.get_task(&task_node);
       Self::try_schedule_task_by_resource_dependency(
+        task,
         task_node,
         dependency,
         &mut self.session.resource_state,
@@ -45,6 +48,7 @@ impl<'p, 's> BottomUpContext<'p, 's> {
         &self.executing,
       );
     }
+    track_end(&mut self.session.tracker);
   }
 
   /// Execute scheduled tasks until queue is empty.
@@ -55,17 +59,21 @@ impl<'p, 's> BottomUpContext<'p, 's> {
     }
   }
 
-  /// Execute the task `src` and potentially schedule new tasks based on the dependencies of the task.
-  fn execute_and_schedule(&mut self, src: TaskNode) -> Box<dyn ValueObj> {
-    let task = self.session.store.get_task(&src).clone_box();
-    let output = self.execute_obj(task.as_ref(), src);
+  /// Execute task `node` and potentially schedule new tasks based on the dependencies of the task.
+  fn execute_and_schedule(&mut self, node: TaskNode) -> Box<dyn ValueObj> {
+    let task = self.session.store.get_task(&node).clone_box();
+    let output = self.execute_obj(task.as_ref(), node);
 
-    // Schedule tasks affected by `src`'s resource writes.
-    for written_resource in self.session.store.get_resources_written_by(&src) {
-      // Consider tasks that read `written_resource`.
-      for (reading_task, dependency) in self.session.store.get_read_dependencies_to_resource(&written_resource) {
+    // Schedule tasks affected by task `node`'s resource writes.
+    for written_resource_node in self.session.store.get_resources_written_by(&node) {
+      let written_resource = self.session.store.get_resource(&written_resource_node);
+      let track_end = self.session.tracker.schedule_affected_by_resource(written_resource);
+      // Consider tasks that read `written_resource_node`.
+      for (reading_task_node, dependency) in self.session.store.get_read_dependencies_to_resource(&written_resource_node) {
+        let reading_task = self.session.store.get_task(&reading_task_node);
         Self::try_schedule_task_by_resource_dependency(
           reading_task,
+          reading_task_node,
           dependency,
           &mut self.session.resource_state,
           &mut self.session.tracker,
@@ -74,31 +82,38 @@ impl<'p, 's> BottomUpContext<'p, 's> {
           &self.executing,
         );
       }
+      track_end(&mut self.session.tracker);
     }
 
-    // Schedule tasks affected by `src`'s output. Consider tasks that require `src`.
-    for (requiring_task, dependency) in self.session.store.get_require_dependencies_to_task(&src) {
+    // Schedule tasks affected by task `node`'s output.
+    let track_end = self.session.tracker.schedule_affected_by_task(task.as_ref());
+    // Consider tasks that require `node`.
+    for (requiring_task_node, dependency) in self.session.store.get_require_dependencies_to_task(&node) {
       // TODO: skip when task is already consistent?
       // TODO: skip when task is already scheduled?
-      if self.executing.contains(&requiring_task) {
+      if self.executing.contains(&requiring_task_node) {
         continue; // Don't schedule tasks that are already executing.
       }
       // Note: use `output.as_ref()` instead of `&output`, because `&output` results in a `&Box<dyn ValueObj>` which
       // also implements `dyn ValueObj`, but cannot be downcasted to the concrete unboxed type!
-      if !dependency.is_consistent_with(output.as_ref()) {
-        self.scheduled.add(requiring_task);
+      if !dependency.is_consistent_with(output.as_ref(), &mut self.session.tracker) {
+        let requiring_task = self.session.store.get_task(&requiring_task_node);
+        self.session.tracker.schedule_task(requiring_task);
+        self.scheduled.add(requiring_task_node);
       }
     }
+    track_end(&mut self.session.tracker);
 
-    self.session.consistent.insert(src);
+    self.session.consistent.insert(node);
     output
   }
 
-  /// Schedule tasks affected by a change in resource `path`.
+  /// Schedule `task` (with corresponding `node`) if it is affected by a change in its resource `dependency`.
   ///
   /// Note: passing in borrows explicitly instead of a mutable borrow of `self` to make borrows work.
   fn try_schedule_task_by_resource_dependency(
-    task_node: TaskNode,
+    task: &dyn KeyObj,
+    node: TaskNode,
     dependency: &dyn ResourceDependencyObj,
     resource_state: &mut TypeToAnyMap,
     tracker: &mut Tracking,
@@ -108,16 +123,19 @@ impl<'p, 's> BottomUpContext<'p, 's> {
   ) {
     // TODO: skip when task is already consistent?
     // TODO: skip when task is already scheduled?
-    if executing.contains(&task_node) {
+    if executing.contains(&node) {
       return; // Don't schedule tasks that are already executing.
     }
-    match dependency.is_consistent(tracker, resource_state) {
+    let consistent = dependency.is_consistent(tracker, resource_state);
+    match consistent {
       Err(e) => {
         dependency_check_errors.push(e);
-        scheduled.add(task_node);
+        tracker.schedule_task(task);
+        scheduled.add(node);
       }
       Ok(false) => {
-        scheduled.add(task_node);
+        tracker.schedule_task(task);
+        scheduled.add(node);
       }
       _ => {}
     }

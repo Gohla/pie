@@ -159,4 +159,61 @@ impl<W: Write + 'static> Tracker for WritingTracker<W> {
     self.writeln(format_args!("◀ {:?}", output));
     self.flush();
   }
+
+  #[inline]
+  fn schedule_affected_by_resource_start(&mut self, resource: &dyn KeyObj) {
+    self.writeln(format_args!("¿ {:?}", resource)); // TODO: expose and use display?
+    self.indent();
+    self.flush();
+  }
+  #[inline]
+  fn check_task_read_resource_end(
+    &mut self,
+    task: &dyn KeyObj,
+    _checker: &dyn ValueObj,
+    stamp: &dyn ValueObj,
+    inconsistency: Result<Option<&dyn Debug>, &dyn Error>,
+  ) {
+    match inconsistency {
+      Err(e) => self.writeln(format_args!("✗ {:?} (err: {:?})", task, e)),
+      Ok(Some(new_stamp)) =>
+        self.writeln(format_args!("✗ {:?} (new: {:?} ≉ old: {:?})", task, new_stamp, stamp)),
+      Ok(None) => self.writeln(format_args!("✓ {:?}", task)),
+    }
+  }
+  #[inline]
+  fn schedule_affected_by_resource_end(&mut self, _resource: &dyn KeyObj) {
+    self.unindent();
+  }
+
+  #[inline]
+  fn schedule_affected_by_task_start(&mut self, task: &dyn KeyObj) {
+    self.writeln(format_args!("¿ {:?}", task));
+    self.indent();
+    self.flush();
+  }
+  #[inline]
+  fn check_task_require_task_end(
+    &mut self,
+    task: &dyn KeyObj,
+    _checker: &dyn ValueObj,
+    stamp: &dyn ValueObj,
+    inconsistency: Option<&dyn Debug>,
+  ) {
+    match inconsistency {
+      Some(new_stamp) =>
+        self.writeln(format_args!("✗ {:?} (new: {:?} ≉ old: {:?})", task, new_stamp, stamp)),
+      None => self.writeln(format_args!("✓ {:?}", task)),
+    }
+  }
+  #[inline]
+  fn schedule_affected_by_task_end(&mut self, _task: &dyn KeyObj) {
+    self.unindent();
+  }
+
+  #[inline]
+  fn schedule_task(&mut self, task: &dyn KeyObj) {
+    self.writeln(format_args!("↑ {:?}", task));
+    self.flush();
+  }
 }

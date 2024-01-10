@@ -3,7 +3,8 @@ use std::fs::{create_dir_all, remove_file, write};
 
 use dev_ext::task::*;
 use dev_util::{create_temp_dir, wait_until_modified_time_changes, write_until_modified};
-use pie::resource::file::{HashChecker, ModifiedChecker};
+use pie::resource::file::hash_checker::HashChecker;
+use pie::resource::file::ModifiedChecker;
 
 use crate::util::{new_test_pie, TestPieExt};
 

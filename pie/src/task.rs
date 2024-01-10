@@ -18,7 +18,7 @@ impl<O: ValueBounds + Eq> OutputChecker<O> for EqualsChecker {
 
   type Inconsistency<'i> = &'i O where O: 'i;
   #[inline]
-  fn is_inconsistent<'i>(&self, output: &'i O, stamp: &Self::Stamp) -> Option<Self::Inconsistency<'i>> {
+  fn get_inconsistency<'i>(&self, output: &'i O, stamp: &Self::Stamp) -> Option<Self::Inconsistency<'i>> {
     if output != stamp {
       Some(output)
     } else {
@@ -39,7 +39,7 @@ impl<O: ValueBounds + Eq, E> OutputChecker<Result<O, E>> for OkEqualsChecker {
 
   type Inconsistency<'i> = Self::Stamp where Result<O, E>: 'i;
   #[inline]
-  fn is_inconsistent(&self, output: &Result<O, E>, stamp: &Self::Stamp) -> Option<Self::Stamp> {
+  fn get_inconsistency(&self, output: &Result<O, E>, stamp: &Self::Stamp) -> Option<Self::Stamp> {
     let new_stamp = output.as_ref().ok().cloned();
     if new_stamp != *stamp {
       Some(new_stamp)
@@ -61,7 +61,7 @@ impl<O, E: ValueBounds + Eq> OutputChecker<Result<O, E>> for ErrEqualsChecker {
 
   type Inconsistency<'i> = Self::Stamp where Result<O, E>: 'i;
   #[inline]
-  fn is_inconsistent(&self, output: &Result<O, E>, stamp: &Self::Stamp) -> Option<Self::Stamp> {
+  fn get_inconsistency(&self, output: &Result<O, E>, stamp: &Self::Stamp) -> Option<Self::Stamp> {
     let new_stamp = output.as_ref().err().cloned();
     if new_stamp != *stamp {
       Some(new_stamp)
@@ -83,7 +83,7 @@ impl<T, E> OutputChecker<Result<T, E>> for ResultChecker {
 
   type Inconsistency<'i> = Self::Stamp where Result<T, E>: 'i;
   #[inline]
-  fn is_inconsistent(&self, output: &Result<T, E>, stamp: &Self::Stamp) -> Option<Self::Stamp> {
+  fn get_inconsistency(&self, output: &Result<T, E>, stamp: &Self::Stamp) -> Option<Self::Stamp> {
     let new_stamp = output.is_err();
     if new_stamp != *stamp {
       Some(new_stamp)
@@ -107,7 +107,7 @@ impl<O> OutputChecker<O> for AlwaysConsistent {
 
   type Inconsistency<'o> = Infallible where O: 'o;
   #[inline]
-  fn is_inconsistent(&self, _output: &O, _stamp: &Self::Stamp) -> Option<Infallible> {
+  fn get_inconsistency(&self, _output: &O, _stamp: &Self::Stamp) -> Option<Infallible> {
     None
   }
 }

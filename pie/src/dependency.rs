@@ -29,8 +29,8 @@ impl<T: Task, C: OutputChecker<T::Output>> TaskDependency<T, C, C::Stamp> {
   pub fn stamp(&self) -> &C::Stamp { &self.stamp }
 
   #[inline]
-  pub fn is_inconsistent_with<'o>(&'o self, output: &'o T::Output) -> Option<C::Inconsistency<'o>> {
-    self.checker.is_inconsistent(output, &self.stamp)
+  pub fn get_inconsistency<'o>(&'o self, output: &'o T::Output) -> Option<C::Inconsistency<'o>> {
+    self.checker.get_inconsistency(output, &self.stamp)
   }
 
   #[inline]
@@ -46,7 +46,7 @@ pub trait TaskDependencyObj: DynClone + Debug {
   fn stamp(&self) -> &dyn ValueObj;
 
   fn as_check_task_dependency(&self) -> &dyn CheckTaskDependency;
-  fn is_consistent_with(&self, output: &dyn ValueObj) -> bool;
+  fn is_consistent_with(&self, output: &dyn ValueObj, tracker: &mut Tracking) -> bool;
 }
 
 impl<T: Task, C: OutputChecker<T::Output>> TaskDependencyObj for TaskDependency<T, C, C::Stamp> {
@@ -59,15 +59,16 @@ impl<T: Task, C: OutputChecker<T::Output>> TaskDependencyObj for TaskDependency<
 
   #[inline]
   fn as_check_task_dependency(&self) -> &dyn CheckTaskDependency { self as &dyn CheckTaskDependency }
-
   #[inline]
-  fn is_consistent_with(&self, output: &dyn ValueObj) -> bool {
-    // TODO: tracking
+  fn is_consistent_with(&self, output: &dyn ValueObj, tracker: &mut Tracking) -> bool {
     let Some(output) = output.as_any().downcast_ref::<T::Output>() else {
       return false;
     };
-    let result = self.is_inconsistent_with(output);
-    result.is_none()
+    let check_task_end = tracker.check_task(&self.task, &self.checker, &self.stamp);
+    let inconsistency = self.get_inconsistency(output);
+    let inconsistency_dyn = inconsistency.as_ref().map(|o| o as &dyn Debug);
+    check_task_end(tracker, inconsistency_dyn);
+    inconsistency.is_none()
   }
 }
 impl Clone for Box<dyn TaskDependencyObj> {
@@ -96,11 +97,11 @@ impl<R: Resource, C: ResourceChecker<R>> ResourceDependency<R, C, C::Stamp> {
   pub fn stamp(&self) -> &C::Stamp { &self.stamp }
 
   #[inline]
-  pub fn is_inconsistent<'i, RS: ResourceState<R>>(
+  pub fn get_inconsistency<'i, RS: ResourceState<R>>(
     &'i self,
     state: &'i mut RS,
   ) -> Result<Option<C::Inconsistency<'i>>, C::Error> {
-    self.checker.is_inconsistent(&self.resource, state, &self.stamp)
+    self.checker.get_inconsistency(&self.resource, state, &self.stamp)
   }
 
   #[inline]
@@ -130,7 +131,7 @@ impl<R: Resource, C: ResourceChecker<R>> ResourceDependencyObj for ResourceDepen
   #[inline]
   fn is_consistent(&self, tracker: &mut Tracking, state: &mut TypeToAnyMap) -> Result<bool, Box<dyn Error>> {
     let check_resource_end = tracker.check_resource(&self.resource, &self.checker, &self.stamp);
-    let result = self.is_inconsistent(state);
+    let result = self.get_inconsistency(state);
     let inconsistency = result.as_ref()
       .map(|o| o.as_ref().map(|i| i as &dyn Debug))
       .map_err(|e| e as &dyn Error);

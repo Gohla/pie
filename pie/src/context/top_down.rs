@@ -4,7 +4,7 @@ use std::fmt::Debug;
 use crate::{Context, OutputChecker, Resource, ResourceChecker, Task};
 use crate::context::SessionExt;
 use crate::dependency::{Dependency, TaskDependency};
-use crate::pie::SessionData;
+use crate::pie::SessionInternal;
 use crate::store::TaskNode;
 
 /// Top-down incremental context implementation.
@@ -17,12 +17,12 @@ use crate::store::TaskNode;
 /// dependencies can only be used with a specific instantiation of that generic, which complicates everything.
 #[repr(transparent)]
 pub struct TopDownContext<'p, 's> {
-  session: &'s mut SessionData<'p>,
+  session: &'s mut SessionInternal<'p>,
 }
 
 impl<'p, 's> TopDownContext<'p, 's> {
   #[inline]
-  pub fn new(session: &'s mut SessionData<'p>) -> Self { Self { session } }
+  pub fn new(session: &'s mut SessionInternal<'p>) -> Self { Self { session } }
 }
 
 impl Context for TopDownContext<'_, '_> {
@@ -155,9 +155,9 @@ impl<T: Task, C: OutputChecker<T::Output>> CheckTaskDependency for TaskDependenc
   fn is_consistent(&self, context: &mut TopDownContext) -> bool {
     let check_task_end = context.session.tracker.check_task(self.task(), self.checker(), self.stamp());
     let output = context.make_task_consistent(self.task());
-    let result = self.is_inconsistent_with(&output);
-    let inconsistency = result.as_ref().map(|o| o as &dyn Debug);
-    check_task_end(&mut context.session.tracker, inconsistency);
-    result.is_none()
+    let inconsistency = self.get_inconsistency(&output);
+    let inconsistency_dyn = inconsistency.as_ref().map(|o| o as &dyn Debug);
+    check_task_end(&mut context.session.tracker, inconsistency_dyn);
+    inconsistency.is_none()
   }
 }

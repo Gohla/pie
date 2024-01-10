@@ -1,12 +1,12 @@
 use crate::{OutputChecker, Resource, ResourceChecker, Task};
 use crate::dependency::{Dependency, ResourceDependency, TaskDependency};
-use crate::pie::SessionData;
+use crate::pie::SessionInternal;
 use crate::store::{ResourceNode, TaskNode};
 
 pub mod top_down;
 pub mod bottom_up;
 
-/// Extension trait on [`SessionData`] for usage in [`Context`] implementations.
+/// Extension trait on [`SessionInternal`] for usage in [`Context`] implementations.
 pub trait SessionExt {
   fn read<T, R, H>(&mut self, resource: &T, checker: H) -> Result<R::Reader<'_>, H::Error> where
     T: ToOwned<Owned=R>,
@@ -28,7 +28,7 @@ pub trait SessionExt {
   fn update_require_dependency<T: Task, H: OutputChecker<T::Output>>(&mut self, dst: &TaskNode, task: &T, checker: H, stamp: H::Stamp);
 }
 
-impl SessionExt for SessionData<'_> {
+impl SessionExt for SessionInternal<'_> {
   fn read<T, R, H>(&mut self, resource: &T, checker: H) -> Result<R::Reader<'_>, H::Error> where
     T: ToOwned<Owned=R>,
     R: Resource,
@@ -137,7 +137,7 @@ impl SessionExt for SessionData<'_> {
 
 /// Validates a `resource` write from `src` to `dst`, panicking if an overlapping write or hidden dependency was found.
 #[inline]
-fn validate_write<R: Resource>(session: &SessionData<'_>, resource: &R, src: &TaskNode, dst: &ResourceNode) {
+fn validate_write<R: Resource>(session: &SessionInternal<'_>, resource: &R, src: &TaskNode, dst: &ResourceNode) {
   if let Some(previous_writing_task_node) = session.store.get_task_writing_to_resource(dst) {
     let src_task = session.store.get_task(src);
     let previous_writing_task = session.store.get_task(&previous_writing_task_node);

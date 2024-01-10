@@ -7,7 +7,8 @@ use testresult::TestResult;
 use dev_ext::task::*;
 use dev_util::{create_temp_dir, write_until_modified};
 use pie::{Context, Task};
-use pie::resource::file::{ExistsChecker, FsError, HashChecker, ModifiedChecker};
+use pie::resource::file::{ExistsChecker, FsError, ModifiedChecker};
+use pie::resource::file::hash_checker::HashChecker;
 use pie::task::AlwaysConsistent;
 use pie::tracker::event::*;
 

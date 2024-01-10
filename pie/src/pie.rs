@@ -13,16 +13,16 @@ use crate::trait_object::{KeyObj, ValueObj};
 use crate::trait_object::collection::TypeToAnyMap;
 
 /// Internals for [Pie](crate::Pie).
-pub struct PieData<A> {
+pub struct PieInternal<A> {
   store: Store,
   tracker: A,
   resource_state: TypeToAnyMap,
 }
-impl Default for PieData<()> {
+impl Default for PieInternal<()> {
   #[inline]
-  fn default() -> Self { PieData::with_tracker(()) }
+  fn default() -> Self { PieInternal::with_tracker(()) }
 }
-impl<A: Tracker> PieData<A> {
+impl<A: Tracker> PieInternal<A> {
   #[inline]
   pub fn with_tracker(tracker: A) -> Self {
     Self {
@@ -33,7 +33,7 @@ impl<A: Tracker> PieData<A> {
   }
 
   #[inline]
-  pub fn new_session(&mut self) -> Session { Session(SessionData::new(self)) }
+  pub fn new_session(&mut self) -> Session { Session(SessionInternal::new(self)) }
   #[inline]
   pub fn run_in_session<R>(&mut self, f: impl FnOnce(Session) -> R) -> R { f(self.new_session()) }
 
@@ -49,7 +49,7 @@ impl<A: Tracker> PieData<A> {
 }
 
 /// Internals for [`Session`].
-pub struct SessionData<'p> {
+pub struct SessionInternal<'p> {
   pub store: &'p mut Store,
   pub resource_state: &'p mut TypeToAnyMap,
   pub tracker: Tracking<'p>,
@@ -57,9 +57,9 @@ pub struct SessionData<'p> {
   pub consistent: HashSet<TaskNode>,
   pub dependency_check_errors: Vec<Box<dyn Error>>,
 }
-impl<'p> SessionData<'p> {
+impl<'p> SessionInternal<'p> {
   #[inline]
-  pub fn new<A: Tracker>(pie: &'p mut PieData<A>) -> Self {
+  pub fn new<A: Tracker>(pie: &'p mut PieInternal<A>) -> Self {
     Self {
       store: &mut pie.store,
       resource_state: &mut pie.resource_state,
@@ -82,8 +82,8 @@ impl<'p> SessionData<'p> {
   }
 
   #[inline]
-  pub fn bottom_up_build<'s>(&'s mut self) -> BottomUp<'p, 's> {
-    BottomUp(BottomUpContext::new(self))
+  pub fn bottom_up_build<'s>(&'s mut self) -> BottomUpInternal<'p, 's> {
+    BottomUpInternal(BottomUpContext::new(self))
   }
 
   #[inline]
@@ -92,9 +92,10 @@ impl<'p> SessionData<'p> {
   }
 }
 
+/// Internals for [`BottomUpInternal`].
 #[repr(transparent)]
-pub struct BottomUp<'p, 's>(BottomUpContext<'p, 's>);
-impl<'p, 's> BottomUp<'p, 's> {
+pub struct BottomUpInternal<'p, 's>(BottomUpContext<'p, 's>);
+impl<'p, 's> BottomUpInternal<'p, 's> {
   #[inline]
   pub fn changed_resource(&mut self, resource: &dyn KeyObj) {
     self.0.schedule_affected_by(resource);
@@ -180,6 +181,26 @@ impl Tracking<'_> {
   pub fn execute<'a>(&mut self, task: &'a dyn KeyObj) -> impl FnOnce(&mut Tracking, &dyn ValueObj) + 'a {
     self.0.execute_start(task);
     |tracking, output| tracking.0.execute_end(task, output)
+  }
+
+  #[inline]
+  #[must_use]
+  pub fn schedule_affected_by_resource<'a>(
+    &mut self,
+    resource: &'a dyn KeyObj,
+  ) -> impl FnOnce(&mut Tracking) + 'a {
+    self.0.schedule_affected_by_resource_start(resource);
+    |tracking| tracking.0.schedule_affected_by_resource_end(resource)
+  }
+
+  #[inline]
+  #[must_use]
+  pub fn schedule_affected_by_task<'a>(
+    &mut self,
+    task: &'a dyn KeyObj,
+  ) -> impl FnOnce(&mut Tracking) + 'a {
+    self.0.schedule_affected_by_task_start(task);
+    |tracking| tracking.0.schedule_affected_by_task_end(task)
   }
 }
 impl<'p> Deref for Tracking<'p> {

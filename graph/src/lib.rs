@@ -250,7 +250,7 @@ impl<N, E, H: BuildHasher + Default> DAG<N, E, H> {
     Node(self.node_info.insert(node_info))
   }
 
-  /// Returns true if the graph contains the specified `node.`
+  /// Returns true if the graph contains the specified `node`.
   ///
   /// # Examples
   /// ```
