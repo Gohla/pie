@@ -82,8 +82,8 @@ impl<'p> SessionInternal<'p> {
   }
 
   #[inline]
-  pub fn bottom_up_build<'s>(&'s mut self) -> BottomUpInternal<'p, 's> {
-    BottomUpInternal(BottomUpContext::new(self))
+  pub fn create_bottom_up_build<'s>(&'s mut self) -> BottomUpBuildInternal<'p, 's> {
+    BottomUpBuildInternal(BottomUpContext::new(self))
   }
 
   #[inline]
@@ -92,13 +92,13 @@ impl<'p> SessionInternal<'p> {
   }
 }
 
-/// Internals for [`BottomUpInternal`].
+/// Internals for [`BottomUpBuildInternal`].
 #[repr(transparent)]
-pub struct BottomUpInternal<'p, 's>(BottomUpContext<'p, 's>);
-impl<'p, 's> BottomUpInternal<'p, 's> {
+pub struct BottomUpBuildInternal<'p, 's>(BottomUpContext<'p, 's>);
+impl<'p, 's> BottomUpBuildInternal<'p, 's> {
   #[inline]
-  pub fn changed_resource(&mut self, resource: &dyn KeyObj) {
-    self.0.schedule_affected_by(resource);
+  pub fn schedule_tasks_affected_by(&mut self, resource: &dyn KeyObj) {
+    self.0.schedule_tasks_affected_by(resource);
   }
   #[inline]
   pub fn update_affected_tasks(mut self) {

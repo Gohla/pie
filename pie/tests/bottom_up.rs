@@ -50,7 +50,7 @@ fn test_directly_affected_task() -> TestResult {
 
   // Change the file that the task requires, directly affecting it.
   write_until_modified(&path, "hello world!")?;
-  pie.bottom_up_build_then_assert(|b| b.changed_resource(&path), |tracker| {
+  pie.bottom_up_build_then_assert(|b| b.schedule_tasks_affected_by(&path), |tracker| {
     assert_matches!(tracker.first_execute_end(&task), Some(d) => {
       assert_eq!(d.output.cast(), Ok("hello world!"));
     });
@@ -75,7 +75,7 @@ fn test_indirectly_affected_tasks() -> TestResult {
 
   // Change the file that ReadFile requires, directly affecting it, indirectly affecting ToLower.
   write_until_modified(&path, "HELLO WORLD!!")?;
-  pie.bottom_up_build_then_assert(|b| b.changed_resource(&path), |tracker| {
+  pie.bottom_up_build_then_assert(|b| b.schedule_tasks_affected_by(&path), |tracker| {
     // ReadFile
     let read_task_end = assert_matches!(tracker.first_execute_end(&read_task), Some(d) => {
       assert_eq!(d.output.cast(), Ok("HELLO WORLD!!"));
@@ -110,7 +110,7 @@ fn test_indirectly_affected_tasks_early_cutoff() -> TestResult {
   // Change the file that ReadFile requires, directly affecting it, indirectly affecting ToLower, but not affecting
   // WriteFile because the output from ToLower does not change.
   write_until_modified(&read_path, "hello world!")?;
-  pie.bottom_up_build_then_assert(|b| b.changed_resource(&read_path), |tracker| {
+  pie.bottom_up_build_then_assert(|b| b.schedule_tasks_affected_by(&read_path), |tracker| {
     // ReadFile
     let read_task_end = assert_matches!(tracker.first_execute_end(&read_task), Some(d) => {
       assert_eq!(d.output.cast(), Ok("hello world!"));
@@ -153,7 +153,7 @@ fn test_indirectly_affected_multiple_tasks() -> TestResult {
   // Change the file that ReadFile requires, directly affecting it, indirectly affecting ToLower and
   // ToUpper, but not their WriteFile tasks.
   write_until_modified(&read_path, "hello world!")?;
-  pie.bottom_up_build_then_assert(|b| b.changed_resource(&read_path), |tracker| {
+  pie.bottom_up_build_then_assert(|b| b.schedule_tasks_affected_by(&read_path), |tracker| {
     // ReadFile
     let read_task_end = assert_matches!(tracker.first_execute_end(&read_task), Some(d) => {
       assert_eq!(d.output.cast(), Ok("hello world!"));
@@ -179,7 +179,7 @@ fn test_indirectly_affected_multiple_tasks() -> TestResult {
 
   // Change the file that ReadFile requires, directly affecting it, indirectly affecting all other tasks.
   write_until_modified(&read_path, "hello world!!")?;
-  pie.bottom_up_build_then_assert(|b| b.changed_resource(&read_path), |tracker| {
+  pie.bottom_up_build_then_assert(|b| b.schedule_tasks_affected_by(&read_path), |tracker| {
     // ReadFile
     let read_task_end = assert_matches!(tracker.first_execute_end(&read_task), Some(d) => {
       assert_eq!(d.output.cast(), Ok("hello world!!"));
@@ -253,8 +253,8 @@ fn test_require_now() -> TestResult {
   // Change the file that ReadFile reads, which `to_lower_task` depends on, thus `to_lower_task` is affected and should be executed.
   write_until_modified(&read_path, "hello world!!")?;
   pie.bottom_up_build_then_assert(|b| {
-    b.changed_resource(&read_path);
-    b.changed_resource(&marker_path)
+    b.schedule_tasks_affected_by(&read_path);
+    b.schedule_tasks_affected_by(&marker_path)
   }, |tracker| {
     let task_end = assert_matches!(tracker.first_execute_end_index(&task), Some(i) => i);
     let to_lower_task_end = assert_matches!(tracker.first_execute_end_index(&to_lower_task), Some(i) => i);

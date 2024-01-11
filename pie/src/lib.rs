@@ -54,7 +54,7 @@ pub trait Task: KeyBounds {
 }
 
 /// Programmatic incremental build context, enabling tasks to require other tasks and read/write from/to resources,
-/// programmatically creating precise dependencies that are used to incrementally execute tasks.
+/// programmatically creating precise dynamic dependencies that are used to incrementally execute tasks.
 ///
 /// Tasks can [require](Self::require) other tasks, creating a task dependency and getting their consistent (i.e.,
 /// most up-to-date) output value.
@@ -171,21 +171,24 @@ pub trait ResourceChecker<R: Resource>: KeyBounds {
   /// Stamps `resource` with a `reader` for that resource.
   ///
   /// The `reader` is fresh: it is first passed to this checker before being passed to a task. However, because it is
-  /// later passed to a task, `reader` must be _left in a fresh state after stamping_. For example, a buffered reader
-  /// must be rewound after using it.
+  /// later passed to a task, `reader` must be _left in a fresh state after stamping_. For example, a
+  /// [buffered reader](std::io::BufReader) must be [rewound](std::io::Seek::rewind) after using it.
   fn stamp_reader(&self, resource: &R, reader: &mut R::Reader<'_>) -> Result<Self::Stamp, Self::Error>;
   /// Stamps `resource` with a `writer` for that resource.
   ///
   /// The `writer` is dirty: it was first used by a task to write data. Therefore, be sure to restore the `writer` to a
-  /// fresh state before reading from it. For example, a file must be rewound after using it.
+  /// fresh state before reading from it. For example, a [file](std::fs::File) must be [rewound](std::io::Seek::rewind)
+  /// before using it.
   ///
   /// There is no guarantee that `resource` still exists, as it may have been removed by a task. Therefore, `writer` may
-  /// contain stale data for certain resources. If that can be the case, be sure to check whether `writer` is still
-  /// consistent w.r.t. `resource.
+  /// contain stale metadata for certain resources. For example, a [file](std::fs::File) can be
+  /// [removed](std::fs::remove_file), but its [file](std::fs::File) descriptor will still return cached (stale)
+  /// [metadata](std::fs::File::metadata). If that can be the case, be sure to check whether `writer` is still
+  /// consistent with `resource`.
   fn stamp_writer(&self, resource: &R, writer: R::Writer<'_>) -> Result<Self::Stamp, Self::Error>;
 
-  /// Type of inconsistency used for debugging/logging purposes. The `'i` lifetime represents this checker, or the
-  /// resource/state/stamp passed to [Self::get_inconsistency].
+  /// Type of inconsistency used for debugging/logging purposes. The `'i` lifetime represents this checker and the
+  /// lifetime of the `resource`, `state`, and `stamp` passed to [Self::get_inconsistency].
   type Inconsistency<'i>: Debug;
   /// Checks whether `resource` is inconsistent w.r.t. `stamp`, with access to `state`. Returns `Some(inconsistency)`
   /// when inconsistent, `None` when consistent.
@@ -262,28 +265,34 @@ impl<'p> Session<'p> {
     self.0.require(task)
   }
 
-  /// Creates a bottom-up build. Call [BottomUp::changed_resource] to schedule tasks affected by changed resources. Then
-  /// call [BottomUp::update_affected_tasks] to update all affected tasks in a bottom-up build.
+  /// Creates a bottom-up build. Call [schedule_tasks_affected_by](BottomUpBuild::schedule_tasks_affected_by) for each
+  /// changed resource to schedule tasks affected by changed resources.
+  ///
+  /// Then call [update_affected_tasks](BottomUpBuild::update_affected_tasks) to update all affected tasks in a
+  /// bottom-up build.
+  ///
+  /// Finally, use [require](Self::require) of this session to get up-to-date task outputs if needed.
   #[inline]
   #[must_use]
-  pub fn bottom_up_build<'s>(&'s mut self) -> BottomUp<'p, 's> {
-    BottomUp(self.0.bottom_up_build())
+  pub fn create_bottom_up_build<'s>(&'s mut self) -> BottomUpBuild<'p, 's> {
+    BottomUpBuild(self.0.create_bottom_up_build())
   }
 
   /// Gets all errors produced during dependency checks.
   #[inline]
+  #[must_use]
   pub fn dependency_check_errors(&self) -> impl Iterator<Item=&dyn Error> + ExactSizeIterator {
     self.0.dependency_check_errors()
   }
 }
 
 #[repr(transparent)]
-pub struct BottomUp<'p, 's>(pie::BottomUpInternal<'p, 's>);
-impl<'p, 's> BottomUp<'p, 's> {
+pub struct BottomUpBuild<'p, 's>(pie::BottomUpBuildInternal<'p, 's>);
+impl<'p, 's> BottomUpBuild<'p, 's> {
   /// Schedule tasks affected by `resource`.
   #[inline]
-  pub fn changed_resource(&mut self, resource: &dyn KeyObj) {
-    self.0.changed_resource(resource);
+  pub fn schedule_tasks_affected_by(&mut self, resource: &dyn KeyObj) {
+    self.0.schedule_tasks_affected_by(resource);
   }
   /// Update all tasks affected by resource changes.
   #[inline]

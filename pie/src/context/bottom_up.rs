@@ -32,7 +32,7 @@ impl<'p, 's> BottomUpContext<'p, 's> {
 
   /// Schedule tasks affected by `resource`.
   #[inline]
-  pub fn schedule_affected_by(&mut self, resource: &dyn KeyObj) {
+  pub fn schedule_tasks_affected_by(&mut self, resource: &dyn KeyObj) {
     let track_end = self.session.tracker.schedule_affected_by_resource(resource);
     let node = self.session.store.get_or_create_resource_node(resource);
     for (task_node, dependency) in self.session.store.get_read_and_write_dependencies_to_resource(&node) {

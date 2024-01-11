@@ -1,6 +1,6 @@
 use std::io::{BufWriter, Stdout};
 
-use pie::{BottomUp, Pie, Session, Task};
+use pie::{BottomUpBuild, Pie, Session, Task};
 use pie::tracker::CompositeTracker;
 use pie::tracker::event::EventTracker;
 use pie::tracker::writing::WritingTracker;
@@ -58,11 +58,11 @@ pub trait TestPieExt {
 
   fn bottom_up_build_then_assert(
     &mut self,
-    bottom_up_func: impl FnOnce(&mut BottomUp),
+    bottom_up_func: impl FnOnce(&mut BottomUpBuild),
     test_assert_func: impl FnOnce(&EventTracker),
   ) {
     self.assert_in_session(|s| {
-      let mut bottom_up = s.bottom_up_build();
+      let mut bottom_up = s.create_bottom_up_build();
       bottom_up_func(&mut bottom_up);
       bottom_up.update_affected_tasks();
     }, test_assert_func)
