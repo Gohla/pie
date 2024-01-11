@@ -38,7 +38,7 @@ impl<'p, 's> BottomUpContext<'p, 's> {
     for (task_node, dependency) in self.session.store.get_read_and_write_dependencies_to_resource(&node) {
       let task = self.session.store.get_task(&task_node);
       Self::try_schedule_task_by_resource_dependency(
-        task,
+        task.as_key_obj(),
         task_node,
         dependency,
         &mut self.session.resource_state,
@@ -72,7 +72,7 @@ impl<'p, 's> BottomUpContext<'p, 's> {
       for (reading_task_node, dependency) in self.session.store.get_read_dependencies_to_resource(&written_resource_node) {
         let reading_task = self.session.store.get_task(&reading_task_node);
         Self::try_schedule_task_by_resource_dependency(
-          reading_task,
+          reading_task.as_key_obj(),
           reading_task_node,
           dependency,
           &mut self.session.resource_state,
@@ -86,7 +86,7 @@ impl<'p, 's> BottomUpContext<'p, 's> {
     }
 
     // Schedule tasks affected by task `node`'s output.
-    let track_end = self.session.tracker.schedule_affected_by_task(task.as_ref());
+    let track_end = self.session.tracker.schedule_affected_by_task(task.as_ref().as_key_obj());
     // Consider tasks that require `node`.
     for (requiring_task_node, dependency) in self.session.store.get_require_dependencies_to_task(&node) {
       // TODO: skip when task is already consistent?
@@ -98,7 +98,7 @@ impl<'p, 's> BottomUpContext<'p, 's> {
       // also implements `dyn ValueObj`, but cannot be downcasted to the concrete unboxed type!
       if !dependency.is_consistent_with(output.as_ref(), &mut self.session.tracker) {
         let requiring_task = self.session.store.get_task(&requiring_task_node);
-        self.session.tracker.schedule_task(requiring_task);
+        self.session.tracker.schedule_task(requiring_task.as_key_obj());
         self.scheduled.add(requiring_task_node);
       }
     }
