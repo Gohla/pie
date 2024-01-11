@@ -4,7 +4,7 @@ use std::fmt::Debug;
 use dyn_clone::DynClone;
 
 use crate::{OutputChecker, Resource, ResourceChecker, ResourceState, Task};
-use crate::context::top_down::CheckTaskDependency;
+use crate::context::top_down::TopDownCheck;
 use crate::pie::Tracking;
 use crate::trait_object::{KeyObj, ValueObj};
 use crate::trait_object::collection::TypeToAnyMap;
@@ -29,8 +29,8 @@ impl<T: Task, C: OutputChecker<T::Output>> TaskDependency<T, C, C::Stamp> {
   pub fn stamp(&self) -> &C::Stamp { &self.stamp }
 
   #[inline]
-  pub fn get_inconsistency<'o>(&'o self, output: &'o T::Output) -> Option<C::Inconsistency<'o>> {
-    self.checker.get_inconsistency(output, &self.stamp)
+  pub fn check<'i>(&'i self, output: &'i T::Output) -> Option<C::Inconsistency<'i>> {
+    self.checker.check(output, &self.stamp)
   }
 
   #[inline]
@@ -45,8 +45,8 @@ pub trait TaskDependencyObj: DynClone + Debug {
   fn checker(&self) -> &dyn ValueObj;
   fn stamp(&self) -> &dyn ValueObj;
 
-  fn as_check_task_dependency(&self) -> &dyn CheckTaskDependency;
-  fn is_consistent_with(&self, output: &dyn ValueObj, tracker: &mut Tracking) -> bool;
+  fn as_top_down_check(&self) -> &dyn TopDownCheck;
+  fn is_consistent_bottom_up(&self, output: &dyn ValueObj, requiring_task: &dyn KeyObj, tracker: &mut Tracking) -> bool;
 }
 
 impl<T: Task, C: OutputChecker<T::Output>> TaskDependencyObj for TaskDependency<T, C, C::Stamp> {
@@ -58,17 +58,23 @@ impl<T: Task, C: OutputChecker<T::Output>> TaskDependencyObj for TaskDependency<
   fn stamp(&self) -> &dyn ValueObj { &self.stamp as &dyn ValueObj }
 
   #[inline]
-  fn as_check_task_dependency(&self) -> &dyn CheckTaskDependency { self as &dyn CheckTaskDependency }
+  fn as_top_down_check(&self) -> &dyn TopDownCheck { self as &dyn TopDownCheck }
   #[inline]
-  fn is_consistent_with(&self, output: &dyn ValueObj, tracker: &mut Tracking) -> bool {
+  fn is_consistent_bottom_up(&self, output: &dyn ValueObj, requiring_task: &dyn KeyObj, tracker: &mut Tracking) -> bool {
     let Some(output) = output.as_any().downcast_ref::<T::Output>() else {
       return false;
     };
-    let check_task_end = tracker.check_task(&self.task, &self.checker, &self.stamp);
-    let inconsistency = self.get_inconsistency(output);
-    let inconsistency_dyn = inconsistency.as_ref().map(|o| o as &dyn Debug);
-    check_task_end(tracker, inconsistency_dyn);
-    inconsistency.is_none()
+    let check_task_end = tracker.check_task_require_task(requiring_task, &self.checker, &self.stamp);
+    match self.check(output) {
+      Some(inconsistency) => {
+        check_task_end(tracker, Some(&inconsistency as &dyn Debug));
+        false
+      }
+      None => {
+        check_task_end(tracker, None);
+        true
+      }
+    }
   }
 }
 impl Clone for Box<dyn TaskDependencyObj> {
@@ -97,11 +103,26 @@ impl<R: Resource, C: ResourceChecker<R>> ResourceDependency<R, C, C::Stamp> {
   pub fn stamp(&self) -> &C::Stamp { &self.stamp }
 
   #[inline]
-  pub fn get_inconsistency<'i, RS: ResourceState<R>>(
+  pub fn check<'i, RS: ResourceState<R>>(
     &'i self,
     state: &'i mut RS,
   ) -> Result<Option<C::Inconsistency<'i>>, C::Error> {
-    self.checker.get_inconsistency(&self.resource, state, &self.stamp)
+    self.checker.check(&self.resource, state, &self.stamp)
+  }
+
+  #[inline]
+  pub fn is_consistent<'i, RS: ResourceState<R>>(
+    &'i self,
+    state: &'i mut RS,
+    tracker: &mut Tracking,
+    track_end: impl FnOnce(&mut Tracking, Result<Option<&dyn Debug>, &dyn Error>),
+  ) -> Result<bool, Box<dyn Error>> {
+    let inconsistency = self.check(state);
+    let inconsistency_dyn = inconsistency.as_ref()
+      .map(|o| o.as_ref().map(|i| i as &dyn Debug))
+      .map_err(|e| e as &dyn Error);
+    track_end(tracker, inconsistency_dyn);
+    Ok(inconsistency?.is_none())
   }
 
   #[inline]
@@ -118,7 +139,17 @@ pub trait ResourceDependencyObj: DynClone + Debug {
   fn checker(&self) -> &dyn ValueObj;
   fn stamp(&self) -> &dyn ValueObj;
 
-  fn is_consistent(&self, tracker: &mut Tracking, resource_state: &mut TypeToAnyMap) -> Result<bool, Box<dyn Error>>;
+  fn is_consistent_top_down(
+    &self,
+    resource_state: &mut TypeToAnyMap,
+    tracker: &mut Tracking,
+  ) -> Result<bool, Box<dyn Error>>;
+  fn is_consistent_bottom_up(
+    &self,
+    resource_state: &mut TypeToAnyMap,
+    reading_task: &dyn KeyObj,
+    tracker: &mut Tracking,
+  ) -> Result<bool, Box<dyn Error>>;
 }
 impl<R: Resource, C: ResourceChecker<R>> ResourceDependencyObj for ResourceDependency<R, C, C::Stamp> {
   #[inline]
@@ -129,14 +160,23 @@ impl<R: Resource, C: ResourceChecker<R>> ResourceDependencyObj for ResourceDepen
   fn stamp(&self) -> &dyn ValueObj { &self.stamp as &dyn ValueObj }
 
   #[inline]
-  fn is_consistent(&self, tracker: &mut Tracking, state: &mut TypeToAnyMap) -> Result<bool, Box<dyn Error>> {
-    let check_resource_end = tracker.check_resource(&self.resource, &self.checker, &self.stamp);
-    let result = self.get_inconsistency(state);
-    let inconsistency = result.as_ref()
-      .map(|o| o.as_ref().map(|i| i as &dyn Debug))
-      .map_err(|e| e as &dyn Error);
-    check_resource_end(tracker, inconsistency);
-    Ok(result?.is_none())
+  fn is_consistent_top_down(
+    &self,
+    resource_state: &mut TypeToAnyMap,
+    tracker: &mut Tracking,
+  ) -> Result<bool, Box<dyn Error>> {
+    let track_end = tracker.check_resource(&self.resource, &self.checker, &self.stamp);
+    self.is_consistent(resource_state, tracker, track_end)
+  }
+  #[inline]
+  fn is_consistent_bottom_up(
+    &self,
+    resource_state: &mut TypeToAnyMap,
+    reading_task: &dyn KeyObj,
+    tracker: &mut Tracking,
+  ) -> Result<bool, Box<dyn Error>> {
+    let track_end = tracker.check_task_read_resource(reading_task, &self.checker, &self.stamp);
+    self.is_consistent(resource_state, tracker, track_end)
   }
 }
 impl Clone for Box<dyn ResourceDependencyObj> {

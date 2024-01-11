@@ -185,6 +185,27 @@ impl Tracking<'_> {
 
   #[inline]
   #[must_use]
+  pub fn schedule_affected_by_task<'a>(
+    &mut self,
+    task: &'a dyn KeyObj,
+  ) -> impl FnOnce(&mut Tracking) + 'a {
+    self.0.schedule_affected_by_task_start(task);
+    |tracking| tracking.0.schedule_affected_by_task_end(task)
+  }
+  #[inline]
+  #[must_use]
+  pub fn check_task_require_task<'a>(
+    &mut self,
+    requiring_task: &'a dyn KeyObj,
+    checker: &'a dyn ValueObj,
+    stamp: &'a dyn ValueObj,
+  ) -> impl FnOnce(&mut Tracking, Option<&dyn Debug>) + 'a {
+    self.0.check_task_require_task_start(requiring_task, checker, stamp);
+    |tracking, inconsistency| tracking.0.check_task_require_task_end(requiring_task, checker, stamp, inconsistency)
+  }
+
+  #[inline]
+  #[must_use]
   pub fn schedule_affected_by_resource<'a>(
     &mut self,
     resource: &'a dyn KeyObj,
@@ -192,15 +213,16 @@ impl Tracking<'_> {
     self.0.schedule_affected_by_resource_start(resource);
     |tracking| tracking.0.schedule_affected_by_resource_end(resource)
   }
-
   #[inline]
   #[must_use]
-  pub fn schedule_affected_by_task<'a>(
+  pub fn check_task_read_resource<'a>(
     &mut self,
-    task: &'a dyn KeyObj,
-  ) -> impl FnOnce(&mut Tracking) + 'a {
-    self.0.schedule_affected_by_task_start(task);
-    |tracking| tracking.0.schedule_affected_by_task_end(task)
+    reading_task: &'a dyn KeyObj,
+    checker: &'a dyn ValueObj,
+    stamp: &'a dyn ValueObj,
+  ) -> impl FnOnce(&mut Tracking, Result<Option<&dyn Debug>, &dyn Error>) + 'a {
+    self.0.check_task_read_resource_start(reading_task, checker, stamp);
+    |tracking, inconsistency| tracking.0.check_task_read_resource_end(reading_task, checker, stamp, inconsistency)
   }
 }
 impl<'p> Deref for Tracking<'p> {

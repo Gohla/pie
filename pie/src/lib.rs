@@ -106,11 +106,11 @@ pub trait OutputChecker<O>: KeyBounds {
   fn stamp(&self, output: &O) -> Self::Stamp;
 
   /// Type of inconsistency used for debugging/logging purposes. The `'i` lifetime represents this checker, or the
-  /// output/stamp passed to [Self::get_inconsistency].
+  /// output/stamp passed to [Self::check].
   type Inconsistency<'i>: Debug where O: 'i;
   /// Checks whether `output` is inconsistent w.r.t. `stamp`, returning `Some(inconsistency)` if inconsistent, `None` if
   /// consistent.
-  fn get_inconsistency<'i>(&'i self, output: &'i O, stamp: &'i Self::Stamp) -> Option<Self::Inconsistency<'i>>;
+  fn check<'i>(&'i self, output: &'i O, stamp: &'i Self::Stamp) -> Option<Self::Inconsistency<'i>>;
 }
 
 
@@ -188,11 +188,11 @@ pub trait ResourceChecker<R: Resource>: KeyBounds {
   fn stamp_writer(&self, resource: &R, writer: R::Writer<'_>) -> Result<Self::Stamp, Self::Error>;
 
   /// Type of inconsistency used for debugging/logging purposes. The `'i` lifetime represents this checker and the
-  /// lifetime of the `resource`, `state`, and `stamp` passed to [Self::get_inconsistency].
+  /// lifetime of the `resource`, `state`, and `stamp` passed to [Self::check].
   type Inconsistency<'i>: Debug;
   /// Checks whether `resource` is inconsistent w.r.t. `stamp`, with access to `state`. Returns `Some(inconsistency)`
   /// when inconsistent, `None` when consistent.
-  fn get_inconsistency<'i, RS: ResourceState<R>>(
+  fn check<'i, RS: ResourceState<R>>(
     &'i self,
     resource: &'i R,
     state: &'i mut RS,

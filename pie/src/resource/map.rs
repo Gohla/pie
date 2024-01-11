@@ -101,7 +101,7 @@ impl<K: MapKey> ResourceChecker<K> for MapEqualsChecker where
 
   type Inconsistency<'i> = Option<&'i K::Value>;
   #[inline]
-  fn get_inconsistency<'i, RS: ResourceState<K>>(
+  fn check<'i, RS: ResourceState<K>>(
     &self,
     key: &K,
     state: &'i mut RS,

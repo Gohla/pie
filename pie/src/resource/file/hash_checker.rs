@@ -36,7 +36,7 @@ impl ResourceChecker<PathBuf> for HashChecker {
 
   type Inconsistency<'i> = Self::Stamp;
   #[inline]
-  fn get_inconsistency<RS: ResourceState<PathBuf>>(
+  fn check<RS: ResourceState<PathBuf>>(
     &self,
     path: &PathBuf,
     state: &mut RS,
@@ -101,13 +101,13 @@ mod test {
 
     let stamp = {
       let stamp = checker.stamp(&path, &mut state)?;
-      assert_matches!(checker.get_inconsistency(&path, &mut state, &stamp)?, None);
+      assert_matches!(checker.check(&path, &mut state, &stamp)?, None);
 
       let stamp = checker.stamp_reader(&path, &mut path.read(&mut state)?)?;
-      assert_matches!(checker.get_inconsistency(&path, &mut state, &stamp)?, None);
+      assert_matches!(checker.check(&path, &mut state, &stamp)?, None);
 
       let stamp = checker.stamp_writer(&path, File::open(&path)?)?;
-      assert_matches!(checker.get_inconsistency(&path, &mut state, &stamp)?, None);
+      assert_matches!(checker.check(&path, &mut state, &stamp)?, None);
 
       stamp
     };
@@ -116,17 +116,17 @@ mod test {
     let stamp = {
       let new_stamp = checker.stamp(&path, &mut state)?;
       // Consistent with `new_stamp` that was made after modifying the file.
-      assert_matches!(checker.get_inconsistency(&path, &mut state, &new_stamp)?, None);
+      assert_matches!(checker.check(&path, &mut state, &new_stamp)?, None);
       // But not with (old) `stamp` that was made before modifying the file.
-      assert_matches!(checker.get_inconsistency(&path, &mut state, &stamp)?, Some(s) if s == new_stamp);
+      assert_matches!(checker.check(&path, &mut state, &stamp)?, Some(s) if s == new_stamp);
 
       let new_stamp = checker.stamp_reader(&path, &mut path.read(&mut state)?)?;
-      assert_matches!(checker.get_inconsistency(&path, &mut state, &new_stamp)?, None);
-      assert_matches!(checker.get_inconsistency(&path, &mut state, &stamp)?, Some(s) if s == new_stamp);
+      assert_matches!(checker.check(&path, &mut state, &new_stamp)?, None);
+      assert_matches!(checker.check(&path, &mut state, &stamp)?, Some(s) if s == new_stamp);
 
       let new_stamp = checker.stamp_writer(&path, File::open(&path)?)?;
-      assert_matches!(checker.get_inconsistency(&path, &mut state, &new_stamp)?, None);
-      assert_matches!(checker.get_inconsistency(&path, &mut state, &stamp)?, Some(s) if s == new_stamp);
+      assert_matches!(checker.check(&path, &mut state, &new_stamp)?, None);
+      assert_matches!(checker.check(&path, &mut state, &stamp)?, Some(s) if s == new_stamp);
 
       new_stamp
     };
@@ -134,12 +134,12 @@ mod test {
     remove_file(&path)?;
     let stamp = {
       let new_stamp = checker.stamp(&path, &mut state)?;
-      assert_matches!(checker.get_inconsistency(&path, &mut state, &new_stamp)?, None);
-      assert_matches!(checker.get_inconsistency(&path, &mut state, &stamp)?, Some(s) if s == new_stamp);
+      assert_matches!(checker.check(&path, &mut state, &new_stamp)?, None);
+      assert_matches!(checker.check(&path, &mut state, &stamp)?, Some(s) if s == new_stamp);
 
       let new_stamp = checker.stamp_reader(&path, &mut path.read(&mut state)?)?;
-      assert_matches!(checker.get_inconsistency(&path, &mut state, &new_stamp)?, None);
-      assert_matches!(checker.get_inconsistency(&path, &mut state, &stamp)?, Some(s) if s == new_stamp);
+      assert_matches!(checker.check(&path, &mut state, &new_stamp)?, None);
+      assert_matches!(checker.check(&path, &mut state, &stamp)?, Some(s) if s == new_stamp);
 
       // Note: can't test `stamp_writer` because the file does not exist.
 
@@ -154,9 +154,9 @@ mod test {
       assert!(!path.exists());
 
       let new_stamp = checker.stamp_writer(&path, file)?;
-      assert_matches!(checker.get_inconsistency(&path, &mut state, &new_stamp)?, None);
+      assert_matches!(checker.check(&path, &mut state, &new_stamp)?, None);
       // This matches the (old) `stamp` because the file is removed in both cases.
-      assert_matches!(checker.get_inconsistency(&path, &mut state, &stamp)?, None);
+      assert_matches!(checker.check(&path, &mut state, &stamp)?, None);
 
       new_stamp
     };
@@ -166,8 +166,8 @@ mod test {
       write(&path, "More changes for hash checker")?;
 
       let new_stamp = checker.stamp_writer(&path, file)?;
-      assert_matches!(checker.get_inconsistency(&path, &mut state, &new_stamp)?, None);
-      assert_matches!(checker.get_inconsistency(&path, &mut state, &stamp)?, Some(s) if s == new_stamp);
+      assert_matches!(checker.check(&path, &mut state, &new_stamp)?, None);
+      assert_matches!(checker.check(&path, &mut state, &stamp)?, Some(s) if s == new_stamp);
     }
 
     Ok(())

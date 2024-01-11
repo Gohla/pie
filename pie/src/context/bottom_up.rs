@@ -94,11 +94,11 @@ impl<'p, 's> BottomUpContext<'p, 's> {
       if self.executing.contains(&requiring_task_node) {
         continue; // Don't schedule tasks that are already executing.
       }
+      let requiring_task = self.session.store.get_task(&requiring_task_node).as_key_obj();
       // Note: use `output.as_ref()` instead of `&output`, because `&output` results in a `&Box<dyn ValueObj>` which
       // also implements `dyn ValueObj`, but cannot be downcasted to the concrete unboxed type!
-      if !dependency.is_consistent_with(output.as_ref(), &mut self.session.tracker) {
-        let requiring_task = self.session.store.get_task(&requiring_task_node);
-        self.session.tracker.schedule_task(requiring_task.as_key_obj());
+      if !dependency.is_consistent_bottom_up(output.as_ref(), requiring_task, &mut self.session.tracker) {
+        self.session.tracker.schedule_task(requiring_task);
         self.scheduled.add(requiring_task_node);
       }
     }
@@ -108,12 +108,13 @@ impl<'p, 's> BottomUpContext<'p, 's> {
     output
   }
 
-  /// Schedule `task` (with corresponding `node`) if it is affected by a change in its resource `dependency`.
+  /// Schedule `reading_task` (with corresponding `reading_task_node`) if it is affected by a change in its resource
+  /// `dependency`.
   ///
   /// Note: passing in borrows explicitly instead of a mutable borrow of `self` to make borrows work.
   fn try_schedule_task_by_resource_dependency(
-    task: &dyn KeyObj,
-    node: TaskNode,
+    reading_task: &dyn KeyObj,
+    reading_task_node: TaskNode,
     dependency: &dyn ResourceDependencyObj,
     resource_state: &mut TypeToAnyMap,
     tracker: &mut Tracking,
@@ -123,19 +124,19 @@ impl<'p, 's> BottomUpContext<'p, 's> {
   ) {
     // TODO: skip when task is already consistent?
     // TODO: skip when task is already scheduled?
-    if executing.contains(&node) {
+    if executing.contains(&reading_task_node) {
       return; // Don't schedule tasks that are already executing.
     }
-    let consistent = dependency.is_consistent(tracker, resource_state);
+    let consistent = dependency.is_consistent_bottom_up(resource_state, reading_task, tracker);
     match consistent {
       Err(e) => {
         dependency_check_errors.push(e);
-        tracker.schedule_task(task);
-        scheduled.add(node);
+        tracker.schedule_task(reading_task);
+        scheduled.add(reading_task_node);
       }
       Ok(false) => {
-        tracker.schedule_task(task);
-        scheduled.add(node);
+        tracker.schedule_task(reading_task);
+        scheduled.add(reading_task_node);
       }
       _ => {}
     }

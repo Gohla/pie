@@ -80,26 +80,15 @@ pub trait Tracker {
 
   // Bottom-up build tracking.
 
-  /// Start: schedule tasks affected by changes to `resource`.
-  fn schedule_affected_by_resource_start(&mut self, resource: &dyn KeyObj) {}
-  /// Start: check consistency of `task`'s  read dependency which used `checker` to create `stamp`.
-  fn check_task_read_resource_start(&mut self, task: &dyn KeyObj, checker: &dyn ValueObj, stamp: &dyn ValueObj) {}
-  /// End: checked consistency of `task`'s read dependency which used `checker` to create `stamp`, possibly found an
-  /// `inconsistency`.
-  fn check_task_read_resource_end(
-    &mut self,
-    task: &dyn KeyObj,
-    checker: &dyn ValueObj,
-    stamp: &dyn ValueObj,
-    inconsistency: Result<Option<&dyn Debug>, &dyn Error>,
-  ) {}
-  /// End: scheduled tasks affected by changes to `resource`.
-  fn schedule_affected_by_resource_end(&mut self, resource: &dyn KeyObj) {}
-
   /// Start: schedule tasks affected by changes to the output of `task`.
   fn schedule_affected_by_task_start(&mut self, task: &dyn KeyObj) {}
   /// Start: check consistency of `requiring_task`'s require dependency which used `checker` to create `stamp`.
-  fn check_task_require_task_start(&mut self, requiring_task: &dyn KeyObj, checker: &dyn ValueObj, stamp: &dyn ValueObj) {}
+  fn check_task_require_task_start(
+    &mut self,
+    requiring_task: &dyn KeyObj,
+    checker: &dyn ValueObj,
+    stamp: &dyn ValueObj,
+  ) {}
   /// End: checked consistency of `requiring_task`'s require dependency which used `checker` to create `stamp`,
   /// possibly found an `inconsistency`.
   fn check_task_require_task_end(
@@ -111,6 +100,27 @@ pub trait Tracker {
   ) {}
   /// End: scheduled tasks affected by changes to the output of `task`.
   fn schedule_affected_by_task_end(&mut self, task: &dyn KeyObj) {}
+
+  /// Start: schedule tasks affected by changes to `resource`.
+  fn schedule_affected_by_resource_start(&mut self, resource: &dyn KeyObj) {}
+  /// Start: check consistency of `reading_task`'s read dependency which used `checker` to create `stamp`.
+  fn check_task_read_resource_start(
+    &mut self,
+    reading_task: &dyn KeyObj,
+    checker: &dyn ValueObj,
+    stamp: &dyn ValueObj,
+  ) {}
+  /// End: checked consistency of `reading_task`'s read dependency which used `checker` to create `stamp`, possibly
+  /// found an `inconsistency`.
+  fn check_task_read_resource_end(
+    &mut self,
+    reading_task: &dyn KeyObj,
+    checker: &dyn ValueObj,
+    stamp: &dyn ValueObj,
+    inconsistency: Result<Option<&dyn Debug>, &dyn Error>,
+  ) {}
+  /// End: scheduled tasks affected by changes to `resource`.
+  fn schedule_affected_by_resource_end(&mut self, resource: &dyn KeyObj) {}
 
   /// Schedule `task` for execution.
   fn schedule_task(&mut self, task: &dyn KeyObj) {}
@@ -219,32 +229,8 @@ impl<A1: Tracker, A2: Tracker> Tracker for CompositeTracker<A1, A2> {
     self.1.execute_end(task, output);
   }
 
-  #[inline]
-  fn schedule_affected_by_task_start(&mut self, task: &dyn KeyObj) {
-    self.0.schedule_affected_by_task_start(task);
-    self.1.schedule_affected_by_task_start(task);
-  }
-  #[inline]
-  fn check_task_read_resource_start(&mut self, task: &dyn KeyObj, checker: &dyn ValueObj, stamp: &dyn ValueObj) {
-    self.0.check_task_read_resource_start(task, checker, stamp);
-    self.1.check_task_read_resource_start(task, checker, stamp);
-  }
-  #[inline]
-  fn check_task_read_resource_end(
-    &mut self,
-    task: &dyn KeyObj,
-    checker: &dyn ValueObj,
-    stamp: &dyn ValueObj,
-    inconsistency: Result<Option<&dyn Debug>, &dyn Error>,
-  ) {
-    self.0.check_task_read_resource_end(task, checker, stamp, inconsistency);
-    self.1.check_task_read_resource_end(task, checker, stamp, inconsistency);
-  }
-  #[inline]
-  fn schedule_affected_by_task_end(&mut self, task: &dyn KeyObj) {
-    self.0.schedule_affected_by_task_end(task);
-    self.1.schedule_affected_by_task_end(task);
-  }
+
+  // Bottom-up build tracking.
 
   #[inline]
   fn schedule_affected_by_resource_start(&mut self, resource: &dyn KeyObj) {
@@ -252,7 +238,12 @@ impl<A1: Tracker, A2: Tracker> Tracker for CompositeTracker<A1, A2> {
     self.1.schedule_affected_by_resource_start(resource);
   }
   #[inline]
-  fn check_task_require_task_start(&mut self, requiring_task: &dyn KeyObj, checker: &dyn ValueObj, stamp: &dyn ValueObj) {
+  fn check_task_require_task_start(
+    &mut self,
+    requiring_task: &dyn KeyObj,
+    checker: &dyn ValueObj,
+    stamp: &dyn ValueObj,
+  ) {
     self.0.check_task_require_task_start(requiring_task, checker, stamp);
     self.1.check_task_require_task_start(requiring_task, checker, stamp);
   }
@@ -271,6 +262,38 @@ impl<A1: Tracker, A2: Tracker> Tracker for CompositeTracker<A1, A2> {
   fn schedule_affected_by_resource_end(&mut self, resource: &dyn KeyObj) {
     self.0.schedule_affected_by_resource_end(resource);
     self.1.schedule_affected_by_resource_end(resource);
+  }
+
+  #[inline]
+  fn schedule_affected_by_task_start(&mut self, task: &dyn KeyObj) {
+    self.0.schedule_affected_by_task_start(task);
+    self.1.schedule_affected_by_task_start(task);
+  }
+  #[inline]
+  fn check_task_read_resource_start(
+    &mut self,
+    reading_task: &dyn KeyObj,
+    checker: &dyn ValueObj,
+    stamp: &dyn ValueObj,
+  ) {
+    self.0.check_task_read_resource_start(reading_task, checker, stamp);
+    self.1.check_task_read_resource_start(reading_task, checker, stamp);
+  }
+  #[inline]
+  fn check_task_read_resource_end(
+    &mut self,
+    reading_task: &dyn KeyObj,
+    checker: &dyn ValueObj,
+    stamp: &dyn ValueObj,
+    inconsistency: Result<Option<&dyn Debug>, &dyn Error>,
+  ) {
+    self.0.check_task_read_resource_end(reading_task, checker, stamp, inconsistency);
+    self.1.check_task_read_resource_end(reading_task, checker, stamp, inconsistency);
+  }
+  #[inline]
+  fn schedule_affected_by_task_end(&mut self, task: &dyn KeyObj) {
+    self.0.schedule_affected_by_task_end(task);
+    self.1.schedule_affected_by_task_end(task);
   }
 
   #[inline]
