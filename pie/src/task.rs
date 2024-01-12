@@ -37,11 +37,11 @@ impl<O: ValueBounds + Eq, E> OutputChecker<Result<O, E>> for OkEqualsChecker {
     output.as_ref().ok().cloned()
   }
 
-  type Inconsistency<'i> = Self::Stamp where Result<O, E>: 'i;
+  type Inconsistency<'i> = Option<&'i O> where E: 'i;
   #[inline]
-  fn check(&self, output: &Result<O, E>, stamp: &Self::Stamp) -> Option<Self::Stamp> {
-    let new_stamp = output.as_ref().ok().cloned();
-    if new_stamp != *stamp {
+  fn check<'i>(&self, output: &'i Result<O, E>, stamp: &Self::Stamp) -> Option<Self::Inconsistency<'i>> {
+    let new_stamp = output.as_ref().ok();
+    if new_stamp != stamp.as_ref() {
       Some(new_stamp)
     } else {
       None
@@ -59,11 +59,11 @@ impl<O, E: ValueBounds + Eq> OutputChecker<Result<O, E>> for ErrEqualsChecker {
     output.as_ref().err().cloned()
   }
 
-  type Inconsistency<'i> = Self::Stamp where Result<O, E>: 'i;
+  type Inconsistency<'i> = Option<&'i E> where O: 'i;
   #[inline]
-  fn check(&self, output: &Result<O, E>, stamp: &Self::Stamp) -> Option<Self::Stamp> {
-    let new_stamp = output.as_ref().err().cloned();
-    if new_stamp != *stamp {
+  fn check<'i>(&self, output: &'i Result<O, E>, stamp: &Self::Stamp) -> Option<Self::Inconsistency<'i>> {
+    let new_stamp = output.as_ref().err();
+    if new_stamp != stamp.as_ref() {
       Some(new_stamp)
     } else {
       None
@@ -81,7 +81,7 @@ impl<T, E> OutputChecker<Result<T, E>> for ResultChecker {
     output.is_err()
   }
 
-  type Inconsistency<'i> = Self::Stamp where Result<T, E>: 'i;
+  type Inconsistency<'i> = Self::Stamp where T: 'i, E: 'i;
   #[inline]
   fn check(&self, output: &Result<T, E>, stamp: &Self::Stamp) -> Option<Self::Stamp> {
     let new_stamp = output.is_err();

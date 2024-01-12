@@ -105,8 +105,8 @@ pub trait OutputChecker<O>: KeyBounds {
   /// Stamps `output`.
   fn stamp(&self, output: &O) -> Self::Stamp;
 
-  /// Type of inconsistency used for debugging/logging purposes. The `'i` lifetime represents this checker, or the
-  /// output/stamp passed to [Self::check].
+  /// Type of inconsistency used for debugging/logging purposes. The `'i` lifetime represents this checker and the
+  /// lifetime of the `output` and `stamp` passed to [check](Self::check).
   type Inconsistency<'i>: Debug where O: 'i;
   /// Checks whether `output` is inconsistent w.r.t. `stamp`, returning `Some(inconsistency)` if inconsistent, `None` if
   /// consistent.
