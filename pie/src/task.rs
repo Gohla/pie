@@ -4,21 +4,20 @@ use std::hash::Hash;
 use std::rc::Rc;
 use std::sync::Arc;
 
-use crate::{Context, OutputChecker, Task, ValueBounds};
+use crate::{Context, OutputChecker, Task, Value};
 
 /// [Task output checker](OutputChecker) that checks by equality.
 #[derive(Default, Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Debug)]
 pub struct EqualsChecker;
-impl<O: ValueBounds + Eq> OutputChecker<O> for EqualsChecker {
+impl<O: Value + Eq> OutputChecker<O> for EqualsChecker {
   type Stamp = O;
   #[inline]
   fn stamp(&self, output: &O) -> Self::Stamp {
     output.clone()
   }
 
-  type Inconsistency<'i> = &'i O where O: 'i;
   #[inline]
-  fn check<'i>(&self, output: &'i O, stamp: &Self::Stamp) -> Option<Self::Inconsistency<'i>> {
+  fn check(&self, output: &O, stamp: &Self::Stamp) -> Option<impl Debug> {
     if output != stamp {
       Some(output)
     } else {
@@ -30,16 +29,15 @@ impl<O: ValueBounds + Eq> OutputChecker<O> for EqualsChecker {
 /// [Task output checker](OutputChecker) that checks [Ok] by equality, but [Err] only by existence.
 #[derive(Default, Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Debug)]
 pub struct OkEqualsChecker;
-impl<O: ValueBounds + Eq, E> OutputChecker<Result<O, E>> for OkEqualsChecker {
+impl<O: Value + Eq, E> OutputChecker<Result<O, E>> for OkEqualsChecker {
   type Stamp = Option<O>;
   #[inline]
   fn stamp(&self, output: &Result<O, E>) -> Self::Stamp {
     output.as_ref().ok().cloned()
   }
 
-  type Inconsistency<'i> = Option<&'i O> where E: 'i;
   #[inline]
-  fn check<'i>(&self, output: &'i Result<O, E>, stamp: &Self::Stamp) -> Option<Self::Inconsistency<'i>> {
+  fn check(&self, output: &Result<O, E>, stamp: &Self::Stamp) -> Option<impl Debug> {
     let new_stamp = output.as_ref().ok();
     if new_stamp != stamp.as_ref() {
       Some(new_stamp)
@@ -52,16 +50,15 @@ impl<O: ValueBounds + Eq, E> OutputChecker<Result<O, E>> for OkEqualsChecker {
 /// [Task output checker](OutputChecker) that checks [Err] by equality, but [Ok] only by existence.
 #[derive(Default, Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Debug)]
 pub struct ErrEqualsChecker;
-impl<O, E: ValueBounds + Eq> OutputChecker<Result<O, E>> for ErrEqualsChecker {
+impl<O, E: Value + Eq> OutputChecker<Result<O, E>> for ErrEqualsChecker {
   type Stamp = Option<E>;
   #[inline]
   fn stamp(&self, output: &Result<O, E>) -> Self::Stamp {
     output.as_ref().err().cloned()
   }
 
-  type Inconsistency<'i> = Option<&'i E> where O: 'i;
   #[inline]
-  fn check<'i>(&self, output: &'i Result<O, E>, stamp: &Self::Stamp) -> Option<Self::Inconsistency<'i>> {
+  fn check(&self, output: &Result<O, E>, stamp: &Self::Stamp) -> Option<impl Debug> {
     let new_stamp = output.as_ref().err();
     if new_stamp != stamp.as_ref() {
       Some(new_stamp)
@@ -81,9 +78,8 @@ impl<T, E> OutputChecker<Result<T, E>> for ResultChecker {
     output.is_err()
   }
 
-  type Inconsistency<'i> = Self::Stamp where T: 'i, E: 'i;
   #[inline]
-  fn check(&self, output: &Result<T, E>, stamp: &Self::Stamp) -> Option<Self::Stamp> {
+  fn check(&self, output: &Result<T, E>, stamp: &Self::Stamp) -> Option<impl Debug> {
     let new_stamp = output.is_err();
     if new_stamp != *stamp {
       Some(new_stamp)
@@ -105,10 +101,9 @@ impl<O> OutputChecker<O> for AlwaysConsistent {
     ()
   }
 
-  type Inconsistency<'o> = Infallible where O: 'o;
   #[inline]
-  fn check(&self, _output: &O, _stamp: &Self::Stamp) -> Option<Infallible> {
-    None
+  fn check(&self, _output: &O, _stamp: &Self::Stamp) -> Option<impl Debug> {
+    None::<Infallible>
   }
 }
 

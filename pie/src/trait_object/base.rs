@@ -39,7 +39,9 @@ impl<T: Hash> HashObj for T {
   fn hash_obj(&self, mut state: &mut dyn Hasher) { self.hash(&mut state); }
 }
 
-/// Clone `&self` into `Box<O>` where `O` can be a trait object.
-pub trait CloneBox<O: ?Sized> {
-  fn clone_box(&self) -> Box<O>;
+/// Assert that given type is object-safe at compile-time.
+macro_rules! const_assert_object_safe {
+    ($ty:ty) => {
+        const _: () = { let _: &$ty; assert!(true) };
+    }
 }

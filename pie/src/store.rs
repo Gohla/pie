@@ -5,7 +5,6 @@ use pie_graph::{DAG, Node};
 
 use crate::dependency::{Dependency, ResourceDependencyObj, TaskDependencyObj};
 use crate::trait_object::{KeyObj, ValueObj};
-use crate::trait_object::base::CloneBox;
 use crate::trait_object::task::TaskObj;
 
 pub struct Store {
@@ -57,11 +56,11 @@ impl Store {
       *node
     } else {
       let node = self.graph.add_node(NodeData::Task {
-        task: task.clone_box(),
+        task: task.to_owned(),
         output: None,
       });
       let node = TaskNode(node);
-      self.task_to_node.insert(task.clone_box(), node);
+      self.task_to_node.insert(task.to_owned(), node);
       node
     }
   }
@@ -85,9 +84,9 @@ impl Store {
     if let Some(node) = self.resource_to_node.get(resource) {
       *node
     } else {
-      let node = self.graph.add_node(NodeData::Resource(resource.clone_box()));
+      let node = self.graph.add_node(NodeData::Resource(resource.to_owned()));
       let node = ResourceNode(node);
-      self.resource_to_node.insert(resource.clone_box(), node);
+      self.resource_to_node.insert(resource.to_owned(), node);
       node
     }
   }

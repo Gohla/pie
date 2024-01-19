@@ -4,7 +4,6 @@ use std::ops::RangeInclusive;
 use crate::Task;
 use crate::tracker::Tracker;
 use crate::trait_object::{KeyObj, ValueObj};
-use crate::trait_object::base::CloneBox;
 
 /// A [`Tracker`] that stores [`Event`]s in a [`Vec`], useful in testing to assert that a context implementation is
 /// incremental and correct.
@@ -128,8 +127,8 @@ impl Tracker for EventTracker {
   #[inline]
   fn require_start(&mut self, task: &dyn KeyObj, checker: &dyn ValueObj) {
     let data = RequireStart {
-      task: task.clone_box(),
-      checker: checker.clone_box(),
+      task: task.to_owned(),
+      checker: checker.to_owned(),
       index: self.events.len(),
     };
     self.events.push(Event::RequireStart(data));
@@ -143,10 +142,10 @@ impl Tracker for EventTracker {
     output: &dyn ValueObj,
   ) {
     let data = RequireEnd {
-      task: task.clone_box(),
-      checker: checker.clone_box(),
-      stamp: stamp.clone_box(),
-      output: output.clone_box(),
+      task: task.to_owned(),
+      checker: checker.to_owned(),
+      stamp: stamp.to_owned(),
+      output: output.to_owned(),
       index: self.events.len(),
     };
     self.events.push(Event::RequireEnd(data));
@@ -155,8 +154,8 @@ impl Tracker for EventTracker {
   #[inline]
   fn read_start(&mut self, resource: &dyn KeyObj, checker: &dyn ValueObj) {
     let data = ResourceStart {
-      resource: resource.clone_box(),
-      checker: checker.clone_box(),
+      resource: resource.to_owned(),
+      checker: checker.to_owned(),
       index: self.events.len(),
     };
     self.events.push(Event::ReadStart(data));
@@ -164,9 +163,9 @@ impl Tracker for EventTracker {
   #[inline]
   fn read_end(&mut self, resource: &dyn KeyObj, checker: &dyn ValueObj, stamp: &dyn ValueObj) {
     let data = ResourceEnd {
-      resource: resource.clone_box(),
-      checker: checker.clone_box(),
-      stamp: stamp.clone_box(),
+      resource: resource.to_owned(),
+      checker: checker.to_owned(),
+      stamp: stamp.to_owned(),
       index: self.events.len(),
     };
     self.events.push(Event::ReadEnd(data));
@@ -175,8 +174,8 @@ impl Tracker for EventTracker {
   #[inline]
   fn write_start(&mut self, resource: &dyn KeyObj, checker: &dyn ValueObj) {
     let data = ResourceStart {
-      resource: resource.clone_box(),
-      checker: checker.clone_box(),
+      resource: resource.to_owned(),
+      checker: checker.to_owned(),
       index: self.events.len(),
     };
     self.events.push(Event::WriteStart(data));
@@ -184,9 +183,9 @@ impl Tracker for EventTracker {
   #[inline]
   fn write_end(&mut self, resource: &dyn KeyObj, checker: &dyn ValueObj, stamp: &dyn ValueObj) {
     let data = ResourceEnd {
-      resource: resource.clone_box(),
-      checker: checker.clone_box(),
-      stamp: stamp.clone_box(),
+      resource: resource.to_owned(),
+      checker: checker.to_owned(),
+      stamp: stamp.to_owned(),
       index: self.events.len(),
     };
     self.events.push(Event::WriteEnd(data));
@@ -195,7 +194,7 @@ impl Tracker for EventTracker {
   #[inline]
   fn execute_start(&mut self, task: &dyn KeyObj) {
     let data = ExecuteStart {
-      task: task.clone_box(),
+      task: task.to_owned(),
       index: self.events.len(),
     };
     self.events.push(Event::ExecuteStart(data));
@@ -203,8 +202,8 @@ impl Tracker for EventTracker {
   #[inline]
   fn execute_end(&mut self, task: &dyn KeyObj, output: &dyn ValueObj) {
     let data = ExecuteEnd {
-      task: task.clone_box(),
-      output: output.clone_box(),
+      task: task.to_owned(),
+      output: output.to_owned(),
       index: self.events.len(),
     };
     self.events.push(Event::ExecuteEnd(data));

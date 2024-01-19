@@ -16,7 +16,6 @@ pub struct TaskDependency<T, C, S> {
   checker: C,
   stamp: S,
 }
-
 impl<T: Task, C: OutputChecker<T::Output>> TaskDependency<T, C, C::Stamp> {
   #[inline]
   pub fn new(task: T, checker: C, stamp: C::Stamp) -> Self { Self { task, checker, stamp } }
@@ -29,7 +28,7 @@ impl<T: Task, C: OutputChecker<T::Output>> TaskDependency<T, C, C::Stamp> {
   pub fn stamp(&self) -> &C::Stamp { &self.stamp }
 
   #[inline]
-  pub fn check<'i>(&'i self, output: &'i T::Output) -> Option<C::Inconsistency<'i>> {
+  pub fn check<'i>(&'i self, output: &'i T::Output) -> Option<impl Debug + 'i> {
     self.checker.check(output, &self.stamp)
   }
 
@@ -48,7 +47,7 @@ pub trait TaskDependencyObj: DynClone + Debug {
   fn as_top_down_check(&self) -> &dyn TopDownCheck;
   fn is_consistent_bottom_up(&self, output: &dyn ValueObj, requiring_task: &dyn KeyObj, tracker: &mut Tracking) -> bool;
 }
-
+const_assert_object_safe!(dyn TaskDependencyObj);
 impl<T: Task, C: OutputChecker<T::Output>> TaskDependencyObj for TaskDependency<T, C, C::Stamp> {
   #[inline]
   fn task(&self) -> &dyn KeyObj { &self.task as &dyn KeyObj }
@@ -90,7 +89,6 @@ pub struct ResourceDependency<R, C, S> {
   checker: C,
   stamp: S,
 }
-
 impl<R: Resource, C: ResourceChecker<R>> ResourceDependency<R, C, C::Stamp> {
   #[inline]
   pub fn new(resource: R, checker: C, stamp: C::Stamp) -> Self { Self { resource, checker, stamp } }
@@ -106,7 +104,7 @@ impl<R: Resource, C: ResourceChecker<R>> ResourceDependency<R, C, C::Stamp> {
   pub fn check<'i, RS: ResourceState<R>>(
     &'i self,
     state: &'i mut RS,
-  ) -> Result<Option<C::Inconsistency<'i>>, C::Error> {
+  ) -> Result<Option<impl Debug + 'i>, C::Error> {
     self.checker.check(&self.resource, state, &self.stamp)
   }
 
@@ -151,6 +149,7 @@ pub trait ResourceDependencyObj: DynClone + Debug {
     tracker: &mut Tracking,
   ) -> Result<bool, Box<dyn Error>>;
 }
+const_assert_object_safe!(dyn ResourceDependencyObj);
 impl<R: Resource, C: ResourceChecker<R>> ResourceDependencyObj for ResourceDependency<R, C, C::Stamp> {
   #[inline]
   fn resource(&self) -> &dyn KeyObj { &self.resource as &dyn KeyObj }

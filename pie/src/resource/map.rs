@@ -7,12 +7,12 @@ use std::hash::Hash;
 
 use dyn_clone::DynClone;
 
-use crate::{KeyBounds, Resource, ResourceChecker, ResourceState};
+use crate::{Key, Resource, ResourceChecker, ResourceState};
 use crate::trait_object::base::{AsAny, EqObj};
 use crate::trait_object::KeyObj;
 
 /// Key of globally shared [hash maps](HashMap) from [`Self`] to [`Self::Value`].
-pub trait MapKey: KeyBounds {
+pub trait MapKey: Key {
   type Value;
 }
 impl<K: MapKey> Resource for K {
@@ -99,14 +99,13 @@ impl<K: MapKey> ResourceChecker<K> for MapEqualsChecker where
     Ok(value)
   }
 
-  type Inconsistency<'i> = Option<&'i K::Value>;
   #[inline]
-  fn check<'i, RS: ResourceState<K>>(
+  fn check<RS: ResourceState<K>>(
     &self,
     key: &K,
-    state: &'i mut RS,
+    state: &mut RS,
     stamp: &Self::Stamp,
-  ) -> Result<Option<Self::Inconsistency<'i>>, Self::Error> {
+  ) -> Result<Option<impl Debug>, Self::Error> {
     let value = key.read(state)?;
     let inconsistency = if value != stamp.as_ref() {
       Some(value)
@@ -124,7 +123,7 @@ impl<K: MapKey> ResourceChecker<K> for MapEqualsChecker where
 #[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Debug)]
 #[repr(transparent)]
 pub struct MapKeyToObj<K>(pub K);
-impl<K: KeyBounds> MapKey for MapKeyToObj<K> {
+impl<K: Key> MapKey for MapKeyToObj<K> {
   type Value = Box<dyn MapValueObj>;
 }
 impl<K> MapKeyToObj<K> {

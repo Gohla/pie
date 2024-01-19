@@ -4,7 +4,7 @@ use std::io;
 use std::io::{Read, Write};
 use std::path::PathBuf;
 
-use pie::{Context, KeyBounds, OutputChecker, ResourceChecker, Task};
+use pie::{Context, Key, OutputChecker, ResourceChecker, Task};
 use pie::resource::file::{FsError, ModifiedChecker};
 use pie::task::{AlwaysConsistent, EqualsChecker};
 
@@ -49,7 +49,7 @@ impl<T, E> Constant<Result<T, E>> {
     Self(Ok(val.into()))
   }
 }
-impl<T: KeyBounds> Task for Constant<T> {
+impl<T: Key> Task for Constant<T> {
   type Output = T;
   #[inline]
   fn execute<C: Context>(&self, _context: &mut C) -> Self::Output {

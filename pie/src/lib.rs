@@ -1,14 +1,14 @@
 //! # Trait bounds
 //!
-//! [`Task`] and [`Resource`] are bounded by [`KeyBounds`] so that we can store types of those traits as a key in a
+//! [`Task`] and [`Resource`] are bounded by [`Key`] so that we can store types of those traits as a key in a
 //! hashmap in trait object form. We need to store these types under a trait object to support arbitrary task and
 //! resource types. We also need to store an additional clone for a reverse hashmap.
 //!
-//! [`OutputChecker`] and [`ResourceChecker`] are also bounded by [`KeyBounds`], because types of these traits may be
-//! used as values in tasks, which would require them to be bounded by [`KeyBounds`] anyway. This reduces boilerplate in
-//! tasks that are generic over [`OutputChecker`] and [`ResourceChecker`], as the [`KeyBounds`] bound can be omitted.
+//! [`OutputChecker`] and [`ResourceChecker`] are also bounded by [`Key`], because types of these traits may be
+//! used as values in tasks, which would require them to be bounded by [`Key`] anyway. This reduces boilerplate in
+//! tasks that are generic over [`OutputChecker`] and [`ResourceChecker`], as the [`Key`] bound can be omitted.
 //!
-//! [`Task::Output`], [`OutputChecker::Stamp`], and [`ResourceChecker::Stamp`] are bounded by [`ValueBounds`] because
+//! [`Task::Output`], [`OutputChecker::Stamp`], and [`ResourceChecker::Stamp`] are bounded by [`Value`] because
 //! we need to store (cache) these values. We need to store these values for an indeterminate time, so non-`'static`
 //! references are ruled out. We need to clone outputs to store them. When checking dependencies, we need to clone the
 //! dependencies (due to lifetime/borrow complications). Since these types are used in dependencies, that is another
@@ -27,6 +27,7 @@ use crate::trait_object::KeyObj;
 pub mod task;
 pub mod resource;
 pub mod tracker;
+#[macro_use]
 pub mod trait_object;
 
 mod pie;
@@ -36,18 +37,18 @@ mod dependency;
 
 /// Trait alias for types that are used as values: types that can be cloned, debug formatted, and contain no
 /// non-`'static` references. We use this as an alias for trait bounds and super-traits.
-pub trait ValueBounds: Clone + Debug + 'static {}
-impl<T: Clone + Debug + 'static> ValueBounds for T {}
+pub trait Value: Clone + Debug + 'static {}
+impl<T: Clone + Debug + 'static> Value for T {}
 
-/// Trait alias for types that are used as keys: types that can be cloned, equality compared, hashed, debug formatted,
-/// and contain no non-`'static` references. We use this as an alias for trait bounds and super-traits.
-pub trait KeyBounds: ValueBounds + Eq + Hash {}
-impl<T: ValueBounds + Eq + Hash> KeyBounds for T {}
+/// Trait alias for types that are used as keys: types that are [values](Value) and that can be equality compared and
+/// hashed. We use this as an alias for trait bounds and super-traits.
+pub trait Key: Value + Eq + Hash {}
+impl<T: Value + Eq + Hash> Key for T {}
 
 /// A unit of computation in a programmatic incremental build system.
-pub trait Task: KeyBounds {
+pub trait Task: Key {
   /// Type of task outputs.
-  type Output: ValueBounds;
+  type Output: Value;
 
   /// Execute the task under `context`, returning an output.
   fn execute<C: Context>(&self, context: &mut C) -> Self::Output;
@@ -97,25 +98,22 @@ pub trait Context {
     H: ResourceChecker<R>;
 }
 
-/// Consistency checker for task outputs, producing and checking output stamps. For example, the equals checker uses the
-/// output of a task as stamp, and checks whether they are equal.
-pub trait OutputChecker<O>: KeyBounds {
+/// Consistency checker for task outputs of type `O`, producing and checking output stamps. For example, the
+/// [equals checker](task::EqualsChecker) uses the output of a task as stamp, and checks whether they are equal.
+pub trait OutputChecker<O>: Key {
   /// Type of stamps.
-  type Stamp: ValueBounds;
+  type Stamp: Value;
   /// Stamps `output`.
   fn stamp(&self, output: &O) -> Self::Stamp;
 
-  /// Type of inconsistency used for debugging/logging purposes. The `'i` lifetime represents this checker and the
-  /// lifetime of the `output` and `stamp` passed to [check](Self::check).
-  type Inconsistency<'i>: Debug where O: 'i;
   /// Checks whether `output` is inconsistent w.r.t. `stamp`, returning `Some(inconsistency)` if inconsistent, `None` if
-  /// consistent.
-  fn check<'i>(&'i self, output: &'i O, stamp: &'i Self::Stamp) -> Option<Self::Inconsistency<'i>>;
+  /// consistent. The returned inconsistency can be used for debugging purposes, such as logging what has changed.
+  fn check(&self, output: &O, stamp: &Self::Stamp) -> Option<impl Debug>;
 }
 
 
 /// A resource representing global (mutable) state, such as a path identifying a file on a filesystem.
-pub trait Resource: KeyBounds {
+pub trait Resource: Key {
   /// Type of readers returned from [read](Self::read), with `'rs` representing the lifetime of the resource state.
   type Reader<'rs>;
   /// Type of writers returned from [write](Self::write), with `'r` representing the lifetime of this resource.
@@ -160,9 +158,9 @@ pub trait ResourceState<R> {
 /// Consistency checker for resources, producing and checking resource stamps. For example, for filesystem resources, a
 /// last modified checker creates last modified stamps and checks whether they have changed, and a hash checker creates
 /// file content hash stamps and checks whether they have changed.
-pub trait ResourceChecker<R: Resource>: KeyBounds {
+pub trait ResourceChecker<R: Resource>: Key {
   /// Type of stamps returned from stamp methods.
-  type Stamp: ValueBounds;
+  type Stamp: Value;
   /// Type of errors returned from all methods.
   type Error: Error;
 
@@ -187,17 +185,15 @@ pub trait ResourceChecker<R: Resource>: KeyBounds {
   /// consistent with `resource`.
   fn stamp_writer(&self, resource: &R, writer: R::Writer<'_>) -> Result<Self::Stamp, Self::Error>;
 
-  /// Type of inconsistency used for debugging/logging purposes. The `'i` lifetime represents this checker and the
-  /// lifetime of the `resource`, `state`, and `stamp` passed to [Self::check].
-  type Inconsistency<'i>: Debug;
   /// Checks whether `resource` is inconsistent w.r.t. `stamp`, with access to `state`. Returns `Some(inconsistency)`
-  /// when inconsistent, `None` when consistent.
-  fn check<'i, RS: ResourceState<R>>(
-    &'i self,
-    resource: &'i R,
-    state: &'i mut RS,
-    stamp: &'i Self::Stamp,
-  ) -> Result<Option<Self::Inconsistency<'i>>, Self::Error>;
+  /// when inconsistent, `None` when consistent. The returned inconsistency can be used for debugging purposes, such as
+  /// logging what has changed.
+  fn check<RS: ResourceState<R>>(
+    &self,
+    resource: &R,
+    state: &mut RS,
+    stamp: &Self::Stamp,
+  ) -> Result<Option<impl Debug>, Self::Error>;
 
   /// Wraps a [resource `error`](Resource::Error) into [`Self::Error`].
   fn wrap_error(&self, error: R::Error) -> Self::Error;

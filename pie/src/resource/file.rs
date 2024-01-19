@@ -1,6 +1,6 @@
 use std::convert::Infallible;
 use std::error::Error;
-use std::fmt::{Display, Formatter};
+use std::fmt::{Debug, Display, Formatter};
 use std::fs::{self, File, Metadata, OpenOptions};
 use std::io::{self, BufReader, Seek};
 use std::path::{Path, PathBuf};
@@ -232,7 +232,7 @@ impl From<FsError> for io::Error {
 }
 impl Display for FsError {
   #[inline]
-  fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result { self.0.fmt(f) }
+  fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result { std::fmt::Display::fmt(&self.0, f) }
 }
 
 
@@ -264,8 +264,8 @@ impl ResourceChecker<PathBuf> for ModifiedChecker {
     Ok(Some(file.metadata()?.modified()?))
   }
 
-  type Inconsistency<'i> = Self::Stamp;
   #[inline]
+  #[allow(refining_impl_trait)]
   fn check<RS: ResourceState<PathBuf>>(
     &self,
     path: &PathBuf,
@@ -310,8 +310,8 @@ impl ResourceChecker<PathBuf> for ExistsChecker {
     Ok(exists)
   }
 
-  type Inconsistency<'i> = Self::Stamp;
   #[inline]
+  #[allow(refining_impl_trait)]
   fn check<RS: ResourceState<PathBuf>>(
     &self,
     path: &PathBuf,

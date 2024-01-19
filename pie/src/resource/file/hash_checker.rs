@@ -1,3 +1,4 @@
+use std::fmt::Debug;
 use std::io::Seek;
 
 use sha2::{Digest, Sha256};
@@ -34,8 +35,8 @@ impl ResourceChecker<PathBuf> for HashChecker {
     Ok(Some(hash))
   }
 
-  type Inconsistency<'i> = Self::Stamp;
   #[inline]
+  #[allow(refining_impl_trait)]
   fn check<RS: ResourceState<PathBuf>>(
     &self,
     path: &PathBuf,

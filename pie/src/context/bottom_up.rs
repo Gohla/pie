@@ -9,7 +9,6 @@ use crate::dependency::ResourceDependencyObj;
 use crate::pie::{SessionInternal, Tracking};
 use crate::store::{Store, TaskNode};
 use crate::trait_object::{KeyObj, ValueObj};
-use crate::trait_object::base::CloneBox;
 use crate::trait_object::collection::TypeToAnyMap;
 use crate::trait_object::task::TaskObj;
 
@@ -61,7 +60,7 @@ impl<'p, 's> BottomUpContext<'p, 's> {
 
   /// Execute task `node` and potentially schedule new tasks based on the dependencies of the task.
   fn execute_and_schedule(&mut self, node: TaskNode) -> Box<dyn ValueObj> {
-    let task = self.session.store.get_task(&node).clone_box();
+    let task = self.session.store.get_task(&node).to_owned();
     let output = self.execute_obj(task.as_ref(), node);
 
     // Schedule tasks affected by task `node`'s resource writes.
