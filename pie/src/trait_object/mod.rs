@@ -80,7 +80,7 @@ impl<'a> From<Box<dyn KeyObj>> for Cow<'a, dyn KeyObj> {
 
 #[cfg(test)]
 mod tests {
-  use std::hash::DefaultHasher;
+  use std::collections::hash_map::DefaultHasher;
 
   use crate::{Context, Task};
 
