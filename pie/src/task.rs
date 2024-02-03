@@ -29,15 +29,15 @@ impl<O: Value + Eq> OutputChecker<O> for EqualsChecker {
 /// [Task output checker](OutputChecker) that checks [Ok] by equality, but [Err] only by existence.
 #[derive(Default, Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Debug)]
 pub struct OkEqualsChecker;
-impl<O: Value + Eq, E> OutputChecker<Result<O, E>> for OkEqualsChecker {
-  type Stamp = Option<O>;
+impl<T: Value + Eq, E> OutputChecker<Result<T, E>> for OkEqualsChecker {
+  type Stamp = Option<T>;
   #[inline]
-  fn stamp(&self, output: &Result<O, E>) -> Self::Stamp {
+  fn stamp(&self, output: &Result<T, E>) -> Self::Stamp {
     output.as_ref().ok().cloned()
   }
 
   #[inline]
-  fn check(&self, output: &Result<O, E>, stamp: &Self::Stamp) -> Option<impl Debug> {
+  fn check(&self, output: &Result<T, E>, stamp: &Self::Stamp) -> Option<impl Debug> {
     let new_stamp = output.as_ref().ok();
     if new_stamp != stamp.as_ref() {
       Some(new_stamp)
@@ -50,15 +50,15 @@ impl<O: Value + Eq, E> OutputChecker<Result<O, E>> for OkEqualsChecker {
 /// [Task output checker](OutputChecker) that checks [Err] by equality, but [Ok] only by existence.
 #[derive(Default, Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Debug)]
 pub struct ErrEqualsChecker;
-impl<O, E: Value + Eq> OutputChecker<Result<O, E>> for ErrEqualsChecker {
+impl<T, E: Value + Eq> OutputChecker<Result<T, E>> for ErrEqualsChecker {
   type Stamp = Option<E>;
   #[inline]
-  fn stamp(&self, output: &Result<O, E>) -> Self::Stamp {
+  fn stamp(&self, output: &Result<T, E>) -> Self::Stamp {
     output.as_ref().err().cloned()
   }
 
   #[inline]
-  fn check(&self, output: &Result<O, E>, stamp: &Self::Stamp) -> Option<impl Debug> {
+  fn check(&self, output: &Result<T, E>, stamp: &Self::Stamp) -> Option<impl Debug> {
     let new_stamp = output.as_ref().err();
     if new_stamp != stamp.as_ref() {
       Some(new_stamp)
