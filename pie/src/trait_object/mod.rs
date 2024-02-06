@@ -6,14 +6,14 @@ use dyn_clone::DynClone;
 
 use base::{AsAny, EqObj, HashObj};
 
-use crate::{Key, Value};
+use crate::{Key, Value, ValueEq};
 
 #[macro_use]
 pub(crate) mod base;
 pub(crate) mod collection;
 pub(crate) mod task;
 
-/// Object safe [`Value`] proxy that can be cloned, converted to [`Any`], and debug formatted.
+/// Object safe [`Value`] proxy.
 pub trait ValueObj: DynClone + AsAny + Debug {}
 const_assert_object_safe!(dyn ValueObj);
 impl<T: Value> ValueObj for T {}
@@ -39,7 +39,42 @@ impl<'a> From<Box<dyn ValueObj>> for Cow<'a, dyn ValueObj> {
   fn from(value: Box<dyn ValueObj>) -> Self { Cow::Owned(value) }
 }
 
-/// Object safe [`Key`] proxy that can be cloned, equality compared, hashed, converted to [`Any`], and debug formatted.
+/// Object safe [`ValueEq`] proxy.
+pub trait ValueEqObj: ValueObj + EqObj {}
+const_assert_object_safe!(dyn ValueEqObj);
+impl<T: ValueEq> ValueEqObj for T {}
+impl<'a, T: ValueEq> From<&'a T> for &'a dyn ValueEqObj {
+  #[inline]
+  fn from(value: &'a T) -> Self { value as &dyn ValueEqObj }
+}
+impl PartialEq for dyn ValueEqObj {
+  #[inline]
+  fn eq(&self, other: &Self) -> bool { self.eq_any(other.as_any()) }
+}
+impl Eq for dyn ValueEqObj {}
+impl PartialEq<dyn ValueEqObj> for Box<dyn ValueEqObj> {
+  #[inline]
+  fn eq(&self, other: &dyn ValueEqObj) -> bool { self.as_ref().eq_any(other.as_any()) }
+}
+impl Clone for Box<dyn ValueEqObj> {
+  #[inline]
+  fn clone(&self) -> Self { dyn_clone::clone_box(self.as_ref()) }
+}
+impl ToOwned for dyn ValueEqObj {
+  type Owned = Box<dyn ValueEqObj>;
+  #[inline]
+  fn to_owned(&self) -> Self::Owned { dyn_clone::clone_box(self) }
+}
+impl<'a> From<&'a dyn ValueEqObj> for Cow<'a, dyn ValueEqObj> {
+  #[inline]
+  fn from(value: &'a dyn ValueEqObj) -> Self { Cow::Borrowed(value) }
+}
+impl<'a> From<Box<dyn ValueEqObj>> for Cow<'a, dyn ValueEqObj> {
+  #[inline]
+  fn from(value: Box<dyn ValueEqObj>) -> Self { Cow::Owned(value) }
+}
+
+/// Object safe [`Key`] proxy.
 pub trait KeyObj: DynClone + EqObj + HashObj + AsAny + Debug {}
 const_assert_object_safe!(dyn KeyObj);
 impl<T: Key> KeyObj for T {}

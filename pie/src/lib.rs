@@ -22,7 +22,7 @@ use std::fmt::Debug;
 use std::hash::Hash;
 
 use crate::tracker::Tracker;
-use crate::trait_object::KeyObj;
+use crate::trait_object::{KeyObj, ValueEqObj};
 
 pub mod task;
 pub mod resource;
@@ -40,15 +40,20 @@ mod dependency;
 pub trait Value: Clone + Debug + 'static {}
 impl<T: Clone + Debug + 'static> Value for T {}
 
-/// Trait alias for types that are used as keys: types that are [values](Value) and that can be equality compared and
-/// hashed. We use this as an alias for trait bounds and super-traits.
-pub trait Key: Value + Eq + Hash {}
-impl<T: Value + Eq + Hash> Key for T {}
+/// Trait alias for types that are used as equatable values: types that are [values](Value) and that can be equality
+/// compared. We use this as an alias for trait bounds and super-traits.
+pub trait ValueEq: Value + Eq {}
+impl<T: Value + Eq> ValueEq for T {}
+
+/// Trait alias for types that are used as keys: types that are [equatable values](ValueEq) and that can be hashed. We
+/// use this as an alias for trait bounds and super-traits.
+pub trait Key: ValueEq + Hash {}
+impl<T: ValueEq + Hash> Key for T {}
 
 /// A unit of computation in a programmatic incremental build system.
 pub trait Task: Key {
   /// Type of task outputs.
-  type Output: Value;
+  type Output: ValueEq; // TODO: turn this back to `Value`, not all outputs should be `Eq`!
 
   /// Execute the task under `context`, returning an output.
   fn execute<C: Context>(&self, context: &mut C) -> Self::Output;
@@ -70,20 +75,20 @@ pub trait Task: Key {
 pub trait Context {
   /// Requires `task` using `checker` for consistency checking, creating a task dependency and returning its consistent
   /// (i.e., most up-to-date) output value.
-  fn require<T: Task, H: OutputChecker<T::Output>>(&mut self, task: &T, checker: H) -> T::Output;
+  fn require<T: Task, C: OutputChecker>(&mut self, task: &T, checker: C) -> T::Output;
 
   /// Creates a read dependency to `resource` using `checker` for consistency checking, then returns a
   /// [reader](Resource::Reader) for reading the resource.
-  fn read<T, R, H>(&mut self, resource: &T, checker: H) -> Result<R::Reader<'_>, H::Error> where
+  fn read<T, R, C>(&mut self, resource: &T, checker: C) -> Result<R::Reader<'_>, C::Error> where
     T: ToOwned<Owned=R>,
     R: Resource,
-    H: ResourceChecker<R>;
+    C: ResourceChecker<R>;
   /// Creates a [writer](Resource::Writer) for `resource`, runs `write_fn` with that writer, then creates a write
   /// dependency to `resource` using `checker` for consistency checking.
-  fn write<T, R, H, F>(&mut self, resource: &T, checker: H, write_fn: F) -> Result<(), H::Error> where
+  fn write<T, R, C, F>(&mut self, resource: &T, checker: C, write_fn: F) -> Result<(), C::Error> where
     T: ToOwned<Owned=R>,
     R: Resource,
-    H: ResourceChecker<R>,
+    C: ResourceChecker<R>,
     F: FnOnce(&mut R::Writer<'_>) -> Result<(), R::Error>;
 
   /// Creates a [writer](Resource::Writer) for `resource`. This does *not* create a dependency. After writing to the
@@ -92,23 +97,21 @@ pub trait Context {
   /// Prefer [write](Self::write) if possible, as it handles writing and creating the dependency in one call.
   fn create_writer<'r, R: Resource>(&'r mut self, resource: &'r R) -> Result<R::Writer<'r>, R::Error>;
   /// Creates a write dependency to `resource` using `checker` for consistency checking.
-  fn written_to<T, R, H>(&mut self, resource: &T, checker: H) -> Result<(), H::Error> where
+  fn written_to<T, R, C>(&mut self, resource: &T, checker: C) -> Result<(), C::Error> where
     T: ToOwned<Owned=R>,
     R: Resource,
-    H: ResourceChecker<R>;
+    C: ResourceChecker<R>;
 }
 
 /// Consistency checker for task outputs of type `O`, producing and checking output stamps. For example, the
 /// [equals checker](task::EqualsChecker) uses the output of a task as stamp, and checks whether they are equal.
-pub trait OutputChecker<O>: Key {
-  /// Type of stamps.
-  type Stamp: Value;
+pub trait OutputChecker: Key {
   /// Stamps `output`.
-  fn stamp(&self, output: &O) -> Self::Stamp;
+  fn stamp(&self, output: &dyn ValueEqObj) -> Box<dyn ValueEqObj>;
 
   /// Checks whether `output` is inconsistent w.r.t. `stamp`, returning `Some(inconsistency)` if inconsistent, `None` if
   /// consistent. The returned inconsistency can be used for debugging purposes, such as logging what has changed.
-  fn check(&self, output: &O, stamp: &Self::Stamp) -> Option<impl Debug>;
+  fn check<'i>(&self, output: &'i dyn ValueEqObj, stamp: &'i dyn ValueEqObj) -> Option<Box<dyn Debug + 'i>>;
 }
 
 

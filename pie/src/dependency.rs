@@ -6,7 +6,7 @@ use dyn_clone::DynClone;
 use crate::{OutputChecker, Resource, ResourceChecker, ResourceState, Task};
 use crate::context::top_down::TopDownCheck;
 use crate::pie::Tracking;
-use crate::trait_object::{KeyObj, ValueObj};
+use crate::trait_object::{KeyObj, ValueEqObj, ValueObj};
 use crate::trait_object::collection::TypeToAnyMap;
 
 /// Internal type for task dependencies.
@@ -16,20 +16,20 @@ pub struct TaskDependency<T, C, S> {
   checker: C,
   stamp: S,
 }
-impl<T: Task, C: OutputChecker<T::Output>> TaskDependency<T, C, C::Stamp> {
+impl<T: Task, C: OutputChecker> TaskDependency<T, C, Box<dyn ValueEqObj>> {
   #[inline]
-  pub fn new(task: T, checker: C, stamp: C::Stamp) -> Self { Self { task, checker, stamp } }
+  pub fn new(task: T, checker: C, stamp: Box<dyn ValueEqObj>) -> Self { Self { task, checker, stamp } }
 
   #[inline]
   pub fn task(&self) -> &T { &self.task }
   #[inline]
   pub fn checker(&self) -> &C { &self.checker }
   #[inline]
-  pub fn stamp(&self) -> &C::Stamp { &self.stamp }
+  pub fn stamp(&self) -> &Box<dyn ValueEqObj> { &self.stamp }
 
   #[inline]
   pub fn check<'i>(&'i self, output: &'i T::Output) -> Option<impl Debug + 'i> {
-    self.checker.check(output, &self.stamp)
+    self.checker.check(output, self.stamp.as_ref())
   }
 
   #[inline]
@@ -48,7 +48,7 @@ pub trait TaskDependencyObj: DynClone + Debug {
   fn is_consistent_bottom_up(&self, output: &dyn ValueObj, requiring_task: &dyn KeyObj, tracker: &mut Tracking) -> bool;
 }
 const_assert_object_safe!(dyn TaskDependencyObj);
-impl<T: Task, C: OutputChecker<T::Output>> TaskDependencyObj for TaskDependency<T, C, C::Stamp> {
+impl<T: Task, C: OutputChecker> TaskDependencyObj for TaskDependency<T, C, Box<dyn ValueEqObj>> {
   #[inline]
   fn task(&self) -> &dyn KeyObj { &self.task as &dyn KeyObj }
   #[inline]
@@ -192,9 +192,9 @@ pub enum Dependency {
   Read(Box<dyn ResourceDependencyObj>),
   Write(Box<dyn ResourceDependencyObj>),
 }
-impl<T: Task, C: OutputChecker<T::Output>> From<TaskDependency<T, C, C::Stamp>> for Dependency {
+impl<T: Task, C: OutputChecker> From<TaskDependency<T, C, Box<dyn ValueEqObj>>> for Dependency {
   #[inline]
-  fn from(value: TaskDependency<T, C, C::Stamp>) -> Self { Self::Require(Box::new(value)) }
+  fn from(value: TaskDependency<T, C, Box<dyn ValueEqObj>>) -> Self { Self::Require(Box::new(value)) }
 }
 impl Dependency {
   #[inline]

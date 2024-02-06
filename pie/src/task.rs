@@ -1,109 +1,105 @@
-use std::convert::Infallible;
 use std::fmt::Debug;
 use std::hash::Hash;
 use std::rc::Rc;
 use std::sync::Arc;
 
-use crate::{Context, OutputChecker, Task, Value};
+use crate::{Context, OutputChecker, Task};
+use crate::trait_object::ValueEqObj;
 
 /// [Task output checker](OutputChecker) that checks by equality.
 #[derive(Default, Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Debug)]
 pub struct EqualsChecker;
-impl<O: Value + Eq> OutputChecker<O> for EqualsChecker {
-  type Stamp = O;
+impl OutputChecker for EqualsChecker {
   #[inline]
-  fn stamp(&self, output: &O) -> Self::Stamp {
-    output.clone()
+  fn stamp(&self, output: &dyn ValueEqObj) -> Box<dyn ValueEqObj> {
+    output.to_owned()
   }
 
   #[inline]
-  fn check(&self, output: &O, stamp: &Self::Stamp) -> Option<impl Debug> {
+  fn check<'i>(&self, output: &'i dyn ValueEqObj, stamp: &'i dyn ValueEqObj) -> Option<Box<dyn Debug + 'i>> {
     if output != stamp {
-      Some(output)
+      Some(Box::new(output))
     } else {
       None
     }
   }
 }
 
-/// [Task output checker](OutputChecker) that checks [Ok] by equality, but [Err] only by existence.
-#[derive(Default, Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Debug)]
-pub struct OkEqualsChecker;
-impl<T: Value + Eq, E> OutputChecker<Result<T, E>> for OkEqualsChecker {
-  type Stamp = Option<T>;
-  #[inline]
-  fn stamp(&self, output: &Result<T, E>) -> Self::Stamp {
-    output.as_ref().ok().cloned()
-  }
-
-  #[inline]
-  fn check(&self, output: &Result<T, E>, stamp: &Self::Stamp) -> Option<impl Debug> {
-    let new_stamp = output.as_ref().ok();
-    if new_stamp != stamp.as_ref() {
-      Some(new_stamp)
-    } else {
-      None
-    }
-  }
-}
-
-/// [Task output checker](OutputChecker) that checks [Err] by equality, but [Ok] only by existence.
-#[derive(Default, Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Debug)]
-pub struct ErrEqualsChecker;
-impl<T, E: Value + Eq> OutputChecker<Result<T, E>> for ErrEqualsChecker {
-  type Stamp = Option<E>;
-  #[inline]
-  fn stamp(&self, output: &Result<T, E>) -> Self::Stamp {
-    output.as_ref().err().cloned()
-  }
-
-  #[inline]
-  fn check(&self, output: &Result<T, E>, stamp: &Self::Stamp) -> Option<impl Debug> {
-    let new_stamp = output.as_ref().err();
-    if new_stamp != stamp.as_ref() {
-      Some(new_stamp)
-    } else {
-      None
-    }
-  }
-}
-
-/// [Task output checker](OutputChecker) that checks whether a [Result] changes from [Ok] to [Err] or vice versa.
-#[derive(Default, Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Debug)]
-pub struct ResultChecker;
-impl<T, E> OutputChecker<Result<T, E>> for ResultChecker {
-  type Stamp = bool;
-  #[inline]
-  fn stamp(&self, output: &Result<T, E>) -> Self::Stamp {
-    output.is_err()
-  }
-
-  #[inline]
-  fn check(&self, output: &Result<T, E>, stamp: &Self::Stamp) -> Option<impl Debug> {
-    let new_stamp = output.is_err();
-    if new_stamp != *stamp {
-      Some(new_stamp)
-    } else {
-      None
-    }
-  }
-}
+// /// [Task output checker](OutputChecker) that checks [Ok] by equality, but [Err] only by existence.
+// #[derive(Default, Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Debug)]
+// pub struct OkEqualsChecker;
+// impl<T: Value + Eq, E> OutputChecker<Result<T, E>> for OkEqualsChecker {
+//   #[inline]
+//   fn stamp(&self, output: &dyn ValueObj) -> Box<dyn ValueObj> {
+//     output.as_any().downcast_ref()
+//     output.as_ref().ok().cloned()
+//   }
+//
+//   #[inline]
+//   fn check(&self, output: &dyn ValueObj, stamp: &dyn ValueObj) -> Option<Box<dyn Debug>> {
+//     let new_stamp = output.as_ref().ok();
+//     if new_stamp != stamp.as_ref() {
+//       Some(new_stamp)
+//     } else {
+//       None
+//     }
+//   }
+// }
+//
+// /// [Task output checker](OutputChecker) that checks [Err] by equality, but [Ok] only by existence.
+// #[derive(Default, Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Debug)]
+// pub struct ErrEqualsChecker;
+// impl<T, E: Value + Eq> OutputChecker<Result<T, E>> for ErrEqualsChecker {
+//   #[inline]
+//   fn stamp(&self, output: &dyn ValueObj) -> Box<dyn ValueObj> {
+//     output.as_ref().err().cloned()
+//   }
+//
+//   #[inline]
+//   fn check(&self, output: &dyn ValueObj, stamp: &dyn ValueObj) -> Option<Box<dyn Debug>> {
+//     let new_stamp = output.as_ref().err();
+//     if new_stamp != stamp.as_ref() {
+//       Some(new_stamp)
+//     } else {
+//       None
+//     }
+//   }
+// }
+//
+// /// [Task output checker](OutputChecker) that checks whether a [Result] changes from [Ok] to [Err] or vice versa.
+// #[derive(Default, Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Debug)]
+// pub struct ResultChecker;
+// impl<T, E> OutputChecker<Result<T, E>> for ResultChecker {
+//   #[inline]
+//   fn stamp(&self, output: &dyn ValueObj) -> Box<dyn ValueObj> {
+//     output.is_err()
+//   }
+//
+//   #[inline]
+//   fn check(&self, output: &dyn ValueObj, stamp: &dyn ValueObj) -> Option<Box<dyn Debug>> {
+//     let new_stamp = output.is_err();
+//     if new_stamp != *stamp {
+//       Some(new_stamp)
+//     } else {
+//       None
+//     }
+//   }
+// }
 
 /// [Task output checker](OutputChecker) that marks task dependencies as always consistent. Can be used to ignore task
 /// outputs. For example, this is useful when depending on a task to write to some file which you want to read, but you
 /// are not interested in the output of the task.
 #[derive(Default, Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Debug)]
 pub struct AlwaysConsistent;
-impl<O> OutputChecker<O> for AlwaysConsistent {
-  type Stamp = ();
+impl OutputChecker for AlwaysConsistent {
   #[inline]
-  fn stamp(&self, _output: &O) -> Self::Stamp {
-    ()
+  fn stamp(&self, _output: &dyn ValueEqObj) -> Box<dyn ValueEqObj> {
+    Box::new(())
   }
 
   #[inline]
-  fn check(&self, _output: &O, _stamp: &Self::Stamp) -> Option<impl Debug> {
-    None::<Infallible>
+  fn check<'i>(&self, _output: &'i dyn ValueEqObj, _stamp: &'i dyn ValueEqObj) -> Option<Box<dyn Debug + 'i>> {
+    None::<Box<dyn Debug>>
   }
 }
 

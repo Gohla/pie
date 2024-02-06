@@ -240,7 +240,7 @@ impl<'p, 's> BottomUpContext<'p, 's> {
 
 impl<'p, 's> Context for BottomUpContext<'p, 's> {
   #[inline]
-  fn require<T: Task, H: OutputChecker<T::Output>>(&mut self, task: &T, checker: H) -> T::Output {
+  fn require<T: Task, C: OutputChecker>(&mut self, task: &T, checker: C) -> T::Output {
     let track_end = self.session.tracker.require(task, &checker);
 
     let dst = self.session.store.get_or_create_task_node(task);
@@ -258,18 +258,18 @@ impl<'p, 's> Context for BottomUpContext<'p, 's> {
   }
 
   #[inline]
-  fn read<T, R, H>(&mut self, resource: &T, checker: H) -> Result<R::Reader<'_>, H::Error> where
+  fn read<T, R, C>(&mut self, resource: &T, checker: C) -> Result<R::Reader<'_>, C::Error> where
     T: ToOwned<Owned=R>,
     R: Resource,
-    H: ResourceChecker<R>,
+    C: ResourceChecker<R>,
   {
     self.session.read(resource, checker)
   }
   #[inline]
-  fn write<T, R, H, F>(&mut self, resource: &T, checker: H, write_fn: F) -> Result<(), H::Error> where
+  fn write<T, R, C, F>(&mut self, resource: &T, checker: C, write_fn: F) -> Result<(), C::Error> where
     T: ToOwned<Owned=R>,
     R: Resource,
-    H: ResourceChecker<R>,
+    C: ResourceChecker<R>,
     F: FnOnce(&mut R::Writer<'_>) -> Result<(), R::Error>
   {
     self.session.write(resource, checker, write_fn)
@@ -280,10 +280,10 @@ impl<'p, 's> Context for BottomUpContext<'p, 's> {
     self.session.create_writer(resource)
   }
   #[inline]
-  fn written_to<T, R, H>(&mut self, resource: &T, checker: H) -> Result<(), H::Error> where
+  fn written_to<T, R, C>(&mut self, resource: &T, checker: C) -> Result<(), C::Error> where
     T: ToOwned<Owned=R>,
     R: Resource,
-    H: ResourceChecker<R>
+    C: ResourceChecker<R>
   {
     self.session.written_to(resource, checker)
   }

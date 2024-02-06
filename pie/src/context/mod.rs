@@ -2,37 +2,40 @@ use crate::{OutputChecker, Resource, ResourceChecker, Task};
 use crate::dependency::{Dependency, ResourceDependency, TaskDependency};
 use crate::pie::SessionInternal;
 use crate::store::{ResourceNode, TaskNode};
+use crate::trait_object::ValueEqObj;
 
 pub mod top_down;
 pub mod bottom_up;
 
 /// Extension trait on [`SessionInternal`] for usage in [`Context`] implementations.
 pub trait SessionExt {
-  fn read<T, R, H>(&mut self, resource: &T, checker: H) -> Result<R::Reader<'_>, H::Error> where
+  fn read<T, R, C>(&mut self, resource: &T, checker: C) -> Result<R::Reader<'_>, C::Error> where
     T: ToOwned<Owned=R>,
     R: Resource,
-    H: ResourceChecker<R>;
-  fn write<T, R, H, F>(&mut self, resource: &T, checker: H, write_fn: F) -> Result<(), H::Error> where
+    C: ResourceChecker<R>;
+  fn write<T, R, C, F>(&mut self, resource: &T, checker: C, write_fn: F) -> Result<(), C::Error> where
     T: ToOwned<Owned=R>,
     R: Resource,
-    H: ResourceChecker<R>,
+    C: ResourceChecker<R>,
     F: FnOnce(&mut R::Writer<'_>) -> Result<(), R::Error>;
 
   fn create_writer<'r, R: Resource>(&'r mut self, resource: &'r R) -> Result<R::Writer<'r>, R::Error>;
-  fn written_to<T, R, H>(&mut self, resource: &T, checker: H) -> Result<(), H::Error> where
+  fn written_to<T, R, C>(&mut self, resource: &T, checker: C) -> Result<(), C::Error> where
     T: ToOwned<Owned=R>,
     R: Resource,
-    H: ResourceChecker<R>;
+    C: ResourceChecker<R>;
 
   fn reserve_require_dependency<T: Task>(&mut self, dst: &TaskNode, task: &T);
-  fn update_require_dependency<T: Task, H: OutputChecker<T::Output>>(&mut self, dst: &TaskNode, task: &T, checker: H, stamp: H::Stamp);
+  fn update_require_dependency<T, C>(&mut self, dst: &TaskNode, task: &T, checker: C, stamp: Box<dyn ValueEqObj>) where
+    T: Task,
+    C: OutputChecker;
 }
 
 impl SessionExt for SessionInternal<'_> {
-  fn read<T, R, H>(&mut self, resource: &T, checker: H) -> Result<R::Reader<'_>, H::Error> where
+  fn read<T, R, C>(&mut self, resource: &T, checker: C) -> Result<R::Reader<'_>, C::Error> where
     T: ToOwned<Owned=R>,
     R: Resource,
-    H: ResourceChecker<R>,
+    C: ResourceChecker<R>,
   {
     let resource = resource.to_owned();
     let mut reader = resource.read(self.resource_state)
@@ -57,10 +60,10 @@ impl SessionExt for SessionInternal<'_> {
     Ok(reader)
   }
 
-  fn write<T, R, H, F>(&mut self, resource: &T, checker: H, write_fn: F) -> Result<(), H::Error> where
+  fn write<T, R, C, F>(&mut self, resource: &T, checker: C, write_fn: F) -> Result<(), C::Error> where
     T: ToOwned<Owned=R>,
     R: Resource,
-    H: ResourceChecker<R>,
+    C: ResourceChecker<R>,
     F: FnOnce(&mut R::Writer<'_>) -> Result<(), R::Error>,
   {
     let resource = resource.to_owned();
@@ -94,10 +97,10 @@ impl SessionExt for SessionInternal<'_> {
     resource.write(self.resource_state)
   }
 
-  fn written_to<T, R, H>(&mut self, resource: &T, checker: H) -> Result<(), H::Error> where
+  fn written_to<T, R, C>(&mut self, resource: &T, checker: C) -> Result<(), C::Error> where
     T: ToOwned<Owned=R>,
     R: Resource,
-    H: ResourceChecker<R>,
+    C: ResourceChecker<R>,
   {
     let resource = resource.to_owned();
     if let Some(current_executing_task_node) = &self.current_executing_task {
@@ -125,7 +128,7 @@ impl SessionExt for SessionInternal<'_> {
     }
   }
 
-  fn update_require_dependency<T: Task, H: OutputChecker<T::Output>>(&mut self, dst: &TaskNode, task: &T, checker: H, stamp: H::Stamp) {
+  fn update_require_dependency<T: Task, C: OutputChecker>(&mut self, dst: &TaskNode, task: &T, checker: C, stamp: Box<dyn ValueEqObj>) {
     if let Some(src) = &self.current_executing_task {
       // Update the dependency in the graph from a reserved dependency to a real task require dependency.
       let task_dependency = TaskDependency::new(task.clone(), checker, stamp);

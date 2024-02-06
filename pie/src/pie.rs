@@ -3,7 +3,7 @@ use std::error::Error;
 use std::fmt::Debug;
 use std::ops::{Deref, DerefMut};
 
-use crate::{Context, OutputChecker, Resource, ResourceChecker, ResourceState, Session, Task};
+use crate::{Context, OutputChecker, Resource, ResourceChecker, ResourceState, Session, Task, Value, ValueEq};
 use crate::context::bottom_up::BottomUpContext;
 use crate::context::top_down::TopDownContext;
 use crate::store::{Store, TaskNode};
@@ -123,11 +123,11 @@ impl Tracking<'_> {
 
   #[inline]
   #[must_use]
-  pub fn require<'a, T: Task, C: OutputChecker<T::Output>>(
+  pub fn require<'a, T: Task, C: OutputChecker, S: Value>(
     &mut self,
     task: &'a T,
     checker: &'a C,
-  ) -> impl FnOnce(&mut Tracking, &C::Stamp, &T::Output) + 'a {
+  ) -> impl FnOnce(&mut Tracking, &S, &T::Output) + 'a {
     self.0.require_start(task, checker);
     |tracking, stamp, output|
       tracking.0.require_end(task, checker, stamp, output)
@@ -155,11 +155,11 @@ impl Tracking<'_> {
 
   #[inline]
   #[must_use]
-  pub fn check_task<'a, T: Task, C: OutputChecker<T::Output>>(
+  pub fn check_task<'a, T: Task, C: OutputChecker, S: ValueEq>(
     &mut self,
     task: &'a T,
     checker: &'a C,
-    stamp: &'a C::Stamp,
+    stamp: &'a S,
   ) -> impl FnOnce(&mut Tracking, Option<&dyn Debug>) + 'a {
     self.0.check_task_start(task, checker, stamp);
     |tracking, inconsistency| tracking.0.check_task_end(task, checker, stamp, inconsistency)

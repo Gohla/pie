@@ -524,7 +524,7 @@ mod test {
     assert_matches!(store.get_resources_written_by(&node_b).next(), None);
 
     // Update task dependency from task B to task A.
-    let require_b2a = TaskDependency::new(task_a, EqualsChecker, output_a).into_require();
+    let require_b2a = TaskDependency::new(task_a, EqualsChecker, Box::new(output_a)).into_require();
     *store.get_dependency_mut(&node_b, &node_a) = require_b2a.clone();
     assert!(!store.contains_transitive_task_dependency(&node_a, &node_b));
     assert!(store.contains_transitive_task_dependency(&node_b, &node_a));
@@ -647,7 +647,7 @@ mod test {
     let mut fake_store = Store::default();
     let fake_task_node = fake_store.get_or_create_task_node(&task);
     let mut store: Store = Store::default();
-    let dependency = TaskDependency::new(task, EqualsChecker, output).into_require();
+    let dependency = TaskDependency::new(task, EqualsChecker, Box::new(output)).into_require();
     let _ = store.add_dependency(&fake_task_node, &fake_task_node, dependency);
   }
 
