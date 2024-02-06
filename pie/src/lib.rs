@@ -75,43 +75,49 @@ pub trait Task: Key {
 pub trait Context {
   /// Requires `task` using `checker` for consistency checking, creating a task dependency and returning its consistent
   /// (i.e., most up-to-date) output value.
-  fn require<T: Task, C: OutputChecker>(&mut self, task: &T, checker: C) -> T::Output;
+  fn require<T, H>(&mut self, task: &T, checker: H) -> T::Output where
+    T: Task,
+    H: OutputChecker;
 
   /// Creates a read dependency to `resource` using `checker` for consistency checking, then returns a
   /// [reader](Resource::Reader) for reading the resource.
-  fn read<T, R, C>(&mut self, resource: &T, checker: C) -> Result<R::Reader<'_>, C::Error> where
+  fn read<T, R, H>(&mut self, resource: &T, checker: H) -> Result<R::Reader<'_>, H::Error> where
     T: ToOwned<Owned=R>,
     R: Resource,
-    C: ResourceChecker<R>;
+    H: ResourceChecker<R>;
   /// Creates a [writer](Resource::Writer) for `resource`, runs `write_fn` with that writer, then creates a write
   /// dependency to `resource` using `checker` for consistency checking.
-  fn write<T, R, C, F>(&mut self, resource: &T, checker: C, write_fn: F) -> Result<(), C::Error> where
+  fn write<T, R, H, F>(&mut self, resource: &T, checker: H, write_fn: F) -> Result<(), H::Error> where
     T: ToOwned<Owned=R>,
     R: Resource,
-    C: ResourceChecker<R>,
+    H: ResourceChecker<R>,
     F: FnOnce(&mut R::Writer<'_>) -> Result<(), R::Error>;
 
   /// Creates a [writer](Resource::Writer) for `resource`. This does *not* create a dependency. After writing to the
   /// resource, call [written_to](Self::written_to) to create the dependency.
   ///
   /// Prefer [write](Self::write) if possible, as it handles writing and creating the dependency in one call.
-  fn create_writer<'r, R: Resource>(&'r mut self, resource: &'r R) -> Result<R::Writer<'r>, R::Error>;
+  fn create_writer<'r, R>(&'r mut self, resource: &'r R) -> Result<R::Writer<'r>, R::Error> where
+    R: Resource;
   /// Creates a write dependency to `resource` using `checker` for consistency checking.
-  fn written_to<T, R, C>(&mut self, resource: &T, checker: C) -> Result<(), C::Error> where
+  fn written_to<T, R, H>(&mut self, resource: &T, checker: H) -> Result<(), H::Error> where
     T: ToOwned<Owned=R>,
     R: Resource,
-    C: ResourceChecker<R>;
+    H: ResourceChecker<R>;
 }
 
 /// Consistency checker for task outputs of type `O`, producing and checking output stamps. For example, the
 /// [equals checker](task::EqualsChecker) uses the output of a task as stamp, and checks whether they are equal.
 pub trait OutputChecker: Key {
+  /// Type of stamps.
+  type Stamp: Value;
+
   /// Stamps `output`.
-  fn stamp(&self, output: &dyn ValueEqObj) -> Box<dyn ValueEqObj>;
+  fn stamp(&self, output: &dyn ValueEqObj) -> Self::Stamp;
 
   /// Checks whether `output` is inconsistent w.r.t. `stamp`, returning `Some(inconsistency)` if inconsistent, `None` if
   /// consistent. The returned inconsistency can be used for debugging purposes, such as logging what has changed.
-  fn check<'i>(&self, output: &'i dyn ValueEqObj, stamp: &'i dyn ValueEqObj) -> Option<Box<dyn Debug + 'i>>;
+  fn check<'i>(&self, output: &'i dyn ValueEqObj, stamp: &'i Self::Stamp) -> Option<Box<dyn Debug + 'i>>;
 }
 
 

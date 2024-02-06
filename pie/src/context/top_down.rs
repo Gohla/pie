@@ -6,7 +6,8 @@ use crate::context::SessionExt;
 use crate::dependency::{Dependency, TaskDependency};
 use crate::pie::SessionInternal;
 use crate::store::TaskNode;
-use crate::trait_object::ValueEqObj;
+use crate::trait_object::task::OutputCheckerObj;
+use crate::trait_object::ValueObj;
 
 /// Top-down incremental context implementation.
 ///
@@ -27,9 +28,9 @@ impl<'p, 's> TopDownContext<'p, 's> {
 }
 
 impl Context for TopDownContext<'_, '_> {
-  fn require<T, C>(&mut self, task: &T, checker: C) -> T::Output where
+  fn require<T, H>(&mut self, task: &T, checker: H) -> T::Output where
     T: Task,
-    C: OutputChecker,
+    H: OutputChecker,
   {
     let track_end = self.session.tracker.require(task, &checker);
 
@@ -46,32 +47,34 @@ impl Context for TopDownContext<'_, '_> {
   }
 
   #[inline]
-  fn read<T, R, C>(&mut self, resource: &T, checker: C) -> Result<R::Reader<'_>, C::Error> where
+  fn read<T, R, H>(&mut self, resource: &T, checker: H) -> Result<R::Reader<'_>, H::Error> where
     T: ToOwned<Owned=R>,
     R: Resource,
-    C: ResourceChecker<R>,
+    H: ResourceChecker<R>,
   {
     self.session.read(resource, checker)
   }
   #[inline]
-  fn write<T, R, C, F>(&mut self, resource: &T, checker: C, write_fn: F) -> Result<(), C::Error> where
+  fn write<T, R, H, F>(&mut self, resource: &T, checker: H, write_fn: F) -> Result<(), H::Error> where
     T: ToOwned<Owned=R>,
     R: Resource,
-    C: ResourceChecker<R>,
-    F: FnOnce(&mut R::Writer<'_>) -> Result<(), R::Error>
+    H: ResourceChecker<R>,
+    F: FnOnce(&mut R::Writer<'_>) -> Result<(), R::Error>,
   {
     self.session.write(resource, checker, write_fn)
   }
 
   #[inline]
-  fn create_writer<'r, R: Resource>(&'r mut self, resource: &'r R) -> Result<R::Writer<'r>, R::Error> {
+  fn create_writer<'r, R>(&'r mut self, resource: &'r R) -> Result<R::Writer<'r>, R::Error> where
+    R: Resource,
+  {
     self.session.create_writer(resource)
   }
   #[inline]
-  fn written_to<T, R, C>(&mut self, resource: &T, checker: C) -> Result<(), C::Error> where
+  fn written_to<T, R, H>(&mut self, resource: &T, checker: H) -> Result<(), H::Error> where
     T: ToOwned<Owned=R>,
     R: Resource,
-    C: ResourceChecker<R>
+    H: ResourceChecker<R>,
   {
     self.session.written_to(resource, checker)
   }
@@ -151,7 +154,7 @@ impl TopDownContext<'_, '_> {
 pub trait TopDownCheck {
   fn is_consistent(&self, context: &mut TopDownContext) -> bool;
 }
-impl<T: Task, C: OutputChecker> TopDownCheck for TaskDependency<T, C, Box<dyn ValueEqObj>> {
+impl<T: Task> TopDownCheck for TaskDependency<T, Box<dyn OutputCheckerObj>, Box<dyn ValueObj>> {
   #[inline]
   fn is_consistent(&self, context: &mut TopDownContext) -> bool {
     let check_task_end = context.session.tracker.check_task(self.task(), self.checker(), self.stamp());

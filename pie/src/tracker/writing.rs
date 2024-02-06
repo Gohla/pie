@@ -4,6 +4,7 @@ use std::io::{self, BufWriter, Stderr, Stdout, Write};
 
 use crate::tracker::Tracker;
 use crate::trait_object::{KeyObj, ValueObj};
+use crate::trait_object::task::OutputCheckerObj;
 
 /// A [`Tracker`] that writes events to a [`Write`] instance, for example [`Stdout`].
 #[derive(Clone, Debug)]
@@ -82,7 +83,7 @@ impl<W: Write + 'static> Tracker for WritingTracker<W> {
   }
 
   #[inline]
-  fn require_start(&mut self, task: &dyn KeyObj, _checker: &dyn ValueObj) {
+  fn require_start(&mut self, task: &dyn KeyObj, _checker: &dyn OutputCheckerObj) {
     self.writeln(format_args!("→ {:?}", task));
     self.indent();
     self.flush();
@@ -91,7 +92,7 @@ impl<W: Write + 'static> Tracker for WritingTracker<W> {
   fn require_end(
     &mut self,
     _task: &dyn KeyObj,
-    _checker: &dyn ValueObj,
+    _checker: &dyn OutputCheckerObj,
     _stamp: &dyn ValueObj,
     output: &dyn ValueObj,
   ) {
@@ -110,7 +111,7 @@ impl<W: Write + 'static> Tracker for WritingTracker<W> {
   }
 
   #[inline]
-  fn check_task_start(&mut self, task: &dyn KeyObj, _checker: &dyn ValueObj, _stamp: &dyn ValueObj) {
+  fn check_task_start(&mut self, task: &dyn KeyObj, _checker: &dyn OutputCheckerObj, _stamp: &dyn ValueObj) {
     self.writeln(format_args!("? {:?}", task));
     self.indent();
     self.flush();
@@ -119,7 +120,7 @@ impl<W: Write + 'static> Tracker for WritingTracker<W> {
   fn check_task_end(
     &mut self,
     task: &dyn KeyObj,
-    _checker: &dyn ValueObj,
+    _checker: &dyn OutputCheckerObj,
     stamp: &dyn ValueObj,
     inconsistency: Option<&dyn Debug>,
   ) {
@@ -196,7 +197,7 @@ impl<W: Write + 'static> Tracker for WritingTracker<W> {
   fn check_task_require_task_end(
     &mut self,
     task: &dyn KeyObj,
-    _checker: &dyn ValueObj,
+    _checker: &dyn OutputCheckerObj,
     stamp: &dyn ValueObj,
     inconsistency: Option<&dyn Debug>,
   ) {

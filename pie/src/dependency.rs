@@ -6,8 +6,9 @@ use dyn_clone::DynClone;
 use crate::{OutputChecker, Resource, ResourceChecker, ResourceState, Task};
 use crate::context::top_down::TopDownCheck;
 use crate::pie::Tracking;
-use crate::trait_object::{KeyObj, ValueEqObj, ValueObj};
+use crate::trait_object::{KeyObj, ValueObj};
 use crate::trait_object::collection::TypeToAnyMap;
+use crate::trait_object::task::OutputCheckerObj;
 
 /// Internal type for task dependencies.
 #[derive(Clone, Debug)]
@@ -16,20 +17,26 @@ pub struct TaskDependency<T, C, S> {
   checker: C,
   stamp: S,
 }
-impl<T: Task, C: OutputChecker> TaskDependency<T, C, Box<dyn ValueEqObj>> {
+impl<T: Task> TaskDependency<T, Box<dyn OutputCheckerObj>, Box<dyn ValueObj>> {
   #[inline]
-  pub fn new(task: T, checker: C, stamp: Box<dyn ValueEqObj>) -> Self { Self { task, checker, stamp } }
+  pub fn new(task: T, checker: Box<dyn OutputCheckerObj>, stamp: Box<dyn ValueObj>) -> Self {
+    Self { task, checker, stamp }
+  }
+  #[inline]
+  pub fn from_typed<C: OutputChecker>(task: T, checker: C, stamp: C::Stamp) -> Self {
+    Self::new(task, Box::new(checker), Box::new(stamp))
+  }
 
   #[inline]
   pub fn task(&self) -> &T { &self.task }
   #[inline]
-  pub fn checker(&self) -> &C { &self.checker }
+  pub fn checker(&self) -> &dyn OutputCheckerObj { self.checker.as_ref() }
   #[inline]
-  pub fn stamp(&self) -> &Box<dyn ValueEqObj> { &self.stamp }
+  pub fn stamp(&self) -> &dyn ValueObj { self.stamp.as_ref() }
 
   #[inline]
   pub fn check<'i>(&'i self, output: &'i T::Output) -> Option<impl Debug + 'i> {
-    self.checker.check(output, self.stamp.as_ref())
+    self.checker.check_obj(output, self.stamp())
   }
 
   #[inline]
@@ -41,20 +48,20 @@ impl<T: Task, C: OutputChecker> TaskDependency<T, C, Box<dyn ValueEqObj>> {
 /// Object-safe trait.
 pub trait TaskDependencyObj: DynClone + Debug {
   fn task(&self) -> &dyn KeyObj;
-  fn checker(&self) -> &dyn ValueObj;
+  fn checker(&self) -> &dyn OutputCheckerObj;
   fn stamp(&self) -> &dyn ValueObj;
 
   fn as_top_down_check(&self) -> &dyn TopDownCheck;
   fn is_consistent_bottom_up(&self, output: &dyn ValueObj, requiring_task: &dyn KeyObj, tracker: &mut Tracking) -> bool;
 }
 const_assert_object_safe!(dyn TaskDependencyObj);
-impl<T: Task, C: OutputChecker> TaskDependencyObj for TaskDependency<T, C, Box<dyn ValueEqObj>> {
+impl<T: Task> TaskDependencyObj for TaskDependency<T, Box<dyn OutputCheckerObj>, Box<dyn ValueObj>> {
   #[inline]
   fn task(&self) -> &dyn KeyObj { &self.task as &dyn KeyObj }
   #[inline]
-  fn checker(&self) -> &dyn ValueObj { &self.checker as &dyn ValueObj }
+  fn checker(&self) -> &dyn OutputCheckerObj { self.checker.as_ref() }
   #[inline]
-  fn stamp(&self) -> &dyn ValueObj { &self.stamp as &dyn ValueObj }
+  fn stamp(&self) -> &dyn ValueObj { self.stamp.as_ref() }
 
   #[inline]
   fn as_top_down_check(&self) -> &dyn TopDownCheck { self as &dyn TopDownCheck }
@@ -63,7 +70,7 @@ impl<T: Task, C: OutputChecker> TaskDependencyObj for TaskDependency<T, C, Box<d
     let Some(output) = output.as_any().downcast_ref::<T::Output>() else {
       return false;
     };
-    let check_task_end = tracker.check_task_require_task(requiring_task, &self.checker, &self.stamp);
+    let check_task_end = tracker.check_task_require_task(requiring_task, self.checker(), self.stamp());
     match self.check(output) {
       Some(inconsistency) => {
         check_task_end(tracker, Some(&inconsistency as &dyn Debug));
@@ -192,9 +199,9 @@ pub enum Dependency {
   Read(Box<dyn ResourceDependencyObj>),
   Write(Box<dyn ResourceDependencyObj>),
 }
-impl<T: Task, C: OutputChecker> From<TaskDependency<T, C, Box<dyn ValueEqObj>>> for Dependency {
+impl<T: Task> From<TaskDependency<T, Box<dyn OutputCheckerObj>, Box<dyn ValueObj>>> for Dependency {
   #[inline]
-  fn from(value: TaskDependency<T, C, Box<dyn ValueEqObj>>) -> Self { Self::Require(Box::new(value)) }
+  fn from(value: TaskDependency<T, Box<dyn OutputCheckerObj>, Box<dyn ValueObj>>) -> Self { Self::Require(Box::new(value)) }
 }
 impl Dependency {
   #[inline]
