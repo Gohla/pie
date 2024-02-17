@@ -4,7 +4,6 @@ use std::ops::RangeInclusive;
 use crate::Task;
 use crate::tracker::Tracker;
 use crate::trait_object::{KeyObj, ValueObj};
-use crate::trait_object::task::OutputCheckerObj;
 
 /// A [`Tracker`] that stores [`Event`]s in a [`Vec`], useful in testing to assert that a context implementation is
 /// incremental and correct.
@@ -55,7 +54,7 @@ pub trait TaskAccess {
 #[derive(Clone, Debug)]
 pub struct RequireStart {
   pub task: Box<dyn KeyObj>,
-  pub checker: Box<dyn OutputCheckerObj>,
+  pub checker: Box<dyn KeyObj>,
   pub index: usize,
 }
 impl TaskAccess for RequireStart {
@@ -66,7 +65,7 @@ impl TaskAccess for RequireStart {
 #[derive(Clone, Debug)]
 pub struct RequireEnd {
   pub task: Box<dyn KeyObj>,
-  pub checker: Box<dyn OutputCheckerObj>,
+  pub checker: Box<dyn KeyObj>,
   pub stamp: Box<dyn ValueObj>,
   pub output: Box<dyn ValueObj>,
   pub index: usize,
@@ -126,7 +125,7 @@ impl Tracker for EventTracker {
   }
 
   #[inline]
-  fn require_start(&mut self, task: &dyn KeyObj, checker: &dyn OutputCheckerObj) {
+  fn require_start(&mut self, task: &dyn KeyObj, checker: &dyn KeyObj) {
     let data = RequireStart {
       task: task.to_owned(),
       checker: checker.to_owned(),
@@ -138,7 +137,7 @@ impl Tracker for EventTracker {
   fn require_end(
     &mut self,
     task: &dyn KeyObj,
-    checker: &dyn OutputCheckerObj,
+    checker: &dyn KeyObj,
     stamp: &dyn ValueObj,
     output: &dyn ValueObj,
   ) {

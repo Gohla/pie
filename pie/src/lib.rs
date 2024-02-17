@@ -22,7 +22,7 @@ use std::fmt::Debug;
 use std::hash::Hash;
 
 use crate::tracker::Tracker;
-use crate::trait_object::{KeyObj, ValueEqObj};
+use crate::trait_object::KeyObj;
 
 pub mod task;
 pub mod resource;
@@ -36,24 +36,23 @@ mod store;
 mod dependency;
 
 /// Trait alias for types that are used as values: types that can be cloned, debug formatted, and contain no
-/// non-`'static` references. We use this as an alias for trait bounds and super-traits.
+/// non-`'static` references.
 pub trait Value: Clone + Debug + 'static {}
 impl<T: Clone + Debug + 'static> Value for T {}
 
 /// Trait alias for types that are used as equatable values: types that are [values](Value) and that can be equality
-/// compared. We use this as an alias for trait bounds and super-traits.
+/// compared.
 pub trait ValueEq: Value + Eq {}
 impl<T: Value + Eq> ValueEq for T {}
 
-/// Trait alias for types that are used as keys: types that are [equatable values](ValueEq) and that can be hashed. We
-/// use this as an alias for trait bounds and super-traits.
+/// Trait alias for types that are used as keys: types that are [equatable values](ValueEq) and that can be hashed.
 pub trait Key: ValueEq + Hash {}
 impl<T: ValueEq + Hash> Key for T {}
 
 /// A unit of computation in a programmatic incremental build system.
 pub trait Task: Key {
   /// Type of task outputs.
-  type Output: ValueEq; // TODO: turn this back to `Value`, not all outputs should be `Eq`!
+  type Output: Value;
 
   /// Execute the task under `context`, returning an output.
   fn execute<C: Context>(&self, context: &mut C) -> Self::Output;
@@ -77,7 +76,7 @@ pub trait Context {
   /// (i.e., most up-to-date) output value.
   fn require<T, H>(&mut self, task: &T, checker: H) -> T::Output where
     T: Task,
-    H: OutputChecker;
+    H: OutputChecker<T::Output>;
 
   /// Creates a read dependency to `resource` using `checker` for consistency checking, then returns a
   /// [reader](Resource::Reader) for reading the resource.
@@ -108,16 +107,15 @@ pub trait Context {
 
 /// Consistency checker for task outputs of type `O`, producing and checking output stamps. For example, the
 /// [equals checker](task::EqualsChecker) uses the output of a task as stamp, and checks whether they are equal.
-pub trait OutputChecker: Key {
-  /// Type of stamps.
+pub trait OutputChecker<O>: Key {
+  /// Type of stamps returned from [stamp](Self::stamp).
   type Stamp: Value;
-
-  /// Stamps `output`.
-  fn stamp(&self, output: &dyn ValueEqObj) -> Self::Stamp;
+  /// Stamps `output` into a [`Stamp`](Self::Stamp).
+  fn stamp(&self, output: &O) -> Self::Stamp;
 
   /// Checks whether `output` is inconsistent w.r.t. `stamp`, returning `Some(inconsistency)` if inconsistent, `None` if
   /// consistent. The returned inconsistency can be used for debugging purposes, such as logging what has changed.
-  fn check<'i>(&self, output: &'i dyn ValueEqObj, stamp: &'i Self::Stamp) -> Option<Box<dyn Debug + 'i>>;
+  fn check<'i>(&self, output: &'i O, stamp: &'i Self::Stamp) -> Option<Box<dyn Debug + 'i>>;
 }
 
 

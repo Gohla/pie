@@ -2,7 +2,6 @@ use std::error::Error;
 use std::fmt::Debug;
 
 use crate::trait_object::{KeyObj, ValueObj};
-use crate::trait_object::task::OutputCheckerObj;
 
 pub mod writing;
 pub mod event;
@@ -21,13 +20,13 @@ pub trait Tracker {
 
   /// Start: require `task` using `checker`.
   #[inline]
-  fn require_start(&mut self, task: &dyn KeyObj, checker: &dyn OutputCheckerObj) {}
+  fn require_start(&mut self, task: &dyn KeyObj, checker: &dyn KeyObj) {}
   /// End: required `task`, using `checker` to create `stamp`, resulting in `output`.
   #[inline]
   fn require_end(
     &mut self,
     task: &dyn KeyObj,
-    checker: &dyn OutputCheckerObj,
+    checker: &dyn KeyObj,
     stamp: &dyn ValueObj,
     output: &dyn ValueObj,
   ) {}
@@ -47,13 +46,13 @@ pub trait Tracker {
 
   /// Start: check consistency of `task` which used `checker` to create `stamp`.
   #[inline]
-  fn check_task_start(&mut self, task: &dyn KeyObj, checker: &dyn OutputCheckerObj, stamp: &dyn ValueObj) {}
+  fn check_task_start(&mut self, task: &dyn KeyObj, checker: &dyn KeyObj, stamp: &dyn ValueObj) {}
   /// End: checked consistency of `task` which used `checker` to create `stamp`, possibly found an `inconsistency`
   #[inline]
   fn check_task_end(
     &mut self,
     task: &dyn KeyObj,
-    checker: &dyn OutputCheckerObj,
+    checker: &dyn KeyObj,
     stamp: &dyn ValueObj,
     inconsistency: Option<&dyn Debug>,
   ) {}
@@ -87,7 +86,7 @@ pub trait Tracker {
   fn check_task_require_task_start(
     &mut self,
     requiring_task: &dyn KeyObj,
-    checker: &dyn OutputCheckerObj,
+    checker: &dyn KeyObj,
     stamp: &dyn ValueObj,
   ) {}
   /// End: checked consistency of `requiring_task`'s require dependency which used `checker` to create `stamp`,
@@ -95,7 +94,7 @@ pub trait Tracker {
   fn check_task_require_task_end(
     &mut self,
     requiring_task: &dyn KeyObj,
-    checker: &dyn OutputCheckerObj,
+    checker: &dyn KeyObj,
     stamp: &dyn ValueObj,
     inconsistency: Option<&dyn Debug>,
   ) {}
@@ -149,7 +148,7 @@ impl<A1: Tracker, A2: Tracker> Tracker for CompositeTracker<A1, A2> {
   }
 
   #[inline]
-  fn require_start(&mut self, task: &dyn KeyObj, checker: &dyn OutputCheckerObj) {
+  fn require_start(&mut self, task: &dyn KeyObj, checker: &dyn KeyObj) {
     self.0.require_start(task, checker);
     self.1.require_start(task, checker);
   }
@@ -157,7 +156,7 @@ impl<A1: Tracker, A2: Tracker> Tracker for CompositeTracker<A1, A2> {
   fn require_end(
     &mut self,
     task: &dyn KeyObj,
-    checker: &dyn OutputCheckerObj,
+    checker: &dyn KeyObj,
     stamp: &dyn ValueObj,
     output: &dyn ValueObj,
   ) {
@@ -186,7 +185,7 @@ impl<A1: Tracker, A2: Tracker> Tracker for CompositeTracker<A1, A2> {
   }
 
   #[inline]
-  fn check_task_start(&mut self, task: &dyn KeyObj, checker: &dyn OutputCheckerObj, stamp: &dyn ValueObj) {
+  fn check_task_start(&mut self, task: &dyn KeyObj, checker: &dyn KeyObj, stamp: &dyn ValueObj) {
     self.0.check_task_start(task, checker, stamp);
     self.1.check_task_start(task, checker, stamp);
   }
@@ -194,7 +193,7 @@ impl<A1: Tracker, A2: Tracker> Tracker for CompositeTracker<A1, A2> {
   fn check_task_end(
     &mut self,
     task: &dyn KeyObj,
-    checker: &dyn OutputCheckerObj,
+    checker: &dyn KeyObj,
     stamp: &dyn ValueObj,
     inconsistency: Option<&dyn Debug>,
   ) {
@@ -242,7 +241,7 @@ impl<A1: Tracker, A2: Tracker> Tracker for CompositeTracker<A1, A2> {
   fn check_task_require_task_start(
     &mut self,
     requiring_task: &dyn KeyObj,
-    checker: &dyn OutputCheckerObj,
+    checker: &dyn KeyObj,
     stamp: &dyn ValueObj,
   ) {
     self.0.check_task_require_task_start(requiring_task, checker, stamp);
@@ -252,7 +251,7 @@ impl<A1: Tracker, A2: Tracker> Tracker for CompositeTracker<A1, A2> {
   fn check_task_require_task_end(
     &mut self,
     requiring_task: &dyn KeyObj,
-    checker: &dyn OutputCheckerObj,
+    checker: &dyn KeyObj,
     stamp: &dyn ValueObj,
     inconsistency: Option<&dyn Debug>,
   ) {

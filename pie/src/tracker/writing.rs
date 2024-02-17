@@ -4,7 +4,6 @@ use std::io::{self, BufWriter, Stderr, Stdout, Write};
 
 use crate::tracker::Tracker;
 use crate::trait_object::{KeyObj, ValueObj};
-use crate::trait_object::task::OutputCheckerObj;
 
 /// A [`Tracker`] that writes events to a [`Write`] instance, for example [`Stdout`].
 #[derive(Clone, Debug)]
@@ -83,7 +82,7 @@ impl<W: Write + 'static> Tracker for WritingTracker<W> {
   }
 
   #[inline]
-  fn require_start(&mut self, task: &dyn KeyObj, _checker: &dyn OutputCheckerObj) {
+  fn require_start(&mut self, task: &dyn KeyObj, _checker: &dyn KeyObj) {
     self.writeln(format_args!("→ {:?}", task));
     self.indent();
     self.flush();
@@ -92,7 +91,7 @@ impl<W: Write + 'static> Tracker for WritingTracker<W> {
   fn require_end(
     &mut self,
     _task: &dyn KeyObj,
-    _checker: &dyn OutputCheckerObj,
+    _checker: &dyn KeyObj,
     _stamp: &dyn ValueObj,
     output: &dyn ValueObj,
   ) {
@@ -111,7 +110,7 @@ impl<W: Write + 'static> Tracker for WritingTracker<W> {
   }
 
   #[inline]
-  fn check_task_start(&mut self, task: &dyn KeyObj, _checker: &dyn OutputCheckerObj, _stamp: &dyn ValueObj) {
+  fn check_task_start(&mut self, task: &dyn KeyObj, _checker: &dyn KeyObj, _stamp: &dyn ValueObj) {
     self.writeln(format_args!("? {:?}", task));
     self.indent();
     self.flush();
@@ -120,7 +119,7 @@ impl<W: Write + 'static> Tracker for WritingTracker<W> {
   fn check_task_end(
     &mut self,
     task: &dyn KeyObj,
-    _checker: &dyn OutputCheckerObj,
+    _checker: &dyn KeyObj,
     stamp: &dyn ValueObj,
     inconsistency: Option<&dyn Debug>,
   ) {
@@ -196,15 +195,15 @@ impl<W: Write + 'static> Tracker for WritingTracker<W> {
   #[inline]
   fn check_task_require_task_end(
     &mut self,
-    task: &dyn KeyObj,
-    _checker: &dyn OutputCheckerObj,
+    requiring_task: &dyn KeyObj,
+    _checker: &dyn KeyObj,
     stamp: &dyn ValueObj,
     inconsistency: Option<&dyn Debug>,
   ) {
     match inconsistency {
       Some(new_stamp) =>
-        self.writeln(format_args!("✗ {:?} (new: {:?} ≉ old: {:?})", task, new_stamp, stamp)),
-      None => self.writeln(format_args!("✓ {:?}", task)),
+        self.writeln(format_args!("✗ {:?} (new: {:?} ≉ old: {:?})", requiring_task, new_stamp, stamp)),
+      None => self.writeln(format_args!("✓ {:?}", requiring_task)),
     }
   }
   #[inline]

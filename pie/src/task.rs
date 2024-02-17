@@ -3,24 +3,20 @@ use std::hash::Hash;
 use std::rc::Rc;
 use std::sync::Arc;
 
-use crate::{Context, OutputChecker, Task};
-use crate::trait_object::ValueEqObj;
+use crate::{Context, OutputChecker, Task, ValueEq};
 
 /// [Task output checker](OutputChecker) that checks by equality.
 #[derive(Default, Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Debug)]
 pub struct EqualsChecker;
-impl OutputChecker for EqualsChecker {
-  type Stamp = Box<dyn ValueEqObj>;
+impl<O: ValueEq> OutputChecker<O> for EqualsChecker {
+  type Stamp = O;
+  #[inline]
+  fn stamp(&self, output: &O) -> Self::Stamp { output.clone() }
 
   #[inline]
-  fn stamp(&self, output: &dyn ValueEqObj) -> Self::Stamp {
-    output.to_owned()
-  }
-
-  #[inline]
-  fn check<'i>(&self, output: &'i dyn ValueEqObj, stamp: &'i Self::Stamp) -> Option<Box<dyn Debug + 'i>> {
-    if output != stamp.as_ref() {
-      Some(Box::new(output))
+  fn check<'i>(&self, output: &'i O, stamp: &'i Self::Stamp) -> Option<Box<dyn Debug + 'i>> {
+    if output != stamp {
+      Some(Box::new(output)) // TODO: don't box
     } else {
       None
     }
@@ -32,16 +28,13 @@ impl OutputChecker for EqualsChecker {
 /// are not interested in the output of the task.
 #[derive(Default, Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Debug)]
 pub struct AlwaysConsistent;
-impl OutputChecker for AlwaysConsistent {
+impl<O> OutputChecker<O> for AlwaysConsistent {
   type Stamp = ();
+  #[inline]
+  fn stamp(&self, _output: &O) -> Self::Stamp { () }
 
   #[inline]
-  fn stamp(&self, _output: &dyn ValueEqObj) -> Self::Stamp {
-    ()
-  }
-
-  #[inline]
-  fn check<'i>(&self, _output: &'i dyn ValueEqObj, _stamp: &'i Self::Stamp) -> Option<Box<dyn Debug + 'i>> {
+  fn check<'i>(&self, _output: &'i O, _stamp: &'i Self::Stamp) -> Option<Box<dyn Debug + 'i>> {
     None::<Box<dyn Debug>>
   }
 }
@@ -51,9 +44,7 @@ impl OutputChecker for AlwaysConsistent {
 impl Task for () {
   type Output = ();
   #[inline]
-  fn execute<C: Context>(&self, _context: &mut C) -> Self::Output {
-    ()
-  }
+  fn execute<C: Context>(&self, _context: &mut C) -> Self::Output { () }
 }
 
 /// Implement task for [`Box`] wrapped tasks.

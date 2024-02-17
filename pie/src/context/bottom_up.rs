@@ -242,7 +242,7 @@ impl<'p, 's> Context for BottomUpContext<'p, 's> {
   #[inline]
   fn require<T, H>(&mut self, task: &T, checker: H) -> T::Output where
     T: Task,
-    H: OutputChecker,
+    H: OutputChecker<T::Output>,
   {
     let track_end = self.session.tracker.require(task, &checker);
 

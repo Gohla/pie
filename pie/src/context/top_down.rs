@@ -30,7 +30,7 @@ impl<'p, 's> TopDownContext<'p, 's> {
 impl Context for TopDownContext<'_, '_> {
   fn require<T, H>(&mut self, task: &T, checker: H) -> T::Output where
     T: Task,
-    H: OutputChecker,
+    H: OutputChecker<T::Output>,
   {
     let track_end = self.session.tracker.require(task, &checker);
 
@@ -154,7 +154,7 @@ impl TopDownContext<'_, '_> {
 pub trait TopDownCheck {
   fn is_consistent(&self, context: &mut TopDownContext) -> bool;
 }
-impl<T: Task> TopDownCheck for TaskDependency<T, Box<dyn OutputCheckerObj>, Box<dyn ValueObj>> {
+impl<T: Task> TopDownCheck for TaskDependency<T, Box<dyn OutputCheckerObj<T::Output>>, Box<dyn ValueObj>> {
   #[inline]
   fn is_consistent(&self, context: &mut TopDownContext) -> bool {
     let check_task_end = context.session.tracker.check_task(self.task(), self.checker(), self.stamp());

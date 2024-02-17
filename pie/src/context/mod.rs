@@ -29,7 +29,7 @@ pub trait SessionExt {
     T: Task;
   fn update_require_dependency<T, H>(&mut self, dst: &TaskNode, task: &T, checker: H, stamp: H::Stamp) where
     T: Task,
-    H: OutputChecker;
+    H: OutputChecker<T::Output>;
 }
 
 impl SessionExt for SessionInternal<'_> {
@@ -135,7 +135,7 @@ impl SessionExt for SessionInternal<'_> {
 
   fn update_require_dependency<T, H>(&mut self, dst: &TaskNode, task: &T, checker: H, stamp: H::Stamp) where
     T: Task,
-    H: OutputChecker,
+    H: OutputChecker<T::Output>,
   {
     if let Some(src) = &self.current_executing_task {
       // Update the dependency in the graph from a reserved dependency to a real task require dependency.

@@ -11,7 +11,6 @@ use crate::task::AlwaysConsistent;
 use crate::tracker::Tracker;
 use crate::trait_object::{KeyObj, ValueObj};
 use crate::trait_object::collection::TypeToAnyMap;
-use crate::trait_object::task::OutputCheckerObj;
 
 /// Internals for [Pie](crate::Pie).
 pub struct PieInternal<A> {
@@ -127,7 +126,7 @@ impl Tracking<'_> {
   pub fn require<'a, T: Task>(
     &mut self,
     task: &'a T,
-    checker: &'a dyn OutputCheckerObj,
+    checker: &'a dyn KeyObj,
   ) -> impl FnOnce(&mut Tracking, &dyn ValueObj, &dyn ValueObj) + 'a {
     self.0.require_start(task, checker);
     |tracking, stamp, output|
@@ -159,7 +158,7 @@ impl Tracking<'_> {
   pub fn check_task<'a, T: Task>(
     &mut self,
     task: &'a T,
-    checker: &'a dyn OutputCheckerObj,
+    checker: &'a dyn KeyObj,
     stamp: &'a dyn ValueObj,
   ) -> impl FnOnce(&mut Tracking, Option<&dyn Debug>) + 'a {
     self.0.check_task_start(task, checker, stamp);
@@ -198,7 +197,7 @@ impl Tracking<'_> {
   pub fn check_task_require_task<'a>(
     &mut self,
     requiring_task: &'a dyn KeyObj,
-    checker: &'a dyn OutputCheckerObj,
+    checker: &'a dyn KeyObj,
     stamp: &'a dyn ValueObj,
   ) -> impl FnOnce(&mut Tracking, Option<&dyn Debug>) + 'a {
     self.0.check_task_require_task_start(requiring_task, checker, stamp);

@@ -72,7 +72,7 @@ impl<T> Require<T, EqualsChecker> {
     Self(task, EqualsChecker)
   }
 }
-impl<T: Task, H: OutputChecker> Task for Require<T, H> {
+impl<T: Task, H: OutputChecker<T::Output>> Task for Require<T, H> {
   type Output = T::Output;
   #[inline]
   fn execute<C: Context>(&self, context: &mut C) -> Self::Output {

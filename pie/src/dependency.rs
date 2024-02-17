@@ -17,20 +17,20 @@ pub struct TaskDependency<T, C, S> {
   checker: C,
   stamp: S,
 }
-impl<T: Task> TaskDependency<T, Box<dyn OutputCheckerObj>, Box<dyn ValueObj>> {
+impl<T: Task> TaskDependency<T, Box<dyn OutputCheckerObj<T::Output>>, Box<dyn ValueObj>> {
   #[inline]
-  pub fn new(task: T, checker: Box<dyn OutputCheckerObj>, stamp: Box<dyn ValueObj>) -> Self {
+  pub fn new(task: T, checker: Box<dyn OutputCheckerObj<T::Output>>, stamp: Box<dyn ValueObj>) -> Self {
     Self { task, checker, stamp }
   }
   #[inline]
-  pub fn from_typed<C: OutputChecker>(task: T, checker: C, stamp: C::Stamp) -> Self {
+  pub fn from_typed<C: OutputChecker<T::Output>>(task: T, checker: C, stamp: C::Stamp) -> Self {
     Self::new(task, Box::new(checker), Box::new(stamp))
   }
 
   #[inline]
   pub fn task(&self) -> &T { &self.task }
   #[inline]
-  pub fn checker(&self) -> &dyn OutputCheckerObj { self.checker.as_ref() }
+  pub fn checker(&self) -> &dyn OutputCheckerObj<T::Output> { self.checker.as_ref() }
   #[inline]
   pub fn stamp(&self) -> &dyn ValueObj { self.stamp.as_ref() }
 
@@ -48,18 +48,18 @@ impl<T: Task> TaskDependency<T, Box<dyn OutputCheckerObj>, Box<dyn ValueObj>> {
 /// Object-safe trait.
 pub trait TaskDependencyObj: DynClone + Debug {
   fn task(&self) -> &dyn KeyObj;
-  fn checker(&self) -> &dyn OutputCheckerObj;
+  fn checker(&self) -> &dyn KeyObj;
   fn stamp(&self) -> &dyn ValueObj;
 
   fn as_top_down_check(&self) -> &dyn TopDownCheck;
   fn is_consistent_bottom_up(&self, output: &dyn ValueObj, requiring_task: &dyn KeyObj, tracker: &mut Tracking) -> bool;
 }
 const_assert_object_safe!(dyn TaskDependencyObj);
-impl<T: Task> TaskDependencyObj for TaskDependency<T, Box<dyn OutputCheckerObj>, Box<dyn ValueObj>> {
+impl<T: Task> TaskDependencyObj for TaskDependency<T, Box<dyn OutputCheckerObj<T::Output>>, Box<dyn ValueObj>> {
   #[inline]
   fn task(&self) -> &dyn KeyObj { &self.task as &dyn KeyObj }
   #[inline]
-  fn checker(&self) -> &dyn OutputCheckerObj { self.checker.as_ref() }
+  fn checker(&self) -> &dyn KeyObj { self.checker.as_ref() }
   #[inline]
   fn stamp(&self) -> &dyn ValueObj { self.stamp.as_ref() }
 
@@ -199,9 +199,9 @@ pub enum Dependency {
   Read(Box<dyn ResourceDependencyObj>),
   Write(Box<dyn ResourceDependencyObj>),
 }
-impl<T: Task> From<TaskDependency<T, Box<dyn OutputCheckerObj>, Box<dyn ValueObj>>> for Dependency {
+impl<T: Task> From<TaskDependency<T, Box<dyn OutputCheckerObj<T::Output>>, Box<dyn ValueObj>>> for Dependency {
   #[inline]
-  fn from(value: TaskDependency<T, Box<dyn OutputCheckerObj>, Box<dyn ValueObj>>) -> Self { Self::Require(Box::new(value)) }
+  fn from(value: TaskDependency<T, Box<dyn OutputCheckerObj<T::Output>>, Box<dyn ValueObj>>) -> Self { Self::Require(Box::new(value)) }
 }
 impl Dependency {
   #[inline]
