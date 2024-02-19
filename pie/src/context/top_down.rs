@@ -6,8 +6,6 @@ use crate::context::SessionExt;
 use crate::dependency::{Dependency, TaskDependency};
 use crate::pie::SessionInternal;
 use crate::store::TaskNode;
-use crate::trait_object::task::OutputCheckerObj;
-use crate::trait_object::ValueObj;
 
 /// Top-down incremental context implementation.
 ///
@@ -154,7 +152,7 @@ impl TopDownContext<'_, '_> {
 pub trait TopDownCheck {
   fn is_consistent(&self, context: &mut TopDownContext) -> bool;
 }
-impl<T: Task> TopDownCheck for TaskDependency<T, Box<dyn OutputCheckerObj<T::Output>>, Box<dyn ValueObj>> {
+impl<T: Task> TopDownCheck for TaskDependency<T> {
   #[inline]
   fn is_consistent(&self, context: &mut TopDownContext) -> bool {
     let check_task_end = context.session.tracker.check_task(self.task(), self.checker(), self.stamp());

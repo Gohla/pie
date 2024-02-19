@@ -12,12 +12,12 @@ use crate::trait_object::task::OutputCheckerObj;
 
 /// Internal type for task dependencies.
 #[derive(Clone, Debug)]
-pub struct TaskDependency<T, C, S> {
+pub struct TaskDependency<T: Task> {
   task: T,
-  checker: C,
-  stamp: S,
+  checker: Box<dyn OutputCheckerObj<T::Output>>,
+  stamp: Box<dyn ValueObj>,
 }
-impl<T: Task> TaskDependency<T, Box<dyn OutputCheckerObj<T::Output>>, Box<dyn ValueObj>> {
+impl<T: Task> TaskDependency<T> {
   #[inline]
   pub fn new(task: T, checker: Box<dyn OutputCheckerObj<T::Output>>, stamp: Box<dyn ValueObj>) -> Self {
     Self { task, checker, stamp }
@@ -55,7 +55,7 @@ pub trait TaskDependencyObj: DynClone + Debug {
   fn is_consistent_bottom_up(&self, output: &dyn ValueObj, requiring_task: &dyn KeyObj, tracker: &mut Tracking) -> bool;
 }
 const_assert_object_safe!(dyn TaskDependencyObj);
-impl<T: Task> TaskDependencyObj for TaskDependency<T, Box<dyn OutputCheckerObj<T::Output>>, Box<dyn ValueObj>> {
+impl<T: Task> TaskDependencyObj for TaskDependency<T> {
   #[inline]
   fn task(&self) -> &dyn KeyObj { &self.task as &dyn KeyObj }
   #[inline]
@@ -199,9 +199,9 @@ pub enum Dependency {
   Read(Box<dyn ResourceDependencyObj>),
   Write(Box<dyn ResourceDependencyObj>),
 }
-impl<T: Task> From<TaskDependency<T, Box<dyn OutputCheckerObj<T::Output>>, Box<dyn ValueObj>>> for Dependency {
+impl<T: Task> From<TaskDependency<T>> for Dependency {
   #[inline]
-  fn from(value: TaskDependency<T, Box<dyn OutputCheckerObj<T::Output>>, Box<dyn ValueObj>>) -> Self { Self::Require(Box::new(value)) }
+  fn from(value: TaskDependency<T>) -> Self { Self::Require(Box::new(value)) }
 }
 impl Dependency {
   #[inline]
