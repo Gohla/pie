@@ -12,6 +12,7 @@ use crate::{Key, Value, ValueEq};
 pub(crate) mod base;
 pub(crate) mod collection;
 pub(crate) mod task;
+pub(crate) mod resource;
 
 /// Object safe [`Value`] proxy.
 pub trait ValueObj: DynClone + AsAny + Debug {}

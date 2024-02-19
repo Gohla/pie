@@ -20,13 +20,13 @@ impl<K: MapKey> Resource for K {
   type Writer<'r> = MapWriter<'r, K>;
   type Error = Infallible;
   #[inline]
-  fn read<'rc, C: ResourceState<Self>>(&self, state: &'rc mut C) -> Result<Self::Reader<'rc>, Self::Error> {
+  fn read<'rs, RS: ResourceState<K>>(&self, state: &'rs mut RS) -> Result<Self::Reader<'rs>, Self::Error> {
     let map = state.get_global_map();
     let value = map.get(&self);
     Ok(value)
   }
   #[inline]
-  fn write<'r, C: ResourceState<Self>>(&'r self, state: &'r mut C) -> Result<Self::Writer<'r>, Self::Error> {
+  fn write<'rs, RS: ResourceState<K>>(&'rs self, state: &'rs mut RS) -> Result<Self::Writer<'rs>, Self::Error> {
     let map = state.get_global_map_mut();
     let writer = MapWriter { map, key: self };
     Ok(writer)

@@ -65,15 +65,10 @@ impl<'a> From<Box<dyn TaskObj>> for Cow<'a, dyn TaskObj> {
 
 /// Internal object safe [`OutputChecker`] proxy.
 pub trait OutputCheckerObj<O>: KeyObj {
-  fn stamp_obj(&self, output: &O) -> Box<dyn ValueObj>;
   fn check_obj<'i>(&'i self, output: &'i O, stamp: &'i dyn ValueObj) -> Option<Box<dyn Debug + 'i>>;
 }
 const_assert_object_safe!(dyn OutputCheckerObj<()>);
 impl<O, C: OutputChecker<O>> OutputCheckerObj<O> for C {
-  #[inline]
-  fn stamp_obj(&self, output: &O) -> Box<dyn ValueObj> {
-    Box::new(self.stamp(output))
-  }
   #[inline]
   fn check_obj<'i>(&'i self, output: &'i O, stamp: &'i dyn ValueObj) -> Option<Box<dyn Debug + 'i>> {
     let stamp_typed = stamp.as_any().downcast_ref::<C::Stamp>()
@@ -120,29 +115,23 @@ impl<'a, O> From<Box<dyn OutputCheckerObj<O>>> for Cow<'a, dyn OutputCheckerObj<
 
 #[cfg(test)]
 mod tests {
+  use assert_matches::assert_matches;
+
   use crate::task::EqualsChecker;
 
   use super::*;
 
   #[test]
   fn test_output_checker_obj() {
-    let output_1 = 1usize;
-    let output_2 = 2usize;
-
     let equals_checker = EqualsChecker;
     let output_checker_obj: Box<dyn OutputCheckerObj<usize>> = Box::new(equals_checker);
-    let stamp_obj_1 = output_checker_obj.stamp_obj(&output_1);
-    let stamp_obj_2 = output_checker_obj.stamp_obj(&output_2);
-    assert!(output_checker_obj.check_obj(&output_1, stamp_obj_1.as_ref()).is_none());
-    assert!(output_checker_obj.check_obj(&output_2, stamp_obj_2.as_ref()).is_none());
-    assert!(output_checker_obj.check_obj(&output_1, stamp_obj_2.as_ref()).is_some());
-    assert!(output_checker_obj.check_obj(&output_2, stamp_obj_1.as_ref()).is_some());
-
+    let output_1 = 1usize;
+    let output_2 = 2usize;
     let stamp_1 = equals_checker.stamp(&output_1);
     let stamp_2 = equals_checker.stamp(&output_2);
-    assert!(output_checker_obj.check_obj(&output_1, &stamp_1).is_none());
-    assert!(output_checker_obj.check_obj(&output_2, &stamp_2).is_none());
-    assert!(output_checker_obj.check_obj(&output_1, &stamp_2).is_some());
-    assert!(output_checker_obj.check_obj(&output_2, &stamp_1).is_some());
+    assert_matches!(output_checker_obj.check_obj(&output_1, &stamp_1), None);
+    assert_matches!(output_checker_obj.check_obj(&output_2, &stamp_2), None);
+    assert_matches!(output_checker_obj.check_obj(&output_1, &stamp_2), Some(i) if format!("{:?}", i) == "1");
+    assert_matches!(output_checker_obj.check_obj(&output_2, &stamp_1), Some(i) if format!("{:?}", i) == "2");
   }
 }

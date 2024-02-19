@@ -123,41 +123,52 @@ pub trait OutputChecker<O>: Key {
 pub trait Resource: Key {
   /// Type of readers returned from [read](Self::read), with `'rs` representing the lifetime of the resource state.
   type Reader<'rs>;
-  /// Type of writers returned from [write](Self::write), with `'r` representing the lifetime of this resource.
-  type Writer<'r>;
+  /// Type of writers returned from [write](Self::write), with `'rs` representing the lifetime of the resource state or this resource.
+  type Writer<'rs>;
   /// Type of errors returned from all methods.
   type Error: Error;
 
   /// Creates a reader for this resource, with access to global mutable [resource `state`](ResourceState).
   fn read<'rs, RS: ResourceState<Self>>(&self, state: &'rs mut RS) -> Result<Self::Reader<'rs>, Self::Error>;
   /// Creates a writer for this resource, with access to global mutable [resource `state`](ResourceState).
-  fn write<'r, RS: ResourceState<Self>>(&'r self, state: &'r mut RS) -> Result<Self::Writer<'r>, Self::Error>;
+  fn write<'rs, RS: ResourceState<Self>>(&'rs self, state: &'rs mut RS) -> Result<Self::Writer<'rs>, Self::Error>;
 }
 
-/// Provides access to global mutable state for [resources](Resource) of type `R`. Each unique resource type `R` has
-/// access to one value that can be of any type that implements [`Any`] (i.e., all types without non-`'static`
-/// references).
+/// Provides access to global mutable state unique to [resources](Resource) of type [`R`].
+///
+/// Each unique resource type [`R`] has access to a single value that can be of any type that implements [`Any`] (i.e.,
+/// all types without non-`'static` references).
 ///
 /// This trait is *not* intended to be user-implementable.
 pub trait ResourceState<R> {
-  /// Gets the state as `S`. Returns `Some(&state)` if the state of type `S` exists, `None` otherwise.
+  /// Gets whether the state exists.
+  fn exists(&self) -> bool;
+  /// Gets whether the state exists and whether it is of type [`S`].
+  fn is_of_type<S: Any>(&self) -> bool;
+
+  /// Gets the state as a concrete value of type [`S`], returning `Some(&state)` if the state exists and is of type [`S`], `None` otherwise.
   fn get<S: Any>(&self) -> Option<&S>;
-  /// Gets the mutable state as `S`. Returns `Some(&mut state)` if the state of type `S` exists, `None` otherwise.
+  /// Gets the mutable state as a concrete value of type [`S`], returning `Some(&mut state)` if the state exists and is of type [`S`], `None` otherwise.
   fn get_mut<S: Any>(&mut self) -> Option<&mut S>;
-  /// Sets the `state`.
+  /// Sets the `state` as a concrete value of type [`S`].
   fn set<S: Any>(&mut self, state: S);
 
-  /// Gets the boxed state. Returns `Some(&state)` if the state exists, `None` otherwise.
-  fn get_boxed(&self) -> Option<&Box<dyn Any>>;
-  /// Gets the mutable boxed state. Returns `Some(&mut state)` if the state exists, `None` otherwise.
-  fn get_boxed_mut(&mut self) -> Option<&mut Box<dyn Any>>;
-  /// Sets the boxed `state`.
-  fn set_boxed(&mut self, state: Box<dyn Any>);
+  /// Gets the state as a [`dyn Any`], returning `Some(&state)` if the state exists, `None` otherwise.
+  fn get_any(&self) -> Option<&dyn Any>;
+  /// Gets the mutable state as a [`dyn Any`], returning `Some(&mut state)` if the state exists, `None` otherwise.
+  fn get_any_mut(&mut self) -> Option<&mut dyn Any>;
 
-  /// Gets the state as `S` or sets a default. If no state was set, or if it is not of type `S`, first sets the state to
+  /// Gets the state as a [`Box<dyn Any>`], returning `Some(&state)` if the state exists ,`None` otherwise.
+  fn get_boxed_any(&self) -> Option<&Box<dyn Any>>;
+  /// Gets the mutable state as a [`Box<dyn Any>`], returning `Some(&mut state)` if the state exists, `None` otherwise.
+  fn get_boxed_any_mut(&mut self) -> Option<&mut Box<dyn Any>>;
+  /// Sets the `state` as a [`Box<dyn Any>`].
+  fn set_boxed_any(&mut self, state: Box<dyn Any>);
+
+  /// Gets the state or sets a default. If no state exists, or if it is not of type [`S`], this first sets the state to
   /// `S::default()`. Then returns the state as `&state`.
   fn get_or_set_default<S: Default + Any>(&mut self) -> &S;
-  /// Gets the mutable state as `S` or sets a default. If no state was set, or if it is not of type `S`, first sets the
+  /// Gets the mutable state or sets a default. If no state exists, or if it is not of type [`S`], this first sets the
   /// state to `S::default()`. Then returns the state as `&mut state`.
   fn get_or_set_default_mut<S: Default + Any>(&mut self) -> &mut S;
 }

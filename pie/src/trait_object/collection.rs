@@ -8,35 +8,72 @@ use crate::{Resource, ResourceState};
 #[repr(transparent)]
 pub struct TypeToAnyMap(HashMap<TypeId, Box<dyn Any>>);
 impl TypeToAnyMap {
-  /// Gets a reference to the value of type `V` for type `T`.
   #[inline]
-  pub fn get<T: ?Sized + Any, V: Any>(&self) -> Option<&V> {
-    self.get_boxed::<T>().and_then(|v| v.as_ref().downcast_ref::<V>())
+  /// Gets whether a value for [`T`] exists.
+  fn exists<T: ?Sized + Any>(&self) -> bool {
+    self.0.contains_key(&TypeId::of::<T>())
   }
-  /// Gets a mutable reference to the value of type `V` for type `T`.
   #[inline]
-  pub fn get_mut<T: ?Sized + Any, V: Any>(&mut self) -> Option<&mut V> {
-    self.get_boxed_mut::<T>().and_then(|v| v.as_mut().downcast_mut::<V>())
-  }
-  /// Sets the `value` for type `T`.
-  #[inline]
-  pub fn set<T: ?Sized + Any, V: Any>(&mut self, value: V) {
-    self.set_boxed::<T>(Box::new(value));
+  /// Gets whether a value for [`T`] exists, and if it is of type [`V`].
+  fn is_of_type<T: ?Sized + Any, V: Any>(&self) -> bool {
+    self.0.get(&TypeId::of::<T>()).map(|v| v.is::<V>()).unwrap_or_default()
   }
 
-  /// Gets a reference to the boxed value for type `T`.
+  /// Gets a reference to the concrete value (of type [`V`]) for type [`T`], returning `Some(&value)` if a value for
+  /// [`T`] exists and is of type [`V`], or `None` otherwise.
   #[inline]
-  pub fn get_boxed<T: ?Sized + Any>(&self) -> Option<&Box<dyn Any>> {
+  pub fn get<T: ?Sized + Any, V: Any>(&self) -> Option<&V> {
+    self.get_any::<T>().and_then(|v| v.downcast_ref::<V>())
+  }
+  /// Gets a mutable reference to the value (of type [`V`]) for type [`T`], returning `Some(&mut value)` if a value for
+  /// [`T`] exists and is of type [`V`], or `None` otherwise.
+  #[inline]
+  pub fn get_mut<T: ?Sized + Any, V: Any>(&mut self) -> Option<&mut V> {
+    self.get_any_mut::<T>().and_then(|v| v.downcast_mut::<V>())
+  }
+  /// Sets the `value` (of type [`V`]) for type [`T`].
+  #[inline]
+  pub fn set<T: ?Sized + Any, V: Any>(&mut self, value: V) {
+    let type_id = TypeId::of::<T>();
+    if let Some(any) = self.0.get_mut(&type_id) {
+      if let Some(existing_value) = any.downcast_mut::<V>() {
+        *existing_value = value;
+      } else {
+        *any = Box::new(value)
+      }
+    } else {
+      self.0.insert(type_id, Box::new(value));
+    }
+  }
+
+  /// Gets a reference to the [`dyn Any`] value for type [`T`], returning `Some(&value)` if a value for [`T`] exists, or
+  /// `None` otherwise.
+  #[inline]
+  pub fn get_any<T: ?Sized + Any>(&self) -> Option<&dyn Any> {
+    self.get_boxed_any::<T>().map(|any| any.as_ref())
+  }
+  /// Gets a mutable reference to the [`dyn Any`] value for type [`T`], returning `Some(&mut value)` if a value for
+  /// [`T`] exists, or `None` otherwise.
+  #[inline]
+  pub fn get_any_mut<T: ?Sized + Any>(&mut self) -> Option<&mut dyn Any> {
+    self.get_boxed_any_mut::<T>().map(|any| any.as_mut())
+  }
+
+  /// Gets a reference to the [`Box<dyn Any>`] value for type [`T`], returning `Some(&value)` if a value for [`T`]
+  /// exists, or `None` otherwise.
+  #[inline]
+  pub fn get_boxed_any<T: ?Sized + Any>(&self) -> Option<&Box<dyn Any>> {
     self.0.get(&TypeId::of::<T>())
   }
-  /// Gets a mutable reference to the boxed value for type `T`.
+  /// Gets a mutable reference to the [`Box<dyn Any>`] value for type [`T`], returning `Some(&mut value)` if a value for
+  /// [`T`] exists, or `None` otherwise.
   #[inline]
-  pub fn get_boxed_mut<T: ?Sized + Any>(&mut self) -> Option<&mut Box<dyn Any>> {
+  pub fn get_boxed_any_mut<T: ?Sized + Any>(&mut self) -> Option<&mut Box<dyn Any>> {
     self.0.get_mut(&TypeId::of::<T>())
   }
-  /// Sets the boxed `value` for type `T`.
+  /// Sets the [`Box<dyn Any>`] `value` for type [`T`].
   #[inline]
-  pub fn set_boxed<T: ?Sized + Any>(&mut self, value: Box<dyn Any>) {
+  pub fn set_boxed_any<T: ?Sized + Any>(&mut self, value: Box<dyn Any>) {
     self.0.insert(TypeId::of::<T>(), value);
   }
 
@@ -76,6 +113,11 @@ impl TypeToAnyMap {
 
 impl<R: Resource> ResourceState<R> for TypeToAnyMap {
   #[inline]
+  fn exists(&self) -> bool { self.exists::<R>() }
+  #[inline]
+  fn is_of_type<S: Any>(&self) -> bool { self.is_of_type::<R, S>() }
+
+  #[inline]
   fn get<S: Any>(&self) -> Option<&S> { self.get::<R, S>() }
   #[inline]
   fn get_mut<S: Any>(&mut self) -> Option<&mut S> { self.get_mut::<R, S>() }
@@ -83,11 +125,16 @@ impl<R: Resource> ResourceState<R> for TypeToAnyMap {
   fn set<S: Any>(&mut self, state: S) { self.set::<R, S>(state) }
 
   #[inline]
-  fn get_boxed(&self) -> Option<&Box<dyn Any>> { self.get_boxed::<R>() }
+  fn get_any(&self) -> Option<&dyn Any> { self.get_any::<R>() }
   #[inline]
-  fn get_boxed_mut(&mut self) -> Option<&mut Box<dyn Any>> { self.get_boxed_mut::<R>() }
+  fn get_any_mut(&mut self) -> Option<&mut dyn Any> { self.get_any_mut::<R>() }
+
   #[inline]
-  fn set_boxed(&mut self, state: Box<dyn Any>) { self.set_boxed::<R>(state) }
+  fn get_boxed_any(&self) -> Option<&Box<dyn Any>> { self.get_boxed_any::<R>() }
+  #[inline]
+  fn get_boxed_any_mut(&mut self) -> Option<&mut Box<dyn Any>> { self.get_boxed_any_mut::<R>() }
+  #[inline]
+  fn set_boxed_any(&mut self, state: Box<dyn Any>) { self.set_boxed_any::<R>(state) }
 
   #[inline]
   fn get_or_set_default<S: Default + Any>(&mut self) -> &S { self.get_or_set_default::<R, S>() }
