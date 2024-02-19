@@ -78,7 +78,8 @@ impl<O, C: OutputChecker<O>> OutputCheckerObj<O> for C {
   fn check_obj<'i>(&'i self, output: &'i O, stamp: &'i dyn ValueObj) -> Option<Box<dyn Debug + 'i>> {
     let stamp_typed = stamp.as_any().downcast_ref::<C::Stamp>()
       .expect("BUG: non-matching stamp type");
-    self.check(output, stamp_typed)//.map(|i| Box::new(i) as Box<dyn Debug>)
+    self.check(output, stamp_typed)
+      .map(|i| Box::new(i) as Box<dyn Debug>)
   }
 }
 impl<'a, O, T: OutputChecker<O>> From<&'a T> for &'a dyn OutputCheckerObj<O> {

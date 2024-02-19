@@ -14,9 +14,9 @@ impl<O: ValueEq> OutputChecker<O> for EqualsChecker {
   fn stamp(&self, output: &O) -> Self::Stamp { output.clone() }
 
   #[inline]
-  fn check<'i>(&self, output: &'i O, stamp: &'i Self::Stamp) -> Option<Box<dyn Debug + 'i>> {
+  fn check(&self, output: &O, stamp: &Self::Stamp) -> Option<impl Debug> {
     if output != stamp {
-      Some(Box::new(output)) // TODO: don't box
+      Some(output)
     } else {
       None
     }
@@ -34,8 +34,71 @@ impl<O> OutputChecker<O> for AlwaysConsistent {
   fn stamp(&self, _output: &O) -> Self::Stamp { () }
 
   #[inline]
-  fn check<'i>(&self, _output: &'i O, _stamp: &'i Self::Stamp) -> Option<Box<dyn Debug + 'i>> {
-    None::<Box<dyn Debug>>
+  fn check(&self, _output: &O, _stamp: &Self::Stamp) -> Option<impl Debug> {
+    None::<()>
+  }
+}
+
+/// [Task output checker](OutputChecker) that checks [Ok] by equality, but [Err] only by existence.
+#[derive(Default, Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Debug)]
+pub struct OkEqualsChecker;
+impl<T: ValueEq, E> OutputChecker<Result<T, E>> for OkEqualsChecker {
+  type Stamp = Option<T>;
+  #[inline]
+  fn stamp(&self, output: &Result<T, E>) -> Self::Stamp {
+    output.as_ref().ok().cloned()
+  }
+
+  #[inline]
+  fn check(&self, output: &Result<T, E>, stamp: &Self::Stamp) -> Option<impl Debug> {
+    let new_stamp = output.as_ref().ok();
+    if new_stamp != stamp.as_ref() {
+      Some(new_stamp)
+    } else {
+      None
+    }
+  }
+}
+
+/// [Task output checker](OutputChecker) that checks [Err] by equality, but [Ok] only by existence.
+#[derive(Default, Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Debug)]
+pub struct ErrEqualsChecker;
+impl<T, E: ValueEq> OutputChecker<Result<T, E>> for ErrEqualsChecker {
+  type Stamp = Option<E>;
+  #[inline]
+  fn stamp(&self, output: &Result<T, E>) -> Self::Stamp {
+    output.as_ref().err().cloned()
+  }
+
+  #[inline]
+  fn check(&self, output: &Result<T, E>, stamp: &Self::Stamp) -> Option<impl Debug> {
+    let new_stamp = output.as_ref().err();
+    if new_stamp != stamp.as_ref() {
+      Some(new_stamp)
+    } else {
+      None
+    }
+  }
+}
+
+/// [Task output checker](OutputChecker) that checks whether a [Result] changes from [Ok] to [Err] or vice versa.
+#[derive(Default, Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Debug)]
+pub struct ResultChecker;
+impl<T, E> OutputChecker<Result<T, E>> for ResultChecker {
+  type Stamp = bool;
+  #[inline]
+  fn stamp(&self, output: &Result<T, E>) -> Self::Stamp {
+    output.is_err()
+  }
+
+  #[inline]
+  fn check(&self, output: &Result<T, E>, stamp: &Self::Stamp) -> Option<impl Debug> {
+    let new_stamp = output.is_err();
+    if new_stamp != *stamp {
+      Some(new_stamp)
+    } else {
+      None
+    }
   }
 }
 

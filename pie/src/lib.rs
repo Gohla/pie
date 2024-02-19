@@ -115,7 +115,7 @@ pub trait OutputChecker<O>: Key {
 
   /// Checks whether `output` is inconsistent w.r.t. `stamp`, returning `Some(inconsistency)` if inconsistent, `None` if
   /// consistent. The returned inconsistency can be used for debugging purposes, such as logging what has changed.
-  fn check<'i>(&self, output: &'i O, stamp: &'i Self::Stamp) -> Option<Box<dyn Debug + 'i>>;
+  fn check(&self, output: &O, stamp: &Self::Stamp) -> Option<impl Debug>;
 }
 
 
