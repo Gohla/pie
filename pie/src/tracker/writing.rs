@@ -135,7 +135,7 @@ impl<W: Write + 'static> Tracker for WritingTracker<W> {
   fn check_resource_end(
     &mut self,
     resource: &dyn KeyObj,
-    _checker: &dyn ValueObj,
+    _checker: &dyn KeyObj,
     stamp: &dyn ValueObj,
     inconsistency: Result<Option<&dyn Debug>, &dyn Error>,
   ) {
@@ -170,7 +170,7 @@ impl<W: Write + 'static> Tracker for WritingTracker<W> {
   fn check_task_read_resource_end(
     &mut self,
     task: &dyn KeyObj,
-    _checker: &dyn ValueObj,
+    _checker: &dyn KeyObj,
     stamp: &dyn ValueObj,
     inconsistency: Result<Option<&dyn Debug>, &dyn Error>,
   ) {

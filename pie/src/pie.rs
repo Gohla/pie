@@ -3,7 +3,7 @@ use std::error::Error;
 use std::fmt::Debug;
 use std::ops::{Deref, DerefMut};
 
-use crate::{Context, Resource, ResourceChecker, ResourceState, Session, Task};
+use crate::{Context, OutputChecker, Resource, ResourceChecker, ResourceState, Session, Task};
 use crate::context::bottom_up::BottomUpContext;
 use crate::context::top_down::TopDownContext;
 use crate::store::{Store, TaskNode};
@@ -123,10 +123,10 @@ impl Tracking<'_> {
 
   #[inline]
   #[must_use]
-  pub fn require<'a, T: Task>(
+  pub fn require<'a, T: Task, H: OutputChecker<T::Output>>(
     &mut self,
     task: &'a T,
-    checker: &'a dyn KeyObj,
+    checker: &'a H,
   ) -> impl FnOnce(&mut Tracking, &dyn ValueObj, &dyn ValueObj) + 'a {
     self.0.require_start(task, checker);
     |tracking, stamp, output|
@@ -134,11 +134,11 @@ impl Tracking<'_> {
   }
   #[inline]
   #[must_use]
-  pub fn read<'a, R: Resource, C: ResourceChecker<R>>(
+  pub fn read<'a, R: Resource, H: ResourceChecker<R>>(
     &mut self,
     resource: &'a R,
-    checker: &'a C,
-  ) -> impl FnOnce(&mut Tracking, &C::Stamp) + 'a {
+    checker: &'a H,
+  ) -> impl FnOnce(&mut Tracking, &H::Stamp) + 'a {
     self.0.read_start(resource, checker);
     |tracking, stamp| tracking.0.read_end(resource, checker, stamp)
   }
@@ -166,11 +166,11 @@ impl Tracking<'_> {
   }
   #[inline]
   #[must_use]
-  pub fn check_resource<'a, R: Resource, C: ResourceChecker<R>>(
+  pub fn check_resource<'a, R: Resource>(
     &mut self,
     resource: &'a R,
-    checker: &'a C,
-    stamp: &'a C::Stamp,
+    checker: &'a dyn KeyObj,
+    stamp: &'a dyn ValueObj,
   ) -> impl FnOnce(&mut Tracking, Result<Option<&dyn Debug>, &dyn Error>) + 'a {
     self.0.check_resource_start(resource, checker, stamp);
     |tracking, inconsistency| tracking.0.check_resource_end(resource, checker, stamp, inconsistency)
@@ -178,7 +178,10 @@ impl Tracking<'_> {
 
   #[inline]
   #[must_use]
-  pub fn execute<'a>(&mut self, task: &'a dyn KeyObj) -> impl FnOnce(&mut Tracking, &dyn ValueObj) + 'a {
+  pub fn execute<'a>(
+    &mut self,
+    task: &'a dyn KeyObj,
+  ) -> impl FnOnce(&mut Tracking, &dyn ValueObj) + 'a {
     self.0.execute_start(task);
     |tracking, output| tracking.0.execute_end(task, output)
   }
@@ -218,7 +221,7 @@ impl Tracking<'_> {
   pub fn check_task_read_resource<'a>(
     &mut self,
     reading_task: &'a dyn KeyObj,
-    checker: &'a dyn ValueObj,
+    checker: &'a dyn KeyObj,
     stamp: &'a dyn ValueObj,
   ) -> impl FnOnce(&mut Tracking, Result<Option<&dyn Debug>, &dyn Error>) + 'a {
     self.0.check_task_read_resource_start(reading_task, checker, stamp);

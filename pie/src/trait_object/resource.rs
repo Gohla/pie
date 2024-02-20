@@ -8,7 +8,7 @@ use crate::trait_object::{KeyObj, ValueObj};
 use crate::trait_object::collection::TypeToAnyMap;
 
 /// Internal object safe [`ResourceChecker`] proxy.
-pub trait ResourceCheckerObj<R: Resource>: KeyObj {
+pub trait ResourceCheckerObj<R>: KeyObj {
   fn check_obj<'i>(
     &'i self,
     resource: &'i R,

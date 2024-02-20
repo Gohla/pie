@@ -3,11 +3,12 @@ use std::fmt::Debug;
 
 use dyn_clone::DynClone;
 
-use crate::{OutputChecker, Resource, ResourceChecker, ResourceState, Task};
+use crate::{OutputChecker, Resource, ResourceChecker, Task};
 use crate::context::top_down::TopDownCheck;
 use crate::pie::Tracking;
 use crate::trait_object::{KeyObj, ValueObj};
 use crate::trait_object::collection::TypeToAnyMap;
+use crate::trait_object::resource::ResourceCheckerObj;
 use crate::trait_object::task::OutputCheckerObj;
 
 /// Internal type for task dependencies.
@@ -91,41 +92,39 @@ impl Clone for Box<dyn TaskDependencyObj> {
 
 /// Internal type for resource dependencies.
 #[derive(Clone, Debug)]
-pub struct ResourceDependency<R, C, S> {
+pub struct ResourceDependency<R> {
   resource: R,
-  checker: C,
-  stamp: S,
+  checker: Box<dyn ResourceCheckerObj<R>>,
+  stamp: Box<dyn ValueObj>,
 }
-impl<R: Resource, C: ResourceChecker<R>> ResourceDependency<R, C, C::Stamp> {
+impl<R: Resource> ResourceDependency<R> {
   #[inline]
-  pub fn new(resource: R, checker: C, stamp: C::Stamp) -> Self { Self { resource, checker, stamp } }
+  pub fn new(resource: R, checker: Box<dyn ResourceCheckerObj<R>>, stamp: Box<dyn ValueObj>) -> Self {
+    Self { resource, checker, stamp }
+  }
+  #[inline]
+  pub fn from_typed<C: ResourceChecker<R>>(resource: R, checker: C, stamp: C::Stamp) -> Self {
+    Self::new(resource, Box::new(checker), Box::new(stamp))
+  }
 
   #[inline]
   pub fn resource(&self) -> &R { &self.resource }
   #[inline]
-  pub fn checker(&self) -> &C { &self.checker }
+  pub fn checker(&self) -> &dyn ResourceCheckerObj<R> { self.checker.as_ref() }
   #[inline]
-  pub fn stamp(&self) -> &C::Stamp { &self.stamp }
+  pub fn stamp(&self) -> &dyn ValueObj { self.stamp.as_ref() }
 
   #[inline]
-  pub fn check<'i, RS: ResourceState<R>>(
+  pub fn is_consistent<'i>(
     &'i self,
-    state: &'i mut RS,
-  ) -> Result<Option<impl Debug + 'i>, C::Error> {
-    self.checker.check(&self.resource, state, &self.stamp)
-  }
-
-  #[inline]
-  pub fn is_consistent<'i, RS: ResourceState<R>>(
-    &'i self,
-    state: &'i mut RS,
+    state: &'i mut TypeToAnyMap,
     tracker: &mut Tracking,
     track_end: impl FnOnce(&mut Tracking, Result<Option<&dyn Debug>, &dyn Error>),
   ) -> Result<bool, Box<dyn Error>> {
-    let inconsistency = self.check(state);
+    let inconsistency = self.checker.check_obj(&self.resource, state, self.stamp());
     let inconsistency_dyn = inconsistency.as_ref()
       .map(|o| o.as_ref().map(|i| i as &dyn Debug))
-      .map_err(|e| e as &dyn Error);
+      .map_err(|e| e.as_ref());
     track_end(tracker, inconsistency_dyn);
     Ok(inconsistency?.is_none())
   }
@@ -141,7 +140,7 @@ impl<R: Resource, C: ResourceChecker<R>> ResourceDependency<R, C, C::Stamp> {
 /// Object-safe trait.
 pub trait ResourceDependencyObj: DynClone + Debug {
   fn resource(&self) -> &dyn KeyObj;
-  fn checker(&self) -> &dyn ValueObj;
+  fn checker(&self) -> &dyn KeyObj;
   fn stamp(&self) -> &dyn ValueObj;
 
   fn is_consistent_top_down(
@@ -157,13 +156,13 @@ pub trait ResourceDependencyObj: DynClone + Debug {
   ) -> Result<bool, Box<dyn Error>>;
 }
 const_assert_object_safe!(dyn ResourceDependencyObj);
-impl<R: Resource, C: ResourceChecker<R>> ResourceDependencyObj for ResourceDependency<R, C, C::Stamp> {
+impl<R: Resource> ResourceDependencyObj for ResourceDependency<R> {
   #[inline]
   fn resource(&self) -> &dyn KeyObj { &self.resource as &dyn KeyObj }
   #[inline]
-  fn checker(&self) -> &dyn ValueObj { &self.checker as &dyn ValueObj }
+  fn checker(&self) -> &dyn KeyObj { self.checker.as_ref() }
   #[inline]
-  fn stamp(&self) -> &dyn ValueObj { &self.stamp as &dyn ValueObj }
+  fn stamp(&self) -> &dyn ValueObj { self.stamp.as_ref() }
 
   #[inline]
   fn is_consistent_top_down(
@@ -171,7 +170,7 @@ impl<R: Resource, C: ResourceChecker<R>> ResourceDependencyObj for ResourceDepen
     resource_state: &mut TypeToAnyMap,
     tracker: &mut Tracking,
   ) -> Result<bool, Box<dyn Error>> {
-    let track_end = tracker.check_resource(&self.resource, &self.checker, &self.stamp);
+    let track_end = tracker.check_resource(&self.resource, self.checker(), self.stamp());
     self.is_consistent(resource_state, tracker, track_end)
   }
   #[inline]
@@ -181,7 +180,7 @@ impl<R: Resource, C: ResourceChecker<R>> ResourceDependencyObj for ResourceDepen
     reading_task: &dyn KeyObj,
     tracker: &mut Tracking,
   ) -> Result<bool, Box<dyn Error>> {
-    let track_end = tracker.check_task_read_resource(reading_task, &self.checker, &self.stamp);
+    let track_end = tracker.check_task_read_resource(reading_task, self.checker(), self.stamp());
     self.is_consistent(resource_state, tracker, track_end)
   }
 }
@@ -205,11 +204,11 @@ impl<T: Task> From<TaskDependency<T>> for Dependency {
 }
 impl Dependency {
   #[inline]
-  pub fn from_read<R: Resource, C: ResourceChecker<R>>(resource_dependency: ResourceDependency<R, C, C::Stamp>) -> Self {
+  pub fn from_read<R: Resource>(resource_dependency: ResourceDependency<R>) -> Self {
     Self::Read(Box::new(resource_dependency))
   }
   #[inline]
-  pub fn from_write<R: Resource, C: ResourceChecker<R>>(resource_dependency: ResourceDependency<R, C, C::Stamp>) -> Self {
+  pub fn from_write<R: Resource>(resource_dependency: ResourceDependency<R>) -> Self {
     Self::Write(Box::new(resource_dependency))
   }
 }

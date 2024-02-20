@@ -54,7 +54,7 @@ impl SessionExt for SessionInternal<'_> {
       }
       let stamp = checker.stamp_reader(&resource, &mut reader)?;
       track_end(&mut self.tracker, &stamp);
-      let resource_dependency = ResourceDependency::new(resource, checker, stamp);
+      let resource_dependency = ResourceDependency::from_typed(resource, checker, stamp);
       let dependency = Dependency::from_read(resource_dependency);
       let _ = self.store.add_dependency(current_executing_task_node, &dst, dependency);
     };
@@ -86,7 +86,7 @@ impl SessionExt for SessionInternal<'_> {
     if let Some((current_executing_task_node, dst)) = dependency_create_inputs {
       let stamp = checker.stamp_writer(&resource, writer)?;
       self.tracker.write_end(&resource, &checker, &stamp);
-      let resource_dependency = ResourceDependency::new(resource, checker, stamp);
+      let resource_dependency = ResourceDependency::from_typed(resource, checker, stamp);
       let dependency = Dependency::from_write(resource_dependency);
       let _ = self.store.add_dependency(current_executing_task_node, &dst, dependency);
     }
@@ -112,7 +112,7 @@ impl SessionExt for SessionInternal<'_> {
       validate_write(self, &resource, current_executing_task_node, &dst);
       let stamp = checker.stamp(&resource, self.resource_state)?;
       track_end(&mut self.tracker, &stamp);
-      let resource_dependency = ResourceDependency::new(resource, checker, stamp);
+      let resource_dependency = ResourceDependency::from_typed(resource, checker, stamp);
       let dependency = Dependency::from_write(resource_dependency);
       let _ = self.store.add_dependency(current_executing_task_node, &dst, dependency);
     };

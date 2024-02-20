@@ -472,7 +472,7 @@ mod test {
     assert_eq!(store.get_resources_written_by(&node_b).next(), None);
 
     // Add resource read dependency from task A to resource C.
-    let read_a2c = ResourceDependency::new(path_c.clone(), ModifiedChecker, None).into_read();
+    let read_a2c = ResourceDependency::from_typed(path_c.clone(), ModifiedChecker, None).into_read();
     let result = store.add_dependency(&node_a, &node_c, read_a2c.clone());
     assert_eq!(result, Ok(()));
     assert!(!store.contains_transitive_task_dependency(&node_a, &node_b));
@@ -552,7 +552,7 @@ mod test {
     assert_matches!(store.get_resources_written_by(&node_b).next(), None);
 
     // Add resource write dependency from task B to resource C.
-    let write_b2c = ResourceDependency::new(path_c.clone(), ExistsChecker, true).into_write();
+    let write_b2c = ResourceDependency::from_typed(path_c.clone(), ExistsChecker, true).into_write();
     let result = store.add_dependency(&node_b, &node_c, write_b2c.clone());
     assert_eq!(result, Ok(()));
     assert!(!store.contains_transitive_task_dependency(&node_a, &node_b));
@@ -635,7 +635,7 @@ mod test {
     let fake_resource_node = fake_store.get_or_create_resource_node(&path);
     let fake_task_node = fake_store.get_or_create_task_node(&"Hello");
     let mut store: Store = Store::default();
-    let dependency = ResourceDependency::new(path, ExistsChecker, true).into_read();
+    let dependency = ResourceDependency::from_typed(path, ExistsChecker, true).into_read();
     let _ = store.add_dependency(&fake_task_node, &fake_resource_node, dependency);
   }
 
@@ -671,7 +671,7 @@ mod test {
     assert_eq!(store.get_task_output(&task_b_node).map(|v| v.as_str()), Some(output_b));
 
     // Add resource read dependency from task A and B.
-    let read_dep = ResourceDependency::new(path, ExistsChecker, true).into_read();
+    let read_dep = ResourceDependency::from_typed(path, ExistsChecker, true).into_read();
     let result = store.add_dependency(&task_a_node, &resource_node, read_dep.clone());
     assert_eq!(result, Ok(()));
     let result = store.add_dependency(&task_b_node, &resource_node, read_dep.clone());

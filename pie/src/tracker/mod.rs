@@ -20,7 +20,11 @@ pub trait Tracker {
 
   /// Start: require `task` using `checker`.
   #[inline]
-  fn require_start(&mut self, task: &dyn KeyObj, checker: &dyn KeyObj) {}
+  fn require_start(
+    &mut self,
+    task: &dyn KeyObj,
+    checker: &dyn KeyObj,
+  ) {}
   /// End: required `task`, using `checker` to create `stamp`, resulting in `output`.
   #[inline]
   fn require_end(
@@ -46,7 +50,12 @@ pub trait Tracker {
 
   /// Start: check consistency of `task` which used `checker` to create `stamp`.
   #[inline]
-  fn check_task_start(&mut self, task: &dyn KeyObj, checker: &dyn KeyObj, stamp: &dyn ValueObj) {}
+  fn check_task_start(
+    &mut self,
+    task: &dyn KeyObj,
+    checker: &dyn KeyObj,
+    stamp: &dyn ValueObj,
+  ) {}
   /// End: checked consistency of `task` which used `checker` to create `stamp`, possibly found an `inconsistency`
   #[inline]
   fn check_task_end(
@@ -59,13 +68,18 @@ pub trait Tracker {
 
   /// Start: check consistency of `resource` which used `checker` to create `stamp`.
   #[inline]
-  fn check_resource_start(&mut self, resource: &dyn KeyObj, checker: &dyn ValueObj, stamp: &dyn ValueObj) {}
+  fn check_resource_start(
+    &mut self,
+    resource: &dyn KeyObj,
+    checker: &dyn KeyObj,
+    stamp: &dyn ValueObj,
+  ) {}
   /// End: checked consistency of `resource` which used `checker` to create `stamp`, possibly found an `inconsistency`.
   #[inline]
   fn check_resource_end(
     &mut self,
     resource: &dyn KeyObj,
-    checker: &dyn ValueObj,
+    checker: &dyn KeyObj,
     stamp: &dyn ValueObj,
     inconsistency: Result<Option<&dyn Debug>, &dyn Error>,
   ) {}
@@ -107,7 +121,7 @@ pub trait Tracker {
   fn check_task_read_resource_start(
     &mut self,
     reading_task: &dyn KeyObj,
-    checker: &dyn ValueObj,
+    checker: &dyn KeyObj,
     stamp: &dyn ValueObj,
   ) {}
   /// End: checked consistency of `reading_task`'s read dependency which used `checker` to create `stamp`, possibly
@@ -115,7 +129,7 @@ pub trait Tracker {
   fn check_task_read_resource_end(
     &mut self,
     reading_task: &dyn KeyObj,
-    checker: &dyn ValueObj,
+    checker: &dyn KeyObj,
     stamp: &dyn ValueObj,
     inconsistency: Result<Option<&dyn Debug>, &dyn Error>,
   ) {}
@@ -148,7 +162,11 @@ impl<A1: Tracker, A2: Tracker> Tracker for CompositeTracker<A1, A2> {
   }
 
   #[inline]
-  fn require_start(&mut self, task: &dyn KeyObj, checker: &dyn KeyObj) {
+  fn require_start(
+    &mut self,
+    task: &dyn KeyObj,
+    checker: &dyn KeyObj,
+  ) {
     self.0.require_start(task, checker);
     self.1.require_start(task, checker);
   }
@@ -185,7 +203,12 @@ impl<A1: Tracker, A2: Tracker> Tracker for CompositeTracker<A1, A2> {
   }
 
   #[inline]
-  fn check_task_start(&mut self, task: &dyn KeyObj, checker: &dyn KeyObj, stamp: &dyn ValueObj) {
+  fn check_task_start(
+    &mut self,
+    task: &dyn KeyObj,
+    checker: &dyn KeyObj,
+    stamp: &dyn ValueObj,
+  ) {
     self.0.check_task_start(task, checker, stamp);
     self.1.check_task_start(task, checker, stamp);
   }
@@ -202,7 +225,12 @@ impl<A1: Tracker, A2: Tracker> Tracker for CompositeTracker<A1, A2> {
   }
 
   #[inline]
-  fn check_resource_start(&mut self, resource: &dyn KeyObj, checker: &dyn ValueObj, stamp: &dyn ValueObj) {
+  fn check_resource_start(
+    &mut self,
+    resource: &dyn KeyObj,
+    checker: &dyn KeyObj,
+    stamp: &dyn ValueObj,
+  ) {
     self.0.check_resource_start(resource, checker, stamp);
     self.1.check_resource_start(resource, checker, stamp);
   }
@@ -210,7 +238,7 @@ impl<A1: Tracker, A2: Tracker> Tracker for CompositeTracker<A1, A2> {
   fn check_resource_end(
     &mut self,
     resource: &dyn KeyObj,
-    checker: &dyn ValueObj,
+    checker: &dyn KeyObj,
     stamp: &dyn ValueObj,
     inconsistency: Result<Option<&dyn Debug>, &dyn Error>,
   ) {
@@ -273,7 +301,7 @@ impl<A1: Tracker, A2: Tracker> Tracker for CompositeTracker<A1, A2> {
   fn check_task_read_resource_start(
     &mut self,
     reading_task: &dyn KeyObj,
-    checker: &dyn ValueObj,
+    checker: &dyn KeyObj,
     stamp: &dyn ValueObj,
   ) {
     self.0.check_task_read_resource_start(reading_task, checker, stamp);
@@ -283,7 +311,7 @@ impl<A1: Tracker, A2: Tracker> Tracker for CompositeTracker<A1, A2> {
   fn check_task_read_resource_end(
     &mut self,
     reading_task: &dyn KeyObj,
-    checker: &dyn ValueObj,
+    checker: &dyn KeyObj,
     stamp: &dyn ValueObj,
     inconsistency: Result<Option<&dyn Debug>, &dyn Error>,
   ) {
