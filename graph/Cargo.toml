@@ -9,7 +9,7 @@ license = "Apache-2.0"
 
 [dependencies]
 slotmap = "1"
-hashlink = "0.8"
+hashlink = "0.9"
 serde = { version = "1", features = ["derive"], optional = true }
 
 [features]

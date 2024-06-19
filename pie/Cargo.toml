@@ -16,7 +16,7 @@ sha2 = { version = "0.10", optional = true }
 dev_util = { path = "../dev_util" }
 dev_ext = { path = "../dev_ext" }
 assert_matches = "1"
-testresult = "0.3"
+testresult = "0.4"
 
 [features]
 file_hash_checker = ["dep:sha2"]

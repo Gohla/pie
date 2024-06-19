@@ -10,14 +10,13 @@ use crate::trait_object::{KeyObj, ValueObj};
 /// Internal object safe [`Task`] proxy. Has execute methods for concrete [`Context`] implementations, instead of a
 /// generic method, due to object safety.
 pub trait TaskObj: KeyObj {
-  fn as_key_obj(&self) -> &dyn KeyObj;
   fn execute_top_down(&self, context: &mut TopDownContext) -> Box<dyn ValueObj>;
   fn execute_bottom_up(&self, context: &mut BottomUpContext) -> Box<dyn ValueObj>;
+
+  fn as_key_obj(&self) -> &dyn KeyObj;
 }
 const_assert_object_safe!(dyn TaskObj);
 impl<T: Task> TaskObj for T {
-  #[inline]
-  fn as_key_obj(&self) -> &dyn KeyObj { self as &dyn KeyObj }
   #[inline]
   fn execute_top_down(&self, context: &mut TopDownContext) -> Box<dyn ValueObj> {
     Box::new(self.execute(context))
@@ -26,6 +25,9 @@ impl<T: Task> TaskObj for T {
   fn execute_bottom_up(&self, context: &mut BottomUpContext) -> Box<dyn ValueObj> {
     Box::new(self.execute(context))
   }
+
+  #[inline]
+  fn as_key_obj(&self) -> &dyn KeyObj { self as &dyn KeyObj }
 }
 impl<'a, T: Task> From<&'a T> for &'a dyn TaskObj {
   #[inline]
@@ -84,9 +86,7 @@ impl<O, C: OutputChecker<O>> OutputCheckerObj<O> for C {
   }
 
   #[inline]
-  fn as_key_obj(&self) -> &dyn KeyObj {
-    self as &dyn KeyObj
-  }
+  fn as_key_obj(&self) -> &dyn KeyObj { self as &dyn KeyObj }
 }
 impl<'a, O, T: OutputChecker<O>> From<&'a T> for &'a dyn OutputCheckerObj<O> {
   #[inline]
