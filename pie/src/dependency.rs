@@ -60,7 +60,7 @@ impl<T: Task> TaskDependencyObj for TaskDependency<T> {
   #[inline]
   fn task(&self) -> &dyn KeyObj { &self.task as &dyn KeyObj }
   #[inline]
-  fn checker(&self) -> &dyn KeyObj { self.checker.as_ref() }
+  fn checker(&self) -> &dyn KeyObj { self.checker.as_ref().as_key_obj() }
   #[inline]
   fn stamp(&self) -> &dyn ValueObj { self.stamp.as_ref() }
 
@@ -71,7 +71,7 @@ impl<T: Task> TaskDependencyObj for TaskDependency<T> {
     let Some(output) = output.as_any().downcast_ref::<T::Output>() else {
       return false;
     };
-    let check_task_end = tracker.check_task_require_task(requiring_task, self.checker(), self.stamp());
+    let check_task_end = tracker.check_task_require_task(requiring_task, self.checker().as_key_obj(), self.stamp());
     match self.check(output) {
       Some(inconsistency) => {
         check_task_end(tracker, Some(&inconsistency as &dyn Debug));
@@ -83,6 +83,10 @@ impl<T: Task> TaskDependencyObj for TaskDependency<T> {
       }
     }
   }
+}
+impl<T: Task> From<TaskDependency<T>> for Box<dyn TaskDependencyObj> {
+  #[inline]
+  fn from(value: TaskDependency<T>) -> Self { Box::new(value) }
 }
 impl Clone for Box<dyn TaskDependencyObj> {
   #[inline]
@@ -160,7 +164,7 @@ impl<R: Resource> ResourceDependencyObj for ResourceDependency<R> {
   #[inline]
   fn resource(&self) -> &dyn KeyObj { &self.resource as &dyn KeyObj }
   #[inline]
-  fn checker(&self) -> &dyn KeyObj { self.checker.as_ref() }
+  fn checker(&self) -> &dyn KeyObj { self.checker.as_ref().as_key_obj() }
   #[inline]
   fn stamp(&self) -> &dyn ValueObj { self.stamp.as_ref() }
 
@@ -170,7 +174,7 @@ impl<R: Resource> ResourceDependencyObj for ResourceDependency<R> {
     resource_state: &mut TypeToAnyMap,
     tracker: &mut Tracking,
   ) -> Result<bool, Box<dyn Error>> {
-    let track_end = tracker.check_resource(&self.resource, self.checker(), self.stamp());
+    let track_end = tracker.check_resource(&self.resource, self.checker().as_key_obj(), self.stamp());
     self.is_consistent(resource_state, tracker, track_end)
   }
   #[inline]
@@ -180,9 +184,13 @@ impl<R: Resource> ResourceDependencyObj for ResourceDependency<R> {
     reading_task: &dyn KeyObj,
     tracker: &mut Tracking,
   ) -> Result<bool, Box<dyn Error>> {
-    let track_end = tracker.check_task_read_resource(reading_task, self.checker(), self.stamp());
+    let track_end = tracker.check_task_read_resource(reading_task, self.checker().as_key_obj(), self.stamp());
     self.is_consistent(resource_state, tracker, track_end)
   }
+}
+impl<R: Resource> From<ResourceDependency<R>> for Box<dyn ResourceDependencyObj> {
+  #[inline]
+  fn from(value: ResourceDependency<R>) -> Self { Box::new(value) }
 }
 impl Clone for Box<dyn ResourceDependencyObj> {
   #[inline]

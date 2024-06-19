@@ -99,6 +99,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "545b22097d44f8a9581187cdf93de7a71e4722bf51200cfaba810865b49a495d"
 
 [[package]]
+name = "erased-serde"
+version = "0.4.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "388979d208a049ffdfb22fa33b9c81942215b940910bccfe258caeb25d125cb3"
+dependencies = [
+ "serde",
+]
+
+[[package]]
 name = "errno"
 version = "0.3.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -170,7 +179,10 @@ dependencies = [
  "dev_ext",
  "dev_util",
  "dyn-clone",
+ "erased-serde",
  "pie_graph",
+ "serde",
+ "serde_flexitos",
  "sha2",
  "testresult",
 ]
@@ -233,6 +245,16 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn",
+]
+
+[[package]]
+name = "serde_flexitos"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4fec6fd5e687bf414e4c031a7011a2b6c691e52e7cec14631f08006d80d1f205"
+dependencies = [
+ "erased-serde",
+ "serde",
 ]
 
 [[package]]

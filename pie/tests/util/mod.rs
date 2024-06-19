@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use std::io::{BufWriter, Stdout};
 
 use pie::{BottomUpBuild, Pie, Session, Task};

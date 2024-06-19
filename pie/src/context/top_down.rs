@@ -123,7 +123,7 @@ impl TopDownContext<'_, '_> {
       .get_dependencies_from_task(src)
       .map(|d| d.clone())
       .collect();
-    for dependency in dependencies.into_iter() {
+    for dependency in dependencies {
       let consistent = match dependency {
         Dependency::ReservedRequire => panic!("BUG: attempt to consistency check reserved require task dependency"),
         Dependency::Require(d) => Ok(d.as_top_down_check().is_consistent(self)),
@@ -155,7 +155,7 @@ pub trait TopDownCheck {
 impl<T: Task> TopDownCheck for TaskDependency<T> {
   #[inline]
   fn is_consistent(&self, context: &mut TopDownContext) -> bool {
-    let check_task_end = context.session.tracker.check_task(self.task(), self.checker(), self.stamp());
+    let check_task_end = context.session.tracker.check_task(self.task(), self.checker().as_key_obj(), self.stamp());
     let output = context.make_task_consistent(self.task());
     let inconsistency = self.check(&output);
     let inconsistency_dyn = inconsistency.as_ref().map(|o| o as &dyn Debug);

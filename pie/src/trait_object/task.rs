@@ -31,6 +31,10 @@ impl<'a, T: Task> From<&'a T> for &'a dyn TaskObj {
   #[inline]
   fn from(value: &'a T) -> Self { value as &dyn TaskObj }
 }
+impl<T: Task> From<T> for Box<dyn TaskObj> {
+  #[inline]
+  fn from(value: T) -> Self { Box::new(value) }
+}
 impl PartialEq for dyn TaskObj {
   #[inline]
   fn eq(&self, other: &Self) -> bool { self.eq_any(other.as_any()) }
@@ -66,6 +70,8 @@ impl<'a> From<Box<dyn TaskObj>> for Cow<'a, dyn TaskObj> {
 /// Internal object safe [`OutputChecker`] proxy.
 pub trait OutputCheckerObj<O>: KeyObj {
   fn check_obj<'i>(&'i self, output: &'i O, stamp: &'i dyn ValueObj) -> Option<Box<dyn Debug + 'i>>;
+
+  fn as_key_obj(&self) -> &dyn KeyObj;
 }
 const_assert_object_safe!(dyn OutputCheckerObj<()>);
 impl<O, C: OutputChecker<O>> OutputCheckerObj<O> for C {
@@ -75,6 +81,11 @@ impl<O, C: OutputChecker<O>> OutputCheckerObj<O> for C {
       .expect("BUG: non-matching stamp type");
     self.check(output, stamp_typed)
       .map(|i| Box::new(i) as Box<dyn Debug>)
+  }
+
+  #[inline]
+  fn as_key_obj(&self) -> &dyn KeyObj {
+    self as &dyn KeyObj
   }
 }
 impl<'a, O, T: OutputChecker<O>> From<&'a T> for &'a dyn OutputCheckerObj<O> {

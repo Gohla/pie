@@ -125,6 +125,7 @@ mod tests {
   #[test]
   fn test_val_obj() {
     #[derive(Clone, Debug)]
+    #[allow(dead_code)]
     struct ATaskOutput(usize);
 
     let output_1 = ATaskOutput(1);

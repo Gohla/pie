@@ -1,5 +1,3 @@
-cargo-features = ["named-profiles", "profile-overrides"]
-
 [workspace]
 members = [
   "pie",

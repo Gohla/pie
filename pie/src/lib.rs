@@ -34,6 +34,7 @@ mod pie;
 mod context;
 mod store;
 mod dependency;
+mod serialization;
 
 /// Trait alias for types that are used as values: types that can be cloned, debug formatted, and contain no
 /// non-`'static` references.

@@ -15,6 +15,8 @@ pub trait ResourceCheckerObj<R>: KeyObj {
     state: &'i mut TypeToAnyMap,
     stamp: &'i dyn ValueObj,
   ) -> Result<Option<Box<dyn Debug + 'i>>, Box<dyn Error>>;
+
+  fn as_key_obj(&self) -> &dyn KeyObj;
 }
 const_assert_object_safe!(dyn ResourceCheckerObj<()>);
 impl<R: Resource, C: ResourceChecker<R>> ResourceCheckerObj<R> for C {
@@ -29,6 +31,11 @@ impl<R: Resource, C: ResourceChecker<R>> ResourceCheckerObj<R> for C {
     let inconsistency = self.check(resource, state, stamp_typed)
       .map(|o| o.map(|i| Box::new(i) as Box<dyn Debug>))?;
     Ok(inconsistency)
+  }
+
+  #[inline]
+  fn as_key_obj(&self) -> &dyn KeyObj {
+    self as &dyn KeyObj
   }
 }
 impl<'a, R: Resource, T: ResourceChecker<R>> From<&'a T> for &'a dyn ResourceCheckerObj<R> {
@@ -77,12 +84,12 @@ mod tests {
 
   use super::*;
 
+  impl MapKey for &'static str {
+    type Value = usize;
+  }
+
   #[test]
   fn test_output_checker_obj() -> Result<(), Infallible> {
-    impl MapKey for &'static str {
-      type Value = usize;
-    }
-
     let key_1 = "key 1";
     let value_1 = 1;
     let key_2 = "key 2";
