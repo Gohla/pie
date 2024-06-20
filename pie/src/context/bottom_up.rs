@@ -3,14 +3,14 @@ use std::collections::HashSet;
 use std::error::Error;
 use std::hash::BuildHasher;
 
-use crate::{Context, OutputChecker, Resource, ResourceChecker, Task};
+use crate::{Context, OutputChecker, Resource, ResourceChecker, Task, Value};
 use crate::context::SessionExt;
 use crate::dependency::ResourceDependencyObj;
 use crate::pie::{SessionInternal, Tracking};
 use crate::store::{Store, TaskNode};
-use crate::trait_object::{KeyObj, ValueObj};
+use crate::trait_object::{KeyObj, TaskObj, ValueObj};
 use crate::trait_object::collection::TypeToAnyMap;
-use crate::trait_object::task::TaskObj;
+use crate::trait_object::task::{TaskErasedObj};
 
 /// Context that incrementally executes tasks and checks dependencies in a bottom-up manner.
 pub struct BottomUpContext<'p, 's> {
@@ -154,10 +154,10 @@ impl<'p, 's> BottomUpContext<'p, 's> {
     output
   }
 
-  /// Execute `task` as a [task trait object](TaskObj) (with corresponding `node`), returning its result as a boxed
+  /// Execute `task` as a [task trait object](TaskErasedObj) (with corresponding `node`), returning its result as a boxed
   /// [value trait object](ValueObj).
   #[inline]
-  fn execute_obj(&mut self, task: &dyn TaskObj, node: TaskNode) -> Box<dyn ValueObj> {
+  fn execute_obj(&mut self, task: &dyn TaskErasedObj, node: TaskNode) -> Box<dyn ValueObj> {
     self.session.store.reset_task(&node);
     let previous_executing_task = self.session.current_executing_task.replace(node);
     let track_end = self.session.tracker.execute(task.as_key_obj());
@@ -174,14 +174,12 @@ impl<'p, 's> BottomUpContext<'p, 's> {
   /// execute `src` if it was scheduled. Returns `Some` output if `task` was (eventually) scheduled and thus executed,
   /// or `None` if `task` was not executed and thus not (eventually) scheduled.
   #[inline]
-  fn require_scheduled_now<T: Task>(&mut self, src: &TaskNode) -> Option<T::Output> {
+  fn require_scheduled_now(&mut self, src: &TaskNode) -> Option<Box<dyn ValueObj>> {
     while self.scheduled.is_not_empty() {
       if let Some(min_task_node) = self.scheduled.pop_least_task_with_dependency_from(src, &self.session.store) {
         let output = self.execute_and_schedule(min_task_node);
         if min_task_node == *src {
-          let output = output.into_box_any().downcast::<T::Output>()
-            .expect("BUG: non-matching task output type");
-          return Some(*output);
+          return Some(output);
         }
       } else {
         break;
@@ -193,23 +191,22 @@ impl<'p, 's> BottomUpContext<'p, 's> {
   /// Make `task` (with corresponding `node`) consistent, returning its output
   #[inline]
   fn make_task_consistent<T: Task>(&mut self, task: &T, node: TaskNode) -> T::Output {
-    if self.session.consistent.contains(&node) { // Task is already consistent: return its output.
-      return self.session.store.get_task_output(&node)
-        .expect("BUG: no task output for already consistent task")
-        .as_any().downcast_ref::<T::Output>()
-        .expect("BUG: non-matching task output type")
-        .clone();
+    if let Some(output) = self.session.try_get_consistent(&node) {
+      // Task is already consistent in this session: return its output.
+      return output;
     }
 
-    if self.session.store.get_task_output(&node).is_none() { // Task is new: execute it.
+    if let None = self.session.store.get_task_output(&node) {
+      // Task has no output, so it is new: execute it.
       return self.execute(task, node);
     }
 
     // Task is an existing task. Either it has been scheduled if affected, or not scheduled if not affected.
-    if let Some(output) = self.require_scheduled_now::<T>(&node) {
+    if let Some(output) = self.require_scheduled_now(&node) {
       // Task was scheduled. That is, it was either directly or indirectly affected. Therefore, it has been
       // executed, and we return the result of that execution.
-      output
+      *output.into_box_any().downcast::<T::Output>()
+        .expect("BUG: non-matching task output type")
     } else {
       // Task was not scheduled. That is, it was not directly affected by resource changes, and not indirectly
       // affected by other tasks.
@@ -235,8 +232,57 @@ impl<'p, 's> BottomUpContext<'p, 's> {
         .clone()
     }
   }
-}
 
+
+  /// Make `task` (with corresponding `node`) consistent, returning its output
+  #[inline]
+  fn make_task_consistent_dyn<O: Value>(&mut self, task: &dyn TaskObj<Output=O>, node: TaskNode) -> O {
+    // TODO: try to extract common code
+
+    if let Some(output) = self.session.try_get_consistent(&node) {
+      // Task is already consistent in this session: return its output.
+      return output;
+    }
+
+    if let None = self.session.store.get_task_output(&node) {
+      // Task has no output, so it is new: execute it.
+      let output = self.execute_obj(task.as_task_erased_obj(), node);
+      return *output.into_box_any().downcast::<O>()
+        .expect("BUG: non-matching task output type");
+    }
+
+    // Task is an existing task. Either it has been scheduled if affected, or not scheduled if not affected.
+    if let Some(output) = self.require_scheduled_now(&node) {
+      // Task was scheduled. That is, it was either directly or indirectly affected. Therefore, it has been
+      // executed, and we return the result of that execution.
+      *output.into_box_any().downcast::<O>()
+        .expect("BUG: non-matching task output type")
+    } else {
+      // Task was not scheduled. That is, it was not directly affected by resource changes, and not indirectly
+      // affected by other tasks.
+      //
+      // The task cannot be affected during this build. Consider if the task would be affected, this can only occur in
+      // 3 different ways:
+      //
+      // 1. the task is affected by a change in one of its require resource dependencies. But this cannot occur because the
+      //    dependency is consistent right now, and cannot become inconsistent due to the absence of hidden dependencies.
+      // 2. the task is affected by a change in one of its provided resource dependencies. But this cannot occur because the
+      //    dependency is consistent right now, and cannot become inconsistent due to the absence of hidden dependencies
+      //    and overlapping provided resources.
+      // 3. the task is affected by a change in one of its require task dependencies. But this cannot occur because the
+      //    dependency is consistent right now, and cannot become inconsistent because `require_scheduled_now` has made
+      //    the task and all its (indirect) dependencies consistent.
+      //
+      // All case cannot occur, thus the task cannot be affected. Therefore, we don't have to execute the task.
+      let output = self.session.store.get_task_output(&node);
+
+      output.expect("BUG: no task output for unaffected task")
+        .as_any().downcast_ref::<O>()
+        .expect("BUG: non-matching task output type")
+        .clone()
+    }
+  }
+}
 
 impl<'p, 's> Context for BottomUpContext<'p, 's> {
   #[inline]
@@ -254,6 +300,26 @@ impl<'p, 's> Context for BottomUpContext<'p, 's> {
     track_end(&mut self.session.tracker, &stamp, &output);
 
     self.session.update_require_dependency(&dst, task, checker, stamp);
+
+    // Note: make_task_consistent does not insert into self.session.consistent, so do that here.
+    self.session.consistent.insert(dst);
+    output
+  }
+
+  fn require_dyn<O, H>(&mut self, task: &dyn TaskObj<Output=O>, checker: H) -> O where
+    O: Value,
+    H: OutputChecker<O>,
+  {
+    let track_end = self.session.tracker.require(task.as_key_obj(), &checker);
+
+    let dst = self.session.store.get_or_create_task_node(task.as_task_erased_obj());
+    self.session.reserve_require_dependency(&dst, task);
+
+    let output = self.make_task_consistent_dyn(task, dst);
+    let stamp = checker.stamp(&output);
+    track_end(&mut self.session.tracker, &stamp, &output);
+
+    self.session.update_require_dependency_dyn(&dst, task, checker, stamp);
 
     // Note: make_task_consistent does not insert into self.session.consistent, so do that here.
     self.session.consistent.insert(dst);

@@ -44,9 +44,7 @@ impl<T: Task> TaskDependency<T> {
   pub fn into_require(self) -> Dependency { Dependency::from(self) }
 }
 
-/// Internal trait for task dependencies.
-///
-/// Object-safe trait.
+/// Internal object-safe trait for task dependencies.
 pub trait TaskDependencyObj: DynClone + Debug {
   fn task(&self) -> &dyn KeyObj;
   fn checker(&self) -> &dyn KeyObj;
@@ -209,6 +207,10 @@ pub enum Dependency {
 impl<T: Task> From<TaskDependency<T>> for Dependency {
   #[inline]
   fn from(value: TaskDependency<T>) -> Self { Self::Require(Box::new(value)) }
+}
+impl From<Box<dyn TaskDependencyObj>> for Dependency {
+  #[inline]
+  fn from(value: Box<dyn TaskDependencyObj>) -> Self { Self::Require(value) }
 }
 impl Dependency {
   #[inline]

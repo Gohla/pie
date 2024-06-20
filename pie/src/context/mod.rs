@@ -1,7 +1,10 @@
+use std::fmt::Debug;
+
 use crate::{OutputChecker, Resource, ResourceChecker, Task};
 use crate::dependency::{Dependency, ResourceDependency, TaskDependency};
 use crate::pie::SessionInternal;
 use crate::store::{ResourceNode, TaskNode};
+use crate::trait_object::TaskObj;
 
 pub mod top_down;
 pub mod bottom_up;
@@ -26,10 +29,15 @@ pub trait SessionExt {
     H: ResourceChecker<R>;
 
   fn reserve_require_dependency<T>(&mut self, dst: &TaskNode, task: &T) where
-    T: Task;
+    T: Debug + ?Sized;
   fn update_require_dependency<T, H>(&mut self, dst: &TaskNode, task: &T, checker: H, stamp: H::Stamp) where
     T: Task,
     H: OutputChecker<T::Output>;
+  fn update_require_dependency_dyn<O, H>(&mut self, dst: &TaskNode, task: &dyn TaskObj<Output=O>, checker: H, stamp: H::Stamp) where
+    O: 'static,
+    H: OutputChecker<O>;
+
+  fn try_get_consistent<O: Clone + 'static>(&self, node: &TaskNode) -> Option<O>;
 }
 
 impl SessionExt for SessionInternal<'_> {
@@ -120,7 +128,7 @@ impl SessionExt for SessionInternal<'_> {
   }
 
   fn reserve_require_dependency<T>(&mut self, dst: &TaskNode, task: &T) where
-    T: Task,
+    T: Debug + ?Sized,
   {
     if let Some(src) = &self.current_executing_task {
       // Before making the task consistent, first reserve a dependency in the dependency graph, ensuring that all cyclic
@@ -144,11 +152,38 @@ impl SessionExt for SessionInternal<'_> {
       *dependency = task_dependency.into();
     }
   }
+
+  fn update_require_dependency_dyn<O, H>(&mut self, dst: &TaskNode, task: &dyn TaskObj<Output=O>, checker: H, stamp: H::Stamp) where
+    O: 'static,
+    H: OutputChecker<O>,
+  {
+    if let Some(src) = &self.current_executing_task {
+      // Update the dependency in the graph from a reserved dependency to a real task require dependency.
+      let task_dependency = task.create_dependency(Box::new(checker), Box::new(stamp));
+      let dependency = self.store.get_dependency_mut(src, dst);
+      *dependency = task_dependency.into();
+    }
+  }
+
+  fn try_get_consistent<O: Clone + 'static>(&self, node: &TaskNode) -> Option<O> {
+    if self.consistent.contains(node) {
+      // Task is already consistent: don't need to check it, just return `Some(output)`.
+      let output = self.store.get_task_output(node)
+        .expect("BUG: no task output for already consistent task")
+        .as_any().downcast_ref::<O>()
+        .expect("BUG: non-matching task output type")
+        .clone();
+      Some(output)
+    } else {
+      // Task is not consistent yet: return `None` indicating that it should be checked.
+      None
+    }
+  }
 }
 
 /// Validates a `resource` write from `src` to `dst`, panicking if an overlapping write or hidden dependency was found.
 #[inline]
-fn validate_write<R: Resource>(session: &SessionInternal<'_>, resource: &R, src: &TaskNode, dst: &ResourceNode) {
+fn validate_write<R: Debug + ?Sized>(session: &SessionInternal<'_>, resource: &R, src: &TaskNode, dst: &ResourceNode) {
   if let Some(previous_writing_task_node) = session.store.get_task_writing_to_resource(dst) {
     let src_task = session.store.get_task(src);
     let previous_writing_task = session.store.get_task(&previous_writing_task_node);

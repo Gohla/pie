@@ -4,23 +4,18 @@ use std::hash::{Hash, Hasher};
 
 use crate::{OutputChecker, Task};
 use crate::context::bottom_up::BottomUpContext;
-use crate::context::top_down::TopDownContext;
 use crate::trait_object::{KeyObj, ValueObj};
 
-/// Internal object safe [`Task`] proxy. Has execute methods for concrete [`Context`] implementations, instead of a
-/// generic method, due to object safety.
-pub trait TaskObj: KeyObj {
-  fn execute_top_down(&self, context: &mut TopDownContext) -> Box<dyn ValueObj>;
+/// Internal object safe [`Task`] proxy with type-erased output. Has execute methods for concrete [`Context`]
+/// implementations, instead of a generic method, due to object safety.
+pub trait TaskErasedObj: KeyObj {
   fn execute_bottom_up(&self, context: &mut BottomUpContext) -> Box<dyn ValueObj>;
 
   fn as_key_obj(&self) -> &dyn KeyObj;
 }
-const_assert_object_safe!(dyn TaskObj);
-impl<T: Task> TaskObj for T {
-  #[inline]
-  fn execute_top_down(&self, context: &mut TopDownContext) -> Box<dyn ValueObj> {
-    Box::new(self.execute(context))
-  }
+const_assert_object_safe!(dyn TaskErasedObj);
+
+impl<T: Task> TaskErasedObj for T {
   #[inline]
   fn execute_bottom_up(&self, context: &mut BottomUpContext) -> Box<dyn ValueObj> {
     Box::new(self.execute(context))
@@ -29,47 +24,48 @@ impl<T: Task> TaskObj for T {
   #[inline]
   fn as_key_obj(&self) -> &dyn KeyObj { self as &dyn KeyObj }
 }
-impl<'a, T: Task> From<&'a T> for &'a dyn TaskObj {
+
+impl<'a, T: Task> From<&'a T> for &'a dyn TaskErasedObj {
   #[inline]
-  fn from(value: &'a T) -> Self { value as &dyn TaskObj }
+  fn from(value: &'a T) -> Self { value as &dyn TaskErasedObj }
 }
-impl<T: Task> From<T> for Box<dyn TaskObj> {
+impl<T: Task> From<T> for Box<dyn TaskErasedObj> {
   #[inline]
   fn from(value: T) -> Self { Box::new(value) }
 }
-impl PartialEq for dyn TaskObj {
+impl PartialEq for dyn TaskErasedObj {
   #[inline]
   fn eq(&self, other: &Self) -> bool { self.eq_any(other.as_any()) }
 }
-impl Eq for dyn TaskObj {}
-impl PartialEq<dyn TaskObj> for Box<dyn TaskObj> {
+impl Eq for dyn TaskErasedObj {}
+impl PartialEq<dyn TaskErasedObj> for Box<dyn TaskErasedObj> {
   #[inline]
-  fn eq(&self, other: &dyn TaskObj) -> bool { self.as_ref().eq_any(other.as_any()) }
+  fn eq(&self, other: &dyn TaskErasedObj) -> bool { self.as_ref().eq_any(other.as_any()) }
 }
-impl Hash for dyn TaskObj {
+impl Hash for dyn TaskErasedObj {
   #[inline]
   fn hash<H: Hasher>(&self, state: &mut H) { self.hash_obj(state); }
 }
-impl Clone for Box<dyn TaskObj> {
+impl Clone for Box<dyn TaskErasedObj> {
   #[inline]
   fn clone(&self) -> Self { dyn_clone::clone_box(self.as_ref()) }
 }
-impl ToOwned for dyn TaskObj {
-  type Owned = Box<dyn TaskObj>;
+impl ToOwned for dyn TaskErasedObj {
+  type Owned = Box<dyn TaskErasedObj>;
   #[inline]
   fn to_owned(&self) -> Self::Owned { dyn_clone::clone_box(self) }
 }
-impl<'a> From<&'a dyn TaskObj> for Cow<'a, dyn TaskObj> {
+impl<'a> From<&'a dyn TaskErasedObj> for Cow<'a, dyn TaskErasedObj> {
   #[inline]
-  fn from(value: &'a dyn TaskObj) -> Self { Cow::Borrowed(value) }
+  fn from(value: &'a dyn TaskErasedObj) -> Self { Cow::Borrowed(value) }
 }
-impl<'a> From<Box<dyn TaskObj>> for Cow<'a, dyn TaskObj> {
+impl<'a> From<Box<dyn TaskErasedObj>> for Cow<'a, dyn TaskErasedObj> {
   #[inline]
-  fn from(value: Box<dyn TaskObj>) -> Self { Cow::Owned(value) }
+  fn from(value: Box<dyn TaskErasedObj>) -> Self { Cow::Owned(value) }
 }
 
 
-/// Internal object safe [`OutputChecker`] proxy.
+/// Internal object safe [`OutputChecker`] proxy with type-erased stamp.
 pub trait OutputCheckerObj<O>: KeyObj {
   fn check_obj<'i>(&'i self, output: &'i O, stamp: &'i dyn ValueObj) -> Option<Box<dyn Debug + 'i>>;
 

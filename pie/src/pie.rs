@@ -3,7 +3,7 @@ use std::error::Error;
 use std::fmt::Debug;
 use std::ops::{Deref, DerefMut};
 
-use crate::{Context, OutputChecker, Resource, ResourceChecker, ResourceState, Session, Task};
+use crate::{Context, Resource, ResourceChecker, ResourceState, Session, Task};
 use crate::context::bottom_up::BottomUpContext;
 use crate::context::top_down::TopDownContext;
 use crate::store::{Store, TaskNode};
@@ -123,14 +123,14 @@ impl Tracking<'_> {
 
   #[inline]
   #[must_use]
-  pub fn require<'a, T: Task, H: OutputChecker<T::Output>>(
+  pub fn require<'a>(
     &mut self,
-    task: &'a T,
-    checker: &'a H,
+    task: &'a dyn KeyObj,
+    checker: &'a dyn KeyObj,
   ) -> impl FnOnce(&mut Tracking, &dyn ValueObj, &dyn ValueObj) + 'a {
     self.0.require_start(task, checker);
     |tracking, stamp, output|
-      tracking.0.require_end(task, checker, stamp, output)
+    tracking.0.require_end(task, checker, stamp, output)
   }
   #[inline]
   #[must_use]

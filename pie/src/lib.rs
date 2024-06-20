@@ -22,7 +22,7 @@ use std::fmt::Debug;
 use std::hash::Hash;
 
 use crate::tracker::Tracker;
-use crate::trait_object::KeyObj;
+use crate::trait_object::{KeyObj, TaskObj};
 
 pub mod task;
 pub mod resource;
@@ -78,6 +78,11 @@ pub trait Context {
   fn require<T, H>(&mut self, task: &T, checker: H) -> T::Output where
     T: Task,
     H: OutputChecker<T::Output>;
+  /// Requires `task` using `checker` for consistency checking, creating a task dependency and returning its consistent
+  /// (i.e., most up-to-date) output value.
+  fn require_dyn<O, H>(&mut self, task: &dyn TaskObj<Output=O>, checker: H) -> O where
+    O: Value,
+    H: OutputChecker<O>;
 
   /// Creates a read dependency to `resource` using `checker` for consistency checking, then returns a
   /// [reader](Resource::Reader) for reading the resource.

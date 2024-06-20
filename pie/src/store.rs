@@ -5,11 +5,11 @@ use pie_graph::{DAG, Node};
 
 use crate::dependency::{Dependency, ResourceDependencyObj, TaskDependencyObj};
 use crate::trait_object::{KeyObj, ValueObj};
-use crate::trait_object::task::TaskObj;
+use crate::trait_object::task::TaskErasedObj;
 
 pub struct Store {
   graph: DAG<NodeData, Dependency>,
-  task_to_node: HashMap<Box<dyn TaskObj>, TaskNode>,
+  task_to_node: HashMap<Box<dyn TaskErasedObj>, TaskNode>,
   resource_to_node: HashMap<Box<dyn KeyObj>, ResourceNode>,
 }
 
@@ -27,7 +27,7 @@ impl Default for Store {
 enum NodeData {
   Resource(Box<dyn KeyObj>),
   Task {
-    task: Box<dyn TaskObj>,
+    task: Box<dyn TaskErasedObj>,
     output: Option<Box<dyn ValueObj>>,
   },
 }
@@ -51,7 +51,7 @@ impl Borrow<Node> for &ResourceNode {
 impl Store {
   /// Gets the task node for `task`, or creates a task node by adding it to the dependency graph.
   #[inline]
-  pub fn get_or_create_task_node(&mut self, task: &dyn TaskObj) -> TaskNode {
+  pub fn get_or_create_task_node(&mut self, task: &dyn TaskErasedObj) -> TaskNode {
     if let Some(node) = self.task_to_node.get(task) {
       *node
     } else {
@@ -70,7 +70,7 @@ impl Store {
   ///
   /// Panics if `node` was not found in the dependency graph.
   #[inline]
-  pub fn get_task(&self, node: &TaskNode) -> &dyn TaskObj {
+  pub fn get_task(&self, node: &TaskNode) -> &dyn TaskErasedObj {
     let Some(NodeData::Task { task, .. }) = self.graph.get_node_data(node) else {
       panic!("BUG: {:?} was not found in the dependency graph", node);
     };
@@ -336,7 +336,7 @@ mod test {
       downcast_ref_or_panic::<&'static str>(self.as_any())
     }
   }
-  impl Cast for dyn TaskObj {
+  impl Cast for dyn TaskErasedObj {
     fn as_path(&self) -> &PathBuf {
       downcast_ref_or_panic(self.as_any())
     }

@@ -1,11 +1,13 @@
 use std::any::Any;
 use std::fmt::Debug;
 
-use crate::{Context, OutputChecker, Resource, ResourceChecker, Task};
+use crate::{Context, OutputChecker, Resource, ResourceChecker, Task, Value};
 use crate::context::SessionExt;
 use crate::dependency::{Dependency, TaskDependency};
 use crate::pie::SessionInternal;
 use crate::store::TaskNode;
+use crate::trait_object::task::OutputCheckerObj;
+use crate::trait_object::TaskObj;
 
 /// Top-down incremental context implementation.
 ///
@@ -40,6 +42,24 @@ impl Context for TopDownContext<'_, '_> {
     track_end(&mut self.session.tracker, &stamp, &output);
 
     self.session.update_require_dependency(&dst, task, checker, stamp);
+
+    output
+  }
+
+  fn require_dyn<O, H>(&mut self, task: &dyn TaskObj<Output=O>, checker: H) -> O where
+    O: Value,
+    H: OutputChecker<O>,
+  {
+    let track_end = self.session.tracker.require(task.as_key_obj(), checker.as_key_obj());
+
+    let dst = self.session.store.get_or_create_task_node(task.as_task_erased_obj());
+    self.session.reserve_require_dependency(&dst, task);
+
+    let output = self.make_task_consistent_dyn(task);
+    let stamp = checker.stamp(&output);
+    track_end(&mut self.session.tracker, &stamp, &output);
+
+    self.session.update_require_dependency_dyn(&dst, task, checker, stamp);
 
     output
   }
@@ -84,12 +104,8 @@ impl TopDownContext<'_, '_> {
   fn make_task_consistent<T: Task>(&mut self, task: &T) -> T::Output {
     let node = self.session.store.get_or_create_task_node(task);
 
-    if self.session.consistent.contains(&node) { // Task is already consistent: return its output.
-      return self.session.store.get_task_output(&node)
-        .expect("BUG: no task output for already consistent task")
-        .as_any().downcast_ref::<T::Output>()
-        .expect("BUG: non-matching task output type")
-        .clone();
+    if let Some(output) = self.session.try_get_consistent(&node) {
+      return output;
     }
 
     let output = if let Some(output) = self.check_task::<T::Output>(&node) {
@@ -99,6 +115,34 @@ impl TopDownContext<'_, '_> {
       let previous_executing_task = self.session.current_executing_task.replace(node);
       let track_end = self.session.tracker.execute(task);
       let output = task.execute(self);
+      track_end(&mut self.session.tracker, &output);
+      self.session.current_executing_task = previous_executing_task;
+      self.session.store.set_task_output(&node, Box::new(output.clone()));
+      output
+    };
+
+    self.session.consistent.insert(node);
+    output
+  }
+
+  /// Makes `dyn_task` consistent, returning its consistent output.
+  #[inline]
+  fn make_task_consistent_dyn<O: Value>(&mut self, task: &dyn TaskObj<Output=O>) -> O {
+    // TODO: try to extract common code
+
+    let node = self.session.store.get_or_create_task_node(task.as_task_erased_obj());
+
+    if let Some(output) = self.session.try_get_consistent(&node) {
+      return output;
+    }
+
+    let output = if let Some(output) = self.check_task::<O>(&node) {
+      output.clone()
+    } else {
+      self.session.store.reset_task(&node);
+      let previous_executing_task = self.session.current_executing_task.replace(node);
+      let track_end = self.session.tracker.execute(task.as_key_obj());
+      let output = task.execute_top_down(self);
       track_end(&mut self.session.tracker, &output);
       self.session.current_executing_task = previous_executing_task;
       self.session.store.set_task_output(&node, Box::new(output.clone()));

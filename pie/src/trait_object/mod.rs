@@ -6,7 +6,10 @@ use dyn_clone::DynClone;
 
 use base::{AsAny, EqObj, HashObj};
 
-use crate::{Key, Value, ValueEq};
+use crate::{Key, Task, Value, ValueEq};
+use crate::context::top_down::TopDownContext;
+use crate::dependency::{TaskDependency, TaskDependencyObj};
+use crate::trait_object::task::{OutputCheckerObj, TaskErasedObj};
 
 #[macro_use]
 pub(crate) mod base;
@@ -228,4 +231,75 @@ mod tests {
     assert_eq!(format!("{:?}", key_a), format!("{:?}", task_a));
     assert_ne!(format!("{:?}", key_a), format!("{:?}", task_b));
   }
+}
+
+
+/// Object safe [`Task`] proxy. Has execute methods for concrete [`Context`] implementations, instead of a generic
+/// method, due to object safety.
+pub trait TaskObj: TaskErasedObj {
+  type Output;
+
+  fn execute_top_down(&self, context: &mut TopDownContext) -> Self::Output;
+
+  fn create_dependency(&self, checker: Box<dyn OutputCheckerObj<Self::Output>>, stamp: Box<dyn ValueObj>) -> Box<dyn TaskDependencyObj>;
+
+  fn as_task_erased_obj(&self) -> &dyn TaskErasedObj;
+}
+const_assert_object_safe!(dyn TaskObj<Output=()>);
+
+// Note: `DynTask` uses an associated type (*not* a type parameter), so there is only 1 `DynTask` impl per `Task` type.
+impl<T: Task> TaskObj for T {
+  type Output = T::Output;
+
+  #[inline]
+  fn execute_top_down(&self, context: &mut TopDownContext) -> Self::Output {
+    self.execute(context)
+  }
+
+  #[inline]
+  fn create_dependency(&self, checker: Box<dyn OutputCheckerObj<Self::Output>>, stamp: Box<dyn ValueObj>) -> Box<dyn TaskDependencyObj> {
+    Box::new(TaskDependency::new(self.clone(), checker, stamp))
+  }
+
+  #[inline]
+  fn as_task_erased_obj(&self) -> &dyn TaskErasedObj { self as &dyn TaskErasedObj }
+}
+
+impl<'a, T: Task> From<&'a T> for &'a dyn TaskObj<Output=T::Output> {
+  #[inline]
+  fn from(value: &'a T) -> Self { value as &dyn TaskObj<Output=T::Output> }
+}
+impl<T: Task> From<T> for Box<dyn TaskObj<Output=T::Output>> {
+  #[inline]
+  fn from(value: T) -> Self { Box::new(value) }
+}
+impl<O: 'static> PartialEq for dyn TaskObj<Output=O> {
+  #[inline]
+  fn eq(&self, other: &Self) -> bool { self.eq_any(other.as_any()) }
+}
+impl<O: 'static> Eq for dyn TaskObj<Output=O> {}
+impl<O: 'static> PartialEq<dyn TaskObj<Output=O>> for Box<dyn TaskObj<Output=O>> {
+  #[inline]
+  fn eq(&self, other: &dyn TaskObj<Output=O>) -> bool { self.as_ref().eq_any(other.as_any()) }
+}
+impl<O> Hash for dyn TaskObj<Output=O> {
+  #[inline]
+  fn hash<H: Hasher>(&self, state: &mut H) { self.hash_obj(state); }
+}
+impl<O> Clone for Box<dyn TaskObj<Output=O>> {
+  #[inline]
+  fn clone(&self) -> Self { dyn_clone::clone_box(self.as_ref()) }
+}
+impl<O> ToOwned for dyn TaskObj<Output=O> {
+  type Owned = Box<dyn TaskObj<Output=O>>;
+  #[inline]
+  fn to_owned(&self) -> Self::Owned { dyn_clone::clone_box(self) }
+}
+impl<'a, O> From<&'a dyn TaskObj<Output=O>> for Cow<'a, dyn TaskObj<Output=O>> {
+  #[inline]
+  fn from(value: &'a dyn TaskObj<Output=O>) -> Self { Cow::Borrowed(value) }
+}
+impl<'a, O> From<Box<dyn TaskObj<Output=O>>> for Cow<'a, dyn TaskObj<Output=O>> {
+  #[inline]
+  fn from(value: Box<dyn TaskObj<Output=O>>) -> Self { Cow::Owned(value) }
 }

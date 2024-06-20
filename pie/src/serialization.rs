@@ -4,10 +4,10 @@ use serde_flexitos::{MapRegistry, Registry};
 use crate::{Resource, Task};
 use crate::dependency::{ResourceDependency, ResourceDependencyObj, TaskDependency, TaskDependencyObj};
 use crate::trait_object::{KeyObj, ValueObj};
-use crate::trait_object::task::TaskObj;
+use crate::trait_object::task::TaskErasedObj;
 
 pub struct Registries {
-  task_registry: MapRegistry<dyn TaskObj>,
+  task_registry: MapRegistry<dyn TaskErasedObj>,
   output_registry: MapRegistry<dyn ValueObj>,
   task_dependency_registry: MapRegistry<dyn TaskDependencyObj>,
 
