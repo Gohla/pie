@@ -171,7 +171,7 @@ impl<'p, 's> BottomUpContext<'p, 's> {
   }
 
   /// Execute scheduled tasks (and potentially schedule new tasks) that depend (indirectly) on task `src`, and then
-  /// execute `src` if it was scheduled. Returns `Some` output if `task` was (eventually) scheduled and thus executed,
+  /// execute `src` if it was scheduled. Returns `Some(output)` if `task` was (eventually) scheduled and thus executed,
   /// or `None` if `task` was not executed and thus not (eventually) scheduled.
   #[inline]
   fn require_scheduled_now(&mut self, src: &TaskNode) -> Option<Box<dyn ValueObj>> {
@@ -188,7 +188,7 @@ impl<'p, 's> BottomUpContext<'p, 's> {
     None
   }
 
-  /// Make `task` (with corresponding `node`) consistent, returning its output
+  /// Make `task` (with corresponding `node`) consistent, returning its output.
   #[inline]
   fn make_task_consistent<T: Task>(&mut self, task: &T, node: TaskNode) -> T::Output {
     if let Some(output) = self.session.try_get_consistent(&node) {
@@ -233,10 +233,9 @@ impl<'p, 's> BottomUpContext<'p, 's> {
     }
   }
 
-
-  /// Make `task` (with corresponding `node`) consistent, returning its output
+  /// Make trait-object `task` (with corresponding `node`) consistent, returning its output.
   #[inline]
-  fn make_task_consistent_dyn<O: Value>(&mut self, task: &dyn TaskObj<Output=O>, node: TaskNode) -> O {
+  fn make_task_consistent_obj<O: Value>(&mut self, task: &dyn TaskObj<Output=O>, node: TaskNode) -> O {
     // TODO: try to extract common code
 
     if let Some(output) = self.session.try_get_consistent(&node) {
@@ -306,7 +305,8 @@ impl<'p, 's> Context for BottomUpContext<'p, 's> {
     output
   }
 
-  fn require_dyn<O, H>(&mut self, task: &dyn TaskObj<Output=O>, checker: H) -> O where
+  #[inline]
+  fn require_obj<O, H>(&mut self, task: &dyn TaskObj<Output=O>, checker: H) -> O where
     O: Value,
     H: OutputChecker<O>,
   {
@@ -315,11 +315,11 @@ impl<'p, 's> Context for BottomUpContext<'p, 's> {
     let dst = self.session.store.get_or_create_task_node(task.as_task_erased_obj());
     self.session.reserve_require_dependency(&dst, task);
 
-    let output = self.make_task_consistent_dyn(task, dst);
+    let output = self.make_task_consistent_obj(task, dst);
     let stamp = checker.stamp(&output);
     track_end(&mut self.session.tracker, &stamp, &output);
 
-    self.session.update_require_dependency_dyn(&dst, task, checker, stamp);
+    self.session.update_require_dependency_obj(&dst, task, checker, stamp);
 
     // Note: make_task_consistent does not insert into self.session.consistent, so do that here.
     self.session.consistent.insert(dst);

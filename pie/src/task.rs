@@ -111,7 +111,7 @@ impl Task for () {
 }
 
 /// Implement task for [`Box`] wrapped tasks.
-impl<T: Task> Task for Box<T> {
+impl<T: Task + ?Sized> Task for Box<T> {
   type Output = T::Output;
   #[inline]
   fn execute<C: Context>(&self, context: &mut C) -> Self::Output {
@@ -119,7 +119,7 @@ impl<T: Task> Task for Box<T> {
   }
 }
 /// Implement task for [`Rc`] wrapped tasks.
-impl<T: Task> Task for Rc<T> {
+impl<T: Task + ?Sized> Task for Rc<T> {
   type Output = T::Output;
   #[inline]
   fn execute<C: Context>(&self, context: &mut C) -> Self::Output {
@@ -127,7 +127,7 @@ impl<T: Task> Task for Rc<T> {
   }
 }
 /// Implement task for [`Arc`] wrapped tasks.
-impl<T: Task> Task for Arc<T> {
+impl<T: Task + ?Sized> Task for Arc<T> {
   type Output = T::Output;
   #[inline]
   fn execute<C: Context>(&self, context: &mut C) -> Self::Output {

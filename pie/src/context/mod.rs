@@ -33,7 +33,7 @@ pub trait SessionExt {
   fn update_require_dependency<T, H>(&mut self, dst: &TaskNode, task: &T, checker: H, stamp: H::Stamp) where
     T: Task,
     H: OutputChecker<T::Output>;
-  fn update_require_dependency_dyn<O, H>(&mut self, dst: &TaskNode, task: &dyn TaskObj<Output=O>, checker: H, stamp: H::Stamp) where
+  fn update_require_dependency_obj<O, H>(&mut self, dst: &TaskNode, task: &dyn TaskObj<Output=O>, checker: H, stamp: H::Stamp) where
     O: 'static,
     H: OutputChecker<O>;
 
@@ -153,7 +153,7 @@ impl SessionExt for SessionInternal<'_> {
     }
   }
 
-  fn update_require_dependency_dyn<O, H>(&mut self, dst: &TaskNode, task: &dyn TaskObj<Output=O>, checker: H, stamp: H::Stamp) where
+  fn update_require_dependency_obj<O, H>(&mut self, dst: &TaskNode, task: &dyn TaskObj<Output=O>, checker: H, stamp: H::Stamp) where
     O: 'static,
     H: OutputChecker<O>,
   {

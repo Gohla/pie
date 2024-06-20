@@ -46,7 +46,7 @@ impl Context for TopDownContext<'_, '_> {
     output
   }
 
-  fn require_dyn<O, H>(&mut self, task: &dyn TaskObj<Output=O>, checker: H) -> O where
+  fn require_obj<O, H>(&mut self, task: &dyn TaskObj<Output=O>, checker: H) -> O where
     O: Value,
     H: OutputChecker<O>,
   {
@@ -55,11 +55,11 @@ impl Context for TopDownContext<'_, '_> {
     let dst = self.session.store.get_or_create_task_node(task.as_task_erased_obj());
     self.session.reserve_require_dependency(&dst, task);
 
-    let output = self.make_task_consistent_dyn(task);
+    let output = self.make_task_consistent_obj(task);
     let stamp = checker.stamp(&output);
     track_end(&mut self.session.tracker, &stamp, &output);
 
-    self.session.update_require_dependency_dyn(&dst, task, checker, stamp);
+    self.session.update_require_dependency_obj(&dst, task, checker, stamp);
 
     output
   }
@@ -99,7 +99,7 @@ impl Context for TopDownContext<'_, '_> {
 }
 
 impl TopDownContext<'_, '_> {
-  /// Makes `task` consistent, returning its consistent output.
+  /// Make `task` consistent, returning its consistent output.
   #[inline]
   fn make_task_consistent<T: Task>(&mut self, task: &T) -> T::Output {
     let node = self.session.store.get_or_create_task_node(task);
@@ -125,9 +125,9 @@ impl TopDownContext<'_, '_> {
     output
   }
 
-  /// Makes `dyn_task` consistent, returning its consistent output.
+  /// Make trait-object `task` consistent, returning its consistent output.
   #[inline]
-  fn make_task_consistent_dyn<O: Value>(&mut self, task: &dyn TaskObj<Output=O>) -> O {
+  fn make_task_consistent_obj<O: Value>(&mut self, task: &dyn TaskObj<Output=O>) -> O {
     // TODO: try to extract common code
 
     let node = self.session.store.get_or_create_task_node(task.as_task_erased_obj());
