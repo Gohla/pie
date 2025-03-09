@@ -7,10 +7,13 @@ publish = false
 [dependencies]
 pie_graph = { path = "../graph" }
 dyn-clone = "1"
-serde_flexitos = "0.2"
-serde = "1"
-erased-serde = "0.4"
 sha2 = { version = "0.10", optional = true }
+serde = { version = "1", optional = true }
+erased-serde = { version = "0.4", optional = true }
+serde_flexitos = { version = "0.2", optional = true }
+linkme = { version = "0.3", optional = true }
+once_cell = { version = "1", optional = true }
+paste = { version = "1", optional = true }
 
 [dev-dependencies]
 dev_util = { path = "../dev_util" }
@@ -19,7 +22,9 @@ assert_matches = "1"
 testresult = "0.4"
 
 [features]
+default = ["serde"] # TODO: remove serde from default features
 file_hash_checker = ["dep:sha2"]
+serde = ["dep:serde", "serde/rc", "pie_graph/serde", "dep:erased-serde", "dep:serde_flexitos", "serde_flexitos/id_trait", "dep:linkme", "dep:once_cell", "dep:paste"]
 
 
 [[test]]

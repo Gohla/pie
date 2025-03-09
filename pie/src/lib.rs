@@ -21,6 +21,7 @@ use std::error::Error;
 use std::fmt::Debug;
 use std::hash::Hash;
 
+use crate::serialize::{MaybeId, MaybeSerialize};
 use crate::tracker::Tracker;
 use crate::trait_object::{KeyObj, TaskObj};
 
@@ -34,12 +35,14 @@ mod pie;
 mod context;
 mod store;
 mod dependency;
+mod serialize;
+#[cfg(feature = "serde")]
 mod serialization;
 
 /// Trait alias for types that are used as values: types that can be cloned, debug formatted, and contain no
 /// non-`'static` references.
-pub trait Value: Clone + Debug + 'static {}
-impl<T: Clone + Debug + 'static> Value for T {}
+pub trait Value: Clone + Debug + 'static + MaybeSerialize + MaybeId {}
+impl<T: Clone + Debug + 'static + MaybeSerialize + MaybeId> Value for T {}
 
 /// Trait alias for types that are used as equatable values: types that are [values](Value) and that can be equality
 /// compared.
@@ -51,7 +54,7 @@ pub trait Key: ValueEq + Hash {}
 impl<T: ValueEq + Hash> Key for T {}
 
 /// A unit of computation in a programmatic incremental build system.
-pub trait Task: Key {
+pub trait Task: Key + MaybeSerialize + MaybeId {
   /// Type of task outputs.
   type Output: Value;
 

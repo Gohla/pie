@@ -6,6 +6,7 @@ use dyn_clone::DynClone;
 use crate::{OutputChecker, Resource, ResourceChecker, Task};
 use crate::context::top_down::TopDownCheck;
 use crate::pie::Tracking;
+use crate::serialize::MaybeErasedSerialize;
 use crate::trait_object::{KeyObj, ValueObj};
 use crate::trait_object::collection::TypeToAnyMap;
 use crate::trait_object::resource::ResourceCheckerObj;
@@ -13,6 +14,7 @@ use crate::trait_object::task::OutputCheckerObj;
 
 /// Internal type for task dependencies.
 #[derive(Clone, Debug)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct TaskDependency<T: Task> {
   task: T,
   checker: Box<dyn OutputCheckerObj<T::Output>>,
@@ -43,9 +45,13 @@ impl<T: Task> TaskDependency<T> {
   #[inline]
   pub fn into_require(self) -> Dependency { Dependency::from(self) }
 }
+// #[cfg(feature = "serde")]
+// impl<T: Task> Id for TaskDependency<T> {
+//   const ID: &'static str = T::ID;
+// }
 
 /// Internal object-safe trait for task dependencies.
-pub trait TaskDependencyObj: DynClone + Debug {
+pub trait TaskDependencyObj: DynClone + Debug + MaybeErasedSerialize {
   fn task(&self) -> &dyn KeyObj;
   fn checker(&self) -> &dyn KeyObj;
   fn stamp(&self) -> &dyn ValueObj;
@@ -54,6 +60,7 @@ pub trait TaskDependencyObj: DynClone + Debug {
   fn is_consistent_bottom_up(&self, output: &dyn ValueObj, requiring_task: &dyn KeyObj, tracker: &mut Tracking) -> bool;
 }
 const_assert_object_safe!(dyn TaskDependencyObj);
+
 impl<T: Task> TaskDependencyObj for TaskDependency<T> {
   #[inline]
   fn task(&self) -> &dyn KeyObj { &self.task as &dyn KeyObj }
@@ -82,6 +89,12 @@ impl<T: Task> TaskDependencyObj for TaskDependency<T> {
     }
   }
 }
+#[cfg(feature = "serde")]
+impl<'a> serde_flexitos::id::IdObj for dyn TaskDependencyObj + 'a {
+  fn id(&self) -> serde_flexitos::id::Ident<'static> {
+    self.task().id()
+  }
+}
 impl<T: Task> From<TaskDependency<T>> for Box<dyn TaskDependencyObj> {
   #[inline]
   fn from(value: TaskDependency<T>) -> Self { Box::new(value) }
@@ -94,6 +107,7 @@ impl Clone for Box<dyn TaskDependencyObj> {
 
 /// Internal type for resource dependencies.
 #[derive(Clone, Debug)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ResourceDependency<R> {
   resource: R,
   checker: Box<dyn ResourceCheckerObj<R>>,
@@ -198,6 +212,7 @@ impl Clone for Box<dyn ResourceDependencyObj> {
 
 /// Enumeration of all kinds of dependencies.
 #[derive(Clone, Debug)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum Dependency {
   ReservedRequire,
   Require(Box<dyn TaskDependencyObj>),

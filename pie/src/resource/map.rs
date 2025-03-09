@@ -77,6 +77,7 @@ impl<K: MapKey, RS: ResourceState<K>> GetGlobalMap<K> for RS {
 /// Hash map [resource checker](ResourceChecker) that marks hash map dependencies as consistent when the value
 /// corresponding to its key is equal.
 #[derive(Default, Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Debug)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct MapEqualsChecker;
 impl<K: MapKey> ResourceChecker<K> for MapEqualsChecker where
   K::Value: Clone + Eq + Debug
@@ -121,6 +122,7 @@ impl<K: MapKey> ResourceChecker<K> for MapEqualsChecker where
 
 /// [`MapKey`] from [`K`] to [`Box<dyn MapValueObj>`].
 #[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Debug)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[repr(transparent)]
 pub struct MapKeyToObj<K>(pub K);
 impl<K: Key> MapKey for MapKeyToObj<K> {

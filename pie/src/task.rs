@@ -1,12 +1,13 @@
 use std::fmt::Debug;
 use std::hash::Hash;
-use std::rc::Rc;
-use std::sync::Arc;
+// use std::rc::Rc;
+// use std::sync::Arc;
 
 use crate::{Context, OutputChecker, Task, ValueEq};
 
 /// [Task output checker](OutputChecker) that checks by equality.
 #[derive(Default, Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Debug)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct EqualsChecker;
 impl<O: ValueEq> OutputChecker<O> for EqualsChecker {
   type Stamp = O;
@@ -27,6 +28,7 @@ impl<O: ValueEq> OutputChecker<O> for EqualsChecker {
 /// outputs. For example, this is useful when depending on a task to write to some file which you want to read, but you
 /// are not interested in the output of the task.
 #[derive(Default, Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Debug)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct AlwaysConsistent;
 impl<O> OutputChecker<O> for AlwaysConsistent {
   type Stamp = ();
@@ -41,6 +43,7 @@ impl<O> OutputChecker<O> for AlwaysConsistent {
 
 /// [Task output checker](OutputChecker) that checks [Ok] by equality, but [Err] only by existence.
 #[derive(Default, Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Debug)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct OkEqualsChecker;
 impl<T: ValueEq, E> OutputChecker<Result<T, E>> for OkEqualsChecker {
   type Stamp = Option<T>;
@@ -62,6 +65,7 @@ impl<T: ValueEq, E> OutputChecker<Result<T, E>> for OkEqualsChecker {
 
 /// [Task output checker](OutputChecker) that checks [Err] by equality, but [Ok] only by existence.
 #[derive(Default, Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Debug)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ErrEqualsChecker;
 impl<T, E: ValueEq> OutputChecker<Result<T, E>> for ErrEqualsChecker {
   type Stamp = Option<E>;
@@ -83,6 +87,7 @@ impl<T, E: ValueEq> OutputChecker<Result<T, E>> for ErrEqualsChecker {
 
 /// [Task output checker](OutputChecker) that checks whether a [Result] changes from [Ok] to [Err] or vice versa.
 #[derive(Default, Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Debug)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ResultChecker;
 impl<T, E> OutputChecker<Result<T, E>> for ResultChecker {
   type Stamp = bool;
@@ -110,27 +115,27 @@ impl Task for () {
   fn execute<C: Context>(&self, _context: &mut C) -> Self::Output { () }
 }
 
-/// Implement task for [`Box`] wrapped tasks.
-impl<T: Task + ?Sized> Task for Box<T> {
-  type Output = T::Output;
-  #[inline]
-  fn execute<C: Context>(&self, context: &mut C) -> Self::Output {
-    self.as_ref().execute(context)
-  }
-}
-/// Implement task for [`Rc`] wrapped tasks.
-impl<T: Task + ?Sized> Task for Rc<T> {
-  type Output = T::Output;
-  #[inline]
-  fn execute<C: Context>(&self, context: &mut C) -> Self::Output {
-    self.as_ref().execute(context)
-  }
-}
-/// Implement task for [`Arc`] wrapped tasks.
-impl<T: Task + ?Sized> Task for Arc<T> {
-  type Output = T::Output;
-  #[inline]
-  fn execute<C: Context>(&self, context: &mut C) -> Self::Output {
-    self.as_ref().execute(context)
-  }
-}
+// /// Implement task for [`Box`] wrapped tasks.
+// impl<T: Task + ?Sized> Task for Box<T> {
+//   type Output = T::Output;
+//   #[inline]
+//   fn execute<C: Context>(&self, context: &mut C) -> Self::Output {
+//     self.as_ref().execute(context)
+//   }
+// }
+// /// Implement task for [`Rc`] wrapped tasks.
+// impl<T: Task + ?Sized> Task for Rc<T> {
+//   type Output = T::Output;
+//   #[inline]
+//   fn execute<C: Context>(&self, context: &mut C) -> Self::Output {
+//     self.as_ref().execute(context)
+//   }
+// }
+// /// Implement task for [`Arc`] wrapped tasks.
+// impl<T: Task + ?Sized> Task for Arc<T> {
+//   type Output = T::Output;
+//   #[inline]
+//   fn execute<C: Context>(&self, context: &mut C) -> Self::Output {
+//     self.as_ref().execute(context)
+//   }
+// }

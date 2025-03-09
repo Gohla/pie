@@ -7,6 +7,7 @@ use super::*;
 
 /// Filesystem [resource checker](ResourceChecker) that hashes file contents and directory listings and compares hashes.
 #[derive(Default, Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Debug)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct HashChecker;
 
 impl ResourceChecker<PathBuf> for HashChecker {

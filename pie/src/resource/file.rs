@@ -238,6 +238,7 @@ impl Display for FsError {
 
 /// Filesystem [resource checker](ResourceChecker) that compares file or directory last modified dates.
 #[derive(Default, Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Debug)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ModifiedChecker;
 
 impl ResourceChecker<PathBuf> for ModifiedChecker {
@@ -287,6 +288,7 @@ impl ResourceChecker<PathBuf> for ModifiedChecker {
 
 /// Filesystem [resource checker](ResourceChecker) that compares whether a file or directory exists.
 #[derive(Default, Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Debug)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ExistsChecker;
 
 impl ResourceChecker<PathBuf> for ExistsChecker {

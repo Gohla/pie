@@ -7,6 +7,7 @@ use crate::dependency::{Dependency, ResourceDependencyObj, TaskDependencyObj};
 use crate::trait_object::{KeyObj, ValueObj};
 use crate::trait_object::task::TaskErasedObj;
 
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Store {
   graph: DAG<NodeData, Dependency>,
   task_to_node: HashMap<Box<dyn TaskErasedObj>, TaskNode>,
@@ -24,6 +25,7 @@ impl Default for Store {
   }
 }
 
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 enum NodeData {
   Resource(Box<dyn KeyObj>),
   Task {

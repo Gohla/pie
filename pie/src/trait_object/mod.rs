@@ -1,8 +1,6 @@
 use std::borrow::Cow;
 use std::fmt::Debug;
 use std::hash::{Hash, Hasher};
-use std::rc::Rc;
-use std::sync::Arc;
 
 use dyn_clone::DynClone;
 
@@ -11,6 +9,7 @@ use base::{AsAny, EqObj, HashObj};
 use crate::{Key, Task, Value, ValueEq};
 use crate::context::top_down::TopDownContext;
 use crate::dependency::{TaskDependency, TaskDependencyObj};
+use crate::serialize::{MaybeErasedSerialize, MaybeIdObj};
 use crate::trait_object::task::{OutputCheckerObj, TaskErasedObj};
 
 #[macro_use]
@@ -87,7 +86,7 @@ impl<'a> From<Box<dyn ValueEqObj>> for Cow<'a, dyn ValueEqObj> {
 
 
 /// Object safe [`Key`] proxy.
-pub trait KeyObj: DynClone + EqObj + HashObj + AsAny + Debug {}
+pub trait KeyObj: DynClone + EqObj + HashObj + AsAny + Debug + MaybeIdObj {}
 const_assert_object_safe!(dyn KeyObj);
 
 impl<T: Key> KeyObj for T {}
@@ -131,7 +130,7 @@ impl<'a> From<Box<dyn KeyObj>> for Cow<'a, dyn KeyObj> {
 /// Object safe [`Task`] proxy. Has execute methods for concrete [`Context`] implementations, instead of a generic
 /// method, due to object safety.
 // TODO: make sealed, as this trait is an implementation detail.
-pub trait TaskObj: KeyObj {
+pub trait TaskObj: KeyObj + MaybeErasedSerialize + MaybeIdObj {
   type Output;
   // TODO: remove these methods from this public API.
   fn execute_top_down(&self, context: &mut TopDownContext) -> Self::Output;
@@ -162,56 +161,56 @@ impl<T: Task> TaskObj for T {
   fn as_task_erased_obj(&self) -> &dyn TaskErasedObj { self as &dyn TaskErasedObj }
 }
 
-// Implement `TaskObj` for `Box<dyn TaskObj>` such that `&box` can be used where `&dyn TaskObj` is expected.
-impl<O: 'static> TaskObj for Box<dyn TaskObj<Output=O>> {
-  type Output = O;
-  #[inline]
-  fn execute_top_down(&self, context: &mut TopDownContext) -> Self::Output {
-    self.as_ref().execute_top_down(context)
-  }
-  #[inline]
-  fn create_dependency(&self, checker: Box<dyn OutputCheckerObj<Self::Output>>, stamp: Box<dyn ValueObj>) -> Box<dyn TaskDependencyObj> {
-    self.as_ref().create_dependency(checker, stamp)
-  }
-  #[inline]
-  fn as_key_obj(&self) -> &dyn KeyObj { self.as_ref().as_key_obj() }
-  #[inline]
-  fn as_task_erased_obj(&self) -> &dyn TaskErasedObj { self.as_ref().as_task_erased_obj() }
-}
-
-// Implement `TaskObj` for `Rc<dyn TaskObj>` such that `&rc` can be used where `&dyn TaskObj` is expected.
-impl<O: 'static> TaskObj for Rc<dyn TaskObj<Output=O>> {
-  type Output = O;
-  #[inline]
-  fn execute_top_down(&self, context: &mut TopDownContext) -> Self::Output {
-    self.as_ref().execute_top_down(context)
-  }
-  #[inline]
-  fn create_dependency(&self, checker: Box<dyn OutputCheckerObj<Self::Output>>, stamp: Box<dyn ValueObj>) -> Box<dyn TaskDependencyObj> {
-    self.as_ref().create_dependency(checker, stamp)
-  }
-  #[inline]
-  fn as_key_obj(&self) -> &dyn KeyObj { self.as_ref().as_key_obj() }
-  #[inline]
-  fn as_task_erased_obj(&self) -> &dyn TaskErasedObj { self.as_ref().as_task_erased_obj() }
-}
-
-// Implement `TaskObj` for `Arc<dyn TaskObj>` such that `&arc` can be used where `&dyn TaskObj` is expected.
-impl<O: 'static> TaskObj for Arc<dyn TaskObj<Output=O>> {
-  type Output = O;
-  #[inline]
-  fn execute_top_down(&self, context: &mut TopDownContext) -> Self::Output {
-    self.as_ref().execute_top_down(context)
-  }
-  #[inline]
-  fn create_dependency(&self, checker: Box<dyn OutputCheckerObj<Self::Output>>, stamp: Box<dyn ValueObj>) -> Box<dyn TaskDependencyObj> {
-    self.as_ref().create_dependency(checker, stamp)
-  }
-  #[inline]
-  fn as_key_obj(&self) -> &dyn KeyObj { self.as_ref().as_key_obj() }
-  #[inline]
-  fn as_task_erased_obj(&self) -> &dyn TaskErasedObj { self.as_ref().as_task_erased_obj() }
-}
+// // Implement `TaskObj` for `Box<dyn TaskObj>` such that `&box` can be used where `&dyn TaskObj` is expected.
+// impl<O: 'static> TaskObj for Box<dyn TaskObj<Output=O>> {
+//   type Output = O;
+//   #[inline]
+//   fn execute_top_down(&self, context: &mut TopDownContext) -> Self::Output {
+//     self.as_ref().execute_top_down(context)
+//   }
+//   #[inline]
+//   fn create_dependency(&self, checker: Box<dyn OutputCheckerObj<Self::Output>>, stamp: Box<dyn ValueObj>) -> Box<dyn TaskDependencyObj> {
+//     self.as_ref().create_dependency(checker, stamp)
+//   }
+//   #[inline]
+//   fn as_key_obj(&self) -> &dyn KeyObj { self.as_ref().as_key_obj() }
+//   #[inline]
+//   fn as_task_erased_obj(&self) -> &dyn TaskErasedObj { self.as_ref().as_task_erased_obj() }
+// }
+//
+// // Implement `TaskObj` for `Rc<dyn TaskObj>` such that `&rc` can be used where `&dyn TaskObj` is expected.
+// impl<O: 'static> TaskObj for Rc<dyn TaskObj<Output=O>> {
+//   type Output = O;
+//   #[inline]
+//   fn execute_top_down(&self, context: &mut TopDownContext) -> Self::Output {
+//     self.as_ref().execute_top_down(context)
+//   }
+//   #[inline]
+//   fn create_dependency(&self, checker: Box<dyn OutputCheckerObj<Self::Output>>, stamp: Box<dyn ValueObj>) -> Box<dyn TaskDependencyObj> {
+//     self.as_ref().create_dependency(checker, stamp)
+//   }
+//   #[inline]
+//   fn as_key_obj(&self) -> &dyn KeyObj { self.as_ref().as_key_obj() }
+//   #[inline]
+//   fn as_task_erased_obj(&self) -> &dyn TaskErasedObj { self.as_ref().as_task_erased_obj() }
+// }
+//
+// // Implement `TaskObj` for `Arc<dyn TaskObj>` such that `&arc` can be used where `&dyn TaskObj` is expected.
+// impl<O: 'static> TaskObj for Arc<dyn TaskObj<Output=O>> {
+//   type Output = O;
+//   #[inline]
+//   fn execute_top_down(&self, context: &mut TopDownContext) -> Self::Output {
+//     self.as_ref().execute_top_down(context)
+//   }
+//   #[inline]
+//   fn create_dependency(&self, checker: Box<dyn OutputCheckerObj<Self::Output>>, stamp: Box<dyn ValueObj>) -> Box<dyn TaskDependencyObj> {
+//     self.as_ref().create_dependency(checker, stamp)
+//   }
+//   #[inline]
+//   fn as_key_obj(&self) -> &dyn KeyObj { self.as_ref().as_key_obj() }
+//   #[inline]
+//   fn as_task_erased_obj(&self) -> &dyn TaskErasedObj { self.as_ref().as_task_erased_obj() }
+// }
 
 impl<'a, T: Task> From<&'a T> for &'a dyn TaskObj<Output=T::Output> {
   #[inline]

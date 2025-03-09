@@ -4,11 +4,12 @@ use std::hash::{Hash, Hasher};
 
 use crate::{OutputChecker, Task};
 use crate::context::bottom_up::BottomUpContext;
+use crate::serialize::{MaybeErasedSerialize, MaybeIdObj};
 use crate::trait_object::{KeyObj, ValueObj};
 
 /// Internal object safe [`Task`] proxy with type-erased output. Has execute methods for concrete [`Context`]
 /// implementations, instead of a generic method, due to object safety.
-pub trait TaskErasedObj: KeyObj {
+pub trait TaskErasedObj: KeyObj + MaybeErasedSerialize + MaybeIdObj {
   fn execute_bottom_up(&self, context: &mut BottomUpContext) -> Box<dyn ValueObj>;
 
   fn as_key_obj(&self) -> &dyn KeyObj;
