@@ -1,7 +1,7 @@
-use crate::{OutputChecker, Resource, ResourceChecker, Task};
 use crate::dependency::{Dependency, ResourceDependency, TaskDependency};
 use crate::pie::SessionInternal;
 use crate::store::{ResourceNode, TaskNode};
+use crate::{OutputChecker, Resource, ResourceChecker, Task};
 
 pub mod top_down;
 pub mod bottom_up;
@@ -12,20 +12,27 @@ pub trait SessionExt {
     T: ToOwned<Owned=R>,
     R: Resource,
     H: ResourceChecker<R>;
+
   fn write<T, R, H, F>(&mut self, resource: &T, checker: H, write_fn: F) -> Result<(), H::Error> where
     T: ToOwned<Owned=R>,
     R: Resource,
     H: ResourceChecker<R>,
     F: FnOnce(&mut R::Writer<'_>) -> Result<(), R::Error>;
 
+
   fn create_writer<'r, R: Resource>(&'r mut self, resource: &'r R) -> Result<R::Writer<'r>, R::Error>;
+
   fn written_to<T, R, H>(&mut self, resource: &T, checker: H) -> Result<(), H::Error> where
     T: ToOwned<Owned=R>,
     R: Resource,
     H: ResourceChecker<R>;
 
+
   fn reserve_require_dependency<T: Task>(&mut self, dst: &TaskNode, task: &T);
-  fn update_require_dependency<T: Task, H: OutputChecker<T::Output>>(&mut self, dst: &TaskNode, task: &T, checker: H, stamp: H::Stamp);
+
+  fn update_require_dependency<T, H>(&mut self, dst: &TaskNode, task: &T, checker: H, stamp: H::Stamp) where
+    T: Task,
+    H: OutputChecker<T::Output>;
 }
 
 impl SessionExt for SessionInternal<'_> {
@@ -89,7 +96,7 @@ impl SessionExt for SessionInternal<'_> {
     Ok(())
   }
 
-  #[inline]
+
   fn create_writer<'r, R: Resource>(&'r mut self, resource: &'r R) -> Result<R::Writer<'r>, R::Error> {
     resource.write(self.resource_state)
   }
@@ -113,6 +120,7 @@ impl SessionExt for SessionInternal<'_> {
     Ok(())
   }
 
+
   fn reserve_require_dependency<T: Task>(&mut self, dst: &TaskNode, task: &T) {
     if let Some(src) = &self.current_executing_task {
       // Before making the task consistent, first reserve a dependency in the dependency graph, ensuring that all cyclic
@@ -125,7 +133,10 @@ impl SessionExt for SessionInternal<'_> {
     }
   }
 
-  fn update_require_dependency<T: Task, H: OutputChecker<T::Output>>(&mut self, dst: &TaskNode, task: &T, checker: H, stamp: H::Stamp) {
+  fn update_require_dependency<T, H>(&mut self, dst: &TaskNode, task: &T, checker: H, stamp: H::Stamp) where
+    T: Task,
+    H: OutputChecker<T::Output>,
+  {
     if let Some(src) = &self.current_executing_task {
       // Update the dependency in the graph from a reserved dependency to a real task require dependency.
       let task_dependency = TaskDependency::new(task.clone(), checker, stamp);

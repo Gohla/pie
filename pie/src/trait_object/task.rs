@@ -64,6 +64,7 @@ impl<'a> From<Box<dyn TaskObj>> for Cow<'a, dyn TaskObj> {
 
 
 /// Internal object safe [`OutputChecker`] proxy.
+#[allow(dead_code)]
 pub trait OutputCheckerObj<O>: KeyObj {
   fn stamp_obj(&self, output: &O) -> Box<dyn ValueObj>;
   fn check_obj<'i>(&'i self, output: &'i O, stamp: &'i dyn ValueObj) -> Option<Box<dyn Debug + 'i>>;

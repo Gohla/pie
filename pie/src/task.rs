@@ -11,12 +11,11 @@ use crate::{Context, OutputChecker, Task, Value};
 pub struct EqualsChecker;
 impl<O: Value + Eq> OutputChecker<O> for EqualsChecker {
   type Stamp = O;
-  #[inline]
+
   fn stamp(&self, output: &O) -> Self::Stamp {
     output.clone()
   }
 
-  #[inline]
   fn check(&self, output: &O, stamp: &Self::Stamp) -> Option<impl Debug> {
     if output != stamp {
       Some(output)
@@ -31,12 +30,11 @@ impl<O: Value + Eq> OutputChecker<O> for EqualsChecker {
 pub struct OkEqualsChecker;
 impl<T: Value + Eq, E> OutputChecker<Result<T, E>> for OkEqualsChecker {
   type Stamp = Option<T>;
-  #[inline]
+
   fn stamp(&self, output: &Result<T, E>) -> Self::Stamp {
     output.as_ref().ok().cloned()
   }
 
-  #[inline]
   fn check(&self, output: &Result<T, E>, stamp: &Self::Stamp) -> Option<impl Debug> {
     let new_stamp = output.as_ref().ok();
     if new_stamp != stamp.as_ref() {
@@ -52,12 +50,11 @@ impl<T: Value + Eq, E> OutputChecker<Result<T, E>> for OkEqualsChecker {
 pub struct ErrEqualsChecker;
 impl<T, E: Value + Eq> OutputChecker<Result<T, E>> for ErrEqualsChecker {
   type Stamp = Option<E>;
-  #[inline]
+
   fn stamp(&self, output: &Result<T, E>) -> Self::Stamp {
     output.as_ref().err().cloned()
   }
 
-  #[inline]
   fn check(&self, output: &Result<T, E>, stamp: &Self::Stamp) -> Option<impl Debug> {
     let new_stamp = output.as_ref().err();
     if new_stamp != stamp.as_ref() {
@@ -73,12 +70,11 @@ impl<T, E: Value + Eq> OutputChecker<Result<T, E>> for ErrEqualsChecker {
 pub struct ResultChecker;
 impl<T, E> OutputChecker<Result<T, E>> for ResultChecker {
   type Stamp = bool;
-  #[inline]
+
   fn stamp(&self, output: &Result<T, E>) -> Self::Stamp {
     output.is_err()
   }
 
-  #[inline]
   fn check(&self, output: &Result<T, E>, stamp: &Self::Stamp) -> Option<impl Debug> {
     let new_stamp = output.is_err();
     if new_stamp != *stamp {
@@ -96,12 +92,11 @@ impl<T, E> OutputChecker<Result<T, E>> for ResultChecker {
 pub struct AlwaysConsistent;
 impl<O> OutputChecker<O> for AlwaysConsistent {
   type Stamp = ();
-  #[inline]
+
   fn stamp(&self, _output: &O) -> Self::Stamp {
     ()
   }
 
-  #[inline]
   fn check(&self, _output: &O, _stamp: &Self::Stamp) -> Option<impl Debug> {
     None::<Infallible>
   }
@@ -111,6 +106,7 @@ impl<O> OutputChecker<O> for AlwaysConsistent {
 /// Implement task for `()` that does nothing and just returns `()`.
 impl Task for () {
   type Output = ();
+
   #[inline]
   fn execute<C: Context>(&self, _context: &mut C) -> Self::Output {
     ()
@@ -120,7 +116,7 @@ impl Task for () {
 /// Implement task for [`Box`] wrapped tasks.
 impl<T: Task> Task for Box<T> {
   type Output = T::Output;
-  #[inline]
+
   fn execute<C: Context>(&self, context: &mut C) -> Self::Output {
     self.as_ref().execute(context)
   }
@@ -128,7 +124,7 @@ impl<T: Task> Task for Box<T> {
 /// Implement task for [`Rc`] wrapped tasks.
 impl<T: Task> Task for Rc<T> {
   type Output = T::Output;
-  #[inline]
+
   fn execute<C: Context>(&self, context: &mut C) -> Self::Output {
     self.as_ref().execute(context)
   }
@@ -136,7 +132,7 @@ impl<T: Task> Task for Rc<T> {
 /// Implement task for [`Arc`] wrapped tasks.
 impl<T: Task> Task for Arc<T> {
   type Output = T::Output;
-  #[inline]
+
   fn execute<C: Context>(&self, context: &mut C) -> Self::Output {
     self.as_ref().execute(context)
   }

@@ -3,14 +3,14 @@ use std::collections::HashSet;
 use std::error::Error;
 use std::hash::BuildHasher;
 
-use crate::{Context, OutputChecker, Resource, ResourceChecker, Task};
 use crate::context::SessionExt;
 use crate::dependency::ResourceDependencyObj;
 use crate::pie::{SessionInternal, Tracking};
 use crate::store::{Store, TaskNode};
-use crate::trait_object::{KeyObj, ValueObj};
 use crate::trait_object::collection::TypeToAnyMap;
 use crate::trait_object::task::TaskObj;
+use crate::trait_object::{KeyObj, ValueObj};
+use crate::{Context, OutputChecker, Resource, ResourceChecker, Task};
 
 /// Context that incrementally executes tasks and checks dependencies in a bottom-up manner.
 pub struct BottomUpContext<'p, 's> {
@@ -111,6 +111,7 @@ impl<'p, 's> BottomUpContext<'p, 's> {
   /// `dependency`.
   ///
   /// Note: passing in borrows explicitly instead of a mutable borrow of `self` to make borrows work.
+  #[inline]
   fn try_schedule_task_by_resource_dependency(
     reading_task: &dyn KeyObj,
     reading_task_node: TaskNode,
@@ -265,25 +266,28 @@ impl<'p, 's> Context for BottomUpContext<'p, 's> {
   {
     self.session.read(resource, checker)
   }
+
   #[inline]
   fn write<T, R, H, F>(&mut self, resource: &T, checker: H, write_fn: F) -> Result<(), H::Error> where
     T: ToOwned<Owned=R>,
     R: Resource,
     H: ResourceChecker<R>,
-    F: FnOnce(&mut R::Writer<'_>) -> Result<(), R::Error>
+    F: FnOnce(&mut R::Writer<'_>) -> Result<(), R::Error>,
   {
     self.session.write(resource, checker, write_fn)
   }
+
 
   #[inline]
   fn create_writer<'r, R: Resource>(&'r mut self, resource: &'r R) -> Result<R::Writer<'r>, R::Error> {
     self.session.create_writer(resource)
   }
+
   #[inline]
   fn written_to<T, R, H>(&mut self, resource: &T, checker: H) -> Result<(), H::Error> where
     T: ToOwned<Owned=R>,
     R: Resource,
-    H: ResourceChecker<R>
+    H: ResourceChecker<R>,
   {
     self.session.written_to(resource, checker)
   }

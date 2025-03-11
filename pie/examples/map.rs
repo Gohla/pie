@@ -13,6 +13,7 @@ struct ReadMap<K, T> {
   key: K,
   origin_task: Option<T>,
 }
+
 impl<K> ReadMap<K, ()> {
   pub fn new(key: impl Into<K>) -> Self {
     Self {
@@ -21,6 +22,7 @@ impl<K> ReadMap<K, ()> {
     }
   }
 }
+
 impl<K, T> ReadMap<K, T> {
   pub fn with_origin(key: impl Into<K>, origin_task: T) -> Self {
     Self {
@@ -29,6 +31,7 @@ impl<K, T> ReadMap<K, T> {
     }
   }
 }
+
 impl<K: MapKey, T: Task> Task for ReadMap<K, T> where
   K::Value: Clone + Eq + Debug
 {
@@ -41,12 +44,14 @@ impl<K: MapKey, T: Task> Task for ReadMap<K, T> where
   }
 }
 
+
 /// Task that gets the value to write by requiring `value_provider`, then writes that to the global map at `key`.
 #[derive(Clone, Eq, PartialEq, Hash, Debug)]
 struct WriteMap<K, T> {
   key: K,
   value_provider: T,
 }
+
 impl<K, T> WriteMap<K, T> {
   pub fn new(key: impl Into<K>, value_provider: T) -> Self {
     Self {
@@ -55,6 +60,7 @@ impl<K, T> WriteMap<K, T> {
     }
   }
 }
+
 impl<K: MapKey, T: Task<Output=K::Value>> Task for WriteMap<K, T> where
   K::Value: Clone + Eq + Debug
 {
@@ -87,6 +93,7 @@ impl From<&'static str> for Key {
     Key(value)
   }
 }
+
 // Implement `MapKey` for `Key` type, resulting in a map from `&'static str` to `&'static str`.
 impl MapKey for Key {
   type Value = &'static str;

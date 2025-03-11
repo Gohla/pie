@@ -1,3 +1,5 @@
+#![allow(dead_code, unused_imports)]
+
 use std::fs::{read_to_string, write};
 use std::hash::Hash;
 use std::io::{Read, Write};
@@ -10,11 +12,12 @@ use pie::resource::file::{FsError, ModifiedChecker};
 use pie::task::EqualsChecker;
 use pie::tracker::writing::WritingTracker;
 
-/// Task that reads file at `path` and returns its string.
+/// Task that reads file at `path`, returning its content as a string.
 #[derive(Clone, Eq, PartialEq, Hash, Debug)]
 struct ReadFile {
   path: PathBuf,
 }
+
 impl ReadFile {
   pub fn new(path: impl Into<PathBuf>) -> Self {
     Self {
@@ -22,6 +25,7 @@ impl ReadFile {
     }
   }
 }
+
 impl Task for ReadFile {
   type Output = Result<String, FsError>;
   fn execute<C: Context>(&self, context: &mut C) -> Self::Output {
@@ -39,6 +43,7 @@ struct WriteFile<T> {
   string_provider: T,
   path: PathBuf,
 }
+
 impl<T> WriteFile<T> {
   pub fn new(string_provider: T, path: impl Into<PathBuf>) -> Self {
     Self {
@@ -47,6 +52,7 @@ impl<T> WriteFile<T> {
     }
   }
 }
+
 impl<T: Task<Output=Result<String, FsError>>> Task for WriteFile<T> {
   type Output = Result<(), FsError>;
   fn execute<C: Context>(&self, context: &mut C) -> Self::Output {
@@ -64,8 +70,7 @@ fn main() -> Result<(), FsError> {
   write(&input_file_path, "Hello, World!")?;
   let output_file_path = temp_dir.path().join("output.txt");
 
-  // For demonstration purposes, wrap task in an `Rc`.
-  let read = Rc::new(ReadFile::new(&input_file_path));
+  let read = ReadFile::new(&input_file_path);
   let write = WriteFile::new(read.clone(), &output_file_path);
 
   // Execute the tasks because they are new, resulting in the output file being written to.

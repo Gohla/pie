@@ -26,3 +26,8 @@ required-features = ["file_hash_checker"]
 [[test]]
 name = "file_checker"
 required-features = ["file_hash_checker"]
+
+
+[[example]]
+name = "read_file"
+required-features = ["file_hash_checker"]

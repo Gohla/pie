@@ -21,7 +21,6 @@ pub struct TopDownContext<'p, 's> {
 }
 
 impl<'p, 's> TopDownContext<'p, 's> {
-  #[inline]
   pub fn new(session: &'s mut SessionInternal<'p>) -> Self { Self { session } }
 }
 
@@ -44,7 +43,6 @@ impl Context for TopDownContext<'_, '_> {
     output
   }
 
-  #[inline]
   fn read<T, R, H>(&mut self, resource: &T, checker: H) -> Result<R::Reader<'_>, H::Error> where
     T: ToOwned<Owned=R>,
     R: Resource,
@@ -52,7 +50,7 @@ impl Context for TopDownContext<'_, '_> {
   {
     self.session.read(resource, checker)
   }
-  #[inline]
+
   fn write<T, R, H, F>(&mut self, resource: &T, checker: H, write_fn: F) -> Result<(), H::Error> where
     T: ToOwned<Owned=R>,
     R: Resource,
@@ -62,11 +60,11 @@ impl Context for TopDownContext<'_, '_> {
     self.session.write(resource, checker, write_fn)
   }
 
-  #[inline]
+
   fn create_writer<'r, R: Resource>(&'r mut self, resource: &'r R) -> Result<R::Writer<'r>, R::Error> {
     self.session.create_writer(resource)
   }
-  #[inline]
+
   fn written_to<T, R, H>(&mut self, resource: &T, checker: H) -> Result<(), H::Error> where
     T: ToOwned<Owned=R>,
     R: Resource,
@@ -115,17 +113,16 @@ impl TopDownContext<'_, '_> {
   /// - It is not new. A task is new if it has not been executed before (and thus has no cached output).
   /// - Its output type has not changed.
   /// - All its dependencies are consistent.
-  #[inline]
   fn check_task<O: Any>(&mut self, src: &TaskNode) -> Option<&O> {
     let dependencies: Box<[Dependency]> = self.session.store
       .get_dependencies_from_task(src)
       .map(|d| d.clone())
       .collect();
-    for dependency in dependencies.into_iter() {
+    for dependency in dependencies.iter() {
       let consistent = match dependency {
         Dependency::ReservedRequire => panic!("BUG: attempt to consistency check reserved require task dependency"),
-        Dependency::Require(d) => Ok(d.as_top_down_check().is_consistent(self)),
-        Dependency::Read(d) | Dependency::Write(d) => d.is_consistent_top_down(
+        Dependency::Require(task_dependency) => Ok(task_dependency.as_top_down_check().is_consistent(self)),
+        Dependency::Read(resource_dependency) | Dependency::Write(resource_dependency) => resource_dependency.is_consistent_top_down(
           &mut self.session.resource_state,
           &mut self.session.tracker,
         ),
@@ -150,8 +147,8 @@ impl TopDownContext<'_, '_> {
 pub trait TopDownCheck {
   fn is_consistent(&self, context: &mut TopDownContext) -> bool;
 }
+
 impl<T: Task, C: OutputChecker<T::Output>> TopDownCheck for TaskDependency<T, C, C::Stamp> {
-  #[inline]
   fn is_consistent(&self, context: &mut TopDownContext) -> bool {
     let check_task_end = context.session.tracker.check_task(self.task(), self.checker(), self.stamp());
     let output = context.make_task_consistent(self.task());

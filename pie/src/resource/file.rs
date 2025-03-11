@@ -18,7 +18,9 @@ pub mod hash_checker;
 /// truncate it if it does exist. They are also opened with read access, so that checkers can read file contents.
 impl Resource for PathBuf {
   type Reader<'rc> = OpenRead;
+
   type Writer<'r> = File;
+
   type Error = FsError;
 
   /// Opens this path for reading, returning an [open reader](OpenRead).
@@ -49,6 +51,7 @@ impl Resource for PathBuf {
   }
 }
 
+
 /// A potentially opened filesystem path for reading, representing:
 ///
 /// - a [file](OpenRead::File) as a [buffered reader](BufReader<File>) and [Metadata],
@@ -59,6 +62,7 @@ pub enum OpenRead {
   Directory(Metadata),
   NonExistent,
 }
+
 impl OpenRead {
   /// Attempt to open file or directory at given `path` for reading.
   ///
@@ -79,6 +83,7 @@ impl OpenRead {
     Ok(open_read)
   }
 
+
   /// Returns `true` if this is a file, `false` otherwise.
   pub fn is_file(&self) -> bool {
     matches!(self, Self::File(_, _))
@@ -91,6 +96,7 @@ impl OpenRead {
   pub fn exists(&self) -> bool {
     !matches!(self, Self::NonExistent)
   }
+
 
   /// Returns `Some(&mut file)` if this is a file, `None` otherwise.
   #[inline]
@@ -191,6 +197,7 @@ impl OpenRead {
   }
 }
 
+
 /// Filesystem resource error, a newtype wrapper around `io::ErrorKind`.
 ///
 /// # Implementation Notes
@@ -242,6 +249,7 @@ pub struct ModifiedChecker;
 
 impl ResourceChecker<PathBuf> for ModifiedChecker {
   type Stamp = Option<SystemTime>;
+
   type Error = FsError;
 
   #[inline]
@@ -249,11 +257,13 @@ impl ResourceChecker<PathBuf> for ModifiedChecker {
     let modified = metadata(path)?.map(|m| m.modified()).transpose()?;
     Ok(modified)
   }
+
   #[inline]
   fn stamp_reader(&self, _path: &PathBuf, open_read: &mut OpenRead) -> Result<Self::Stamp, Self::Error> {
     let modified = open_read.as_metadata().map(|m| m.modified()).transpose()?;
     Ok(modified)
   }
+
   #[inline]
   fn stamp_writer(&self, path: &PathBuf, file: File) -> Result<Self::Stamp, Self::Error> {
     // Note: we first need to confirm `file` still exists. If `file` does not exist, `file.metadata()` returns stale
@@ -285,12 +295,14 @@ impl ResourceChecker<PathBuf> for ModifiedChecker {
   fn wrap_error(&self, error: FsError) -> Self::Error { error }
 }
 
+
 /// Filesystem [resource checker](ResourceChecker) that compares whether a file or directory exists.
 #[derive(Default, Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Debug)]
 pub struct ExistsChecker;
 
 impl ResourceChecker<PathBuf> for ExistsChecker {
   type Stamp = bool;
+
   type Error = FsError;
 
   #[inline]
@@ -298,11 +310,13 @@ impl ResourceChecker<PathBuf> for ExistsChecker {
     let exists = exists(path)?;
     Ok(exists)
   }
+
   #[inline]
   fn stamp_reader(&self, _path: &PathBuf, open_read: &mut OpenRead) -> Result<Self::Stamp, Self::Error> {
     let exists = open_read.exists();
     Ok(exists)
   }
+
   #[inline]
   fn stamp_writer(&self, path: &PathBuf, _file: File) -> Result<Self::Stamp, Self::Error> {
     // Note: we cannot assume `_file` exists because it could have been removed before passing it to this method.

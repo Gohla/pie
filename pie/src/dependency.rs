@@ -3,11 +3,11 @@ use std::fmt::Debug;
 
 use dyn_clone::DynClone;
 
-use crate::{OutputChecker, Resource, ResourceChecker, ResourceState, Task};
 use crate::context::top_down::TopDownCheck;
 use crate::pie::Tracking;
-use crate::trait_object::{KeyObj, ValueObj};
 use crate::trait_object::collection::TypeToAnyMap;
+use crate::trait_object::{KeyObj, ValueObj};
+use crate::{OutputChecker, Resource, ResourceChecker, ResourceState, Task};
 
 /// Internal type for task dependencies.
 #[derive(Clone, Debug)]
@@ -16,25 +16,21 @@ pub struct TaskDependency<T, C, S> {
   checker: C,
   stamp: S,
 }
+
 impl<T: Task, C: OutputChecker<T::Output>> TaskDependency<T, C, C::Stamp> {
-  #[inline]
   pub fn new(task: T, checker: C, stamp: C::Stamp) -> Self { Self { task, checker, stamp } }
 
-  #[inline]
   pub fn task(&self) -> &T { &self.task }
-  #[inline]
   pub fn checker(&self) -> &C { &self.checker }
-  #[inline]
   pub fn stamp(&self) -> &C::Stamp { &self.stamp }
 
-  #[inline]
   pub fn check<'i>(&'i self, output: &'i T::Output) -> Option<impl Debug + 'i> {
     self.checker.check(output, &self.stamp)
   }
 
-  #[inline]
   pub fn into_require(self) -> Dependency { Dependency::from(self) }
 }
+
 
 /// Internal trait for task dependencies.
 ///
@@ -45,20 +41,19 @@ pub trait TaskDependencyObj: DynClone + Debug {
   fn stamp(&self) -> &dyn ValueObj;
 
   fn as_top_down_check(&self) -> &dyn TopDownCheck;
+
   fn is_consistent_bottom_up(&self, output: &dyn ValueObj, requiring_task: &dyn KeyObj, tracker: &mut Tracking) -> bool;
 }
+
 const_assert_object_safe!(dyn TaskDependencyObj);
+
 impl<T: Task, C: OutputChecker<T::Output>> TaskDependencyObj for TaskDependency<T, C, C::Stamp> {
-  #[inline]
   fn task(&self) -> &dyn KeyObj { &self.task as &dyn KeyObj }
-  #[inline]
   fn checker(&self) -> &dyn ValueObj { &self.checker as &dyn ValueObj }
-  #[inline]
   fn stamp(&self) -> &dyn ValueObj { &self.stamp as &dyn ValueObj }
 
-  #[inline]
   fn as_top_down_check(&self) -> &dyn TopDownCheck { self as &dyn TopDownCheck }
-  #[inline]
+
   fn is_consistent_bottom_up(&self, output: &dyn ValueObj, requiring_task: &dyn KeyObj, tracker: &mut Tracking) -> bool {
     let Some(output) = output.as_any().downcast_ref::<T::Output>() else {
       return false;
@@ -76,6 +71,7 @@ impl<T: Task, C: OutputChecker<T::Output>> TaskDependencyObj for TaskDependency<
     }
   }
 }
+
 impl Clone for Box<dyn TaskDependencyObj> {
   #[inline]
   fn clone(&self) -> Self { dyn_clone::clone_box(self.as_ref()) }
@@ -90,17 +86,12 @@ pub struct ResourceDependency<R, C, S> {
   stamp: S,
 }
 impl<R: Resource, C: ResourceChecker<R>> ResourceDependency<R, C, C::Stamp> {
-  #[inline]
   pub fn new(resource: R, checker: C, stamp: C::Stamp) -> Self { Self { resource, checker, stamp } }
 
-  #[inline]
   pub fn resource(&self) -> &R { &self.resource }
-  #[inline]
   pub fn checker(&self) -> &C { &self.checker }
-  #[inline]
   pub fn stamp(&self) -> &C::Stamp { &self.stamp }
 
-  #[inline]
   pub fn check<'i, RS: ResourceState<R>>(
     &'i self,
     state: &'i mut RS,
@@ -108,7 +99,6 @@ impl<R: Resource, C: ResourceChecker<R>> ResourceDependency<R, C, C::Stamp> {
     self.checker.check(&self.resource, state, &self.stamp)
   }
 
-  #[inline]
   pub fn is_consistent<'i, RS: ResourceState<R>>(
     &'i self,
     state: &'i mut RS,
@@ -123,11 +113,10 @@ impl<R: Resource, C: ResourceChecker<R>> ResourceDependency<R, C, C::Stamp> {
     Ok(inconsistency?.is_none())
   }
 
-  #[inline]
   pub fn into_read(self) -> Dependency { Dependency::from_read(self) }
-  #[inline]
   pub fn into_write(self) -> Dependency { Dependency::from_write(self) }
 }
+
 
 /// Internal trait for resource dependencies.
 ///
@@ -142,6 +131,7 @@ pub trait ResourceDependencyObj: DynClone + Debug {
     resource_state: &mut TypeToAnyMap,
     tracker: &mut Tracking,
   ) -> Result<bool, Box<dyn Error>>;
+
   fn is_consistent_bottom_up(
     &self,
     resource_state: &mut TypeToAnyMap,
@@ -149,16 +139,14 @@ pub trait ResourceDependencyObj: DynClone + Debug {
     tracker: &mut Tracking,
   ) -> Result<bool, Box<dyn Error>>;
 }
+
 const_assert_object_safe!(dyn ResourceDependencyObj);
+
 impl<R: Resource, C: ResourceChecker<R>> ResourceDependencyObj for ResourceDependency<R, C, C::Stamp> {
-  #[inline]
   fn resource(&self) -> &dyn KeyObj { &self.resource as &dyn KeyObj }
-  #[inline]
   fn checker(&self) -> &dyn ValueObj { &self.checker as &dyn ValueObj }
-  #[inline]
   fn stamp(&self) -> &dyn ValueObj { &self.stamp as &dyn ValueObj }
 
-  #[inline]
   fn is_consistent_top_down(
     &self,
     resource_state: &mut TypeToAnyMap,
@@ -167,7 +155,7 @@ impl<R: Resource, C: ResourceChecker<R>> ResourceDependencyObj for ResourceDepen
     let track_end = tracker.check_resource(&self.resource, &self.checker, &self.stamp);
     self.is_consistent(resource_state, tracker, track_end)
   }
-  #[inline]
+
   fn is_consistent_bottom_up(
     &self,
     resource_state: &mut TypeToAnyMap,
@@ -178,6 +166,7 @@ impl<R: Resource, C: ResourceChecker<R>> ResourceDependencyObj for ResourceDepen
     self.is_consistent(resource_state, tracker, track_end)
   }
 }
+
 impl Clone for Box<dyn ResourceDependencyObj> {
   #[inline]
   fn clone(&self) -> Self { dyn_clone::clone_box(self.as_ref()) }
@@ -192,15 +181,17 @@ pub enum Dependency {
   Read(Box<dyn ResourceDependencyObj>),
   Write(Box<dyn ResourceDependencyObj>),
 }
+
 impl<T: Task, C: OutputChecker<T::Output>> From<TaskDependency<T, C, C::Stamp>> for Dependency {
-  #[inline]
   fn from(value: TaskDependency<T, C, C::Stamp>) -> Self { Self::Require(Box::new(value)) }
 }
+
 impl Dependency {
   #[inline]
   pub fn from_read<R: Resource, C: ResourceChecker<R>>(resource_dependency: ResourceDependency<R, C, C::Stamp>) -> Self {
     Self::Read(Box::new(resource_dependency))
   }
+
   #[inline]
   pub fn from_write<R: Resource, C: ResourceChecker<R>>(resource_dependency: ResourceDependency<R, C, C::Stamp>) -> Self {
     Self::Write(Box::new(resource_dependency))
@@ -209,6 +200,7 @@ impl Dependency {
 
 // Note: this PartialEq implementation only checks the tasks and resources of dependencies.
 impl PartialEq for Dependency {
+  #[inline]
   fn eq(&self, other: &Self) -> bool {
     match (self, other) {
       (Self::Require(d), Self::Require(o)) => d.task() == o.task(),

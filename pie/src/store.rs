@@ -183,7 +183,7 @@ impl Store {
   ///
   /// Panics in development builds if `dst` was not found in the dependency graph.
   #[inline]
-  pub fn get_read_dependencies_to_resource<'a>(&'a self, dst: &'a ResourceNode) -> impl Iterator<Item=(TaskNode, &dyn ResourceDependencyObj)> + 'a {
+  pub fn get_read_dependencies_to_resource<'a>(&'a self, dst: &'a ResourceNode) -> impl Iterator<Item=(TaskNode, &'a dyn ResourceDependencyObj)> + 'a {
     debug_assert!(self.graph.contains_node(dst), "BUG: {:?} was not found in the dependency graph", dst);
     self.graph.get_incoming_edges(dst).filter_map(|(n, d)| match d {
       Dependency::Read(rd) => Some((TaskNode(*n), rd.as_ref())),
@@ -196,7 +196,7 @@ impl Store {
   ///
   /// Panics in development builds if `dst` was not found in the dependency graph.
   #[inline]
-  pub fn get_read_and_write_dependencies_to_resource<'a>(&'a self, dst: &'a ResourceNode) -> impl Iterator<Item=(TaskNode, &dyn ResourceDependencyObj)> + 'a {
+  pub fn get_read_and_write_dependencies_to_resource<'a>(&'a self, dst: &'a ResourceNode) -> impl Iterator<Item=(TaskNode, &'a dyn ResourceDependencyObj)> + 'a {
     debug_assert!(self.graph.contains_node(dst), "BUG: {:?} was not found in the dependency graph", dst);
     self.graph.get_incoming_edges(dst).filter_map(|(n, d)| match d {
       Dependency::Read(rd) | Dependency::Write(rd) => Some((TaskNode(*n), rd.as_ref())),
@@ -218,7 +218,7 @@ impl Store {
   ///
   /// Panics in development builds if `dst` was not found in the dependency graph.
   #[inline]
-  pub fn get_require_dependencies_to_task<'a>(&'a self, dst: &'a TaskNode) -> impl Iterator<Item=(TaskNode, &dyn TaskDependencyObj)> + 'a {
+  pub fn get_require_dependencies_to_task<'a>(&'a self, dst: &'a TaskNode) -> impl Iterator<Item=(TaskNode, &'a dyn TaskDependencyObj)> + 'a {
     debug_assert!(self.graph.contains_node(dst), "BUG: {:?} was not found in the dependency graph", dst);
     self.graph.get_incoming_edges(dst)
       .filter_map(|(n, d)| match d {
