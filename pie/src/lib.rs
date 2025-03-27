@@ -38,11 +38,13 @@ mod dependency;
 /// Trait alias for types that are used as values: types that can be cloned, debug formatted, and contain no
 /// non-`'static` references. We use this as an alias for trait bounds and super-traits.
 pub trait Value: Clone + Debug + 'static {}
+
 impl<T: Clone + Debug + 'static> Value for T {}
 
 /// Trait alias for types that are used as keys: types that are [values](Value) and that can be equality compared and
 /// hashed. We use this as an alias for trait bounds and super-traits.
 pub trait Key: Value + Eq + Hash {}
+
 impl<T: Value + Eq + Hash> Key for T {}
 
 
@@ -147,28 +149,21 @@ pub trait Resource: Key {
 pub trait ResourceState<R> {
   /// Gets the state as `S`. Returns `Some(&state)` if the state of type `S` exists, `None` otherwise.
   fn get<S: Any>(&self) -> Option<&S>;
-
   /// Gets the mutable state as `S`. Returns `Some(&mut state)` if the state of type `S` exists, `None` otherwise.
   fn get_mut<S: Any>(&mut self) -> Option<&mut S>;
-
   /// Sets the `state`.
   fn set<S: Any>(&mut self, state: S);
 
-
   /// Gets the boxed state. Returns `Some(&state)` if the state exists, `None` otherwise.
   fn get_boxed(&self) -> Option<&Box<dyn Any>>;
-
   /// Gets the mutable boxed state. Returns `Some(&mut state)` if the state exists, `None` otherwise.
   fn get_boxed_mut(&mut self) -> Option<&mut Box<dyn Any>>;
-
   /// Sets the boxed `state`.
   fn set_boxed(&mut self, state: Box<dyn Any>);
-
 
   /// Gets the state as `S` or sets a default. If no state was set, or if it is not of type `S`, first sets the state to
   /// `S::default()`. Then returns the state as `&state`.
   fn get_or_set_default<S: Default + Any>(&mut self) -> &S;
-
   /// Gets the mutable state as `S` or sets a default. If no state was set, or if it is not of type `S`, first sets the
   /// state to `S::default()`. Then returns the state as `&mut state`.
   fn get_or_set_default_mut<S: Default + Any>(&mut self) -> &mut S;

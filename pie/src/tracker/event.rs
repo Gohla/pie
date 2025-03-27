@@ -1,9 +1,9 @@
 use std::fmt::Debug;
 use std::ops::RangeInclusive;
 
-use crate::Task;
 use crate::tracker::Tracker;
 use crate::trait_object::{KeyObj, ValueObj};
+use crate::Task;
 
 /// A [`Tracker`] that stores [`Event`]s in a [`Vec`], useful in testing to assert that a context implementation is
 /// incremental and correct.
@@ -61,6 +61,7 @@ impl TaskAccess for RequireStart {
   #[inline]
   fn task(&self) -> &dyn KeyObj { self.task.as_ref() }
 }
+
 /// End: required `task`, using `checker` to create `stamp`, resulting in `output`.
 #[derive(Clone, Debug)]
 pub struct RequireEnd {
@@ -74,6 +75,7 @@ impl TaskAccess for RequireEnd {
   #[inline]
   fn task(&self) -> &dyn KeyObj { self.task.as_ref() }
 }
+
 /// Start: read/write `resource` using `checker`.
 #[derive(Clone, Debug)]
 pub struct ResourceStart {
@@ -81,6 +83,7 @@ pub struct ResourceStart {
   pub checker: Box<dyn ValueObj>,
   pub index: usize,
 }
+
 /// End: read/written `resource` using `checker` to create `stamp`.
 #[derive(Clone, Debug)]
 pub struct ResourceEnd {
@@ -89,6 +92,7 @@ pub struct ResourceEnd {
   pub stamp: Box<dyn ValueObj>,
   pub index: usize,
 }
+
 /// Start: execute `task`.
 #[derive(Clone, Debug)]
 pub struct ExecuteStart {
@@ -99,6 +103,7 @@ impl TaskAccess for ExecuteStart {
   #[inline]
   fn task(&self) -> &dyn KeyObj { self.task.as_ref() }
 }
+
 /// End: executed `task`, producing `output`.
 #[derive(Clone, Debug)]
 pub struct ExecuteEnd {

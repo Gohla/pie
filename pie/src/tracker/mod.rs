@@ -126,15 +126,19 @@ pub trait Tracker {
   fn schedule_task(&mut self, task: &dyn KeyObj) {}
 }
 
+
 /// Implement [`Tracker`] for `()` that does nothing.
 impl Tracker for () {}
+
 
 /// A [`Tracker`] that forwards events to two [`Tracker`]s.
 #[derive(Default, Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Debug)]
 pub struct CompositeTracker<A1, A2>(pub A1, pub A2);
+
 impl<A1, A2> CompositeTracker<A1, A2> {
   pub fn new(tracker_1: A1, tracker_2: A2) -> Self { Self(tracker_1, tracker_2) }
 }
+
 impl<A1: Tracker, A2: Tracker> Tracker for CompositeTracker<A1, A2> {
   #[inline]
   fn build_start(&mut self) {

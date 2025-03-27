@@ -121,7 +121,7 @@ impl TopDownContext<'_, '_> {
     for dependency in dependencies.iter() {
       let consistent = match dependency {
         Dependency::ReservedRequire => panic!("BUG: attempt to consistency check reserved require task dependency"),
-        Dependency::Require(task_dependency) => Ok(task_dependency.as_top_down_check().is_consistent(self)),
+        Dependency::Require(task_dependency) => Ok(task_dependency.is_consistent(self)),
         Dependency::Read(resource_dependency) | Dependency::Write(resource_dependency) => resource_dependency.is_consistent_top_down(
           &mut self.session.resource_state,
           &mut self.session.tracker,
@@ -144,11 +144,11 @@ impl TopDownContext<'_, '_> {
 /// Internal trait for top-down recursive checking of task dependencies.
 ///
 /// Object-safe trait.
-pub trait TopDownCheck {
+pub trait TopDownCheckObj {
   fn is_consistent(&self, context: &mut TopDownContext) -> bool;
 }
 
-impl<T: Task, C: OutputChecker<T::Output>> TopDownCheck for TaskDependency<T, C, C::Stamp> {
+impl<T: Task, C: OutputChecker<T::Output>> TopDownCheckObj for TaskDependency<T, C, C::Stamp> {
   fn is_consistent(&self, context: &mut TopDownContext) -> bool {
     let check_task_end = context.session.tracker.check_task(self.task(), self.checker(), self.stamp());
     let output = context.make_task_consistent(self.task());

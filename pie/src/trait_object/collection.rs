@@ -7,6 +7,7 @@ use crate::{Resource, ResourceState};
 #[derive(Default)]
 #[repr(transparent)]
 pub struct TypeToAnyMap(HashMap<TypeId, Box<dyn Any>>);
+
 impl TypeToAnyMap {
   /// Gets a reference to the value of type `V` for type `T`.
   #[inline]

@@ -191,18 +191,18 @@ pub trait MapValueObj: DynClone + EqObj + AsAny + Debug {}
 
 impl<T: Clone + Eq + Any + Debug> MapValueObj for T {}
 
-impl<'a, T: Clone + Eq + Any + Debug> From<&'a T> for &'a dyn MapValueObj {
+impl<'a, T: Clone + Eq + Any + Debug> From<&'a T> for &'a (dyn MapValueObj + '_) {
   fn from(value: &'a T) -> Self { value as &dyn MapValueObj }
 }
 
-impl Clone for Box<dyn MapValueObj> {
+impl Clone for Box<dyn MapValueObj + '_> {
   #[inline]
   fn clone(&self) -> Self { dyn_clone::clone_box(self.as_ref()) }
 }
 
-impl PartialEq for dyn MapValueObj {
+impl PartialEq for dyn MapValueObj + '_ {
   #[inline]
   fn eq(&self, other: &Self) -> bool { self.eq_any(other.as_any()) }
 }
 
-impl Eq for dyn MapValueObj {}
+impl Eq for dyn MapValueObj + '_ {}

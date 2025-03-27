@@ -1,11 +1,11 @@
 use std::borrow::Borrow;
 use std::collections::HashMap;
 
-use pie_graph::{DAG, Node};
+use pie_graph::{Node, DAG};
 
 use crate::dependency::{Dependency, ResourceDependencyObj, TaskDependencyObj};
-use crate::trait_object::{KeyObj, ValueObj};
 use crate::trait_object::task::TaskObj;
+use crate::trait_object::{KeyObj, ValueObj};
 
 pub struct Store {
   graph: DAG<NodeData, Dependency>,
@@ -36,6 +36,7 @@ enum NodeData {
 #[repr(transparent)]
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub struct TaskNode(Node);
+
 impl Borrow<Node> for &TaskNode {
   fn borrow(&self) -> &Node { &self.0 }
 }
@@ -44,6 +45,7 @@ impl Borrow<Node> for &TaskNode {
 #[repr(transparent)]
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub struct ResourceNode(Node);
+
 impl Borrow<Node> for &ResourceNode {
   fn borrow(&self) -> &Node { &self.0 }
 }
@@ -64,6 +66,7 @@ impl Store {
       node
     }
   }
+
   /// Gets the task for `node`.
   ///
   /// # Panics
@@ -90,6 +93,7 @@ impl Store {
       node
     }
   }
+
   /// Gets the task for `node`.
   ///
   /// # Panics
@@ -116,6 +120,7 @@ impl Store {
     };
     output.as_ref().map(|o| o.as_ref())
   }
+
   /// Sets the output for task `node` to `new_output`.
   ///
   /// # Panics
@@ -130,6 +135,7 @@ impl Store {
     output.replace(new_output);
   }
 
+
   /// Compare task `node_a` and  task `node_b`, topographically.
   ///
   /// # Panics
@@ -142,6 +148,7 @@ impl Store {
     debug_assert!(self.graph.contains_node(node_b), "BUG: {:?} was not found in the dependency graph", node_b);
     self.graph.topo_cmp(node_a, node_b)
   }
+
   /// Checks whether there is a direct or transitive dependency from task `src` to task `dst`. Returns false when either
   /// node was not found in the dependency graph.
   ///
@@ -154,6 +161,7 @@ impl Store {
     debug_assert!(self.graph.contains_node(dst), "BUG: {:?} was not found in the dependency graph", dst);
     self.graph.contains_transitive_edge(src, dst)
   }
+
   /// Get all task nodes that read from resource `dst`.
   ///
   /// # Panics
@@ -165,6 +173,7 @@ impl Store {
     self.graph.get_incoming_edges(dst)
       .filter_map(|(n, d)| matches!(d, Dependency::Read(_)).then(|| TaskNode(*n)))
   }
+
   /// Get the task node that writes to resource `dst`, or `None` if there is none.
   ///
   /// # Panics
@@ -177,6 +186,7 @@ impl Store {
       .filter_map(|(n, d)| matches!(d, Dependency::Write(_)).then(|| TaskNode(*n)))
       .next()
   }
+
   /// Get all task nodes and corresponding dependencies that read from to resource `dst`.
   ///
   /// # Panics
@@ -190,6 +200,7 @@ impl Store {
       _ => None,
     })
   }
+
   /// Get all task nodes and corresponding dependencies that read from or write to resource `dst`.
   ///
   /// # Panics
@@ -203,6 +214,7 @@ impl Store {
       _ => None,
     })
   }
+
   /// Get all dependencies from task `src`.
   ///
   /// # Panics
@@ -212,6 +224,7 @@ impl Store {
     debug_assert!(self.graph.contains_node(src), "BUG: {:?} was not found in the dependency graph", src);
     self.graph.get_outgoing_edge_data(src)
   }
+
   /// Get all task nodes and corresponding require dependencies to task `dst`.
   ///
   /// # Panics
@@ -227,6 +240,7 @@ impl Store {
       })
   }
 
+
   /// Get all resource nodes that are written by task `src`.
   ///
   /// # Panics
@@ -238,6 +252,7 @@ impl Store {
     self.graph.get_outgoing_edges(src)
       .filter_map(|(n, d)| matches!(d, Dependency::Write(_)).then(|| ResourceNode(*n)))
   }
+
 
   /// Adds a `dependency` from `src` to `dst`.
   ///
@@ -257,6 +272,7 @@ impl Store {
       _ => Ok(()),
     }
   }
+
   /// Gets the mutable `dependency` from `src` to `dst`.
   ///
   /// # Panics
@@ -299,11 +315,11 @@ mod test {
 
   use dev_util::downcast_ref_or_panic;
 
-  use crate::Context;
   use crate::dependency::{ResourceDependency, TaskDependency};
   use crate::resource::file::{ExistsChecker, ModifiedChecker};
-  use crate::Task;
   use crate::task::EqualsChecker;
+  use crate::Context;
+  use crate::Task;
 
   use super::*;
 

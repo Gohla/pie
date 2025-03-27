@@ -9,6 +9,7 @@ use crate::{Context, OutputChecker, Task, Value};
 /// [Task output checker](OutputChecker) that checks by equality.
 #[derive(Default, Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Debug)]
 pub struct EqualsChecker;
+
 impl<O: Value + Eq> OutputChecker<O> for EqualsChecker {
   type Stamp = O;
 
@@ -28,6 +29,7 @@ impl<O: Value + Eq> OutputChecker<O> for EqualsChecker {
 /// [Task output checker](OutputChecker) that checks [Ok] by equality, but [Err] only by existence.
 #[derive(Default, Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Debug)]
 pub struct OkEqualsChecker;
+
 impl<T: Value + Eq, E> OutputChecker<Result<T, E>> for OkEqualsChecker {
   type Stamp = Option<T>;
 
@@ -48,6 +50,7 @@ impl<T: Value + Eq, E> OutputChecker<Result<T, E>> for OkEqualsChecker {
 /// [Task output checker](OutputChecker) that checks [Err] by equality, but [Ok] only by existence.
 #[derive(Default, Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Debug)]
 pub struct ErrEqualsChecker;
+
 impl<T, E: Value + Eq> OutputChecker<Result<T, E>> for ErrEqualsChecker {
   type Stamp = Option<E>;
 
@@ -68,6 +71,7 @@ impl<T, E: Value + Eq> OutputChecker<Result<T, E>> for ErrEqualsChecker {
 /// [Task output checker](OutputChecker) that checks whether a [Result] changes from [Ok] to [Err] or vice versa.
 #[derive(Default, Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Debug)]
 pub struct ResultChecker;
+
 impl<T, E> OutputChecker<Result<T, E>> for ResultChecker {
   type Stamp = bool;
 
@@ -90,6 +94,7 @@ impl<T, E> OutputChecker<Result<T, E>> for ResultChecker {
 /// are not interested in the output of the task.
 #[derive(Default, Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Debug)]
 pub struct AlwaysConsistent;
+
 impl<O> OutputChecker<O> for AlwaysConsistent {
   type Stamp = ();
 
@@ -121,6 +126,7 @@ impl<T: Task> Task for Box<T> {
     self.as_ref().execute(context)
   }
 }
+
 /// Implement task for [`Rc`] wrapped tasks.
 impl<T: Task> Task for Rc<T> {
   type Output = T::Output;
@@ -129,6 +135,7 @@ impl<T: Task> Task for Rc<T> {
     self.as_ref().execute(context)
   }
 }
+
 /// Implement task for [`Arc`] wrapped tasks.
 impl<T: Task> Task for Arc<T> {
   type Output = T::Output;

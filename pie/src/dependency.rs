@@ -3,7 +3,7 @@ use std::fmt::Debug;
 
 use dyn_clone::DynClone;
 
-use crate::context::top_down::TopDownCheck;
+use crate::context::top_down::TopDownCheckObj;
 use crate::pie::Tracking;
 use crate::trait_object::collection::TypeToAnyMap;
 use crate::trait_object::{KeyObj, ValueObj};
@@ -35,12 +35,10 @@ impl<T: Task, C: OutputChecker<T::Output>> TaskDependency<T, C, C::Stamp> {
 /// Internal trait for task dependencies.
 ///
 /// Object-safe trait.
-pub trait TaskDependencyObj: DynClone + Debug {
+pub trait TaskDependencyObj: TopDownCheckObj + DynClone + Debug {
   fn task(&self) -> &dyn KeyObj;
   fn checker(&self) -> &dyn ValueObj;
   fn stamp(&self) -> &dyn ValueObj;
-
-  fn as_top_down_check(&self) -> &dyn TopDownCheck;
 
   fn is_consistent_bottom_up(&self, output: &dyn ValueObj, requiring_task: &dyn KeyObj, tracker: &mut Tracking) -> bool;
 }
@@ -51,8 +49,6 @@ impl<T: Task, C: OutputChecker<T::Output>> TaskDependencyObj for TaskDependency<
   fn task(&self) -> &dyn KeyObj { &self.task as &dyn KeyObj }
   fn checker(&self) -> &dyn ValueObj { &self.checker as &dyn ValueObj }
   fn stamp(&self) -> &dyn ValueObj { &self.stamp as &dyn ValueObj }
-
-  fn as_top_down_check(&self) -> &dyn TopDownCheck { self as &dyn TopDownCheck }
 
   fn is_consistent_bottom_up(&self, output: &dyn ValueObj, requiring_task: &dyn KeyObj, tracker: &mut Tracking) -> bool {
     let Some(output) = output.as_any().downcast_ref::<T::Output>() else {
@@ -72,7 +68,7 @@ impl<T: Task, C: OutputChecker<T::Output>> TaskDependencyObj for TaskDependency<
   }
 }
 
-impl Clone for Box<dyn TaskDependencyObj> {
+impl Clone for Box<dyn TaskDependencyObj + '_> {
   #[inline]
   fn clone(&self) -> Self { dyn_clone::clone_box(self.as_ref()) }
 }
@@ -85,6 +81,7 @@ pub struct ResourceDependency<R, C, S> {
   checker: C,
   stamp: S,
 }
+
 impl<R: Resource, C: ResourceChecker<R>> ResourceDependency<R, C, C::Stamp> {
   pub fn new(resource: R, checker: C, stamp: C::Stamp) -> Self { Self { resource, checker, stamp } }
 
@@ -167,7 +164,7 @@ impl<R: Resource, C: ResourceChecker<R>> ResourceDependencyObj for ResourceDepen
   }
 }
 
-impl Clone for Box<dyn ResourceDependencyObj> {
+impl Clone for Box<dyn ResourceDependencyObj + '_> {
   #[inline]
   fn clone(&self) -> Self { dyn_clone::clone_box(self.as_ref()) }
 }

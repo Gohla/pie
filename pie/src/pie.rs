@@ -3,14 +3,14 @@ use std::error::Error;
 use std::fmt::Debug;
 use std::ops::{Deref, DerefMut};
 
-use crate::{Context, OutputChecker, Resource, ResourceChecker, ResourceState, Session, Task};
 use crate::context::bottom_up::BottomUpContext;
 use crate::context::top_down::TopDownContext;
 use crate::store::{Store, TaskNode};
 use crate::task::AlwaysConsistent;
 use crate::tracker::Tracker;
-use crate::trait_object::{KeyObj, ValueObj};
 use crate::trait_object::collection::TypeToAnyMap;
+use crate::trait_object::{KeyObj, ValueObj};
+use crate::{Context, OutputChecker, Resource, ResourceChecker, ResourceState, Session, Task};
 
 /// Internals for [Pie](crate::Pie).
 pub struct PieInternal<A> {
@@ -23,7 +23,6 @@ impl Default for PieInternal<()> {
   fn default() -> Self { PieInternal::with_tracker(()) }
 }
 impl<A: Tracker> PieInternal<A> {
-  #[inline]
   pub fn with_tracker(tracker: A) -> Self {
     Self {
       store: Store::default(),
@@ -32,19 +31,13 @@ impl<A: Tracker> PieInternal<A> {
     }
   }
 
-  #[inline]
   pub fn new_session(&mut self) -> Session { Session(SessionInternal::new(self)) }
-  #[inline]
   pub fn run_in_session<R>(&mut self, f: impl FnOnce(Session) -> R) -> R { f(self.new_session()) }
 
-  #[inline]
   pub fn tracker(&self) -> &A { &self.tracker }
-  #[inline]
   pub fn tracker_mut(&mut self) -> &mut A { &mut self.tracker }
 
-  #[inline]
   pub fn resource_state<R: Resource>(&self) -> &impl ResourceState<R> { &self.resource_state }
-  #[inline]
   pub fn resource_state_mut<R: Resource>(&mut self) -> &mut impl ResourceState<R> { &mut self.resource_state }
 }
 
@@ -100,6 +93,7 @@ impl<'p, 's> BottomUpBuildInternal<'p, 's> {
   pub fn schedule_tasks_affected_by(&mut self, resource: &dyn KeyObj) {
     self.0.schedule_tasks_affected_by(resource);
   }
+
   #[inline]
   pub fn update_affected_tasks(mut self) {
     self.0.session.current_executing_task = None;
@@ -225,12 +219,13 @@ impl Tracking<'_> {
     |tracking, inconsistency| tracking.0.check_task_read_resource_end(reading_task, checker, stamp, inconsistency)
   }
 }
+
 impl<'p> Deref for Tracking<'p> {
   type Target = dyn Tracker + 'p;
-  #[inline]
+
   fn deref(&self) -> &Self::Target { self.0 }
 }
+
 impl DerefMut for Tracking<'_> {
-  #[inline]
   fn deref_mut(&mut self) -> &mut Self::Target { self.0 }
 }

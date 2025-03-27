@@ -17,11 +17,13 @@ impl WritingTracker<BufWriter<Stdout>> {
   #[inline]
   pub fn with_stdout() -> Self { Self::new(BufWriter::new(io::stdout())) }
 }
+
 impl WritingTracker<BufWriter<Stderr>> {
   /// Creates a [`WritingTracker`] that writes to buffered standard error.
   #[inline]
   pub fn with_stderr() -> Self { Self::new(BufWriter::new(io::stderr())) }
 }
+
 impl<W: Write> WritingTracker<W> {
   /// Creates a new [`WritingTracker`] that writes to `writer`.
   #[inline]

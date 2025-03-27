@@ -17,68 +17,88 @@ pub(crate) mod task;
 
 /// Object safe [`Value`] proxy that can be cloned, converted to [`Any`], and debug formatted.
 pub trait ValueObj: DynClone + AsAny + Debug {}
+
 const_assert_object_safe!(dyn ValueObj);
+
 impl<T: Value> ValueObj for T {}
-impl<'a, T: Value> From<&'a T> for &'a dyn ValueObj {
+
+impl<'a, T: Value> From<&'a T> for &'a (dyn ValueObj + '_) {
   #[inline]
   fn from(value: &'a T) -> Self { value as &dyn ValueObj }
 }
-impl Clone for Box<dyn ValueObj> {
+
+impl Clone for Box<dyn ValueObj + '_> {
   #[inline]
   fn clone(&self) -> Self { dyn_clone::clone_box(self.as_ref()) }
 }
-impl ToOwned for dyn ValueObj {
+
+impl ToOwned for dyn ValueObj + '_ {
   type Owned = Box<dyn ValueObj>;
   #[inline]
   fn to_owned(&self) -> Self::Owned { dyn_clone::clone_box(self) }
 }
-impl<'a> From<&'a dyn ValueObj> for Cow<'a, dyn ValueObj> {
+
+impl<'a> From<&'a dyn ValueObj> for Cow<'a, dyn ValueObj + '_> {
   #[inline]
   fn from(value: &'a dyn ValueObj) -> Self { Cow::Borrowed(value) }
 }
-impl<'a> From<Box<dyn ValueObj>> for Cow<'a, dyn ValueObj> {
+
+impl<'a> From<Box<dyn ValueObj>> for Cow<'a, dyn ValueObj + '_> {
   #[inline]
   fn from(value: Box<dyn ValueObj>) -> Self { Cow::Owned(value) }
 }
 
+
 /// Object safe [`Key`] proxy that can be cloned, equality compared, hashed, converted to [`Any`], and debug formatted.
 pub trait KeyObj: DynClone + EqObj + HashObj + AsAny + Debug {}
+
 const_assert_object_safe!(dyn KeyObj);
+
 impl<T: Key> KeyObj for T {}
-impl<'a, T: Key> From<&'a T> for &'a dyn KeyObj {
+
+impl<'a, T: Key> From<&'a T> for &'a (dyn KeyObj + '_) {
   #[inline]
   fn from(value: &'a T) -> Self { value as &dyn KeyObj }
 }
-impl PartialEq for dyn KeyObj {
+
+impl PartialEq for dyn KeyObj + '_ {
   #[inline]
   fn eq(&self, other: &Self) -> bool { self.eq_any(other.as_any()) }
 }
-impl Eq for dyn KeyObj {}
-impl PartialEq<dyn KeyObj> for Box<dyn KeyObj> {
+
+impl Eq for dyn KeyObj + '_ {}
+
+impl PartialEq<dyn KeyObj> for Box<dyn KeyObj + '_> {
   #[inline]
   fn eq(&self, other: &dyn KeyObj) -> bool { self.as_ref().eq_any(other.as_any()) }
 }
-impl Hash for dyn KeyObj {
+
+impl Hash for dyn KeyObj + '_ {
   #[inline]
   fn hash<H: Hasher>(&self, state: &mut H) { self.hash_obj(state); }
 }
-impl Clone for Box<dyn KeyObj> {
+
+impl Clone for Box<dyn KeyObj + '_> {
   #[inline]
   fn clone(&self) -> Self { dyn_clone::clone_box(self.as_ref()) }
 }
-impl ToOwned for dyn KeyObj {
+
+impl ToOwned for dyn KeyObj + '_ {
   type Owned = Box<dyn KeyObj>;
   #[inline]
   fn to_owned(&self) -> Self::Owned { dyn_clone::clone_box(self) }
 }
-impl<'a> From<&'a dyn KeyObj> for Cow<'a, dyn KeyObj> {
+
+impl<'a> From<&'a dyn KeyObj> for Cow<'a, dyn KeyObj + '_> {
   #[inline]
   fn from(value: &'a dyn KeyObj) -> Self { Cow::Borrowed(value) }
 }
-impl<'a> From<Box<dyn KeyObj>> for Cow<'a, dyn KeyObj> {
+
+impl<'a> From<Box<dyn KeyObj>> for Cow<'a, dyn KeyObj + '_> {
   #[inline]
   fn from(value: Box<dyn KeyObj>) -> Self { Cow::Owned(value) }
 }
+
 
 #[cfg(test)]
 mod tests {
